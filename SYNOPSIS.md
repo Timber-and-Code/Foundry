@@ -96,7 +96,7 @@ Every feature decision, pricing tier, and growth initiative must be evaluated ag
 ### Remaining Build Queue (v1.13.x)
 
 | Feature | Rationale |
-|---------|-----------|
+|---------|---------- |
 | AI builder error handling | Retry button + graceful fallback to pre-built program |
 | 5-day PPL leg warning | Detect PPLPP layout, surface volume gap, offer fix |
 | Fatigue signal | Flag stalling anchor lifts over 2+ consecutive weeks |
@@ -108,6 +108,7 @@ Every feature decision, pricing tier, and growth initiative must be evaluated ag
 | v1.13.x → feature complete | AI error handling, 5-day PPL fix, fatigue signal |
 | v2.0 — April Wk 3 | React + Vite migration. Mechanical. No new features during this phase. |
 | **AI Backend — pre-App Store** | Cloudflare Worker or Vercel serverless proxy. API key lives server-side. One route: take builder params → call Anthropic → return program JSON. ~40 lines. Unblocks real AI generation before store submission. |
+| **Icon redesign — pre-App Store** | Current canvas-drawn icon (crucible + pour stream) reads poorly at 60px on iOS home screen. Redesign to tilted pour / anvil / forge hammer. Use frontend-design skill. One session. |
 | Capacitor — April Wk 3 | Wrap for iOS + Android. Native haptics, push notifications. |
 | Store Launch — April Wk 4 | Soft launch to Tyler's client network. Then paid acquisition + referral loop. |
 
