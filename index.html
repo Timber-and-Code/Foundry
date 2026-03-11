@@ -1421,6 +1421,31 @@ const EXERCISE_DB = [
     description: "Add load via a belt, vest, or dumbbell and use the same underhand shoulder-width grip as bodyweight chin-ups. Hang from a dead arm position and pull yourself up until your chin clears the bar, then lower with full control. The combination of heavy load and underhand grip produces intense bicep and lat involvement — it's one of the best bang-for-your-buck upper body pulling exercises you can do. Warm up thoroughly and ramp into your working sets; the elbow joints need more preparation under added load. Keep the tempo honest — no bouncing out of the bottom.",
   },
 
+  {
+    id: "pullups_assisted",
+    videoUrl: "https://www.youtube.com/results?search_query=assisted+pull+up+machine+form",
+    name: "Assisted Pull-ups",
+    muscle: "Back",
+    muscles: ["Lats", "Biceps", "Back"],
+    tag: "PULL",
+    splits: ["ppl", "upper", "full"], equipment: "machine", pattern: "pull",
+    fatigue: "moderate", anchor: true, diff: 1, bw: true, assisted: true,
+    sets: 4, reps: "6-10", rest: "3 min", warmup: "1 light feeler set at high assist",
+    description: "Set the counterweight stack on the assisted pull-up machine — this is your ASSIST weight, not added weight. More weight on the stack = easier. The machine subtracts this from your bodyweight, so you are only lifting the difference. Use an overhand grip slightly wider than shoulder width. From a dead hang, drive your elbows down toward your hips until your chin clears the bar. Lower under full control. As you get stronger, reduce the assist weight across sessions — the goal is to eventually need no assist at all. Log the assist weight you used so you can track it decreasing over time.",
+  },
+  {
+    id: "chinups_assisted",
+    videoUrl: "https://www.youtube.com/results?search_query=assisted+chin+up+machine+form",
+    name: "Assisted Chin-ups",
+    muscle: "Back",
+    muscles: ["Lats", "Biceps"],
+    tag: "PULL",
+    splits: ["ppl", "upper", "full"], equipment: "machine", pattern: "pull",
+    fatigue: "moderate", anchor: true, diff: 1, bw: true, assisted: true,
+    sets: 4, reps: "6-10", rest: "3 min", warmup: "1 light feeler set at high assist",
+    description: "Set the counterweight stack on the assisted chin-up machine — this is your ASSIST weight, not added weight. More weight on the stack = easier. The machine subtracts this from your bodyweight. Use an underhand shoulder-width grip. Pull until your chin clears the bar, then lower with full control to a dead hang. The underhand grip recruits more bicep than a pull-up grip, making this slightly easier for most people. Reduce the assist weight each week as you get stronger — progress is tracked by the number going down, not up.",
+  },
+
   // ─── PULL — REAR DELTS ───────────────────────────────────────────────────────
   {
     id: "db_rear_delt_fly",
@@ -5598,7 +5623,14 @@ function WorkoutCompleteModal({ dayLabel, gender, onOk, stats, weekIdx }) {
 }
 
 // ─── COMPLETE EXERCISE DIALOG ─────────────────────────────────────────────────
+const RPE_OPTS = [
+  { value: "easy", label: "Easy",   sub: "Could've done more",      color: "var(--phase-accum)" },
+  { value: "good", label: "Good",   sub: "Right where I wanted",    color: "var(--accent)"      },
+  { value: "hard", label: "Hard",   sub: "Left nothing in the tank", color: "#c9a227"            },
+];
+
 function CompleteDialog({ exerciseName, onYes, onNo }) {
+  const [rpe, setRpe] = React.useState(null);
   return (
     <div style={{
       position:"fixed", inset:0, zIndex:200,
@@ -5607,23 +5639,44 @@ function CompleteDialog({ exerciseName, onYes, onNo }) {
     }}>
       <div style={{
         background:"var(--bg-card)", border:"1px solid var(--border-accent)", borderRadius:8,
-        padding:"32px 24px", maxWidth:340, width:"100%",
+        padding:"28px 24px", maxWidth:340, width:"100%",
         boxShadow:"var(--shadow-xl)",
         animation:"dialogIn 0.18s ease-out",
       }}>
-        <div style={{textAlign:"center", marginBottom:24}}>
-          <div style={{fontSize:38, marginBottom:14, color:"var(--success)", fontWeight:800, fontSize:24, letterSpacing:"0.02em"}}>DONE?</div>
+        <div style={{textAlign:"center", marginBottom:20}}>
+          <div style={{fontWeight:800, fontSize:24, letterSpacing:"0.02em", color:"var(--success)", marginBottom:6}}>DONE?</div>
           <div style={{fontSize:12, fontWeight:700, letterSpacing:"0.04em", color:"var(--accent)", marginBottom:8}}>Exercise complete?</div>
           <div style={{fontSize:18, fontWeight:700, color:"var(--text-primary)", lineHeight:1.4}}>{exerciseName}</div>
-          <div style={{fontSize:14, color:"var(--text-secondary)", marginTop:10, lineHeight:1.5}}>All sets logged. Mark complete and move to the next exercise?</div>
         </div>
+
+        {/* RPE Picker */}
+        <div style={{marginBottom:20}}>
+          <div style={{fontSize:10, fontWeight:700, letterSpacing:"0.07em", color:"var(--text-muted)", textAlign:"center", marginBottom:10}}>HOW WAS THE EXERTION?</div>
+          <div style={{display:"flex", gap:8}}>
+            {RPE_OPTS.map(opt => {
+              const sel = rpe === opt.value;
+              return (
+                <button key={opt.value} onClick={() => setRpe(sel ? null : opt.value)} style={{
+                  flex:1, padding:"12px 6px", borderRadius:6, cursor:"pointer",
+                  background: sel ? `${opt.color}22` : "var(--bg-surface)",
+                  border:`1px solid ${sel ? opt.color : "var(--border)"}`,
+                  transition:"all 0.15s",
+                }}>
+                  <div style={{fontSize:13, fontWeight:800, color: sel ? opt.color : "var(--text-secondary)", letterSpacing:"0.02em"}}>{opt.label}</div>
+                  <div style={{fontSize:9, color: sel ? opt.color : "var(--text-muted)", marginTop:3, lineHeight:1.3, opacity: sel ? 1 : 0.7}}>{opt.sub}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
           <button onClick={onNo} style={{
             padding:"16px", borderRadius:6, cursor:"pointer",
             background:"transparent", border:"1px solid var(--border)",
             color:"var(--text-muted)", fontSize:16, fontWeight:700,
           }}>No</button>
-          <button onClick={onYes} style={{
+          <button onClick={() => onYes(rpe)} style={{
             padding:"16px", borderRadius:6, cursor:"pointer",
             background:"var(--border-accent)", border:"1px solid var(--btn-primary-border)",
             color:"var(--accent)", fontSize:16, fontWeight:700,
@@ -6070,8 +6123,8 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
       }
       return n;
     });
-    // Fire rest timer for working sets (not warmup)
-    if (!setData.warmup && onSetLogged) {
+    // Fire rest timer for working sets (not warmup, not last set)
+    if (!setData.warmup && onSetLogged && s < exercise.sets - 1) {
       onSetLogged(exercise.rest, exercise.name, s);
     }
   };
@@ -6411,7 +6464,7 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
                   {exercise.bw ? (
                     <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center"}}>
                       <div style={{fontSize:9, fontWeight:700, color:"var(--text-muted)", letterSpacing:"0.05em", lineHeight:1, marginBottom:1}}>
-                        BW {bodyweight > 0 ? `(${bodyweight})` : ""} +
+                        {exercise.assisted ? "ASSIST ↓" : `BW ${bodyweight > 0 ? `(${bodyweight})` : ""} +`}
                       </div>
                       <input type="number" inputMode="decimal" placeholder="0"
                         value={setData.weight}
@@ -6716,6 +6769,7 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
 
   // Session duration — record start time on first mount if session not yet done
   const sessionStartRef = React.useRef(null);
+  const strengthEndRef  = React.useRef(null);
   React.useEffect(() => {
     if (!isDone && !isLocked) {
       sessionStartRef.current = Date.now();
@@ -6723,6 +6777,7 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [showPostStrengthPrompt, setShowPostStrengthPrompt] = useState(false);
   // BW weekly check-in — show once per week on first active session
   const [showBwCheckin, setShowBwCheckin] = useState(() => !isDone && !isLocked && !bwLoggedThisWeek());
   const [bwCheckinInput, setBwCheckinInput] = useState(() => {
@@ -6955,8 +7010,24 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
     setDialog({ exIdx, exName });
   }, [doneExercises]);
 
-  const handleDialogYes = () => {
+  const handleDialogYes = (rpe) => {
     const { exIdx } = dialog;
+    // Save RPE to the last set of this exercise
+    if (rpe) {
+      const ex = exercises[exIdx];
+      const lastSet = ex.sets - 1;
+      setWeekData(prev => {
+        const next = {
+          ...prev,
+          [exIdx]: {
+            ...(prev[exIdx] || {}),
+            [lastSet]: { ...((prev[exIdx] || {})[lastSet] || {}), rpe }
+          }
+        };
+        saveDayWeek(dayIdx, weekIdx, next);
+        return next;
+      });
+    }
     setDialog(null);
     setDoneExercises(prev => new Set([...prev, exIdx]));
     const nextIdx = exIdx + 1;
@@ -6967,7 +7038,10 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
         if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
       }, 120);
     } else {
+      // Last exercise done — stamp strength end, prompt for cardio
+      strengthEndRef.current = Date.now();
       setExpandedIdx(null);
+      setShowPostStrengthPrompt(true);
     }
   };
 
@@ -6992,10 +7066,11 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
     markComplete(dayIdx, weekIdx);
     onComplete(dayIdx, weekIdx);
 
-    // Compute and save session duration
+    // Compute and save session duration — use strength end time if stamped, else now
     let durationMins = null;
     if (sessionStartRef.current) {
-      durationMins = Math.round((Date.now() - sessionStartRef.current) / 60000);
+      const endTime = strengthEndRef.current || Date.now();
+      durationMins = Math.round((endTime - sessionStartRef.current) / 60000);
       if (durationMins > 0 && durationMins < 300) { // sanity: ignore >5hr sessions
         saveSessionDuration(dayIdx, weekIdx, durationMins);
       } else {
@@ -7333,6 +7408,49 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
           </div>
         </div>
       )}
+      {showPostStrengthPrompt && (
+        <div style={{
+          position:"fixed", inset:0, background:"rgba(0,0,0,0.82)", zIndex:210,
+          display:"flex", alignItems:"center", justifyContent:"center", padding:"24px",
+        }}>
+          <div style={{
+            background:"var(--bg-card)", border:"1px solid var(--phase-accum)",
+            borderRadius:12, padding:"32px 24px", maxWidth:340, width:"100%",
+          }}>
+            <div style={{fontSize:28, textAlign:"center", marginBottom:12}}>💪</div>
+            <div style={{fontSize:16, fontWeight:800, color:"var(--text-primary)", textAlign:"center", marginBottom:8}}>
+              Strength Done
+            </div>
+            <div style={{fontSize:13, color:"var(--text-secondary)", textAlign:"center", lineHeight:1.6, marginBottom:28}}>
+              All sets logged. Are you doing cardio today, or are you finished?
+            </div>
+            <div style={{display:"flex", flexDirection:"column", gap:10}}>
+              <button onClick={() => {
+                setShowPostStrengthPrompt(false);
+                // Scroll to cardio block
+                setTimeout(() => {
+                  const el = document.getElementById("cardio-block");
+                  if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+                }, 120);
+              }} style={{
+                padding:"16px", borderRadius:8, cursor:"pointer",
+                background:"var(--phase-accum)22",
+                border:"1px solid var(--phase-accum)",
+                color:"var(--phase-accum)", fontSize:14, fontWeight:700,
+              }}>Log Cardio →</button>
+              <button onClick={() => {
+                setShowPostStrengthPrompt(false);
+                doComplete();
+              }} style={{
+                padding:"14px", borderRadius:8, cursor:"pointer",
+                background:"var(--bg-surface)",
+                border:"1px solid var(--border)",
+                color:"var(--text-secondary)", fontSize:13, fontWeight:600,
+              }}>Finished for Today</button>
+            </div>
+          </div>
+        </div>
+      )}
       {swapTarget !== null && (
         <SwapModal
           exercise={exercises[swapTarget.exIdx]}
@@ -7572,7 +7690,9 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
       )}
 
       {/* Cardio Block — standalone for cardio days, collapsible for lifting days */}
-      <CardioBlock dayIdx={dayIdx} weekIdx={weekIdx} readOnly={isDone || isLocked} standalone={isCardioDay} />
+      <div id="cardio-block">
+        <CardioBlock dayIdx={dayIdx} weekIdx={weekIdx} readOnly={isDone || isLocked} standalone={isCardioDay} />
+      </div>
 
       <div style={{margin:"16px 16px 0"}}>
         <div style={{
