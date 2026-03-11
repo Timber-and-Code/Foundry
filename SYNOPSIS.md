@@ -11,7 +11,7 @@ The Foundry is a periodized strength training PWA built for serious athletes and
 
 **PRIMARY OBJECTIVE: $100,000 in revenue within 12 months of launch.**
 
-Every feature decision, pricing tier, and growth initiative must be evaluated against this target. A beautiful app that does not convert is a hobby. We are building a business.
+Every feature decision, pricing tier, and growth initiative must be evaluated against this target. A beautiful app that doesn't convert is a hobby. We are building a business.
 
 ---
 
@@ -27,64 +27,71 @@ Every feature decision, pricing tier, and growth initiative must be evaluated ag
 - 700 active Pro subscribers at $12/mo = $100,800 ARR
 - Or: 850 annual at $99 + ~200 monthly = $102,550
 - Tyler's existing trainer/client network is the primary warm acquisition channel
-- Every trainer using the app is a distribution node — 10 trainers x 20 clients = 200 users from 10 conversations
-- Trainer tier at $29/mo = 2.4x a Pro subscription with zero extra feature cost
+- Every trainer using the app is a distribution node — 10 trainers × 20 clients = 200 users from 10 conversations
 
 ---
 
-## 3 · Free Access: Youth & Seniors
+## 3 · Technical Foundation
 
-**Under 18 — Free Forever**
-A 16-year-old who builds their first program on The Foundry is a paying Pro user at 22. Future: school/team licensing model.
+| Property | Value |
+|----------|-------|
+| Architecture | Single HTML file — React 18 via Babel standalone, no build step |
+| Storage | All data in localStorage under `ppl:` namespace |
+| Deployment | GitHub Pages — push to main = live |
+| API | Anthropic `claude-sonnet-4-20250514` for AI program builder |
+| Migration target | React + Vite at v2.0 (mechanical, no new features) |
+| Post-migration | Capacitor wrap → iOS + Android → App Store |
 
-**Adults 62+ — Free Forever**
-Strength training after 60 reduces fall risk, maintains bone density, extends functional independence. This group is profoundly underserved. An older adult who loves the app tells their adult children. The adult children pay Pro.
-
----
-
-## 4 · Technical Foundation
-
-| | |
-|---|---|
-| **Stack** | React 18 (Babel CDN) · Single HTML file · localStorage · Anthropic API (Claude Sonnet) |
-| **Storage** | All keys under ppl: namespace · No backend · Export/import backup always functional |
-| **AI** | Claude API for program generation · Superset suggestions · Swap recommendations |
-| **File** | Single .html file. No splitting until Capacitor. |
-| **Versioning** | MAJOR.MINOR.PATCH — e.g. Foundry_1_13_0.html |
-| **Next major** | v2.0 React + Vite migration -> Capacitor -> App Store |
-
-### Hard Rules — Never Break
-- Single file always. No splitting until Capacitor.
-- Warmup sets excluded from ALL calculations — volume, PRs, progression, history.
-- All localStorage keys under ppl: namespace.
-- Export / import backup must remain functional at all times.
-- Deliver an updated SYNOPSIS.md at the end of every build session.
+**Current file:** `Foundry_1_13_0.html` / `index.html` on GitHub Pages
 
 ---
 
-## 5 · What's Built — v1.12 Through v1.13.0
+## 4 · Features Shipped
 
-| Feature | Notes |
-|---------|-------|
-| Light mode QA | 20 screens audited |
-| No-meso Explore flow | NoMesoShell with sticky Build My Program CTA |
-| Weight auto-suggest | Carry-forward from prior week + +5lb nudge |
-| Onboarding revamp | 3 screens: brand splash, the loop, quick intro |
-| Supersets | Manual pairing, AI antagonist suggestions, deferred rest timer |
-| Cardio logging | CardioBlock: type/duration/intensity |
-| Deload week treatment | DELOAD WEEK pill, explanation banner, recovery subtitle |
-| Warmup ramp autogen | generateWarmupSteps() — computes actual lbs from set 0 |
-| Rest timer splash | Centered full-overlay modal with SVG ring. Blue -> amber -> red. |
-| Post-workout summary splash | Sets · Reps · Volume · Time · Phase cue · Quote. Centered modal. |
-| PR Sparklines | SVG line chart per exercise in Progress tab. PR badge on all-time best. |
-| Bodyweight log | Weekly check-in prompt. Trend chart in Progress with delta. 52-entry rolling. |
-| Session duration tracking | Timestamp on mount -> delta on complete. Bar chart in Progress. |
-| e1RM in Progress tab | Epley formula. Anchor lifts with 75%/85% loading suggestions. PR badge. |
-| RPE logging | Stored per set. Not currently surfaced in UI — parked for future. |
+### v1.13.0 (current)
+
+| Feature | Detail |
+|---------|--------|
+| Rest timer | Centered splash modal, countdown, dismiss. Fires after sets 1–(N-1) only — skips after last set. |
+| Post-workout summary | Sets / reps / volume / duration / phase cue |
+| PR Sparklines | Progress tab only — 8-week trend per exercise |
+| Bodyweight log | Weekly check-in, chart in Progress tab |
+| Session duration | Strength timing only. Stamps at last exercise confirmed done. Separate from cardio. |
+| e1RM | Progress tab — 75% and 85% loading suggestions |
+| RPE logging | Stored per set. Prompted in DONE? dialog — Easy / Good / Hard. No strip on card. |
+| Post-strength prompt | After last exercise: "Log Cardio →" or "Finished for Today" |
+| Assisted Pull-up / Chin-up | Exercise DB entries with `assisted: true`. Weight column shows "ASSIST ↓". |
+| AI program builder | UI complete. Currently runs local rule-based generation. Real AI backend pre-App Store. |
+
+---
+
+## 5 · Standing Product Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Free tier for under-18 and 62+ | Moral stance + acquisition. Young athletes build habits. Older adults need it most. |
+| RPE in DONE? dialog, not card strip | Reduces noise during logging. Natural moment to reflect is after the exercise, not mid-set. |
+| No sparklines on exercise card | Card is for logging. Analysis lives in Progress tab. |
+| Session duration = strength only | Cardio is separate. Don't inflate strength session metrics with treadmill time. |
+| AI backend server-side only | Never expose API key client-side. Cloudflare Worker / Vercel proxy pre-App Store. |
+| Stay in Claude.ai chat until v2.0 | Single-file stage doesn't justify losing persistent memory. Migrate when project splits into files. |
+
+| **Next major** | v2.0 React + Vite migration → Capacitor → App Store |
 
 ---
 
 ## 6 · Roadmap — What's Next
+
+### Completed This Session (post-1.13.0)
+
+| Feature | Status |
+|---------|--------|
+| Assisted Pull-up + Assisted Chin-up in exercise DB | ✓ |
+| Weight column shows "ASSIST ↓" for assisted exercises | ✓ |
+| Rest timer skips after last set — goes straight to DONE? prompt | ✓ |
+| RPE picker added to DONE? dialog — Easy / Good / Hard, saves to last set | ✓ |
+| Post-strength cardio prompt — "Log Cardio" or "Finished for Today" | ✓ |
+| Session duration stamps at strength end, not cardio end | ✓ |
 
 ### Remaining Build Queue (v1.13.x)
 
@@ -98,8 +105,9 @@ Strength training after 60 reduces fall risk, maintains bone density, extends fu
 
 | Phase | Scope |
 |-------|-------|
-| v1.13.x -> feature complete | AI error handling, 5-day PPL fix, fatigue signal |
+| v1.13.x → feature complete | AI error handling, 5-day PPL fix, fatigue signal |
 | v2.0 — April Wk 3 | React + Vite migration. Mechanical. No new features during this phase. |
+| **AI Backend — pre-App Store** | Cloudflare Worker or Vercel serverless proxy. API key lives server-side. One route: take builder params → call Anthropic → return program JSON. ~40 lines. Unblocks real AI generation before store submission. |
 | Capacitor — April Wk 3 | Wrap for iOS + Android. Native haptics, push notifications. |
 | Store Launch — April Wk 4 | Soft launch to Tyler's client network. Then paid acquisition + referral loop. |
 
@@ -107,34 +115,33 @@ Strength training after 60 reduces fall risk, maintains bone density, extends fu
 
 ## 7 · Ongoing Development Directive
 
-**STANDING INSTRUCTION:** Proactively raise ideas each session that advance the $100K revenue target. Deliver an updated SYNOPSIS.md at the end of every build session.
+**STANDING INSTRUCTION:** Proactively raise ideas each session that advance the $100K revenue target or meaningfully improve the product — pricing angles, growth levers, feature differentiation, monetization. Don't wait to be asked. Deliver an updated `SYNOPSIS.md` at the end of every build session.
 
 ### Ideas to Keep Raising
 - Age-appropriate defaults — lower RIR, fewer sets, more recovery days for under-18 and 62+
 - Team / school licensing — a coach account managing 20 athletes is a $29/mo sale
 - Trainer referral program — affiliate cut for every paying user they bring in
-- Shareable programs — Tyler's 12-Week Block as a link. Marketing and retention in one feature.
+- Shareable programs — "Tyler's 12-Week Block" as a link. Marketing and retention in one feature.
 - Annual plan prominence — $99/yr vs $12/mo. Annual subscribers churn at 1/3 the rate.
-- Progress share card — shareable PR card or meso completion card. Organic social loop.
-- Corporate wellness — $99/employee/yr. 50 employees = $5K from one conversation.
+- Streak / consistency nudges — "You've trained 11 of the last 14 days" in the summary modal
+- Post-workout share card — Instagram-friendly summary. Free marketing from every session.
 
 ---
 
-## 8 · Key Architecture Reference
+## 8 · Key Code Locations (1.13.0 + session patches)
 
-| Function | Role |
-|----------|------|
-| generateProgram() | Builds day/exercise array from profile. Source of truth for program structure. |
-| toEx() | Converts DB exercise -> program exercise object. All fields must thread through here. |
-| loadDayWeekWithCarryover() | Loads week data with weight carry-forward + nudge logic. |
-| generateWarmupSteps() | Computes actual lbs for warmup ramp from set 0 working weight. |
-| calcMuscleSetsByTag() | Volume landmark computation per muscle group. |
-| loadSparklineData() | Returns [{week, bestWeight, bestReps, e1rm}] for sparklines + e1RM card. |
-| addBwEntry() | Adds bodyweight log entry. One per calendar day, 52-entry rolling window. |
-| saveSessionDuration() | Stores lifting session duration in minutes per day/week. |
-| startRestTimer() | Fires rest countdown. Centered splash modal with SVG ring. |
-| WorkoutCompleteModal | Post-session splash: stats grid + phase cue + quote. |
-
----
-
-*End of Synopsis — v1.13.0 · March 2026*
+| Item | Location |
+|------|----------|
+| `callFoundryAI()` | ~line 3855 — fully written, not yet wired to real API call |
+| `handleAutoSubmit()` | ~line 4110 — runs local generation, passes to `onComplete()` |
+| `CompleteDialog` | ~line 5626 — RPE picker (Easy/Good/Hard) + YES/No |
+| `RPE_OPTS` | Just above `CompleteDialog` |
+| `handleDialogYes(rpe)` | ~line 6985 — saves RPE to last set, stamps `strengthEndRef` on last exercise |
+| `strengthEndRef` | In DayView state — stamped when last exercise confirmed done |
+| `showPostStrengthPrompt` | Modal: "Log Cardio →" or "Finished for Today" |
+| `loadBwLog / saveBwLog` | After `loadExerciseHistory()` ~line 436 |
+| `loadSparklineData()` | Same block |
+| `ExerciseSparkline` component | Just before `ExerciseCard` — dead code, not rendered |
+| `doComplete()` | Uses `strengthEndRef` for duration, then computes stats |
+| Assisted exercises | `pullups_assisted`, `chinups_assisted` in EXERCISE_DB. Flag: `assisted: true` |
+| ASSIST ↓ label | In ExerciseCard set row weight column — checks `exercise.assisted` |
