@@ -3544,13 +3544,43 @@ function generateProgram(profile) {
     const l2 = buildDay(legsPool, ["hinge"], ["Quads", "Glutes", "Hamstrings", "Soleus"], usedLA);
 
     if (numDays === 5) {
-      return [
+      const days5 = [
         makeDay(1,"Push Day 1","PUSH","Chest · Shoulders · Triceps",dayNote("push",p1.anchor),p1.anchor,p1.accessories),
         makeDay(2,"Pull Day 1","PULL","Back · Biceps · Rear Delts",dayNote("pull",r1.anchor),r1.anchor,r1.accessories),
         makeDay(3,"Legs Day","LEGS","Quads · Hamstrings · Glutes · Calves",dayNote("legs",l1.anchor),l1.anchor,l1.accessories),
         makeDay(4,"Push Day 2","PUSH","Chest · Shoulders · Triceps (Variation)",dayNote("push",p2.anchor),p2.anchor,p2.accessories),
-        makeDay(5,"Pull Day 2","PULL","Back · Biceps · Rear Delts (Variation)",dayNote("pull",r2.anchor),r2.anchor,r2.accessories),
+        makeDay(5,"Pull Day 2 + Legs","PULL","Back · Biceps · Rear Delts + Leg Accessories",dayNote("pull",r2.anchor),r2.anchor,r2.accessories),
       ];
+      // If user opted into leg balance, append leg accessories to Pull Day 2
+      if (profile.pplLegBalance) {
+        const legAccessoryPool = legsPool.filter(e => !e.anchor && !usedLA.has(e.id));
+        // Prefer: leg press / hack squat, hamstring curl, calf raise
+        const prefOrder = ["machine","cable","dumbbell","barbell","bodyweight"];
+        const legAccPriority = ["Quads","Hamstrings","Gastrocnemius","Glutes","Soleus"];
+        const legAccs = [];
+        for (const muscle of legAccPriority) {
+          if (legAccs.length >= 3) break;
+          const match = legAccessoryPool.find(e =>
+            e.muscle === muscle &&
+            !legAccs.find(a => a.id === e.id) &&
+            (e.equipment ? e.equipment.split(",").some(eq => available.map(a=>a.equipment).join(",").includes(eq.trim())) : true)
+          );
+          if (match) legAccs.push(match);
+        }
+        // If not enough from priority, fill from whatever's available
+        for (const e of legAccessoryPool) {
+          if (legAccs.length >= 3) break;
+          if (!legAccs.find(a => a.id === e.id)) legAccs.push(e);
+        }
+        const pullDay2 = days5[4];
+        pullDay2.exercises = [
+          ...pullDay2.exercises,
+          ...legAccs.map(a => toEx(a, false)),
+        ];
+        pullDay2.muscles = "Back · Biceps · Rear Delts + Leg Accessories";
+        pullDay2.label = "Pull Day 2 + Legs";
+      }
+      return days5;
     }
 
     // 6-day PPL ×2
@@ -4049,6 +4079,7 @@ function SetupPage({ onComplete }) {
   });
   const [aiLoading, setAiLoading] = useState(false);
   const [aiCoachNote, setAiCoachNote] = useState("");
+  const [legBalancePrompt, setLegBalancePrompt] = useState(null); // pending profile, waiting for leg balance answer
   const setAuto = (k,v) => setAutoForm(f => ({...f, [k]:v}));
   const toggleAutoEquip = (item) => {
     setAutoForm(f => {
@@ -4138,7 +4169,16 @@ function SetupPage({ onComplete }) {
       sessionDuration: sessMap[autoForm.experience] || 60,
       autoBuilt: true,
     };
-    onComplete(built);
+    maybePromptLegBalance(built);
+  };
+
+  // Helper: intercept 5-day PPL before calling onComplete — ask about leg balance
+  const maybePromptLegBalance = (built) => {
+    if (built.splitType === "ppl" && (built.daysPerWeek === 5 || built.workoutDays?.length === 5)) {
+      setLegBalancePrompt(built);
+    } else {
+      onComplete(built);
+    }
   };
 
   const handleSubmit = () => {
@@ -4149,7 +4189,7 @@ function SetupPage({ onComplete }) {
       setError(`${cfg.label} needs ${cfg.validDays.join(" or ")} training days — you have ${form.workoutDays.length} selected.`);
       return;
     }
-    onComplete(form);
+    maybePromptLegBalance(form);
   };
 
   // ── Shared style atoms ─────────────────────────────────────────────────
@@ -4251,6 +4291,7 @@ function SetupPage({ onComplete }) {
     };
 
     return (
+      <>
       <div style={{padding:"20px 20px 0"}}>
         <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}>
           <div>
@@ -5320,10 +5361,50 @@ function SetupPage({ onComplete }) {
 
       </div>
     </div>
+
+    {/* ── 5-Day PPL Leg Balance Prompt ── */}
+    {legBalancePrompt && (
+      <div style={{
+        position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:9999,
+        display:"flex", alignItems:"center", justifyContent:"center", padding:20,
+      }}>
+        <div style={{
+          background:"var(--card-bg)", border:"1px solid var(--border)",
+          borderRadius:14, padding:28, maxWidth:360, width:"100%",
+        }}>
+          <div style={{fontSize:13, fontWeight:700, letterSpacing:"0.1em", color:"var(--accent)", marginBottom:10}}>
+            COACH NOTE
+          </div>
+          <div style={{fontSize:17, fontWeight:700, color:"var(--text)", marginBottom:12, lineHeight:1.35}}>
+            Your Push and Pull days are getting twice the weekly volume as Legs.
+          </div>
+          <div style={{fontSize:14, color:"var(--text-dim)", lineHeight:1.55, marginBottom:24}}>
+            Want to add a leg accessory block to Pull Day 2 to balance it out? Think leg press, hamstring curls, and calves — nothing crazy, just enough to close the gap.
+          </div>
+          <button
+            onClick={() => { onComplete({ ...legBalancePrompt, pplLegBalance: true }); setLegBalancePrompt(null); }}
+            className="btn-primary"
+            style={{ width:"100%", marginBottom:10, padding:"14px 0", fontSize:15, fontWeight:700 }}
+          >
+            Yes, balance it out
+          </button>
+          <button
+            onClick={() => { onComplete({ ...legBalancePrompt, pplLegBalance: false }); setLegBalancePrompt(null); }}
+            style={{
+              width:"100%", padding:"12px 0", fontSize:14, fontWeight:600,
+              background:"transparent", border:"1px solid var(--border)",
+              borderRadius:8, color:"var(--text-dim)", cursor:"pointer",
+            }}
+          >
+            Keep as-is
+          </button>
+        </div>
+      </div>
+    )}
+  </>
   );
 }
 
-// ─── READY DIALOG ─────────────────────────────────────────────────────────────
 function ReadyDialog({ dayLabel, userName, isDone, isLocked, onYes, onNo }) {
   const greetings = [
     "Time to earn it.",
