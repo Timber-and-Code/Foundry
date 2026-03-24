@@ -17453,119 +17453,18 @@ function TourOverlay({ onDone }) {
   );
 }
 
-function OnboardingProgressScreen({ name }) {
-  const weeks   = ["W1","W2","W3","W4","W5","W6","W7","W8"];
-  const weights = [135, 135, 140, 145, 150, 155, 160, 165];
-  const maxW = Math.max(...weights);
-  const minW = Math.min(...weights);
-  const [animated, setAnimated] = React.useState(false);
-
-  React.useEffect(() => {
-    const t = setTimeout(() => setAnimated(true), 120);
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <div style={{
-      display:"flex", flexDirection:"column",
-      justifyContent:"center", height:"100%", paddingTop:48, paddingBottom:24,
-    }}>
-      <div style={{
-        fontSize:12, fontWeight:700, letterSpacing:"0.14em",
-        color:"var(--text-muted)", marginBottom:16, textTransform:"uppercase",
-      }}>Here's what The Foundry builds for you{name ? `, ${name}` : ""}</div>
-
-      <h2 style={{
-        fontSize:30, fontWeight:900, lineHeight:1.1,
-        color:"var(--text-primary)", marginBottom:8,
-        letterSpacing:"-0.02em",
-      }}>
-        Weights go up.<br/>
-        <span style={{color:"var(--phase-accum)"}}>Every week.</span>
-      </h2>
-      <p style={{
-        fontSize:14, color:"var(--text-secondary)", lineHeight:1.55, marginBottom:32,
-      }}>
-        The Foundry reads your numbers from last week and tells you exactly what to lift this week. No spreadsheets. No guesswork.
-      </p>
-
-      {/* Animated bar chart */}
-      <div style={{
-        background:"var(--bg-card)", border:"1px solid var(--border)",
-        borderRadius:10, padding:"20px 16px 14px", marginBottom:24,
-      }}>
-        <div style={{
-          fontSize:11, fontWeight:700, letterSpacing:"0.08em",
-          color:"var(--text-muted)", marginBottom:16,
-        }}>BARBELL BACK SQUAT — 8-WEEK MESO</div>
-        <div style={{display:"flex", alignItems:"flex-end", gap:6, height:80}}>
-          {weights.map((w, i) => {
-            const pct  = (w - minW) / (maxW - minW);
-            const barH = animated ? Math.max(20, 20 + pct * 56) : 4;
-            const isLast = i === weights.length - 1;
-            const color = isLast ? "var(--phase-peak)"
-              : i >= 5 ? "var(--phase-intens)"
-              : i >= 2 ? "var(--phase-accum)"
-              : "var(--text-muted)";
-            return (
-              <div key={i} style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4}}>
-                {isLast && (
-                  <div style={{
-                    fontSize:10, fontWeight:800, color:"var(--phase-peak)",
-                    letterSpacing:"0.04em", marginBottom:2,
-                  }}>PR</div>
-                )}
-                <div style={{
-                  width:"100%", borderRadius:3,
-                  background: isLast ? "var(--phase-peak)" : i >= 5 ? "var(--phase-intens)" : i >= 2 ? "var(--phase-accum)" : "var(--bg-surface)",
-                  border:`1px solid ${color}`,
-                  height: barH,
-                  transition:`height 0.5s cubic-bezier(0.34,1.56,0.64,1) ${i * 45}ms`,
-                  opacity: animated ? 1 : 0,
-                }}/>
-                <div style={{fontSize:10, color: isLast ? "var(--phase-peak)" : "var(--text-muted)", fontWeight: isLast ? 700 : 400}}>{w}</div>
-                <div style={{fontSize:10, color:"var(--text-dim)"}}>{weeks[i]}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Progression mechanics */}
-      <div style={{display:"flex", flexDirection:"column", gap:10}}>
-        {[
-          { icon:"✓", color:"var(--phase-accum)", text:"Hit all your reps → weight goes up next week" },
-          { icon:"—", color:"var(--text-muted)",  text:"Missed reps → weight holds until you earn it" },
-          { icon:"↑", color:"var(--phase-peak)",  text:"Peak week → PR attempts on every anchor lift" },
-        ].map((item, i) => (
-          <div key={i} style={{display:"flex", alignItems:"center", gap:10}}>
-            <div style={{
-              width:22, height:22, borderRadius:5, flexShrink:0,
-              background:"var(--bg-card)", border:"1px solid var(--border)",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:11, fontWeight:800, color:item.color,
-            }}>{item.icon}</div>
-            <div style={{fontSize:13, color:"var(--text-secondary)", lineHeight:1.4}}>{item.text}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function OnboardingFlow({ onDone }) {
-  const TOTAL = 4;
-  const [screen, setScreen]     = React.useState(0);
-  const [animDir, setAnimDir]   = React.useState(1);
+  const TOTAL = 5;
+  const [screen, setScreen]       = React.useState(0);
+  const [animDir, setAnimDir]     = React.useState(1);
   const [animating, setAnimating] = React.useState(false);
-  const [error, setError]       = React.useState("");
+  const [error, setError]         = React.useState("");
 
-  // Collected data across screens
-  const [name, setName]         = React.useState("");
-  const [dob, setDob]           = React.useState({ month:"", day:"", year:"" });
-  const [goal, setGoal]         = React.useState("");
+  const [name, setName]           = React.useState("");
+  const [dob, setDob]             = React.useState({ month:"", day:"", year:"" });
+  const [goal, setGoal]           = React.useState("");
+  const [experience, setExperience] = React.useState(""); // "new" | "intermediate" | "advanced"
 
-  // Month names for the picker
   const MONTHS = ["January","February","March","April","May","June",
                   "July","August","September","October","November","December"];
 
@@ -17579,11 +17478,13 @@ function OnboardingFlow({ onDone }) {
 
   const advance = () => {
     setError("");
-    // Validate current screen before advancing
     if (screen === 0) {
       if (!name.trim()) { setError("Please enter your name to continue."); return; }
     }
-    if (screen === 1) {
+    if (screen === 2) {
+      if (!goal) { setError("Please select a goal to continue."); return; }
+    }
+    if (screen === 3) {
       const m = parseInt(dob.month, 10);
       const d = parseInt(dob.day,   10);
       const y = parseInt(dob.year,  10);
@@ -17591,28 +17492,22 @@ function OnboardingFlow({ onDone }) {
       if (!dob.month || !dob.day || !dob.year) { setError("Please enter your full date of birth."); return; }
       if (isNaN(m) || m < 1 || m > 12)         { setError("Please select a valid month."); return; }
       if (isNaN(d) || d < 1 || d > 31)         { setError("Please enter a valid day."); return; }
-      if (isNaN(y) || y < 1900 || y > curYear) { setError(`Please enter a year between 1900 and ${curYear}.`); return; }
-    }
-    if (screen === 2) {
-      if (!goal) { setError("Please select a goal to continue."); return; }
+      if (isNaN(y) || y < 1900 || y > curYear) { setError("Please enter a valid year."); return; }
+      if (!experience)                          { setError("Please select your experience level."); return; }
     }
     if (screen < TOTAL - 1) {
       goTo(screen + 1, 1);
     } else {
-      // Save collected data for SetupPage to consume
       const age = ageFromDob(dob);
-      store.set("ppl:onboarding_data", JSON.stringify({ name: name.trim(), dob, age }));
+      store.set("ppl:onboarding_data", JSON.stringify({ name: name.trim(), dob, age, experience }));
       store.set("ppl:onboarding_goal", goal);
       store.set("ppl:onboarded", "1");
       onDone();
     }
   };
 
-  const goBack = () => {
-    if (screen > 0) goTo(screen - 1, -1);
-  };
+  const goBack = () => { if (screen > 0) goTo(screen - 1, -1); };
 
-  // Touch swipe
   const touchStart = React.useRef(null);
   const handleTouchStart = (e) => { touchStart.current = e.touches[0].clientX; };
   const handleTouchEnd = (e) => {
@@ -17634,22 +17529,67 @@ function OnboardingFlow({ onDone }) {
     width:"100%", padding:"14px 16px", borderRadius:8, fontSize:16,
     background:"var(--bg-card)", border:"1px solid var(--border-accent)",
     color:"var(--text-primary)", outline:"none", boxSizing:"border-box",
-    fontFamily:"inherit", fontWeight:500,
-    transition:"border-color 0.15s",
+    fontFamily:"inherit", fontWeight:500, transition:"border-color 0.15s",
   };
 
   const GOAL_ICONS = {
-    build_muscle:       "💪",
-    build_strength:     "🏋️",
-    lose_fat:           "🔥",
-    improve_fitness:    "❤️",
-    sport_conditioning: "⚡",
+    build_muscle:"💪", build_strength:"🏋️", lose_fat:"🔥",
+    improve_fitness:"❤️", sport_conditioning:"⚡",
   };
 
-  const ctaLabel = screen === 0 ? `Let's go →`
-    : screen === 1 ? "Next →"
-    : screen === 2 ? "Next →"
-    : "Build My Program →";
+  const REVEAL_COPY = {
+    build_muscle:       "You're here to build muscle. 8 weeks of progressive overload — weights go up every week you earn it. The program watches your numbers so you don't have to.",
+    build_strength:     "You're here to get stronger. Heavy compound work, week over week, with smart progression on every anchor lift. The numbers will move.",
+    lose_fat:           "You're here to cut. The program keeps the muscle on while the weight comes off — protecting your lifts the whole way down.",
+    improve_fitness:    "You're here to feel better. Consistent sessions, smart volume, and a program that actually adapts to you week by week.",
+    sport_conditioning: "You're here to perform. Power, conditioning, and the strength base every athlete needs — built around your schedule.",
+  };
+
+  const ctaLabel = screen === 0 ? "Let's go →"
+    : screen === 1 ? "I'm in →"
+    : screen === 4 ? "Build My Program →"
+    : "Next →";
+
+  // ── Animated bar chart (screen 1) ─────────────────────────────────────────
+  const ProgressChart = () => {
+    const weeks   = ["W1","W2","W3","W4","W5","W6","W7","W8"];
+    const weights = [135, 135, 140, 145, 150, 155, 160, 165];
+    const maxW = Math.max(...weights);
+    const minW = Math.min(...weights);
+    const [animated, setAnimated] = React.useState(false);
+    React.useEffect(() => {
+      const t = setTimeout(() => setAnimated(true), 120);
+      return () => clearTimeout(t);
+    }, []);
+    return (
+      <div style={{background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:10, padding:"20px 16px 14px", marginBottom:20}}>
+        <div style={{fontSize:11, fontWeight:700, letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:16}}>BARBELL BACK SQUAT — 8-WEEK MESO</div>
+        <div style={{display:"flex", alignItems:"flex-end", gap:6, height:80}}>
+          {weights.map((w, i) => {
+            const pct  = (w - minW) / (maxW - minW);
+            const barH = animated ? Math.max(20, 20 + pct * 56) : 4;
+            const isLast = i === weights.length - 1;
+            const color = isLast ? "var(--phase-peak)" : i >= 5 ? "var(--phase-intens)" : i >= 2 ? "var(--phase-accum)" : "var(--text-muted)";
+            return (
+              <div key={i} style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4}}>
+                {isLast && <div style={{fontSize:10, fontWeight:800, color:"var(--phase-peak)", letterSpacing:"0.04em", marginBottom:2}}>PR</div>}
+                <div style={{
+                  width:"100%", borderRadius:3,
+                  background: isLast ? "var(--phase-peak)" : i >= 5 ? "var(--phase-intens)" : i >= 2 ? "var(--phase-accum)" : "var(--bg-surface)",
+                  border:`1px solid ${color}`,
+                  height: barH,
+                  transition:`height 0.5s cubic-bezier(0.34,1.56,0.64,1) ${i * 45}ms`,
+                  opacity: animated ? 1 : 0,
+                }}/>
+                <div style={{fontSize:10, color: isLast ? "var(--phase-peak)" : "var(--text-muted)", fontWeight: isLast ? 700 : 400}}>{w}</div>
+                <div style={{fontSize:10, color:"var(--text-dim)"}}>{weeks[i]}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -17661,20 +17601,13 @@ function OnboardingFlow({ onDone }) {
         display:"flex", flexDirection:"column", overflow:"hidden", padding:"0 0 40px",
       }}
     >
-      {/* ── Top bar: back chevron + progress dots ── */}
-      <div style={{
-        display:"flex", alignItems:"center", gap:12,
-        padding:"20px 24px 0",
-      }}>
-        {/* Back button — hidden on screen 0 */}
+      {/* ── Top bar ── */}
+      <div style={{display:"flex", alignItems:"center", gap:12, padding:"20px 24px 0"}}>
         <button onClick={goBack} style={{
           background:"transparent", border:"none", cursor: screen > 0 ? "pointer" : "default",
           color: screen > 0 ? "var(--accent)" : "transparent",
-          fontSize:22, lineHeight:1, padding:"2px 4px", flexShrink:0,
-          transition:"color 0.15s",
+          fontSize:22, lineHeight:1, padding:"2px 4px", flexShrink:0, transition:"color 0.15s",
         }} aria-hidden={screen === 0}>‹</button>
-
-        {/* Progress dots */}
         <div style={{display:"flex", gap:5, flex:1}}>
           {Array.from({length:TOTAL}).map((_,i) => (
             <div key={i} style={{
@@ -17690,12 +17623,9 @@ function OnboardingFlow({ onDone }) {
       {/* ── Screen content ── */}
       <div style={{flex:1, padding:"0 24px", ...slideStyle}}>
 
-        {/* ─── SCREEN 0: NAME ─── */}
+        {/* ─── SCREEN 0: THE HOOK ─── */}
         {screen === 0 && (
-          <div style={{
-            display:"flex", flexDirection:"column",
-            justifyContent:"center", height:"100%", paddingTop:48, paddingBottom:24,
-          }}>
+          <div style={{display:"flex", flexDirection:"column", justifyContent:"center", height:"100%", paddingTop:48, paddingBottom:24}}>
             {/* Brand mark */}
             <div style={{marginBottom:32}}>
               <div style={{
@@ -17706,10 +17636,7 @@ function OnboardingFlow({ onDone }) {
                 boxShadow:"0 0 28px rgba(47,79,111,0.35), inset 0 1px 0 rgba(90,140,180,0.12)",
                 position:"relative", overflow:"hidden",
               }}>
-                <div style={{
-                  position:"absolute", bottom:0, left:0, right:0, height:"50%",
-                  background:"linear-gradient(to top, rgba(47,79,111,0.25), transparent)",
-                }}/>
+                <div style={{position:"absolute", bottom:0, left:0, right:0, height:"50%", background:"linear-gradient(to top, rgba(47,79,111,0.25), transparent)"}}/>
                 <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
                   <rect x="6" y="10" width="24" height="10" rx="2" fill="#5b9bd5" opacity="0.9"/>
                   <rect x="10" y="20" width="16" height="3" rx="1" fill="#3a6a9a" opacity="0.8"/>
@@ -17719,58 +17646,36 @@ function OnboardingFlow({ onDone }) {
               </div>
             </div>
 
-            <div style={{
-              fontSize:12, fontWeight:700, letterSpacing:"0.14em",
-              color:"var(--text-muted)", marginBottom:16, textTransform:"uppercase",
-            }}>Welcome to The Foundry</div>
+            <div style={{fontSize:12, fontWeight:700, letterSpacing:"0.14em", color:"var(--text-muted)", marginBottom:16, textTransform:"uppercase"}}>Welcome to The Foundry</div>
 
-            <h1 style={{
-              fontSize:34, fontWeight:900, lineHeight:1.1,
-              color:"var(--text-primary)", marginBottom:20,
-              letterSpacing:"-0.025em",
-            }}>
-              You're putting in<br/>
-              <span style={{color:"var(--phase-intens)"}}>the work.</span>
+            <h1 style={{fontSize:34, fontWeight:900, lineHeight:1.1, color:"var(--text-primary)", marginBottom:8, letterSpacing:"-0.025em"}}>
+              Most programs<br/>
+              <span style={{color:"var(--phase-intens)"}}>guess.</span>
             </h1>
+            <h2 style={{fontSize:22, fontWeight:700, color:"var(--text-secondary)", marginBottom:20, letterSpacing:"-0.01em"}}>
+              The Foundry <span style={{color:"var(--accent-blue)"}}>calculates.</span>
+            </h2>
 
-            <p style={{
-              fontSize:15, lineHeight:1.65, color:"var(--text-secondary)",
-              fontWeight:400, marginBottom:32,
-            }}>
-              The Foundry makes sure it's working — a personalized mesocycle that auto-progresses your weights, tracks your volume, and gets harder every week.
+            <p style={{fontSize:15, lineHeight:1.65, color:"var(--text-secondary)", fontWeight:400, marginBottom:32}}>
+              A personalized mesocycle that reads your numbers every week and tells you exactly what to lift next.
             </p>
 
-            {/* Name input */}
             <div style={{marginBottom:8}}>
-              <label style={{
-                display:"block", fontSize:12, fontWeight:700, letterSpacing:"0.08em",
-                color:"var(--text-muted)", marginBottom:8, textTransform:"uppercase",
-              }}>What should we call you?</label>
+              <label style={{display:"block", fontSize:12, fontWeight:700, letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:8, textTransform:"uppercase"}}>What should we call you?</label>
               <input
-                type="text"
-                placeholder="First name"
-                value={name}
-                autoFocus
+                type="text" placeholder="First name" value={name} autoFocus
                 onChange={e => setName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") advance(); }}
                 style={{...inputStyle, fontSize:18, fontWeight:600}}
               />
             </div>
 
-            {error && (
-              <div style={{marginTop:12, fontSize:13, color:"var(--danger)", fontWeight:600}}>{error}</div>
-            )}
+            {error && <div style={{marginTop:12, fontSize:13, color:"var(--danger)", fontWeight:600}}>{error}</div>}
 
-            {/* Restore from backup — subtle, for returning users */}
             <div style={{marginTop:40, paddingTop:20, borderTop:"1px solid var(--border-subtle)"}}>
-              <label style={{
-                fontSize:12, color:"var(--text-muted)", cursor:"pointer",
-                display:"inline-flex", alignItems:"center", gap:7, userSelect:"none",
-              }}>
+              <label style={{fontSize:12, color:"var(--text-muted)", cursor:"pointer", display:"inline-flex", alignItems:"center", gap:7, userSelect:"none"}}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="17 8 12 3 7 8"/>
-                  <line x1="12" y1="3" x2="12" y2="15"/>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
                 Restore from backup
                 <input type="file" accept=".json" style={{display:"none"}} onChange={e => {
@@ -17786,144 +17691,52 @@ function OnboardingFlow({ onDone }) {
           </div>
         )}
 
-        {/* ─── SCREEN 1: BIRTHDAY ─── */}
+        {/* ─── SCREEN 1: THE PROOF ─── */}
         {screen === 1 && (
-          <div style={{
-            display:"flex", flexDirection:"column",
-            justifyContent:"center", height:"100%", paddingTop:48, paddingBottom:24,
-          }}>
-            <div style={{
-              fontSize:12, fontWeight:700, letterSpacing:"0.14em",
-              color:"var(--text-muted)", marginBottom:16, textTransform:"uppercase",
-            }}>Nice to meet you, {name}</div>
+          <div style={{display:"flex", flexDirection:"column", justifyContent:"center", height:"100%", paddingTop:48, paddingBottom:24}}>
+            <div style={{fontSize:12, fontWeight:700, letterSpacing:"0.14em", color:"var(--text-muted)", marginBottom:16, textTransform:"uppercase"}}>Here's what happens</div>
 
-            <h2 style={{
-              fontSize:30, fontWeight:900, lineHeight:1.1,
-              color:"var(--text-primary)", marginBottom:8,
-              letterSpacing:"-0.02em",
-            }}>
-              When's your<br/>
-              <span style={{color:"var(--accent-blue)"}}>birthday?</span>
+            <h2 style={{fontSize:32, fontWeight:900, lineHeight:1.1, color:"var(--text-primary)", marginBottom:8, letterSpacing:"-0.02em"}}>
+              Weights go up.<br/>
+              <span style={{color:"var(--phase-accum)"}}>Every week you earn it.</span>
             </h2>
-            <p style={{
-              fontSize:14, color:"var(--text-secondary)", lineHeight:1.55, marginBottom:36,
-            }}>
-              Used to personalize your program and set the right training intensity for your age.
+            <p style={{fontSize:14, color:"var(--text-secondary)", lineHeight:1.55, marginBottom:24}}>
+              The Foundry tracks every set. Hit your reps — weight goes up. Miss them — it holds until you do.
             </p>
 
-            {/* Month / Day / Year pickers */}
-            <div style={{display:"grid", gridTemplateColumns:"2fr 1fr 1.5fr", gap:10, marginBottom:8}}>
-              {/* Month */}
-              <div>
-                <label style={{
-                  display:"block", fontSize:11, fontWeight:700, letterSpacing:"0.08em",
-                  color:"var(--text-muted)", marginBottom:6, textTransform:"uppercase",
-                }}>Month</label>
-                <select
-                  value={dob.month}
-                  onChange={e => setDob(d => ({...d, month: e.target.value}))}
-                  style={{
-                    ...inputStyle, padding:"13px 10px",
-                    appearance:"none", WebkitAppearance:"none",
-                    backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-                    backgroundRepeat:"no-repeat",
-                    backgroundPosition:"right 10px center",
-                    paddingRight:28,
-                  }}
-                >
-                  <option value="">Month</option>
-                  {MONTHS.map((m, i) => (
-                    <option key={i} value={String(i+1)}>{m}</option>
-                  ))}
-                </select>
-              </div>
+            <ProgressChart />
 
-              {/* Day */}
-              <div>
-                <label style={{
-                  display:"block", fontSize:11, fontWeight:700, letterSpacing:"0.08em",
-                  color:"var(--text-muted)", marginBottom:6, textTransform:"uppercase",
-                }}>Day</label>
-                <input
-                  type="number" inputMode="numeric"
-                  placeholder="DD"
-                  min="1" max="31"
-                  value={dob.day}
-                  onChange={e => setDob(d => ({...d, day: e.target.value}))}
-                  style={{...inputStyle, textAlign:"center"}}
-                />
-              </div>
-
-              {/* Year */}
-              <div>
-                <label style={{
-                  display:"block", fontSize:11, fontWeight:700, letterSpacing:"0.08em",
-                  color:"var(--text-muted)", marginBottom:6, textTransform:"uppercase",
-                }}>Year</label>
-                <input
-                  type="number" inputMode="numeric"
-                  placeholder="YYYY"
-                  min="1900" max={new Date().getFullYear()}
-                  value={dob.year}
-                  onChange={e => setDob(d => ({...d, year: e.target.value}))}
-                  style={{...inputStyle, textAlign:"center"}}
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div style={{marginTop:4, fontSize:13, color:"var(--danger)", fontWeight:600}}>{error}</div>
-            )}
-
-            {/* Free tier callout — shown only if age qualifies */}
-            {(() => {
-              const age = ageFromDob(dob);
-              if (age === null) return null;
-              const isYoung = age < 18;
-              const isSenior = age >= 62;
-              if (!isYoung && !isSenior) return null;
-              return (
-                <div style={{
-                  marginTop:20, padding:"12px 14px", borderRadius:8,
-                  background:"var(--phase-accum)12",
-                  border:"1px solid var(--phase-accum)44",
-                  display:"flex", alignItems:"center", gap:10,
-                }}>
-                  <div style={{fontSize:18}}>🎁</div>
-                  <div style={{fontSize:13, color:"var(--phase-accum)", fontWeight:600, lineHeight:1.4}}>
-                    {isYoung
-                      ? "The Foundry is permanently free for users under 18."
-                      : "The Foundry is permanently free for adults 62 and over."}
-                  </div>
+            <div style={{display:"flex", flexDirection:"column", gap:10}}>
+              {[
+                { icon:"✓", color:"var(--phase-accum)", text:"Hit all your reps → weight goes up next week" },
+                { icon:"—", color:"var(--text-muted)",  text:"Missed reps → weight holds until you earn it" },
+                { icon:"↑", color:"var(--phase-peak)",  text:"Peak week → PR attempts on every anchor lift" },
+              ].map((item, i) => (
+                <div key={i} style={{display:"flex", alignItems:"center", gap:10}}>
+                  <div style={{
+                    width:22, height:22, borderRadius:5, flexShrink:0,
+                    background:"var(--bg-card)", border:"1px solid var(--border)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    fontSize:11, fontWeight:800, color:item.color,
+                  }}>{item.icon}</div>
+                  <div style={{fontSize:13, color:"var(--text-secondary)", lineHeight:1.4}}>{item.text}</div>
                 </div>
-              );
-            })()}
+              ))}
+            </div>
           </div>
         )}
 
         {/* ─── SCREEN 2: GOAL ─── */}
         {screen === 2 && (
-          <div style={{
-            display:"flex", flexDirection:"column",
-            justifyContent:"center", height:"100%", paddingTop:48, paddingBottom:24,
-          }}>
-            <div style={{
-              fontSize:12, fontWeight:700, letterSpacing:"0.14em",
-              color:"var(--text-muted)", marginBottom:16, textTransform:"uppercase",
-            }}>Almost there, {name}</div>
+          <div style={{display:"flex", flexDirection:"column", justifyContent:"center", height:"100%", paddingTop:48, paddingBottom:24}}>
+            <div style={{fontSize:12, fontWeight:700, letterSpacing:"0.14em", color:"var(--text-muted)", marginBottom:16, textTransform:"uppercase"}}>Almost there, {name}</div>
 
-            <h2 style={{
-              fontSize:30, fontWeight:900, lineHeight:1.1,
-              color:"var(--text-primary)", marginBottom:8,
-              letterSpacing:"-0.02em",
-            }}>
-              What's your<br/>
-              <span style={{color:"var(--phase-intens)"}}>main goal?</span>
+            <h2 style={{fontSize:30, fontWeight:900, lineHeight:1.1, color:"var(--text-primary)", marginBottom:8, letterSpacing:"-0.02em"}}>
+              What are you<br/>
+              <span style={{color:"var(--phase-intens)"}}>training for?</span>
             </h2>
-            <p style={{
-              fontSize:14, color:"var(--text-secondary)", lineHeight:1.55, marginBottom:24,
-            }}>
-              The Foundry uses this to tailor your program — exercise selection, volume, and intensity targets.
+            <p style={{fontSize:14, color:"var(--text-secondary)", lineHeight:1.55, marginBottom:24}}>
+              Your goal shapes everything — sets, reps, exercise selection, and when to push.
             </p>
 
             <div style={{display:"flex", flexDirection:"column", gap:8}}>
@@ -17934,8 +17747,7 @@ function OnboardingFlow({ onDone }) {
                     padding:"14px 16px", borderRadius:8, cursor:"pointer", textAlign:"left",
                     background: sel ? "rgba(var(--accent-rgb),0.10)" : "var(--bg-card)",
                     border:`1px solid ${sel ? "var(--accent)" : "var(--border)"}`,
-                    transition:"all 0.15s",
-                    display:"flex", alignItems:"center", gap:12,
+                    transition:"all 0.15s", display:"flex", alignItems:"center", gap:12,
                   }}>
                     <div style={{
                       width:36, height:36, borderRadius:8, flexShrink:0,
@@ -17949,11 +17761,108 @@ function OnboardingFlow({ onDone }) {
                       <div style={{fontSize:12, color:"var(--text-secondary)", lineHeight:1.4}}>{g.desc}</div>
                     </div>
                     {sel && (
-                      <div style={{
-                        width:18, height:18, borderRadius:"50%", flexShrink:0,
-                        background:"var(--accent)", display:"flex", alignItems:"center",
-                        justifyContent:"center",
-                      }}>
+                      <div style={{width:18, height:18, borderRadius:"50%", flexShrink:0, background:"var(--accent)", display:"flex", alignItems:"center", justifyContent:"center"}}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M2 5l2 2 4-4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {error && <div style={{marginTop:12, fontSize:13, color:"var(--danger)", fontWeight:600}}>{error}</div>}
+          </div>
+        )}
+
+        {/* ─── SCREEN 3: ABOUT YOU (DOB + EXPERIENCE) ─── */}
+        {screen === 3 && (
+          <div style={{display:"flex", flexDirection:"column", justifyContent:"center", height:"100%", paddingTop:48, paddingBottom:24}}>
+            <div style={{fontSize:12, fontWeight:700, letterSpacing:"0.14em", color:"var(--text-muted)", marginBottom:16, textTransform:"uppercase"}}>One more thing</div>
+
+            <h2 style={{fontSize:30, fontWeight:900, lineHeight:1.1, color:"var(--text-primary)", marginBottom:8, letterSpacing:"-0.02em"}}>
+              Tell us a bit<br/>
+              <span style={{color:"var(--accent-blue)"}}>about yourself.</span>
+            </h2>
+            <p style={{fontSize:14, color:"var(--text-secondary)", lineHeight:1.55, marginBottom:28}}>
+              Used to set the right training intensity and starting weights for where you are right now.
+            </p>
+
+            {/* DOB picker */}
+            <div style={{fontSize:12, fontWeight:700, letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:8, textTransform:"uppercase"}}>Date of Birth</div>
+            <div style={{display:"grid", gridTemplateColumns:"2fr 1fr 1.5fr", gap:10, marginBottom:8}}>
+              <div>
+                <label style={{display:"block", fontSize:11, fontWeight:700, letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:6, textTransform:"uppercase"}}>Month</label>
+                <select
+                  value={dob.month}
+                  onChange={e => setDob(d => ({...d, month: e.target.value}))}
+                  style={{
+                    ...inputStyle, padding:"13px 10px",
+                    appearance:"none", WebkitAppearance:"none",
+                    backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+                    backgroundRepeat:"no-repeat", backgroundPosition:"right 10px center", paddingRight:28,
+                  }}
+                >
+                  <option value="">Month</option>
+                  {MONTHS.map((m, i) => <option key={i} value={String(i+1)}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{display:"block", fontSize:11, fontWeight:700, letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:6, textTransform:"uppercase"}}>Day</label>
+                <input type="number" inputMode="numeric" placeholder="DD" min="1" max="31"
+                  value={dob.day} onChange={e => setDob(d => ({...d, day: e.target.value}))}
+                  style={{...inputStyle, textAlign:"center"}}
+                />
+              </div>
+              <div>
+                <label style={{display:"block", fontSize:11, fontWeight:700, letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:6, textTransform:"uppercase"}}>Year</label>
+                <input type="number" inputMode="numeric" placeholder="YYYY" min="1900" max={new Date().getFullYear()}
+                  value={dob.year} onChange={e => setDob(d => ({...d, year: e.target.value}))}
+                  style={{...inputStyle, textAlign:"center"}}
+                />
+              </div>
+            </div>
+
+            {/* Free tier callout */}
+            {(() => {
+              const age = ageFromDob(dob);
+              if (age === null) return null;
+              const isYoung = age < 18;
+              const isSenior = age >= 62;
+              if (!isYoung && !isSenior) return null;
+              return (
+                <div style={{marginBottom:16, padding:"12px 14px", borderRadius:8, background:"var(--phase-accum)12", border:"1px solid var(--phase-accum)44", display:"flex", alignItems:"center", gap:10}}>
+                  <div style={{fontSize:18}}>🎁</div>
+                  <div style={{fontSize:13, color:"var(--phase-accum)", fontWeight:600, lineHeight:1.4}}>
+                    {isYoung ? "The Foundry is permanently free for users under 18." : "The Foundry is permanently free for adults 62 and over."}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Experience selector */}
+            <div style={{fontSize:12, fontWeight:700, letterSpacing:"0.08em", color:"var(--text-muted)", marginTop:20, marginBottom:10, textTransform:"uppercase"}}>Training Experience</div>
+            <div style={{display:"flex", flexDirection:"column", gap:8}}>
+              {[
+                { id:"new",          emoji:"🌱", label:"New to this",        sub:"Under 1 year" },
+                { id:"intermediate", emoji:"💪", label:"Getting serious",    sub:"1–3 years" },
+                { id:"advanced",     emoji:"🔥", label:"Been at it a while", sub:"3+ years" },
+              ].map(opt => {
+                const sel = experience === opt.id;
+                return (
+                  <button key={opt.id} onClick={() => setExperience(opt.id)} style={{
+                    padding:"12px 16px", borderRadius:8, cursor:"pointer", textAlign:"left",
+                    background: sel ? "rgba(var(--accent-rgb),0.10)" : "var(--bg-card)",
+                    border:`1px solid ${sel ? "var(--accent)" : "var(--border)"}`,
+                    transition:"all 0.15s", display:"flex", alignItems:"center", gap:12,
+                  }}>
+                    <span style={{fontSize:20, flexShrink:0}}>{opt.emoji}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:14, fontWeight:700, color: sel ? "var(--accent)" : "var(--text-primary)"}}>{opt.label}</div>
+                      <div style={{fontSize:12, color:"var(--text-secondary)"}}>{opt.sub}</div>
+                    </div>
+                    {sel && (
+                      <div style={{width:18, height:18, borderRadius:"50%", flexShrink:0, background:"var(--accent)", display:"flex", alignItems:"center", justifyContent:"center"}}>
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                           <path d="M2 5l2 2 4-4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
@@ -17964,14 +17873,50 @@ function OnboardingFlow({ onDone }) {
               })}
             </div>
 
-            {error && (
-              <div style={{marginTop:12, fontSize:13, color:"var(--danger)", fontWeight:600}}>{error}</div>
-            )}
+            {error && <div style={{marginTop:12, fontSize:13, color:"var(--danger)", fontWeight:600}}>{error}</div>}
           </div>
         )}
 
-        {/* ─── SCREEN 3: HOW IT WORKS ─── */}
-        {screen === 3 && <OnboardingProgressScreen name={name} />}
+        {/* ─── SCREEN 4: THE REVEAL ─── */}
+        {screen === 4 && (
+          <div style={{display:"flex", flexDirection:"column", justifyContent:"center", height:"100%", paddingTop:48, paddingBottom:24}}>
+            <div style={{fontSize:12, fontWeight:700, letterSpacing:"0.14em", color:"var(--phase-accum)", marginBottom:24, textTransform:"uppercase"}}>Your Program Is Ready</div>
+
+            <h2 style={{fontSize:32, fontWeight:900, lineHeight:1.1, color:"var(--text-primary)", marginBottom:20, letterSpacing:"-0.02em"}}>
+              Alright, {name}.
+            </h2>
+
+            <div style={{
+              background:"var(--bg-card)", border:"1px solid var(--border)",
+              borderRadius:10, padding:"20px", marginBottom:24,
+            }}>
+              <p style={{fontSize:15, color:"var(--text-secondary)", lineHeight:1.7, margin:0}}>
+                {REVEAL_COPY[goal] || "Your program is built and ready to go. Let's get to work."}
+              </p>
+            </div>
+
+            <div style={{display:"flex", flexDirection:"column", gap:10}}>
+              {[
+                "Auto-progressing weights every week",
+                "Volume tracked to your personal landmarks",
+                "Stall detection — the program tells you when something's off",
+              ].map((line, i) => (
+                <div key={i} style={{display:"flex", alignItems:"center", gap:10}}>
+                  <div style={{
+                    width:20, height:20, borderRadius:"50%", flexShrink:0,
+                    background:"var(--phase-accum)18", border:"1px solid var(--phase-accum)44",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 5l2 2 4-4" stroke="var(--phase-accum)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div style={{fontSize:13, color:"var(--text-secondary)", lineHeight:1.4}}>{line}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
 
@@ -17987,6 +17932,7 @@ function OnboardingFlow({ onDone }) {
     </div>
   );
 }
+
 
 // ─── NO MESO SHELL ────────────────────────────────────────────────────────────
 // Shown when user has completed onboarding but has no active program.
