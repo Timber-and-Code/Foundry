@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Foundry — Banner Redesign</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0A0C;
+    color: #FBF7E4;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+    gap: 48px;
+  }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 4px;
+    color: #8A7A68;
+    text-transform: uppercase;
+  }
+  .phone {
+    width: 320px;
+    border-radius: 36px;
+    border: 3px solid #2E2A24;
+    overflow: hidden;
+    position: relative;
+    background: #0A0A0C;
+  }
+  .phone-notch {
+    width: 120px; height: 28px;
+    background: #0A0A0C; border-radius: 0 0 18px 18px;
+    margin: 0 auto;
+  }
+
+  /* ═══ CURRENT BANNER (for reference) ═══ */
+  .banner-current {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    gap: 10px;
+  }
+  .banner-current .anvil {
+    width: 48px; height: 48px;
+    background: #1A1814;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+  .banner-current .text .name {
+    font-size: 18px; font-weight: 800; color: #FBF7E4;
+    font-family: 'Inter', sans-serif;
+  }
+  .banner-current .text .sub {
+    font-size: 11px; color: #F29A52; letter-spacing: 0.5px;
+  }
+  .banner-current .profile-icon {
+    margin-left: auto;
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1.5px solid #3D3528;
+    display: flex; align-items: center; justify-content: center;
+    color: #C0885A; font-size: 16px;
+  }
+
+  /* ═══ NEW BANNER OPTIONS ═══ */
+  .banner-new {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    gap: 12px;
+  }
+  .banner-new .f-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .banner-new .f-icon img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .banner-new .text .name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 3px;
+    color: #FBF7E4;
+    line-height: 1;
+  }
+  .banner-new .text .sub {
+    font-size: 10px;
+    color: #F29A52;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+  .banner-new .profile-icon {
+    margin-left: auto;
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1.5px solid #3D3528;
+    display: flex; align-items: center; justify-content: center;
+    color: #C0885A; font-size: 16px;
+  }
+
+  /* Variant B - wider with glow */
+  .banner-glow {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    gap: 12px;
+    position: relative;
+  }
+  .banner-glow::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 16px; right: 16px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(232,101,26,0.3), transparent);
+  }
+  .banner-glow .f-icon {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 0 16px rgba(232,101,26,0.2);
+  }
+  .banner-glow .f-icon img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .banner-glow .text .name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 4px;
+    color: #FBF7E4;
+    line-height: 1;
+  }
+  .banner-glow .text .sub {
+    font-size: 9px;
+    color: #F29A52;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-top: 3px;
+  }
+  .banner-glow .profile-icon {
+    margin-left: auto;
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1.5px solid #3D3528;
+    display: flex; align-items: center; justify-content: center;
+    color: #C0885A; font-size: 14px;
+  }
+
+  /* Fake app content below banner */
+  .fake-content {
+    padding: 16px;
+  }
+  .greeting {
+    font-size: 16px; color: #A89A8A; padding-bottom: 12px;
+  }
+  .card {
+    background: #1A1814;
+    border: 1px solid #2E2A24;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .card-header {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #F29A52;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .card-row {
+    display: flex; justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+    color: #A89A8A;
+    border-bottom: 1px solid rgba(46,42,36,0.4);
+  }
+  .card-row:last-child { border-bottom: none; }
+  .card-row .val { color: #FBF7E4; font-weight: 500; }
+  
+  .label-tag {
+    display: inline-block;
+    font-size: 9px;
+    background: rgba(232,101,26,0.15);
+    color: #E8651A;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+
+  .options-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .option-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .option-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #6A5E52;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<div class="section-title">Banner Redesign — Compare Options</div>
+
+<div class="options-row">
+
+  <!-- OPTION A: Molten F + Bebas Neue -->
+  <div class="option-col">
+    <div class="option-label">Option A — Molten F</div>
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div class="banner-new">
+        <div class="f-icon">
+          <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAB4AHgDASIAAhEBAxEB/8QAHQABAAEEAwEAAAAAAAAAAAAAAAgFBgcJAQIDBP/EADcQAAIBBAAFAQYEBQMFAAAAAAECAwAEBREGBxIhMUEIEyJRYXEUMoGRFSNCUqEzYrFyc8HR8f/EABwBAQABBQEBAAAAAAAAAAAAAAAHAQIDBAUGCP/EADIRAAEDAgMFBgYCAwAAAAAAAAEAAgMEEQUhMQYSQVFxE2GBkbHwFCIjocHRMvEVFuH/2gAMAwEAAhEDEQA/ANVVKUoiUpQd6IlK9Ei3XYw9qpcLIGOIuvGldvdmuOg1VWWK4pXPQenfp43XMaGR1UEAk62x0P3oqLrSrjwtjw/ck2t9d3Ecz9luYl+BT/0nyP2rpkuBstYSkJayXtsf9O6tEaSNx89gdj9DoisAmZvbpyPfx6LZNO/d3xmO7O3VW+ATvQ3qlejI8JYbKnwfT9K86zrXItqlKUoqJSlKIle1lazXtzHBbxPPNIwVI41LMx+QArxrI/I3i7hvhLiHIPxHZ3U0V1Zm3trqzKF7aXrVuoq/ZlYAqRsfm8+QcE8joonPY3eI4c1np42yytY51gTqq7wXyy4csSs3GV1krltbGLwHu1cf9y4kBRfsiv8AcVcGZ4E5Y5RCMdBxRw9JrStNc2+QT9V6Yj+zVk7kVzR5IrxAcLxrwZk+Mkvbn+VlrpDaG06jrUixXHxoDrudFfqKldxByI5Ip0z4zgqCWC4tlvIVS9ufhU7Dodyb6lIP3H+Y+rsXkpZh2280nS1reV/UKRsPwqOpBbHHvDS/f198eS1pX3JK6dmfDZjH5iLtpGY2sx+nTLpd/QOars3LuLgG1s1yvDFw2duiEhhyEEhSPx/MYHSuDsaC+e52BoGfvDnIXljkpxPBwbBBB1dCq1xcOJm/tC9ZLDxv9vWsj5fg7hfF4d7HPYyCwsblWheC+uHYXCEEMiWyFtjXb4tEemu1c6o2o3XNjfpx4H7a94yW7/gYqVzrAFx0Bz8vZWqTF81L9b2TH5DBYG9sI3MciQ49IukA6JV00T47d+9XJl+B+D8pbpfLbzR2UoBeW0YCa3369JHS6/fR9CR5qauW9kvkhlblzw/a2+PRjsQXoukAPro9Wtfc1TbL2fOEuGWjK8HTXwhYiN45jLbSAH1Al+Ib8q2vqO9XT7Q4c36tK8tI1Ayv97e87rNQ4TUTt7CqDXX03hmPMA/fotfHMjlRl+WnG9zwxfw/iLoGN7aWBG1dxSDqikQHv8QI7eQdjyKlf7I/KJr73/8AH8k9n+DB65oGUIdKS0Ic795Kg0T0jQHlu3eQ3G/JPA8x86eKZcBNf5eeGOJiqsJYwECsi9LajO+obOhojzWNedoteTfArIz2+DmlRLWzsLKYubSEN1M5bfeVyOkDzouzVyajak4xTxUEA+s6wJsNeNh/z8A0gwCPDHuqHvFs8hqOvTmoke11i8NZc68xc4HaY3IxQ3qwtrqidk6XDEeSWRn32/P4rCRHerl474rm4y4myGXnURtcybSJT8MaDsij6AAf5q2ql6gjkhpo45TdwAB62UY17431D3RfxJNul0pSlb65yUpSiJX026IqBy222drrwO3ff7/tXzAbNVnh2wXI5rHWj76J7mKJtfJnAP8AzVrrBpJWWIEvACy1wZhsbZ4RrbJzjHy3UaNPdmFpSncEIoBGmCn17bJ8VsK5HXcHG+OwE8SSNZzWtuqJ1B2EaqF7nt1E6bZGu7GtcORe7u8pJLJazIk0rLBGykbHUdKo9T9q2NexvCbPl5iS8ayT2mMnWSGOVSepGfSqw7FgQBr071Cu1pMVM2qJu65y6g/oKd8MlEUErYxYNZYeBGf3XvxJx1cYW2mTFNBi1dzbxzSSqsduoJGg5/O4HouwO/k96h97SHOXLcQ8Vpw/h81MljbWcZ/FWk/WLiZ195KxZTvXVsEd9arK3E2elzkD3d3Z27SSxzqkbJ1FVAJ8nv4Pz81DtMfaZGGKa1draRlUmKZi6+PRj3/fdX7LYZHJK6pnFy3TK4uePhaw4arPtQ99BBHDDYF1721tpa/v1VX4H4xyeBzkM17eSzQK25YS/Q5HzSRe4/epMcDc+eIcXi4roX/8ZsZhsWzsWlhYdtM4GyR9Qdgioo57GNicdjmluYJbi4MjiOF+po410o6jrXxNvQ/2mvmx/F95goZvwUpjnkGuvW+j6j617LEsCjxNu+1oPDTLj5ddV5DDto46Bpp6lu8Bnnmb++Gil9xl7Z82CsHht8RdvelPiSW6KRA99Ftf8AVD7m3zN4g5iZ+S6zt4s8i/6cMDAwxAjek0T9Nnez+mqtq+vJ7xme4nlncnfVK5Y/5qjXB1utrCNmqLCXdpCwb/AD4+F9FwsW2hkxBpY3JvL9814u2ya60pXrQvEk3SlKUVEpSlEXaIbaqxgp2s8naXEaNJJFMkiIvliGBA/wAVSIPzGqzgrpbLJ2dw/dIpkdvsGG/8Va7+BWeH+YupPS5bL8tbPJ5DHyYjIyq3vI8hdQe+dlYj3ap19o1HVvt3J9daqVfs18S3OV5WcP5owW0VwPeO4th0oNSuO67Ov0JH0HpBLJca3WJ4ayHC11bC5VjG9jfCTRjj6w4BUghhoaB7EeO+qnN7HeMbNco+HEa6SKJRLJPfICiRoZXB7EDbbPT28n6d6gzaSlLKDtHgXLxnzbun3byFlPeHzxOc4XIaGZg8DfPr4X15r4bjlNmMhkZJ5LQWljIkvQxUrGkXQzDpGyzEk+FB3o67eIJ31rb4q0SGwjmlWNQr3FwhQk69F/pH371s5k4yx+AktJ8bKP4EYulBkZo4vh2wIU9RI3sn4gfJOu/ey7zgbldkuHzbX97b2yzSKT+Lu0iPUBpSpVGjl0N9+kfYVp7O41JQEunZdrrWAy0vrlqmN08uKt3XndcBkQLnoc8uF1rVume5kLMxkc6HnZ+gqny27liAjE+NarZdZeyxyqy8rRDLRZF/It0uI2LD5gLET8/FW7NyG5KcPX7XCYOSaIIQbmPINdwHXqqsmh9R5qRv9zoc2MaSeQt+SPQqPI9kayZ9muBHE5+ytclxCyb6lK/caqlzIG6hups8f8qeRGIxU99ib3M5S8dtJbWWR2A5J7FegFV+Xn9qjlzS4WPB2KtIrm2/BT5Ui7tbKaTrmhtlLASOdDXW3ZfmEY+NE92ixqGuIbG0gnnl18lyq/ApsPaXTuHr/SxPSuWGmNcV3l5VKUpREpSlEXaM6avttyO4Pivg8V9MMnbdVVzTYrKfDkDcZYe0tmYJdWrCJJpPykesZP1/Mv16h6itgHs5NFa8lMHY2TT+4RpWeS5j908r+9kGyv8ASo7gL6Dz3JrXJy8yrLkkx7xPNbTEs/uk6nUBdt8P9XZfGx313HetlXs9y4nJ8rMGba4ukR4m6Zbwh2ce8cfHoAg+mxvx6+ah7bNroYWst8u9cd2RU3bLTRzxl7hdwFj4W98VimxvYJeuK/t4pUtLeXohdAVV0VvT17geajtheeXHZtUFq1irsgZ44sbH8v7R/wCqlfnuAXubfKnEX9lPeNA6yMZCodipGxsAqdeV131sVgM8s73l/wAJ8PXK3Ect778xXlq7Rxt3AWN0HWWYb0CNdgwYgVbgdXQyNeyRjXOJFg4dxPhf1Xa2nFRvRSQTOY2x3t0kcRbK4/pWantBcWs6mTIWkRUhlaKwRSpHggjxWQeHfbB4rgDrl8+1xGYmj/GfhQs6DpI0OggSE/l3JvW9ggjdRtnkjEfvIklMfhWdQP8Az3P2qlz3Zfez2Fe8n2ew6rFjC0eA/Si2PaOshIEshf1JP5UsOW/H3A1pkbrNJcW09nY27XFyl5ZGKeJN+CfdssjM2lU+8HcjsTvcXOZPGd9zA4vynEWTlDXN7L1CMNtYYx2SMfRVAH6b9apD5WWKCaJJGWKXp60B7No7G/sapFzMXOt1loMHjoZ3ztNy4AXPAcvE+gWriuNuxGNrX8OuvPU8PyvAnZNKUr0K8ilKUoiUpSiIBuvrsrSSc/y9HZC6339e+vl9a74XC3eeydnj7GL8ReXkywQxKRtnJAG9+B38nt5+VZv4YueV3K6Z7PMWQ43zUTlLmV1l/BRsDopGquhcD+9urfoo9dGqqvhx8rS53IC599SunQ0nxD/ncGtHEm3vwurO4I4QzmeuVssBDcM/UPeTwhh3/wBzD5eg/wDtbPuR3CP8C5U4CGaJrm8jtUMrR/DGHZmLaOu3fvvfr2+dYD5fcQ8vOZkWMxmGhOEtLuQRQWGDma1lSXyUI/qI87Kt271Ma2urHgjh+3xNrI5kjgUwwSAzsEUgF0iOy7dgOpvh7+nioR2lxOoq27rmGPdubEZ8tfduamXDaZlHE0Uzt9zraHK3hn+1hDj7iWG34Oto0xLYeS9WYG7WPolkgjIVWBPxdDMx3o/0du2wYWX3EFlh8Zg4sTM1/PNFPOlzdRKzwGVivUhcdafAq61re97qWnPLj+HO2k9xxFhrywv0ItYm2xjmt1JKiTt1b9SV+ZHy1C+PBz5C6yl/LKYLeMkXOVlt2gtLVB2CrvWz09lUD0Gt1t7LRt7Fz5BYXHG4Oo146/i2eXXx9kkNNCC0Bx3ic78QRY35DXTjlbOxOKmMcloT2R4i0a/JetgNftVtyzbB+XyqpcYZ+DNZuWazjaKxiVbe1jf8wiQaUn6nux+rGrfeXzs/pU3wXETd4WK+eqpzXTPLTcX8+9cyS+TXyk7NcsxY1xV5N1qpSlKoiUpSiJSlKIr85KZ2DhrjWLJTJ7wwxSKoH5gGUoWX/cobqH2qhZPEx4qeX3uQSZNnoZEJeT66Pj69/wB6oKsUYMpKsPBB0RR5GkYs7F2Pqx2a1Ph/rGYHUAHwvb1K321QEAi3cwSQetr+gWX+QHtD3vIbMXmSx3DmDzl3cqqe9zMMspgUHv7oLIoVj3BbROiRvRIN75P27OObnia5zUOPwqTTM38t4ZnQKQQF0Ze4A8fao0DtTZrRqcHoax5kqIg4nLNb9LjldRxmKnkLQeSz5B7avMO1kdojjeliS0b27yJs+T0s5FY75jc4uIuaM9vJnp0k/Dk+5igUxxID6BAekffW/rqrHpV9NhNBSSdrBC1ruYGasq8bxGuYY6mYuaeBXYyk11pSusuIlKUoiUpSiJSlKIlKUoiUpSiJSlKIlKUoiUpSiJSlKIlKUoiUpSiL/9k=" alt="F" />
+        </div>
+        <div class="text">
+          <div class="name">THE FOUNDRY</div>
+          <div class="sub">Week 2 &middot; Accumulation</div>
+        </div>
+        <div class="profile-icon">&#9679;</div>
+      </div>
+      <div class="fake-content">
+        <div class="greeting">Good evening, James</div>
+        <div class="card">
+          <div class="card-header">Today's Session</div>
+          <div class="card-row"><span>Push Day 1</span><span class="label-tag">PUSH</span></div>
+          <div class="card-row"><span>Exercises</span><span class="val">6</span></div>
+          <div class="card-row"><span>Target RIR</span><span class="val">3</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header">Meso Progress</div>
+          <div class="card-row"><span>Week</span><span class="val">2 of 4</span></div>
+          <div class="card-row"><span>Sessions done</span><span class="val">4 / 12</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION B: Forged F (icon style) + subtle glow divider -->
+  <div class="option-col">
+    <div class="option-label">Option B — Forged F + Glow</div>
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div class="banner-glow">
+        <div class="f-icon">
+          <img src="data:image/jpeg;base64,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" alt="F" />
+        </div>
+        <div class="text">
+          <div class="name">THE FOUNDRY</div>
+          <div class="sub">Week 2 &middot; Accumulation</div>
+        </div>
+        <div class="profile-icon">&#9679;</div>
+      </div>
+      <div class="fake-content">
+        <div class="greeting">Good evening, James</div>
+        <div class="card">
+          <div class="card-header">Today's Session</div>
+          <div class="card-row"><span>Push Day 1</span><span class="label-tag">PUSH</span></div>
+          <div class="card-row"><span>Exercises</span><span class="val">6</span></div>
+          <div class="card-row"><span>Target RIR</span><span class="val">3</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header">Meso Progress</div>
+          <div class="card-row"><span>Week</span><span class="val">2 of 4</span></div>
+          <div class="card-row"><span>Sessions done</span><span class="val">4 / 12</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION C: Minimal — no icon, just wordmark -->
+  <div class="option-col">
+    <div class="option-label">Option C — Wordmark Only</div>
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div class="banner-glow" style="padding: 12px 16px;">
+        <div class="text">
+          <div class="name" style="font-size: 20px; letter-spacing: 5px;">THE FOUNDRY</div>
+          <div class="sub">Week 2 &middot; Accumulation</div>
+        </div>
+        <div class="profile-icon">&#9679;</div>
+      </div>
+      <div class="fake-content">
+        <div class="greeting">Good evening, James</div>
+        <div class="card">
+          <div class="card-header">Today's Session</div>
+          <div class="card-row"><span>Push Day 1</span><span class="label-tag">PUSH</span></div>
+          <div class="card-row"><span>Exercises</span><span class="val">6</span></div>
+          <div class="card-row"><span>Target RIR</span><span class="val">3</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header">Meso Progress</div>
+          <div class="card-row"><span>Week</span><span class="val">2 of 4</span></div>
+          <div class="card-row"><span>Sessions done</span><span class="val">4 / 12</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
