@@ -1,4 +1,4 @@
-import { store } from './store.js';
+import { store } from './storage.js';
 
 /**
  * Adjust base sets according to training phase.

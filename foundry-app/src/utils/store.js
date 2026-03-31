@@ -1,8 +1,6 @@
-// localStorage wrapper with error handling
-export const store = {
-  get: (key) => { try { return localStorage.getItem(key); } catch { return null; } },
-  set: (key, val) => { try { localStorage.setItem(key, val); } catch {} },
-};
+// Import store locally for use in this file's functions, and re-export for consumers
+import { store } from './storage.js';
+export { store };
 
 // Re-export training utilities so components can import from a single location
 export {
