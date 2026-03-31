@@ -94,7 +94,7 @@ export default function OnboardingFlow({ onDone }) {
 
   /* Shared CTA button style */
   const ctaBtnStyle = {
-    width:"85%", padding:"16px", fontSize:15, fontWeight:600, borderRadius:12,
+    width:"85%", padding:"16px", fontSize:"clamp(15px, 4vw, 18px)", fontWeight:600, borderRadius:12,
     letterSpacing:"0.06em", textTransform:"uppercase",
     background:"var(--btn-primary-bg)", color:"var(--btn-primary-text)",
     border:"1px solid var(--btn-primary-border)",
@@ -129,14 +129,16 @@ export default function OnboardingFlow({ onDone }) {
           <div style={{position:"absolute", inset:0, zIndex:1,
             background:"linear-gradient(to bottom, rgba(10,10,12,0.88) 0%, rgba(10,10,12,0.6) 12%, rgba(10,10,12,0.05) 30%, rgba(10,10,12,0.0) 45%, rgba(10,10,12,0.05) 60%, rgba(10,10,12,0.5) 78%, rgba(10,10,12,0.92) 90%, rgba(10,10,12,0.98) 100%)"}} />
           <div style={{position:"relative", zIndex:2, display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", paddingTop:60, gap:6}}>
-            <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:42, letterSpacing:"0.2em", color:"#FBF7E4",
+            <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(38px, 10vw, 52px)", letterSpacing:"0.2em", color:"#FBF7E4",
               textShadow:"0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(232,101,26,0.25)"}}>THE FOUNDRY</div>
-            <div style={{fontSize:13, letterSpacing:"0.2em", textTransform:"uppercase", color:"#F29A52", fontWeight:500,
+            <div style={{fontSize:"clamp(13px, 3.5vw, 17px)", letterSpacing:"0.2em", textTransform:"uppercase", color:"#F29A52", fontWeight:500,
               textShadow:"0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)"}}>Forge Your Physique</div>
+            <div style={{fontSize:"clamp(13px, 3.5vw, 17px)", letterSpacing:"0.2em", textTransform:"uppercase", color:"#F29A52", fontWeight:500,
+              textShadow:"0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)"}}>Forge Your Fitness</div>
           </div>
           <div style={{position:"relative", zIndex:2, display:"flex", flexDirection:"column", alignItems:"center", gap:10, padding:"0 24px 48px"}}>
             <button onClick={advance} className="btn-primary" style={ctaBtnStyle}>Enter The Forge</button>
-            <div style={{fontSize:11, color:"#8A7A68", letterSpacing:"0.06em", textTransform:"uppercase"}}>Science-driven strength training</div>
+            <div style={{fontSize:"clamp(11px, 3vw, 14px)", color:"#8A7A68", letterSpacing:"0.06em", textTransform:"uppercase"}}>Science-driven strength training</div>
             <ProgressDots />
           </div>
         </div>
@@ -153,7 +155,7 @@ export default function OnboardingFlow({ onDone }) {
             <div style={{display:"flex", flexDirection:"column", gap:28}}>
               <BackButton />
               <div>
-                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:28, letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
+                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(28px, 7vw, 38px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
                   What should<br/>we call you?
                 </div>
               </div>
@@ -163,7 +165,7 @@ export default function OnboardingFlow({ onDone }) {
                 onFocus={() => setNameFocused(true)}
                 onBlur={() => setNameFocused(false)}
                 style={{
-                  width:"100%", padding:"14px 16px", borderRadius:10, fontSize:16,
+                  width:"100%", padding:"14px 16px", borderRadius:10, fontSize:"clamp(16px, 4.2vw, 20px)",
                   background:"rgba(26,24,20,0.08)",
                   border: nameFocused ? "1px solid #E8651A" : "1px solid rgba(232,101,26,0.15)",
                   color:"#FBF7E4", outline:"none", boxSizing:"border-box",
@@ -173,11 +175,11 @@ export default function OnboardingFlow({ onDone }) {
                   boxShadow: nameFocused ? "0 0 12px rgba(232,101,26,0.15)" : "none",
                 }}
               />
-              {error && <div style={{fontSize:13, color:"var(--danger)", fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{error}</div>}
+              {error && <div style={{fontSize:"clamp(13px, 3.5vw, 16px)", color:"var(--danger)", fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{error}</div>}
             </div>
             <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:12}}>
               <button onClick={advance} className="btn-primary" style={ctaBtnStyle}>Continue</button>
-              <label style={{fontSize:12, color:"#E8651A", cursor:"pointer", textShadow:"0 1px 4px rgba(0,0,0,0.8)", display:"inline-flex", alignItems:"center", gap:6}}>
+              <label style={{fontSize:"clamp(12px, 3.2vw, 15px)", color:"#E8651A", cursor:"pointer", textShadow:"0 1px 4px rgba(0,0,0,0.8)", display:"inline-flex", alignItems:"center", gap:6}}>
                 Restore existing data
                 <input type="file" accept=".json" style={{display:"none"}} onChange={e => {
                   const file = e.target.files?.[0];
@@ -205,10 +207,10 @@ export default function OnboardingFlow({ onDone }) {
             <div style={{display:"flex", flexDirection:"column", gap:18}}>
               <BackButton />
               <div>
-                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:28, letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
+                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(28px, 7vw, 38px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
                   How long have you<br/>been training?
                 </div>
-                <div style={{fontSize:13, color:"#C0B8AC", marginTop:6, fontWeight:400, textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
+                <div style={{fontSize:"clamp(13px, 3.5vw, 17px)", color:"#C0B8AC", marginTop:6, fontWeight:400, textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
                   This shapes your starting volume and intensity
                 </div>
               </div>
@@ -235,14 +237,14 @@ export default function OnboardingFlow({ onDone }) {
                         transition:"all 0.15s ease",
                       }}/>
                       <div>
-                        <span style={{fontSize:14, color:sel ? "#FBF7E4" : "#E8E4DC", fontWeight:sel ? 600 : 500, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.4)"}}>{opt.label}</span>
-                        <span style={{fontSize:11, color:"#C0B8AC", marginTop:2, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8)"}}>{opt.desc}</span>
+                        <span style={{fontSize:"clamp(14px, 3.8vw, 18px)", color:sel ? "#FBF7E4" : "#E8E4DC", fontWeight:sel ? 600 : 500, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.4)"}}>{opt.label}</span>
+                        <span style={{fontSize:"clamp(12px, 3.2vw, 15px)", color:"#C0B8AC", marginTop:2, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8)"}}>{opt.desc}</span>
                       </div>
                     </button>
                   );
                 })}
               </div>
-              {error && <div style={{fontSize:13, color:"var(--danger)", fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{error}</div>}
+              {error && <div style={{fontSize:"clamp(13px, 3.5vw, 16px)", color:"var(--danger)", fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{error}</div>}
             </div>
             <div style={{display:"flex", flexDirection:"column", alignItems:"center", width:"100%"}}>
               <button onClick={advance} className="btn-primary" style={ctaBtnStyle}>Continue</button>
@@ -263,10 +265,10 @@ export default function OnboardingFlow({ onDone }) {
             <div style={{display:"flex", flexDirection:"column", gap:14}}>
               <BackButton />
               <div>
-                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:28, letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
+                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(28px, 7vw, 38px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
                   What's your<br/>primary goal?
                 </div>
-                <div style={{fontSize:13, color:"#C0B8AC", marginTop:6, fontWeight:400, textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
+                <div style={{fontSize:"clamp(13px, 3.5vw, 17px)", color:"#C0B8AC", marginTop:6, fontWeight:400, textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
                   Your program is built around this choice
                 </div>
               </div>
@@ -289,14 +291,14 @@ export default function OnboardingFlow({ onDone }) {
                         transition:"all 0.15s ease",
                       }}/>
                       <div>
-                        <span style={{fontSize:14, color:sel ? "#FBF7E4" : "#E8E4DC", fontWeight:sel ? 600 : 500, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.4)"}}>{opt.label}</span>
-                        <span style={{fontSize:11, color:"#C0B8AC", marginTop:2, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8)"}}>{opt.desc}</span>
+                        <span style={{fontSize:"clamp(14px, 3.8vw, 18px)", color:sel ? "#FBF7E4" : "#E8E4DC", fontWeight:sel ? 600 : 500, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.4)"}}>{opt.label}</span>
+                        <span style={{fontSize:"clamp(12px, 3.2vw, 15px)", color:"#C0B8AC", marginTop:2, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8)"}}>{opt.desc}</span>
                       </div>
                     </button>
                   );
                 })}
               </div>
-              {error && <div style={{fontSize:13, color:"var(--danger)", fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{error}</div>}
+              {error && <div style={{fontSize:"clamp(13px, 3.5vw, 16px)", color:"var(--danger)", fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{error}</div>}
             </div>
             <div style={{display:"flex", flexDirection:"column", alignItems:"center", width:"100%"}}>
               <button onClick={advance} className="btn-primary" style={ctaBtnStyle}>Continue</button>
@@ -317,18 +319,18 @@ export default function OnboardingFlow({ onDone }) {
             <div>
               <BackButton />
               <div style={{marginTop:14}}>
-                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:36, letterSpacing:"0.15em", color:"#FBF7E4", lineHeight:1.15,
+                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(34px, 9vw, 46px)", letterSpacing:"0.15em", color:"#FBF7E4", lineHeight:1.15,
                   textShadow:"0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(232,101,26,0.2)"}}>
                   Ready to forge,<br/>{name.trim() || "lifter"}?
                 </div>
-                <div style={{fontSize:14, color:"#E8E4DC", marginTop:10, lineHeight:1.6, maxWidth:320, fontWeight:400,
+                <div style={{fontSize:"clamp(14px, 3.8vw, 18px)", color:"#E8E4DC", marginTop:10, lineHeight:1.6, maxWidth:320, fontWeight:400,
                   textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
                   Next you'll dial in the details — equipment, schedule, and preferences. Then The Foundry builds your program.
                 </div>
               </div>
             </div>
             <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:12, width:"100%"}}>
-              <button onClick={advance} className="btn-primary" style={{...ctaBtnStyle, fontSize:16, padding:"18px"}}>Build My Program</button>
+              <button onClick={advance} className="btn-primary" style={{...ctaBtnStyle, fontSize:"clamp(16px, 4.2vw, 20px)", padding:"18px"}}>Build My Program</button>
               <ProgressDots />
             </div>
           </div>
