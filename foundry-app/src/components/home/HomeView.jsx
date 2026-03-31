@@ -281,8 +281,87 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
     </div>
   );
 
-  const ProgressPage = (props) => (
-    <div style={{padding:20,textAlign:"center",color:"var(--text-muted)",fontSize:13}}>Progress view coming soon</div>
+  const ProgressPage = ({ activeWeek, phase, pc, rir, weekDone, weekTotal, weekPct, weekMuscles, mesoPct, doneSessions, totalSessions, completedDays, activeDays, goBack, goTo, profile }) => (
+    <div>
+      <SubHeader label="PROGRESS" />
+      <div style={{padding:"16px", display:"flex", flexDirection:"column", gap:12}}>
+        {/* Meso progress */}
+        <div style={{background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:8, padding:"16px"}}>
+          <div style={{fontSize:12, fontWeight:800, letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:10}}>MESOCYCLE</div>
+          <div style={{display:"flex", alignItems:"center", gap:12, marginBottom:8}}>
+            <div style={{fontSize:28, fontWeight:900, color:pc}}>{mesoPct}%</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13, color:"var(--text-secondary)", marginBottom:4}}>{doneSessions} of {totalSessions} sessions completed</div>
+              <div style={{height:6, background:"var(--bg-inset)", borderRadius:3, overflow:"hidden"}}>
+                <div style={{height:"100%", width:`${mesoPct}%`, background:pc, borderRadius:3, transition:"width 0.5s ease"}} />
+              </div>
+            </div>
+          </div>
+          <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+            <div style={{fontSize:12, color:"var(--text-secondary)"}}>Phase: <span style={{fontWeight:700, color:pc}}>{phase}</span></div>
+            <div style={{fontSize:12, color:"var(--text-secondary)"}}>RIR: <span style={{fontWeight:700, color:"var(--text-primary)"}}>{rir}</span></div>
+            <div style={{fontSize:12, color:"var(--text-secondary)"}}>Week: <span style={{fontWeight:700, color:"var(--text-primary)"}}>{activeWeek + 1}/{getMeso().weeks}</span></div>
+          </div>
+        </div>
+
+        {/* Current week */}
+        <div style={{background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:8, padding:"16px"}}>
+          <div style={{fontSize:12, fontWeight:800, letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:10}}>THIS WEEK</div>
+          <div style={{display:"flex", alignItems:"center", gap:12, marginBottom:8}}>
+            <div style={{fontSize:22, fontWeight:900, color:"var(--text-primary)"}}>{weekDone}/{weekTotal}</div>
+            <div style={{flex:1, height:6, background:"var(--bg-inset)", borderRadius:3, overflow:"hidden"}}>
+              <div style={{height:"100%", width:`${weekPct}%`, background:pc, borderRadius:3, transition:"width 0.5s ease"}} />
+            </div>
+          </div>
+          <div style={{display:"flex", gap:12}}>
+            {Object.entries(weekMuscles).map(([tag, sets]) => (
+              <div key={tag} style={{fontSize:12, color:"var(--text-secondary)"}}>
+                <span style={{fontWeight:700, color:TAG_ACCENT[tag] || "var(--text-primary)"}}>{tag}</span>: {sets} sets
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Week-by-week breakdown */}
+        <div style={{background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:8, padding:"16px"}}>
+          <div style={{fontSize:12, fontWeight:800, letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:10}}>WEEK BREAKDOWN</div>
+          {Array.from({length: getMeso().weeks}, (_, w) => {
+            const wPhase = getWeekPhase()[w] || "Accumulation";
+            const wColor = PHASE_COLOR[wPhase];
+            const wDone = activeDays.filter((_, i) => completedDays.has(`${i}:${w}`)).length;
+            const wTotal = activeDays.length;
+            const wPct = wTotal > 0 ? Math.round((wDone / wTotal) * 100) : 0;
+            const isCurrent = w === activeWeek;
+            return (
+              <div key={w} style={{display:"flex", alignItems:"center", gap:10, padding:"6px 0", borderBottom: w < getMeso().weeks - 1 ? "1px solid var(--border-subtle)" : "none"}}>
+                <div style={{fontSize:12, fontWeight:isCurrent ? 800 : 600, color:isCurrent ? wColor : "var(--text-muted)", minWidth:44}}>W{w+1}</div>
+                <div style={{flex:1, height:5, background:"var(--bg-inset)", borderRadius:3, overflow:"hidden"}}>
+                  <div style={{height:"100%", width:`${wPct}%`, background:wColor, borderRadius:3}} />
+                </div>
+                <div style={{fontSize:12, fontWeight:600, color:"var(--text-secondary)", minWidth:36, textAlign:"right"}}>{wDone}/{wTotal}</div>
+                <div style={{fontSize:11, fontWeight:700, color:wColor, minWidth:28}}>{wPhase.slice(0,3).toUpperCase()}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Quick links */}
+        <div style={{display:"flex", gap:8}}>
+          <button onClick={() => goTo("history")} style={{
+            flex:1, padding:"14px", borderRadius:8, cursor:"pointer",
+            background:"var(--bg-card)", border:"1px solid var(--border)",
+            color:"var(--text-secondary)", fontSize:13, fontWeight:700,
+            textAlign:"center",
+          }}>Meso History</button>
+          <button onClick={() => goTo("datamgmt")} style={{
+            flex:1, padding:"14px", borderRadius:8, cursor:"pointer",
+            background:"var(--bg-card)", border:"1px solid var(--border)",
+            color:"var(--text-secondary)", fontSize:13, fontWeight:700,
+            textAlign:"center",
+          }}>Import / Export</button>
+        </div>
+      </div>
+    </div>
   );
 
   const WeekSection = ({ weekIdx, isExpanded, onToggle, activeDays, completedDays, onSelectDay, workoutDays }) => (
@@ -1163,6 +1242,23 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
               );
             })()}
 
+            {/* ── DATA MANAGEMENT shortcut ── */}
+            <button onClick={() => goTo("datamgmt")} style={{
+              width:"100%", background:"var(--bg-card)",
+              border:"1px solid var(--border)", borderRadius:8,
+              padding:"12px 16px", cursor:"pointer", textAlign:"left",
+              display:"flex", alignItems:"center", justifyContent:"space-between",
+              boxShadow:"var(--shadow-xs)",
+            }}>
+              <div style={{display:"flex", alignItems:"center", gap:8}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span style={{fontSize:13, fontWeight:600, color:"var(--text-secondary)"}}>Import / Export Data</span>
+              </div>
+              <span style={{fontSize:14, color:"var(--text-muted)", fontWeight:700}}>›</span>
+            </button>
+
             {/* ── GO PRO banner ── */}
             <button onClick={() => setShowPricing(true)} style={{
               width:"100%", background:"linear-gradient(135deg, #1A1410 0%, #221C14 50%, #2E2418 100%)",
@@ -1403,8 +1499,8 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
 
                       const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
                       const dow = (firstDay + day - 1) % 7;
-                      const isWorkoutDay = !!sessionKey;
                       const sessionKey  = sessionDateMap[dateStr];
+                      const isWorkoutDay = !!sessionKey;
                       const isDone      = sessionKey ? completedDays.has(sessionKey) : false;
                       const isToday     = dateStr === todayStr;
                       const isPast      = dateStr < todayStr;
