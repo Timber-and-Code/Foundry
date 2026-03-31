@@ -74,6 +74,7 @@ import {
 } from '../../utils/store';
 import { haptic } from '../../utils/helpers';
 import HammerIcon from '../shared/HammerIcon';
+import ExplorePage from '../explore/ExplorePage';
 
 // Sub-component imports (will need to create these separately)
 import { PricingPage } from '../settings/PricingPage';
@@ -120,7 +121,6 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
   };
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
-  useEffect(() => { setShowNextSession(false); }, [activeWeek]);
 
   // If parent requests weekly tab, navigate there once
   useEffect(() => {
@@ -178,6 +178,8 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
     }
     return getMeso().weeks; // deload
   }, [completedDays, activeDays]);
+
+  useEffect(() => { setShowNextSession(false); }, [activeWeek]);
 
   // Calendar week — what week the schedule says we're in based on today's date vs startDate
   const calendarWeek = useMemo(() => {
@@ -240,6 +242,93 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
         <div style={{height:"100%", width:`${width}%`, background:color, borderRadius:2, transition:"width 0.6s cubic-bezier(0.22,1,0.36,1)"}} />
       </div>
     );
+  };
+
+  // ── Stub components (to be extracted into separate files) ──
+  const ResetDialog = ({ onCancel, onConfirmed }) => (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onCancel}>
+      <div style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:12,padding:24,maxWidth:360,width:"90%",textAlign:"center"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:16,fontWeight:800,color:"var(--text-primary)",marginBottom:8}}>Reset Mesocycle?</div>
+        <div style={{fontSize:13,color:"var(--text-secondary)",marginBottom:20,lineHeight:1.5}}>This will archive your current meso and start fresh. Your data will be saved in history.</div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onCancel} style={{flex:1,padding:"12px",borderRadius:8,background:"var(--bg-inset)",border:"1px solid var(--border)",color:"var(--text-primary)",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+          <button onClick={onConfirmed} style={{flex:1,padding:"12px",borderRadius:8,background:"var(--danger)",border:"1px solid var(--danger)",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Reset</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ProgressPage = (props) => (
+    <div style={{padding:20,textAlign:"center",color:"var(--text-muted)",fontSize:13}}>Progress view coming soon</div>
+  );
+
+  const WeekSection = ({ weekIdx, isExpanded, onToggle, activeDays, completedDays, onSelectDay, workoutDays }) => (
+    <div style={{marginBottom:8}}>
+      <div onClick={onToggle} style={{cursor:"pointer",padding:"12px 16px",background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span style={{fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>Week {weekIdx + 1}</span>
+        <span style={{fontSize:12,color:"var(--text-muted)"}}>{isExpanded ? "▼" : "▶"}</span>
+      </div>
+      {isExpanded && (
+        <div style={{padding:"8px 0",display:"flex",flexDirection:"column",gap:4}}>
+          {activeDays.map((day, i) => {
+            const done = completedDays.has(`${i}:${weekIdx}`);
+            return (
+              <div key={i} onClick={() => !done && onSelectDay(i, weekIdx)} style={{padding:"10px 16px",fontSize:12,color:done?"var(--text-muted)":"var(--text-primary)",cursor:done?"default":"pointer",background:done?"var(--bg-inset)":"transparent",borderRadius:4}}>
+                {done ? "✓ " : ""}{day.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const DeloadSection = (props) => (
+    <div style={{padding:"12px 16px",background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:8,marginBottom:8}}>
+      <span style={{fontSize:13,fontWeight:700,color:"var(--text-accent)"}}>Deload Week</span>
+    </div>
+  );
+
+  const MesoOverview = () => (
+    <div style={{padding:16,fontSize:12,color:"var(--text-muted)"}}>Meso overview</div>
+  );
+
+  const MesoHistory = ({ goBack }) => {
+    const archive = loadArchive?.() || [];
+    return (
+      <div>
+        <div style={{display:"flex",alignItems:"center",gap:12,padding:"16px"}}>
+          <button onClick={goBack} style={{background:"none",border:"none",color:"var(--text-accent)",fontSize:18,cursor:"pointer",minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
+          <span style={{fontSize:16,fontWeight:800,color:"var(--text-primary)"}}>Meso History</span>
+        </div>
+        {archive.length === 0 ? (
+          <div style={{padding:20,textAlign:"center",color:"var(--text-muted)",fontSize:13}}>No archived mesocycles yet</div>
+        ) : (
+          <div style={{padding:"0 16px",display:"flex",flexDirection:"column",gap:8}}>
+            {archive.map((entry, idx) => (
+              <div key={idx} style={{padding:16,background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:8}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{entry.profile?.split || "Program"} — {entry.profile?.weeks || "?"} weeks</div>
+                <div style={{fontSize:11,color:"var(--text-muted)",marginTop:4}}>Archived {entry.date || "unknown date"}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const WeeklySummary = ({ activeDays, completedDays, goBack, profile }) => (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"16px"}}>
+        <button onClick={goBack} style={{background:"none",border:"none",color:"var(--text-accent)",fontSize:18,cursor:"pointer",minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
+        <span style={{fontSize:16,fontWeight:800,color:"var(--text-primary)"}}>Weekly Summary</span>
+      </div>
+      <div style={{padding:20,textAlign:"center",color:"var(--text-muted)",fontSize:13}}>Weekly summary view coming soon</div>
+    </div>
+  );
+
+  const generateExtraWorkout = (dayTypeId, prof) => {
+    return { label: dayTypeId, exercises: [] };
   };
 
   return (
