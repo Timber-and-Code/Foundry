@@ -18,9 +18,9 @@ export function PricingPage({ onClose }) {
     try { localStorage.setItem("foundry:pro_email", trimmed); } catch {}
     // POST to Worker — fire and move on; localStorage is the safety net
     try {
-      await fetch(FOUNDRY_AI_WORKER_URL + "/subscribe", {
+      await fetch((workerUrl || "") + "/subscribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Foundry-Key": FOUNDRY_APP_KEY },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed }),
       });
     } catch { /* silent — localStorage already saved it */ }

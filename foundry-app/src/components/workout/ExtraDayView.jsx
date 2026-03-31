@@ -8,6 +8,39 @@ import { haptic } from '../../utils/helpers';
 import { TAG_ACCENT, getMeso } from '../../data/constants';
 import ExerciseCard from './ExerciseCard';
 
+// Stub modal components (to be fully built out later)
+const SwapModal = ({ exercise, dayTag, profile, onSwap, onClose }) => (
+  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+    <div style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:12,padding:24,maxWidth:360,width:"90%",textAlign:"center"}} onClick={e=>e.stopPropagation()}>
+      <div style={{fontSize:14,fontWeight:700,color:"var(--text-primary)",marginBottom:12}}>Swap Exercise</div>
+      <div style={{fontSize:12,color:"var(--text-muted)",marginBottom:16}}>Exercise swap coming soon</div>
+      <button onClick={onClose} style={{padding:"10px 24px",borderRadius:6,background:"var(--bg-inset)",border:"1px solid var(--border)",color:"var(--text-primary)",cursor:"pointer",fontSize:13,fontWeight:600}}>Close</button>
+    </div>
+  </div>
+);
+
+const AddExerciseModal = ({ dayTag, profile, onAdd, onClose }) => (
+  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+    <div style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:12,padding:24,maxWidth:360,width:"90%",textAlign:"center"}} onClick={e=>e.stopPropagation()}>
+      <div style={{fontSize:14,fontWeight:700,color:"var(--text-primary)",marginBottom:12}}>Add Exercise</div>
+      <div style={{fontSize:12,color:"var(--text-muted)",marginBottom:16}}>Add exercise coming soon</div>
+      <button onClick={onClose} style={{padding:"10px 24px",borderRadius:6,background:"var(--bg-inset)",border:"1px solid var(--border)",color:"var(--text-primary)",cursor:"pointer",fontSize:13,fontWeight:600}}>Close</button>
+    </div>
+  </div>
+);
+
+const WorkoutCompleteModal = ({ dayLabel, dayTag, gender, stats, weekIdx, onDone, onClose }) => (
+  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+    <div style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:12,padding:24,maxWidth:360,width:"90%",textAlign:"center"}} onClick={e=>e.stopPropagation()}>
+      <div style={{fontSize:24,marginBottom:8}}>🎉</div>
+      <div style={{fontSize:16,fontWeight:800,color:"var(--text-primary)",marginBottom:8}}>Session Complete!</div>
+      <div style={{fontSize:13,color:"var(--text-secondary)",marginBottom:8}}>{dayLabel}</div>
+      {stats && <div style={{fontSize:12,color:"var(--text-muted)",marginBottom:16}}>{stats.totalSets} sets · {stats.duration || "—"}</div>}
+      <button onClick={onDone || onClose} style={{width:"100%",padding:"14px",borderRadius:8,background:"var(--btn-primary-bg)",border:"1px solid var(--btn-primary-border)",color:"var(--btn-primary-text)",cursor:"pointer",fontSize:14,fontWeight:700}}>Done</button>
+    </div>
+  </div>
+);
+
 function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }) {
   const extraKey    = `ppl:extra:${dateStr}`;
   const doneKey     = `ppl:extra:done:${dateStr}`;

@@ -3,6 +3,8 @@ import { store } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
 import { EXERCISE_DB } from '../../data/exercises';
 import { GOAL_OPTIONS } from '../../data/constants';
+import FoundryBanner from '../shared/FoundryBanner';
+import HammerIcon from '../shared/HammerIcon';
 
 export function SetupPage({ onComplete }) {
   const ALL_EQUIPMENT = ["barbell", "dumbbell", "bodyweight", "kettlebell", "band", "machine", "cable"];

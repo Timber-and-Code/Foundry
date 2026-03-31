@@ -3,6 +3,48 @@ import { EXERCISE_DB, SAMPLE_PROGRAMS } from '../../data/exercises';
 import { GOAL_OPTIONS } from '../../data/constants';
 import HammerIcon from '../shared/HammerIcon';
 
+// Build AI days array from a sample program's day definitions
+const buildAiDaysFromSample = (prog) => {
+  if (!prog || !prog.days) return [];
+  return prog.days.map(day => ({
+    label: day.label || day.name || "Day",
+    tag: day.tag || "PUSH",
+    exercises: (day.exercises || []).map(ex => ({
+      name: ex.name || ex,
+      sets: ex.sets || 3,
+      repRange: ex.repRange || "8-12",
+      progression: ex.progression || "standard",
+      warmup: ex.warmup || null,
+    })),
+  }));
+};
+
+// Modal for starting a sample program
+const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }) => {
+  const [startDate, setStartDate] = React.useState(() => new Date().toISOString().slice(0, 10));
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onCancel}>
+      <div style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:12,padding:24,maxWidth:400,width:"90%"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:16,fontWeight:800,color:"var(--text-primary)",marginBottom:4}}>{prog.label}</div>
+        <div style={{fontSize:12,color:"var(--text-muted)",marginBottom:16}}>{prog.splitType} · {prog.daysPerWeek} days/wk · {prog.weeks} weeks</div>
+        {hasActiveMeso && (
+          <div style={{fontSize:12,color:"var(--danger)",background:"rgba(255,0,0,0.08)",border:"1px solid var(--danger)",borderRadius:6,padding:10,marginBottom:16,lineHeight:1.5}}>
+            ⚠ This will replace your current mesocycle. Your existing data will be archived.
+          </div>
+        )}
+        <div style={{marginBottom:16}}>
+          <label style={{fontSize:12,fontWeight:600,color:"var(--text-secondary)",display:"block",marginBottom:6}}>Start Date</label>
+          <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} style={{width:"100%",padding:"10px",borderRadius:6,border:"1px solid var(--border)",background:"var(--bg-inset)",color:"var(--text-primary)",fontSize:14}} />
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onCancel} style={{flex:1,padding:"12px",borderRadius:8,background:"var(--bg-inset)",border:"1px solid var(--border)",color:"var(--text-primary)",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+          <button onClick={()=>onConfirm(startDate)} style={{flex:1,padding:"12px",borderRadius:8,background:"var(--btn-primary-bg)",border:"1px solid var(--btn-primary-border)",color:"var(--btn-primary-text)",fontSize:13,fontWeight:700,cursor:"pointer"}}>Start Program</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function ExplorePage({ profile, onStartProgram }) {
   const [section, setSection]   = useState("home");   // home | library | programs | learn
   const [learnOpen, setLearnOpen] = useState(null);   // which learn card is expanded
