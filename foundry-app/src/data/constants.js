@@ -401,6 +401,41 @@ export function getWeekRir() { return getMeso().rirs; }
 export function getProgTargets() { return getMeso().progTargets; }
 export function getMesoRows() { return getMeso().mesoRows; }
 
+// ─── COOLDOWN MOBILITY (post-workout, tag-specific) ─────────────────────────
+export const FOUNDRY_COOLDOWN = {
+  PUSH: [
+    { name: "Doorway Pec Stretch", cue: "Place forearm on a doorframe, step through gently. Hold 30s each side. Opens up the chest after pressing." },
+    { name: "Overhead Tricep Stretch", cue: "Reach one arm overhead, bend elbow, press with opposite hand. 30s each. Releases triceps and shoulder." },
+    { name: "Wall Slide Cool-Down", cue: "Back flat on wall, arms in goalpost. Slide up/down slowly x10. Resets scapulae after pressing work." },
+  ],
+  PULL: [
+    { name: "Cross-Body Shoulder Stretch", cue: "Pull one arm across your chest with the opposite hand. 30s each side. Opens rear delts after pulling." },
+    { name: "Lat Hang / Dead Hang", cue: "Hang from a bar with relaxed grip, 20–30s. Decompresses spine and stretches lats after rows and pulldowns." },
+    { name: "Seated Spinal Twist", cue: "Sit cross-legged, twist gently to each side. 30s each. Releases mid-back tension from pulling." },
+  ],
+  LEGS: [
+    { name: "Standing Quad Stretch", cue: "Grab ankle behind you, keep knees together. 30s each leg. Essential after squats and leg presses." },
+    { name: "Seated Hamstring Stretch", cue: "Sit with one leg extended, reach for toes. 30s each side. Loosens hamstrings after deadlifts and curls." },
+    { name: "90/90 Hip Stretch", cue: "Sit with both legs at 90°, lean gently over front shin. 30s each side. Opens hips after any leg work." },
+  ],
+};
+
+// ─── REST DAY QUOTES ────────────────────────────────────────────────────────
+export const REST_QUOTES = [
+  "Recovery is where growth happens. You broke it down — now let it build back stronger.",
+  "The iron doesn't make you strong. Rest does. The iron just shows you where you're going.",
+  "Sleep, eat, hydrate. The boring stuff is what separates good from great.",
+  "Your muscles don't grow in the gym. They grow right now, while you recover.",
+  "A rest day isn't a day off — it's a day your body catches up to your effort.",
+  "Trust the process. The gains are being forged while you rest.",
+  "Every elite athlete prioritizes recovery. You should too.",
+  "You earned this rest. Tomorrow, you come back sharper.",
+  "Discipline isn't just showing up. It's knowing when to step back.",
+  "Stretch. Walk. Breathe. Your body will thank you in the next session.",
+  "The best program in the world fails without recovery. You're doing this right.",
+  "Think of rest days as part of your training — because they are.",
+];
+
 // ─── RECOVERY TIPS ───────────────────────────────────────────────────────────
 export const RECOVERY_TIPS = [
   { label: "Protein window", tip: "Get 40–50g of protein within 90 minutes. Muscle protein synthesis peaks in this window and drops off sharply after 2 hours." },
