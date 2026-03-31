@@ -155,7 +155,7 @@ export default function OnboardingFlow({ onDone }) {
             <div style={{display:"flex", flexDirection:"column", gap:28}}>
               <BackButton />
               <div>
-                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(28px, 7vw, 38px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
+                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(32px, 8vw, 42px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
                   What should<br/>we call you?
                 </div>
               </div>
@@ -179,7 +179,7 @@ export default function OnboardingFlow({ onDone }) {
             </div>
             <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:12}}>
               <button onClick={advance} className="btn-primary" style={ctaBtnStyle}>Continue</button>
-              <label style={{fontSize:"clamp(12px, 3.2vw, 15px)", color:"#E8651A", cursor:"pointer", textShadow:"0 1px 4px rgba(0,0,0,0.8)", display:"inline-flex", alignItems:"center", gap:6}}>
+              <label style={{fontSize:"clamp(13px, 3.5vw, 16px)", color:"#E8651A", cursor:"pointer", textShadow:"0 1px 4px rgba(0,0,0,0.8)", display:"inline-flex", alignItems:"center", gap:6}}>
                 Restore existing data
                 <input type="file" accept=".json" style={{display:"none"}} onChange={e => {
                   const file = e.target.files?.[0];
@@ -207,10 +207,10 @@ export default function OnboardingFlow({ onDone }) {
             <div style={{display:"flex", flexDirection:"column", gap:18}}>
               <BackButton />
               <div>
-                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(28px, 7vw, 38px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
+                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(32px, 8vw, 42px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
                   How long have you<br/>been training?
                 </div>
-                <div style={{fontSize:"clamp(13px, 3.5vw, 17px)", color:"#C0B8AC", marginTop:6, fontWeight:400, textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
+                <div style={{fontSize:"clamp(15px, 4vw, 19px)", color:"#C0B8AC", marginTop:6, fontWeight:400, textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
                   This shapes your starting volume and intensity
                 </div>
               </div>
@@ -237,8 +237,8 @@ export default function OnboardingFlow({ onDone }) {
                         transition:"all 0.15s ease",
                       }}/>
                       <div>
-                        <span style={{fontSize:"clamp(14px, 3.8vw, 18px)", color:sel ? "#FBF7E4" : "#E8E4DC", fontWeight:sel ? 600 : 500, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.4)"}}>{opt.label}</span>
-                        <span style={{fontSize:"clamp(12px, 3.2vw, 15px)", color:"#C0B8AC", marginTop:2, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8)"}}>{opt.desc}</span>
+                        <span style={{fontSize:"clamp(16px, 4.2vw, 20px)", color:sel ? "#FBF7E4" : "#E8E4DC", fontWeight:sel ? 600 : 500, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.4)"}}>{opt.label}</span>
+                        <span style={{fontSize:"clamp(13px, 3.5vw, 16px)", color:"#C0B8AC", marginTop:2, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8)"}}>{opt.desc}</span>
                       </div>
                     </button>
                   );
@@ -265,10 +265,10 @@ export default function OnboardingFlow({ onDone }) {
             <div style={{display:"flex", flexDirection:"column", gap:14}}>
               <BackButton />
               <div>
-                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(28px, 7vw, 38px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
+                <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(32px, 8vw, 42px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
                   What's your<br/>primary goal?
                 </div>
-                <div style={{fontSize:"clamp(13px, 3.5vw, 17px)", color:"#C0B8AC", marginTop:6, fontWeight:400, textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
+                <div style={{fontSize:"clamp(15px, 4vw, 19px)", color:"#C0B8AC", marginTop:6, fontWeight:400, textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
                   Your program is built around this choice
                 </div>
               </div>
@@ -291,8 +291,8 @@ export default function OnboardingFlow({ onDone }) {
                         transition:"all 0.15s ease",
                       }}/>
                       <div>
-                        <span style={{fontSize:"clamp(14px, 3.8vw, 18px)", color:sel ? "#FBF7E4" : "#E8E4DC", fontWeight:sel ? 600 : 500, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.4)"}}>{opt.label}</span>
-                        <span style={{fontSize:"clamp(12px, 3.2vw, 15px)", color:"#C0B8AC", marginTop:2, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8)"}}>{opt.desc}</span>
+                        <span style={{fontSize:"clamp(16px, 4.2vw, 20px)", color:sel ? "#FBF7E4" : "#E8E4DC", fontWeight:sel ? 600 : 500, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.4)"}}>{opt.label}</span>
+                        <span style={{fontSize:"clamp(13px, 3.5vw, 16px)", color:"#C0B8AC", marginTop:2, display:"block", textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8)"}}>{opt.desc}</span>
                       </div>
                     </button>
                   );
@@ -323,7 +323,7 @@ export default function OnboardingFlow({ onDone }) {
                   textShadow:"0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(232,101,26,0.2)"}}>
                   Ready to forge,<br/>{name.trim() || "lifter"}?
                 </div>
-                <div style={{fontSize:"clamp(14px, 3.8vw, 18px)", color:"#E8E4DC", marginTop:10, lineHeight:1.6, maxWidth:320, fontWeight:400,
+                <div style={{fontSize:"clamp(16px, 4.2vw, 20px)", color:"#E8E4DC", marginTop:10, lineHeight:1.6, maxWidth:320, fontWeight:400,
                   textShadow:"0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)"}}>
                   Next you'll dial in the details — equipment, schedule, and preferences. Then The Foundry builds your program.
                 </div>
