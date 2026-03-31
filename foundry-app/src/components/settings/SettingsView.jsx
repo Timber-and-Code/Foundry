@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { store } from '../../utils/store';
+import { FOUNDRY_PROFILE_IMG } from '../../data/images-profile';
 
 const FOUNDRY_AI_WORKER_URL = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 const FOUNDRY_APP_KEY = import.meta.env.VITE_FOUNDRY_APP_KEY;
