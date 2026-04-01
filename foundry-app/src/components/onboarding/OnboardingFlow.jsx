@@ -79,19 +79,6 @@ export default function OnboardingFlow({ onDone }) {
     transform: animating ? `translateX(${animDir * 24}px)` : "translateX(0)",
   };
 
-  /* Shared back button with proper 44px touch target */
-  const BackButton = () => (
-    <button onClick={goBack} style={{
-      background:"rgba(26,24,20,0.5)", border:"1px solid rgba(46,42,36,0.5)",
-      cursor:"pointer", color:"var(--accent)", fontSize:18, fontWeight:700,
-      lineHeight:1, width:44, height:44, borderRadius:22,
-      display:"flex", alignItems:"center", justifyContent:"center",
-      alignSelf:"flex-start", textShadow:"0 1px 4px rgba(0,0,0,0.8)",
-      WebkitBackdropFilter:"blur(8px)", backdropFilter:"blur(8px)",
-      flexShrink:0,
-    }}>&#8249;</button>
-  );
-
   /* Shared CTA button style */
   const ctaBtnStyle = {
     width:"85%", padding:"16px", fontSize:"clamp(15px, 4vw, 18px)", fontWeight:600, borderRadius:12,
@@ -101,16 +88,27 @@ export default function OnboardingFlow({ onDone }) {
     boxShadow:"0 4px 24px rgba(232,101,26,0.35)",
   };
 
-  /* Progress dots */
+  /* Progress dots — tappable for navigating back to visited screens */
   const ProgressDots = () => (
-    <div style={{display:"flex", gap:8, justifyContent:"center", paddingTop:16, paddingBottom:8}}>
-      {Array.from({length: TOTAL}, (_, i) => (
-        <div key={i} style={{
-          width: i === screen ? 24 : 8, height:8, borderRadius:4,
-          background: i === screen ? "#E8651A" : i < screen ? "rgba(232,101,26,0.5)" : "rgba(138,122,104,0.4)",
-          transition:"all 0.25s ease",
-        }}/>
-      ))}
+    <div style={{display:"flex", gap:10, justifyContent:"center", paddingTop:16, paddingBottom:8}}>
+      {Array.from({length: TOTAL}, (_, i) => {
+        const canTap = i < screen;
+        return (
+          <button key={i}
+            onClick={() => canTap && goTo(i, -1)}
+            style={{
+              width: i === screen ? 28 : 12, height:12, borderRadius:6,
+              background: i === screen ? "#E8651A" : i < screen ? "rgba(232,101,26,0.5)" : "rgba(138,122,104,0.4)",
+              transition:"all 0.25s ease",
+              border:"none", padding:0,
+              cursor: canTap ? "pointer" : "default",
+              /* generous touch target without visual bloat */
+              position:"relative",
+            }}
+            aria-label={canTap ? `Go back to step ${i + 1}` : `Step ${i + 1}`}
+          />
+        );
+      })}
     </div>
   );
 
@@ -153,7 +151,6 @@ export default function OnboardingFlow({ onDone }) {
             background:"linear-gradient(to bottom, rgba(10,10,12,0.7) 0%, rgba(10,10,12,0.15) 18%, rgba(10,10,12,0.0) 35%, rgba(10,10,12,0.0) 55%, rgba(10,10,12,0.4) 75%, rgba(10,10,12,0.92) 100%)"}} />
           <div style={{position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", justifyContent:"space-between", padding:"60px 24px 40px", ...slideStyle}}>
             <div style={{display:"flex", flexDirection:"column", gap:28}}>
-              <BackButton />
               <div>
                 <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(32px, 8vw, 42px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
                   What should<br/>we call you?
@@ -205,7 +202,6 @@ export default function OnboardingFlow({ onDone }) {
             background:"linear-gradient(to bottom, rgba(10,10,12,0.7) 0%, rgba(10,10,12,0.15) 18%, rgba(10,10,12,0.0) 35%, rgba(10,10,12,0.0) 55%, rgba(10,10,12,0.4) 75%, rgba(10,10,12,0.92) 100%)"}} />
           <div style={{position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", justifyContent:"space-between", padding:"52px 20px 40px", ...slideStyle}}>
             <div style={{display:"flex", flexDirection:"column", gap:18}}>
-              <BackButton />
               <div>
                 <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(32px, 8vw, 42px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
                   How long have you<br/>been training?
@@ -263,7 +259,6 @@ export default function OnboardingFlow({ onDone }) {
             background:"linear-gradient(to bottom, rgba(10,10,12,0.7) 0%, rgba(10,10,12,0.15) 18%, rgba(10,10,12,0.0) 35%, rgba(10,10,12,0.0) 55%, rgba(10,10,12,0.4) 75%, rgba(10,10,12,0.92) 100%)"}} />
           <div style={{position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", justifyContent:"space-between", padding:"52px 20px 40px", ...slideStyle}}>
             <div style={{display:"flex", flexDirection:"column", gap:14}}>
-              <BackButton />
               <div>
                 <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(32px, 8vw, 42px)", letterSpacing:"0.1em", color:"#FBF7E4", lineHeight:1.1, textShadow:"0 2px 12px rgba(0,0,0,0.8)"}}>
                   What's your<br/>primary goal?
@@ -317,7 +312,6 @@ export default function OnboardingFlow({ onDone }) {
             background:"linear-gradient(to bottom, rgba(10,10,12,0.7) 0%, rgba(10,10,12,0.15) 18%, rgba(10,10,12,0.0) 35%, rgba(10,10,12,0.0) 55%, rgba(10,10,12,0.4) 75%, rgba(10,10,12,0.92) 100%)"}} />
           <div style={{position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", justifyContent:"space-between", padding:"52px 24px 40px", ...slideStyle}}>
             <div>
-              <BackButton />
               <div style={{marginTop:14}}>
                 <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(34px, 9vw, 46px)", letterSpacing:"0.15em", color:"#FBF7E4", lineHeight:1.15,
                   textShadow:"0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(232,101,26,0.2)"}}>
