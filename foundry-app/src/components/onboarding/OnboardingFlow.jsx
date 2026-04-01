@@ -53,9 +53,9 @@ export default function OnboardingFlow({ onDone }) {
     if (screen < TOTAL - 1) {
       goTo(screen + 1, 1);
     } else {
-      store.set("ppl:onboarding_data", JSON.stringify({ name: name.trim(), experience }));
-      store.set("ppl:onboarding_goal", goal);
-      store.set("ppl:onboarded", "1");
+      store.set("foundry:onboarding_data", JSON.stringify({ name: name.trim(), experience }));
+      store.set("foundry:onboarding_goal", goal);
+      store.set("foundry:onboarded", "1");
       onDone();
     }
   };
@@ -181,7 +181,7 @@ export default function OnboardingFlow({ onDone }) {
                   const file = e.target.files?.[0];
                   if (!file) return;
                   importData(file, (ok) => {
-                    if (ok) { store.set("ppl:onboarded","1"); window.location.reload(); }
+                    if (ok) { store.set("foundry:onboarded","1"); window.location.reload(); }
                     else alert("Couldn't read that file. Make sure it's a Foundry backup (.json).");
                   });
                 }}/>

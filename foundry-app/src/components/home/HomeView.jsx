@@ -164,8 +164,8 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
     // Regular meso sessions
     for (let w = 0; w <= getMeso().weeks; w++) {
       for (let d = 0; d < getMeso().days; d++) {
-        const start = store.get(`ppl:sessionStart:d${d}:w${w}`);
-        const done  = store.get(`ppl:done:d${d}:w${w}`);
+        const start = store.get(`foundry:sessionStart:d${d}:w${w}`);
+        const done  = store.get(`foundry:done:d${d}:w${w}`);
         if (start && done !== "1") return true;
       }
     }
@@ -173,8 +173,8 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
     for (let i = 0; i < 14; i++) {
       const dt = new Date(); dt.setDate(dt.getDate() - i);
       const dateStr = dt.toISOString().slice(0, 10);
-      const start = store.get(`ppl:extra:start:${dateStr}`);
-      const done  = store.get(`ppl:extra:done:${dateStr}`);
+      const start = store.get(`foundry:extra:start:${dateStr}`);
+      const done  = store.get(`foundry:extra:done:${dateStr}`);
       if (start && done !== "1") return true;
     }
     return false;
@@ -394,7 +394,7 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
 
         const handleFoundryBuild = (dayTypeId) => {
           const day = generateExtraWorkout(dayTypeId, profile);
-          store.set(`ppl:extra:${dateStr}`, JSON.stringify(day));
+          store.set(`foundry:extra:${dateStr}`, JSON.stringify(day));
           closeModal();
           onOpenExtra(dateStr);
         };
@@ -437,7 +437,7 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
                     </button>
                     <button
                       onClick={() => {
-                        store.set(`ppl:extra:${dateStr}`, JSON.stringify({ isExtra:true, isManual:true, label:"Manual Session", exercises:[], dateStr }));
+                        store.set(`foundry:extra:${dateStr}`, JSON.stringify({ isExtra:true, isManual:true, label:"Manual Session", exercises:[], dateStr }));
                         closeModal();
                         onOpenExtra(dateStr);
                       }}
@@ -774,7 +774,7 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
                 const preview = showDay?.exercises || [];
                 const lastWeekData = (() => {
                   for (let w = (isToday ? calWeekIdx : activeWeek) - 1; w >= 0; w--) {
-                    const raw = store.get(`ppl:day${showDayIdx}:week${w}`);
+                    const raw = store.get(`foundry:day${showDayIdx}:week${w}`);
                     if (raw) try { return JSON.parse(raw); } catch {}
                   }
                   return {};
@@ -921,7 +921,7 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
                             <div style={{borderTop:"1px solid var(--border-subtle)"}}>
                               <button onClick={() => { goBack(); setCurrentWeek(activeWeek); onSelectDay(nextDayIdxForCollapse); }} style={{width:"100%", background:"transparent", border:"none", cursor:"pointer", padding:"0"}}>
                                 {nextDayForCollapse.exercises.map((ex, ei) => {
-                                  const ovId = store.get(`ppl:exov:d${nextDayIdxForCollapse}:ex${ei}`) || null;
+                                  const ovId = store.get(`foundry:exov:d${nextDayIdxForCollapse}:ex${ei}`) || null;
                                   const dbEx = ovId ? EXERCISE_DB.find(e => e.id === ovId) : null;
                                   return (
                                     <div key={ei} style={{display:"flex", padding:"8px 16px", borderBottom: ei < nextDayForCollapse.exercises.length - 1 ? "1px solid var(--border-subtle)" : "none", textAlign:"left"}}>
@@ -967,7 +967,7 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
                         const prevData = lastWeekData[ei];
                         const prevSets = prevData ? Object.values(prevData).filter(s => s && s.weight && parseFloat(s.weight) > 0) : [];
                         const prevWeight = prevSets.length > 0 ? prevSets[0].weight : null;
-                        const ovId = store.get(`ppl:exov:d${showDayIdx}:ex${ei}`) || null;
+                        const ovId = store.get(`foundry:exov:d${showDayIdx}:ex${ei}`) || null;
                         const dbEx = ovId ? EXERCISE_DB.find(e => e.id === ovId) : null;
                         return (
                           <div key={ei} style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 16px", borderBottom: ei < preview.length - 1 ? "1px solid var(--border-subtle)" : "none"}}>
@@ -1414,7 +1414,7 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
                       const isToday     = dateStr === todayStr;
                       const isPast      = dateStr < todayStr;
                       // Check for extra workout stored for this date
-                      const extraKey = `ppl:extra:${dateStr}`;
+                      const extraKey = `foundry:extra:${dateStr}`;
                       const hasExtra = !!store.get(extraKey);
                       // Check for cardio session
                       const cardioSession = loadCardioSession(dateStr);
@@ -1428,7 +1428,7 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
                         const [dIdx, wIdx] = sessionKey.split(":").map(Number);
                         hasNotes = hasAnyNotes(dIdx, wIdx);
                         if (hasNotes) notesMeta = { type:"meso", dayIdx:dIdx, weekIdx:wIdx };
-                      } else if (hasExtra && store.get(`ppl:extra:done:${dateStr}`) === "1") {
+                      } else if (hasExtra && store.get(`foundry:extra:done:${dateStr}`) === "1") {
                         hasNotes = hasAnyExtraNotes(dateStr);
                         if (hasNotes) notesMeta = { type:"extra", dateStr };
                       }
@@ -1523,12 +1523,12 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
                                     exNotes: loadExNotes(dIdx, wIdx),
                                   });
                                 } else {
-                                  const extra = (() => { try { return JSON.parse(store.get(`ppl:extra:${notesMeta.dateStr}`) || "null"); } catch { return null; } })();
+                                  const extra = (() => { try { return JSON.parse(store.get(`foundry:extra:${notesMeta.dateStr}`) || "null"); } catch { return null; } })();
                                   setNoteViewer({
                                     type:"extra", dateStr:notesMeta.dateStr,
                                     label: extra ? extra.label : "Extra Session",
                                     exercises: extra ? extra.exercises : [],
-                                    sessionNote: store.get(`ppl:extra:notes:${notesMeta.dateStr}`) || "",
+                                    sessionNote: store.get(`foundry:extra:notes:${notesMeta.dateStr}`) || "",
                                     exNotes: loadExtraExNotes(notesMeta.dateStr),
                                   });
                                 }

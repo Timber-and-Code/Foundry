@@ -380,7 +380,7 @@ let _mesoCache = null;
 export function getMeso() {
   if (_mesoCache) return _mesoCache;
   try {
-    const raw = localStorage.getItem("ppl:profile");
+    const raw = localStorage.getItem("foundry:profile");
     const p = raw ? JSON.parse(raw) : null;
     if (p) {
       _mesoCache = buildMesoConfig(

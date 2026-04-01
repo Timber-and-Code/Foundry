@@ -36,14 +36,14 @@ export function TourOverlay({ onDone, onNavigate, onTabChange }) {
     if (step < STEPS.length - 1) {
       setStep(s => s + 1);
     } else {
-      store.set("ppl:toured", "1");
+      store.set("foundry:toured", "1");
       if (onTabChange) onTabChange("landing");
       onDone();
     }
   };
 
   const dismiss = () => {
-    store.set("ppl:toured", "1");
+    store.set("foundry:toured", "1");
     if (onTabChange) onTabChange("landing");
     onDone();
   };

@@ -39,8 +39,8 @@ export function SetupPage({ onComplete }) {
   const [error, setError]     = useState("");
   const [form, setForm]       = useState(() => {
     let saved = {};
-    try { saved = JSON.parse(store.get("ppl:onboarding_data") || "{}"); } catch(e) {}
-    const savedGoal = store.get("ppl:onboarding_goal") || "";
+    try { saved = JSON.parse(store.get("foundry:onboarding_data") || "{}"); } catch(e) {}
+    const savedGoal = store.get("foundry:onboarding_goal") || "";
     // ── Meso 2+ pre-fill from transition context ──────────────────────────────
     let transition = null;
     try { transition = JSON.parse(store.get("foundry:meso_transition") || "null"); } catch {}
@@ -51,7 +51,7 @@ export function SetupPage({ onComplete }) {
       mesoLength: tp?.mesoLength || 6,
       sessionDuration: tp?.sessionDuration || 60,
       equipment: tp?.equipment || [],
-      theme: localStorage.getItem("ppl:theme") || "dark",
+      theme: localStorage.getItem("foundry:theme") || "dark",
       startDate: todayStr,
       splitType: tp?.splitType || "ppl",
       workoutDays: tp?.workoutDays || [1,2,3,4,5,6],
@@ -61,11 +61,11 @@ export function SetupPage({ onComplete }) {
   // DOB state — initialized from onboarding data if present, falls back to profile birthdate
   const [setupDob, setSetupDob] = useState(() => {
     let saved = {};
-    try { saved = JSON.parse(store.get("ppl:onboarding_data") || "{}"); } catch(e) {}
+    try { saved = JSON.parse(store.get("foundry:onboarding_data") || "{}"); } catch(e) {}
     if (saved.dob && saved.dob.month) return saved.dob;
     // Fall back to profile birthdate string (YYYY-MM-DD) for returning users
     try {
-      const profile = JSON.parse(store.get("ppl:profile") || "{}");
+      const profile = JSON.parse(store.get("foundry:profile") || "{}");
       if (profile.birthdate) {
         const parts = profile.birthdate.split("-");
         if (parts.length === 3) {
@@ -88,7 +88,7 @@ export function SetupPage({ onComplete }) {
   // Auto-builder specific state
   const [autoForm, setAutoForm] = useState(() => {
     let saved = {};
-    try { saved = JSON.parse(store.get("ppl:onboarding_data") || "{}"); } catch(e) {}
+    try { saved = JSON.parse(store.get("foundry:onboarding_data") || "{}"); } catch(e) {}
     return {
       experience: saved.experience || null,
       split: null,
@@ -548,7 +548,7 @@ export function SetupPage({ onComplete }) {
 
             {/* Goal */}
             {(() => {
-              const onboardingGoal = store.get("ppl:onboarding_goal");
+              const onboardingGoal = store.get("foundry:onboarding_goal");
               return (
                 <div style={sec}>
                   <label style={sLabel}>Goal for this meso</label>

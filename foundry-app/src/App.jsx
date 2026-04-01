@@ -5,7 +5,11 @@ import { PHASE_COLOR, getMeso, getWeekPhase, buildMesoConfig, resetMesoCache } f
 import { EXERCISE_DB } from './data/exercises';
 
 // Utils
+import { migrateKeys } from './utils/storage';
 import { store, loadProfile, saveProfile, loadCompleted, markComplete, loadCurrentWeek, saveCurrentWeek, snapshotData, resetMeso, archiveCurrentMeso } from './utils/store';
+
+// Run key migration before any reads (ppl: → foundry:)
+migrateKeys();
 import { generateProgram } from './utils/program';
 import { parseRestSeconds, haptic } from './utils/helpers';
 
@@ -94,7 +98,7 @@ function App() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [currentWeek, setCurrentWeek] = useState(loadCurrentWeek);
   const [completedDays, setCompletedDays] = useState(loadCompleted);
-  const [onboarded, setOnboarded] = useState(() => !!store.get("ppl:onboarded"));
+  const [onboarded, setOnboarded] = useState(() => !!store.get("foundry:onboarded"));
   const [weekCompleteModal, setWeekCompleteModal] = useState(null);
   const [openWeekly, setOpenWeekly] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
@@ -192,8 +196,8 @@ function App() {
 
   // Show tour once after first program generated
   useEffect(() => {
-    if (store.get("ppl:show_tour") === "1" && !store.get("ppl:toured")) {
-      store.remove ? store.remove("ppl:show_tour") : localStorage.removeItem("ppl:show_tour");
+    if (store.get("foundry:show_tour") === "1" && !store.get("foundry:toured")) {
+      store.remove ? store.remove("foundry:show_tour") : localStorage.removeItem("foundry:show_tour");
       setTimeout(() => setShowTour(true), 800);
     }
   }, []);
@@ -210,7 +214,7 @@ function App() {
   if (!profile) {
     return <SetupPage onComplete={p => {
       saveProfile(p);
-      if (!store.get("ppl:toured")) store.set("ppl:show_tour", "1");
+      if (!store.get("foundry:toured")) store.set("foundry:show_tour", "1");
       window.location.reload();
     }} />;
   }
@@ -233,7 +237,7 @@ function App() {
       let prCount = 0;
 
       prog.forEach((day, d) => {
-        const raw = store.get(`ppl:day${d}:week${weekIdx}`);
+        const raw = store.get(`foundry:day${d}:week${weekIdx}`);
         if (!raw) return;
         try {
           const wd = JSON.parse(raw);
@@ -252,7 +256,7 @@ function App() {
             });
             let priorBest = 0;
             for (let pw = 0; pw < weekIdx; pw++) {
-              const pr = store.get(`ppl:day${d}:week${pw}`);
+              const pr = store.get(`foundry:day${d}:week${pw}`);
               if (!pr) continue;
               try {
                 const pwd = JSON.parse(pr);
@@ -287,7 +291,7 @@ function App() {
         }
         for (let w = 0; w <= getMeso().weeks; w++) {
           prog.forEach((day, d) => {
-            const raw = store.get(`ppl:day${d}:week${w}`);
+            const raw = store.get(`foundry:day${d}:week${w}`);
             if (!raw) return;
             try {
               const wd = JSON.parse(raw);
@@ -306,7 +310,7 @@ function App() {
                 if (w > 0) {
                   let priorBest = 0;
                   for (let pw = 0; pw < w; pw++) {
-                    const pr = store.get(`ppl:day${d}:week${pw}`);
+                    const pr = store.get(`foundry:day${d}:week${pw}`);
                     if (!pr) continue;
                     try {
                       const pwd = JSON.parse(pr);
@@ -330,7 +334,7 @@ function App() {
         prog.forEach((day, d) => {
           day.exercises.forEach((ex, exIdx) => {
             if (!ex.anchor) return;
-            const w1Raw = store.get(`ppl:day${d}:week0`);
+            const w1Raw = store.get(`foundry:day${d}:week0`);
             let w1Best = 0;
             if (w1Raw) {
               try {
@@ -345,7 +349,7 @@ function App() {
             let peakBest = 0;
             let peakWeek = 0;
             for (let w = 0; w < getMeso().weeks; w++) {
-              const raw = store.get(`ppl:day${d}:week${w}`);
+              const raw = store.get(`foundry:day${d}:week${w}`);
               if (!raw) continue;
               try {
                 const wd = JSON.parse(raw);
@@ -356,7 +360,7 @@ function App() {
                 });
               } catch {}
             }
-            const ovId = store.get(`ppl:exov:d${d}:ex${exIdx}`);
+            const ovId = store.get(`foundry:exov:d${d}:ex${exIdx}`);
             const dbEx = ovId ? EXERCISE_DB.find(e => e.id === ovId) : null;
             const exName = dbEx ? dbEx.name : ex.name;
             if (w1Best > 0 && peakBest > 0) {
@@ -386,7 +390,7 @@ function App() {
   const handleReset = () => {
     archiveCurrentMeso(profile);
     resetMeso();
-    localStorage.removeItem("ppl:profile");
+    localStorage.removeItem("foundry:profile");
     window.location.reload();
   };
 
@@ -456,14 +460,14 @@ function App() {
 
         {/* Profile Drawer */}
         {showProfileDrawer && (() => {
-          const raw = store.get("ppl:profile");
+          const raw = store.get("foundry:profile");
           const saved = raw ? JSON.parse(raw) : {};
           return (
             <ProfileDrawer
               saved={saved}
               onClose={() => setShowProfileDrawer(false)}
               onSave={(updated) => {
-                store.set("ppl:profile", JSON.stringify(updated));
+                store.set("foundry:profile", JSON.stringify(updated));
                 setProfile(updated);
               }}
             />

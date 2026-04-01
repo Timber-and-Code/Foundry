@@ -128,16 +128,16 @@ export function getWarmupDetail(warmupStr, exerciseName) {
 }
 
 export function loadDayWeek(dayIdx, weekIdx) {
-  const raw = store.get(`ppl:day${dayIdx}:week${weekIdx}`);
+  const raw = store.get(`foundry:day${dayIdx}:week${weekIdx}`);
   return raw ? JSON.parse(raw) : {};
 }
 
 export function loadNotes(dayIdx, weekIdx) {
-  return store.get(`ppl:notes:d${dayIdx}:w${weekIdx}`) || "";
+  return store.get(`foundry:notes:d${dayIdx}:w${weekIdx}`) || "";
 }
 
 export function saveNotes(dayIdx, weekIdx, text) {
-  store.set(`ppl:notes:d${dayIdx}:w${weekIdx}`, text);
+  store.set(`foundry:notes:d${dayIdx}:w${weekIdx}`, text);
 }
 
 /**
@@ -153,11 +153,11 @@ export function shuffle(arr) {
 }
 
 export function loadBwLog() {
-  try { return JSON.parse(store.get("ppl:bwlog") || "[]"); } catch { return []; }
+  try { return JSON.parse(store.get("foundry:bwlog") || "[]"); } catch { return []; }
 }
 
 export function saveBwLog(entries) {
-  store.set("ppl:bwlog", JSON.stringify(entries));
+  store.set("foundry:bwlog", JSON.stringify(entries));
 }
 
 export function addBwEntry(weight) {
@@ -184,19 +184,19 @@ export function currentWeekSundayStr() {
 }
 
 export function markBwPromptShown() {
-  store.set("ppl:bwPromptSunday", currentWeekSundayStr());
+  store.set("foundry:bwPromptSunday", currentWeekSundayStr());
 }
 
 export function bwPromptShownThisWeek() {
-  return store.get("ppl:bwPromptSunday") === currentWeekSundayStr();
+  return store.get("foundry:bwPromptSunday") === currentWeekSundayStr();
 }
 
 export function saveSessionDuration(dayIdx, weekIdx, minutes) {
-  store.set(`ppl:sess:lift:d${dayIdx}:w${weekIdx}`, String(Math.round(minutes)));
+  store.set(`foundry:sess:lift:d${dayIdx}:w${weekIdx}`, String(Math.round(minutes)));
 }
 
 export function loadSessionDuration(dayIdx, weekIdx) {
-  const v = store.get(`ppl:sess:lift:d${dayIdx}:w${weekIdx}`);
+  const v = store.get(`foundry:sess:lift:d${dayIdx}:w${weekIdx}`);
   return v !== null ? parseInt(v) : null;
 }
 
@@ -204,7 +204,7 @@ export function loadSparklineData(dayIdx, exIdx, mesoWeeks = 7) {
   const weeks = mesoWeeks;
   const pts = [];
   for (let w = 0; w < weeks; w++) {
-    const raw = store.get(`ppl:day${dayIdx}:week${w}`);
+    const raw = store.get(`foundry:day${dayIdx}:week${w}`);
     if (!raw) continue;
     try {
       const exData = (JSON.parse(raw))[exIdx] || {};
@@ -227,12 +227,12 @@ export function loadSparklineData(dayIdx, exIdx, mesoWeeks = 7) {
 }
 
 export function loadCurrentWeek() {
-  const v = store.get("ppl:currentWeek");
+  const v = store.get("foundry:currentWeek");
   return v !== null ? parseInt(v) : 0;
 }
 
 export function saveCurrentWeek(w) {
-  store.set("ppl:currentWeek", String(w));
+  store.set("foundry:currentWeek", String(w));
 }
 
 export function loadCompleted(mesoConfig) {
@@ -241,33 +241,33 @@ export function loadCompleted(mesoConfig) {
   const weeks = mesoConfig?.weeks || 6;
   for (let d = 0; d < days; d++)
     for (let w = 0; w < weeks; w++)
-      if (store.get(`ppl:done:d${d}:w${w}`) === "1") done.add(`${d}:${w}`);
+      if (store.get(`foundry:done:d${d}:w${w}`) === "1") done.add(`${d}:${w}`);
   return done;
 }
 
 export function markComplete(dayIdx, weekIdx) {
-  store.set(`ppl:done:d${dayIdx}:w${weekIdx}`, "1");
+  store.set(`foundry:done:d${dayIdx}:w${weekIdx}`, "1");
   const today = new Date();
   const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
-  store.set(`ppl:completedDate:d${dayIdx}:w${weekIdx}`, dateStr);
+  store.set(`foundry:completedDate:d${dayIdx}:w${weekIdx}`, dateStr);
 }
 
 export function loadProfile() {
-  const raw = store.get("ppl:profile");
+  const raw = store.get("foundry:profile");
   return raw ? JSON.parse(raw) : null;
 }
 
 export function saveProfile(profile) {
-  store.set("ppl:profile", JSON.stringify(profile));
+  store.set("foundry:profile", JSON.stringify(profile));
 }
 
 export function isSkipped(dayIdx, weekIdx) {
-  return store.get(`ppl:skip:d${dayIdx}:w${weekIdx}`) === "1";
+  return store.get(`foundry:skip:d${dayIdx}:w${weekIdx}`) === "1";
 }
 
 export function setSkipped(dayIdx, weekIdx, val) {
-  if (val) store.set(`ppl:skip:d${dayIdx}:w${weekIdx}`, "1");
-  else { try { localStorage.removeItem(`ppl:skip:d${dayIdx}:w${weekIdx}`); } catch {} }
+  if (val) store.set(`foundry:skip:d${dayIdx}:w${weekIdx}`, "1");
+  else { try { localStorage.removeItem(`foundry:skip:d${dayIdx}:w${weekIdx}`); } catch {} }
 }
 
 export function getWorkoutDaysForWeek(profile, weekIdx) {

@@ -67,7 +67,7 @@ export function ProfileDrawer({ saved, onClose, onSave }) {
     const data = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k.startsWith("ppl:") || k.startsWith("foundry:")) data[k] = localStorage.getItem(k);
+      if (k.startsWith("foundry:")) data[k] = localStorage.getItem(k);
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
     const url = URL.createObjectURL(blob);
@@ -106,10 +106,10 @@ export function ProfileDrawer({ saved, onClose, onSave }) {
   const expLabels = { beginner:"Beginner", intermediate:"Intermediate", advanced:"Advanced" };
 
   // Load meso info
-  const mesoData = (() => { try { return JSON.parse(localStorage.getItem("ppl:meso")); } catch(e) { return null; } })();
-  const onboardData = (() => { try { return JSON.parse(localStorage.getItem("ppl:onboarding_data")); } catch(e) { return null; } })();
+  const mesoData = (() => { try { return JSON.parse(localStorage.getItem("foundry:meso")); } catch(e) { return null; } })();
+  const onboardData = (() => { try { return JSON.parse(localStorage.getItem("foundry:onboarding_data")); } catch(e) { return null; } })();
   const experience = saved.experience || (onboardData && onboardData.experience) || "";
-  const currentWeek = parseInt(localStorage.getItem("ppl:currentWeek") || "0") + 1;
+  const currentWeek = parseInt(localStorage.getItem("foundry:currentWeek") || "0") + 1;
   const totalWeeks = mesoData ? mesoData.weeks : null;
 
   return (
@@ -301,7 +301,7 @@ export function ProfileDrawer({ saved, onClose, onSave }) {
                 const keys = [];
                 for (let i = 0; i < localStorage.length; i++) {
                   const k = localStorage.key(i);
-                  if (k.startsWith("ppl:") || k.startsWith("foundry:")) keys.push(k);
+                  if (k.startsWith("foundry:")) keys.push(k);
                 }
                 keys.forEach(k => localStorage.removeItem(k));
                 window.location.reload();

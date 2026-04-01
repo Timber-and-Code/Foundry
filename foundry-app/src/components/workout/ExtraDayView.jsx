@@ -42,11 +42,11 @@ const WorkoutCompleteModal = ({ dayLabel, dayTag, gender, stats, weekIdx, onDone
 );
 
 function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }) {
-  const extraKey    = `ppl:extra:${dateStr}`;
-  const doneKey     = `ppl:extra:done:${dateStr}`;
-  const startKey    = `ppl:extra:start:${dateStr}`;
-  const strengthKey = `ppl:extra:end:${dateStr}`;
-  const dataKey     = `ppl:extra:data:${dateStr}`;
+  const extraKey    = `foundry:extra:${dateStr}`;
+  const doneKey     = `foundry:extra:done:${dateStr}`;
+  const startKey    = `foundry:extra:start:${dateStr}`;
+  const strengthKey = `foundry:extra:end:${dateStr}`;
+  const dataKey     = `foundry:extra:data:${dateStr}`;
 
   // ── State ────────────────────────────────────────────────────────────────────
   const [exercises, setExercises] = React.useState(() => {
@@ -75,12 +75,12 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays })
     const log = loadBwLog(); return log.length > 0 ? String(log[0].weight) : (profile?.weight ? String(profile.weight) : "");
   });
   const [exNotes, setExNotes] = React.useState(() => loadExtraExNotes(dateStr));
-  const [notes, setNotes] = React.useState(() => store.get(`ppl:extra:notes:${dateStr}`) || "");
+  const [notes, setNotes] = React.useState(() => store.get(`foundry:extra:notes:${dateStr}`) || "");
   const [showNoteReview, setShowNoteReview] = React.useState(false);
 
   const handleNoteChange = (val) => {
     setNotes(val);
-    store.set(`ppl:extra:notes:${dateStr}`, val);
+    store.set(`foundry:extra:notes:${dateStr}`, val);
   };
 
   const compileSessionNote = () => {
@@ -174,7 +174,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays })
         const idx = activeDays[d].exercises.findIndex(e => e.id === exId);
         if (idx < 0) continue;
         try {
-          const raw = store.get(`ppl:day${d}:week${w}`);
+          const raw = store.get(`foundry:day${d}:week${w}`);
           if (!raw) continue;
           const dayData = JSON.parse(raw);
           const w0 = (dayData[idx] || {})[0]?.weight;

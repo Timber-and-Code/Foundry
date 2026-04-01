@@ -27,7 +27,7 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
   const prevWeekRaw = useMemo(() => {
     if (weekIdx === 0) return {};
     try {
-      const raw = store.get(`ppl:day${dayIdx}:week${weekIdx - 1}`);
+      const raw = store.get(`foundry:day${dayIdx}:week${weekIdx - 1}`);
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   }, [dayIdx, weekIdx]);
@@ -153,7 +153,7 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
       const rows = [];
       // Last 3 weeks in current meso
       for (let w = weekIdx - 1; w >= Math.max(0, weekIdx - 3); w--) {
-        const rawData = store.get(`ppl:day${dayIdx}:week${w}`);
+        const rawData = store.get(`foundry:day${dayIdx}:week${w}`);
         if (!rawData) continue;
         const parsed = JSON.parse(rawData);
         const exData = parsed[exIdx] || {};

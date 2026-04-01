@@ -131,8 +131,8 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
   const [completionWeekIdx, setCompletionWeekIdx] = useState(null); // snapshot weekIdx at completion time
   const [showReadyDialog, setShowReadyDialog]   = useState(false);
   const [showMesoOverlay, setShowMesoOverlay]   = useState(() => {
-    const freshDone = store.get(`ppl:done:d${dayIdx}:w${weekIdx}`) === "1";
-    const alreadyStarted = !!store.get(`ppl:sessionStart:d${dayIdx}:w${weekIdx}`);
+    const freshDone = store.get(`foundry:done:d${dayIdx}:w${weekIdx}`) === "1";
+    const alreadyStarted = !!store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
     return !freshDone && !isLocked && !alreadyStarted;
   });
   const [warmupOpen, setWarmupOpen]             = useState(weekIdx === 0 && dayIdx === 0);
@@ -165,7 +165,7 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
   const sessionStartRef = React.useRef(null);
   const strengthEndRef  = React.useRef(null);
   const [workoutStarted, setWorkoutStarted] = useState(() => {
-    const saved = store.get(`ppl:sessionStart:d${dayIdx}:w${weekIdx}`);
+    const saved = store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
     return !!saved && !isDone && !isLocked;
   });
   const [elapsedSecs, setElapsedSecs] = useState(0);
@@ -173,10 +173,10 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
 
   // On mount: restore sessionStart and strengthEnd from localStorage if workout was begun
   React.useEffect(() => {
-    const savedStart = store.get(`ppl:sessionStart:d${dayIdx}:w${weekIdx}`);
+    const savedStart = store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
     if (savedStart && !isDone && !isLocked) {
       sessionStartRef.current = parseInt(savedStart, 10);
-      const savedEnd = store.get(`ppl:strengthEnd:d${dayIdx}:w${weekIdx}`);
+      const savedEnd = store.get(`foundry:strengthEnd:d${dayIdx}:w${weekIdx}`);
       if (savedEnd) strengthEndRef.current = parseInt(savedEnd, 10);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,7 +208,7 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
   const beginWorkout = () => {
     const now = Date.now();
     sessionStartRef.current = now;
-    store.set(`ppl:sessionStart:d${dayIdx}:w${weekIdx}`, String(now));
+    store.set(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`, String(now));
     setWorkoutStarted(true);
     setShowMesoOverlay(false);
     if (!bwPromptShownThisWeek()) setShowBwCheckin(true);
@@ -265,7 +265,7 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
     if (isDone || isLocked || getWeekPhase()[weekIdx] === "Deload") return { stalls: [], regressions: [] };
     return detectStallingLifts(dayIdx, day, exercises, weekIdx, profile);
   }, [dayIdx, weekIdx, isDone, isLocked, exercises, day, profile]);
-  const [stallCardDismissed, setStallCardDismissed] = useState(() => !!store.get(`ppl:sessionStart:d${dayIdx}:w${weekIdx}`));
+  const [stallCardDismissed, setStallCardDismissed] = useState(() => !!store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`));
 
   const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
   const [swapTarget, setSwapTarget]             = useState(null); // {exIdx}
@@ -464,7 +464,7 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
     // Only fire the strength-done flow when every exercise is confirmed
     if (newDone.size === exercises.length) {
       strengthEndRef.current = Date.now();
-      store.set(`ppl:strengthEnd:d${dayIdx}:w${weekIdx}`, String(strengthEndRef.current));
+      store.set(`foundry:strengthEnd:d${dayIdx}:w${weekIdx}`, String(strengthEndRef.current));
       setExpandedIdx(null);
       openNoteReview();
     }
@@ -566,8 +566,8 @@ function DayView({ dayIdx, weekIdx, onBack, onComplete, onNextDay, completedDays
       duration: elapsedSecs,
       completedAt: Date.now(),
     };
-    store.set(`ppl:done:d${dayIdx}:w${weekIdx}`, "1");
-    store.set(`ppl:sessionNote:d${dayIdx}:w${weekIdx}`, sessionNote);
+    store.set(`foundry:done:d${dayIdx}:w${weekIdx}`, "1");
+    store.set(`foundry:sessionNote:d${dayIdx}:w${weekIdx}`, sessionNote);
     onComplete && onComplete(completionData);
   };
 

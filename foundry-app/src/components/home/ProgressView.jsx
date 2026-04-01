@@ -171,8 +171,8 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
   const BwChart = () => {
     const [showHistory, setShowHistory] = React.useState(false);
     const [editingGoal, setEditingGoal] = React.useState(false);
-    const [goalInput, setGoalInput] = React.useState(() => store.get("ppl:bwGoal") || "");
-    const [goalWeight, setGoalWeight] = React.useState(() => { const v = parseFloat(store.get("ppl:bwGoal")); return isNaN(v) ? null : v; });
+    const [goalInput, setGoalInput] = React.useState(() => store.get("foundry:bwGoal") || "");
+    const [goalWeight, setGoalWeight] = React.useState(() => { const v = parseFloat(store.get("foundry:bwGoal")); return isNaN(v) ? null : v; });
 
     if (bwLog.length === 0) return null;
 
@@ -199,10 +199,10 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
     const saveGoal = () => {
       const v = parseFloat(goalInput);
       if (!isNaN(v) && v > 50 && v < 600) {
-        store.set("ppl:bwGoal", String(v));
+        store.set("foundry:bwGoal", String(v));
         setGoalWeight(v);
       } else if (goalInput === "") {
-        store.set("ppl:bwGoal", "");
+        store.set("foundry:bwGoal", "");
         setGoalWeight(null);
       }
       setEditingGoal(false);
