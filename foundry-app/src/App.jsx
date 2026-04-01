@@ -203,20 +203,23 @@ function App() {
   }, []);
 
   // ── Onboarding gate ──
+  // Early returns use React.lazy components — must wrap in Suspense
+  const suspenseFallback = <div style={{minHeight:'100vh',background:'#141414',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{color:'#e5e5e5',fontSize:14}}>Loading...</div></div>;
+
   if (!profile && !onboarded) {
-    return <OnboardingFlow onDone={() => { setOnboarded(true); setShowSetup(true); }} />;
+    return <React.Suspense fallback={suspenseFallback}><OnboardingFlow onDone={() => { setOnboarded(true); setShowSetup(true); }} /></React.Suspense>;
   }
 
   if (!profile && !showSetup) {
-    return <NoMesoShell onSetup={() => setShowSetup(true)} onStartProgram={newProfile => { saveProfile(newProfile); window.location.reload(); }} />;
+    return <React.Suspense fallback={suspenseFallback}><NoMesoShell onSetup={() => setShowSetup(true)} onStartProgram={newProfile => { saveProfile(newProfile); window.location.reload(); }} /></React.Suspense>;
   }
 
   if (!profile) {
-    return <SetupPage onComplete={p => {
+    return <React.Suspense fallback={suspenseFallback}><SetupPage onComplete={p => {
       saveProfile(p);
       if (!store.get("foundry:toured")) store.set("foundry:show_tour", "1");
       window.location.reload();
-    }} />;
+    }} /></React.Suspense>;
   }
 
   // ── Completion handler ──

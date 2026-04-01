@@ -29,6 +29,20 @@ export function generateProgram(profile, EXERCISE_DB = []) {
 
   const available = EXERCISE_DB.filter(e => equipment.includes(e.equipment) && e.diff <= maxDiff);
 
+  // Goal-based rep range suggestions
+  // Compounds: strength=3-6, hypertrophy=6-10, conditioning=8-15
+  // Isolations: strength=6-10, hypertrophy=10-15, conditioning=12-20
+  const goalId = profile?.goal || "";
+  const isStrength = goalId === "build_strength";
+  const isConditioning = goalId === "sport_conditioning" || goalId === "improve_fitness";
+  function goalReps(e) {
+    const isCompound = ["push","pull","squat","hinge"].includes(e.pattern);
+    if (isStrength)     return isCompound ? "3-6"  : "6-10";
+    if (isConditioning) return isCompound ? "8-15" : "12-20";
+    // build_muscle, lose_fat — hypertrophy ranges
+    return isCompound ? "6-10" : "10-15";
+  }
+
   function toEx(e, isAnchor) {
     const wu = isAnchor
       ? (shortWarmup ? "2 ramp sets — time is tight, be thorough" : e.warmup)
@@ -36,7 +50,7 @@ export function generateProgram(profile, EXERCISE_DB = []) {
     return {
       id: e.id, name: e.name, muscle: e.muscle, muscles: e.muscles,
       equipment: e.equipment, tag: e.tag, anchor: !!isAnchor,
-      sets: e.sets, reps: e.reps, rest: e.rest, warmup: wu,
+      sets: e.sets, reps: goalReps(e), rest: e.rest, warmup: wu,
       progression: e.pattern === "isolation" ? "reps" : "weight",
       description: e.description || "",
       videoUrl: e.videoUrl || "",

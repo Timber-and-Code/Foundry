@@ -2564,4 +2564,48 @@ export const SAMPLE_PROGRAMS = [
     { label:"Arms Day", tag:"PULL", exercises:["Barbell Bicep Curl","Skull Crushers (EZ bar)","Incline DB Curl","Cable Tricep Pushdown (rope)","EZ Bar Curl","Cable Tricep Pushdown (bar)","DB Hammer Curl","Concentration Curl"] },
     { label:"Legs Day", tag:"LEGS", exercises:["Barbell Back Squat","Barbell Romanian Deadlift","Leg Press","Machine Leg Curl (lying)","Machine Leg Extension","DB Bulgarian Split Squat","Machine Calf Raise (standing)"] },
   ]},
+
+  // ── SPECIALIZATION PROGRAMS ─────────────────────────────────────────────────
+  // 5 focus-biased mesos: priority muscle hit 3-4x/week at MAV-MRV volume,
+  // everything else at MEV (maintenance). 5-day fixed templates, 6 weeks.
+
+  { id:"spec_chest", category:"foundry", label:"The Anvil — Chest Specialization", split:"Chest Focus 4×/wk", weeks:6, daysPerWeek:5, level:"Intermediate", defaultDays:[1,2,3,5,6], splitType:"ppl", description:"Chest hit 4×/week across 20 sets. Everything else at maintenance. For when your chest is lagging.", days:[
+    { label:"Chest + Shoulders", tag:"PUSH", exercises:["Barbell Flat Bench Press","Incline DB Press","Cable Chest Fly (low-to-high)","DB Overhead Press","DB Lateral Raise","Cable Tricep Pushdown (rope)"] },
+    { label:"Back + Biceps", tag:"PULL", exercises:["Barbell Bent-Over Row","Lat Pulldown (wide grip)","Seated Cable Row","EZ Bar Curl","DB Hammer Curl"] },
+    { label:"Legs + Chest", tag:"LEGS", exercises:["Barbell Back Squat","Barbell Romanian Deadlift","Leg Press","DB Flat Bench Press","Cable Chest Fly (mid)","Machine Calf Raise (seated)"] },
+    { label:"Chest (volume)", tag:"PUSH", exercises:["Barbell Incline Bench Press","DB Chest Fly","Cable Chest Fly (high-to-low)","Machine Chest Press","DB Lateral Raise","Skull Crushers (EZ bar)"] },
+    { label:"Pull + Chest", tag:"PULL", exercises:["T-Bar Row","Lat Pulldown (neutral grip)","Cable Face Pull","Weighted Dips","Cable Chest Press","Incline DB Curl"] },
+  ]},
+
+  { id:"spec_back", category:"foundry", label:"Iron Curtain — Back Specialization", split:"Back Focus 4×/wk", weeks:6, daysPerWeek:5, level:"Intermediate", defaultDays:[1,2,3,5,6], splitType:"ppl", description:"Back and lats hit 4×/week across 22 sets. Build the V-taper.", days:[
+    { label:"Back (strength)", tag:"PULL", exercises:["Barbell Bent-Over Row","Weighted Pull-ups","T-Bar Row","Cable Face Pull","Barbell Bicep Curl","Cable Tricep Pushdown (rope)"] },
+    { label:"Push + Shoulders", tag:"PUSH", exercises:["Barbell Flat Bench Press","Incline DB Press","Barbell Overhead Press","DB Lateral Raise","Skull Crushers (EZ bar)"] },
+    { label:"Legs + Back", tag:"LEGS", exercises:["Barbell Back Squat","Barbell Romanian Deadlift","Leg Press","Seated Cable Row","DB Single Arm Row","Machine Calf Raise (standing)"] },
+    { label:"Back (volume)", tag:"PULL", exercises:["Lat Pulldown (wide grip)","Single Arm Cable Row","Cable Row (wide grip)","Cable Straight Arm Pulldown","DB Rear Delt Fly","Incline DB Curl"] },
+    { label:"Push + Back", tag:"PUSH", exercises:["DB Flat Bench Press","DB Overhead Press","DB Lateral Raise","Chin-ups","Lat Pulldown (neutral grip)","DB Hammer Curl"] },
+  ]},
+
+  { id:"spec_shoulders", category:"foundry", label:"The Crucible — Shoulder Specialization", split:"Shoulder Focus 4×/wk", weeks:6, daysPerWeek:5, level:"Intermediate", defaultDays:[1,2,3,5,6], splitType:"ppl", description:"All three delt heads hit 4×/week across 18 sets. Build boulder shoulders.", days:[
+    { label:"Shoulders (strength)", tag:"PUSH", exercises:["Barbell Overhead Press","DB Arnold Press","DB Lateral Raise","DB Rear Delt Fly","Cable Tricep Pushdown (bar)","Close Grip Bench Press"] },
+    { label:"Back + Rear Delts", tag:"PULL", exercises:["Barbell Bent-Over Row","Lat Pulldown (wide grip)","Seated Cable Row","Cable Face Pull","Machine Rear Delt Fly","EZ Bar Curl"] },
+    { label:"Legs + Shoulders", tag:"LEGS", exercises:["Barbell Back Squat","Barbell Romanian Deadlift","Leg Press","DB Overhead Press","Cable Lateral Raise","Machine Calf Raise (seated)"] },
+    { label:"Shoulders (volume)", tag:"PUSH", exercises:["Seated DB Shoulder Press","Machine Lateral Raise","Seated DB Lateral Raise","Cable Front Raise","DB Rear Delt Fly","Cable Overhead Tricep Ext."] },
+    { label:"Chest + Shoulders", tag:"PUSH", exercises:["Barbell Flat Bench Press","Incline DB Press","Landmine Press","DB Lateral Raise","Band Pull Apart","Incline DB Curl"] },
+  ]},
+
+  { id:"spec_arms", category:"foundry", label:"The Forge Hammer — Arm Specialization", split:"Arms Focus 4×/wk", weeks:6, daysPerWeek:5, level:"Intermediate", defaultDays:[1,2,3,5,6], splitType:"ppl", description:"Biceps and triceps each hit 4×/week at 16 sets. Sleeve-splitting arm volume.", days:[
+    { label:"Arms (strength)", tag:"PUSH", exercises:["Close Grip Bench Press","Barbell Bicep Curl","Skull Crushers (EZ bar)","Incline DB Curl","Cable Tricep Pushdown (rope)","DB Hammer Curl"] },
+    { label:"Chest + Triceps", tag:"PUSH", exercises:["Barbell Flat Bench Press","Incline DB Press","Cable Chest Fly (mid)","Weighted Dips","Cable Overhead Tricep Ext.","DB Lateral Raise"] },
+    { label:"Legs + Arms", tag:"LEGS", exercises:["Barbell Back Squat","Barbell Romanian Deadlift","Leg Press","EZ Bar Curl","Cable Tricep Pushdown (bar)","Machine Calf Raise (standing)"] },
+    { label:"Back + Biceps", tag:"PULL", exercises:["Barbell Bent-Over Row","Lat Pulldown (wide grip)","Seated Cable Row","Spider Curl","Concentration Curl","Cable Face Pull"] },
+    { label:"Arms (volume)", tag:"PUSH", exercises:["Preacher Curl (barbell)","DB Overhead Tricep Ext.","Cable Curl (rope)","Machine Dip / Tricep Press","DB Hammer Curl","Cable Curl (EZ bar)"] },
+  ]},
+
+  { id:"spec_legs", category:"foundry", label:"The Furnace — Leg Specialization", split:"Legs Focus 3×/wk", weeks:6, daysPerWeek:5, level:"Intermediate", defaultDays:[1,2,3,5,6], splitType:"ppl", description:"Quads, hamstrings, and glutes hit 3×/week across 22 sets. Build a foundation.", days:[
+    { label:"Legs (strength)", tag:"LEGS", exercises:["Barbell Back Squat","Barbell Romanian Deadlift","Leg Press","Machine Leg Curl (lying)","Machine Calf Raise (standing)","Ab Wheel Rollout"] },
+    { label:"Push", tag:"PUSH", exercises:["Barbell Flat Bench Press","Incline DB Press","Barbell Overhead Press","DB Lateral Raise","Cable Tricep Pushdown (rope)"] },
+    { label:"Legs (volume)", tag:"LEGS", exercises:["Hack Squat","DB Bulgarian Split Squat","Machine Leg Extension","Machine Leg Curl (seated)","Machine Hip Thrust","Leg Press Calf Raise"] },
+    { label:"Pull", tag:"PULL", exercises:["Barbell Bent-Over Row","Lat Pulldown (wide grip)","Seated Cable Row","Cable Face Pull","EZ Bar Curl"] },
+    { label:"Legs (posterior)", tag:"LEGS", exercises:["Barbell Conventional Deadlift","Barbell Front Squat","DB Walking Lunges","Nordic Hamstring Curl","Glute Bridge (weighted)","Machine Calf Raise (seated)"] },
+  ]},
 ];
