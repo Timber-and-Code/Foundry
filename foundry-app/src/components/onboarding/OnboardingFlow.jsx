@@ -131,12 +131,11 @@ export default function OnboardingFlow({ onDone }) {
               textShadow:"0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(232,101,26,0.25)"}}>THE FOUNDRY</div>
             <div style={{fontSize:"clamp(13px, 3.5vw, 17px)", letterSpacing:"0.2em", textTransform:"uppercase", color:"#F29A52", fontWeight:500,
               textShadow:"0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)"}}>Forge Your Physique</div>
-            <div style={{fontSize:"clamp(13px, 3.5vw, 17px)", letterSpacing:"0.2em", textTransform:"uppercase", color:"#F29A52", fontWeight:500,
-              textShadow:"0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)"}}>Forge Your Fitness</div>
+            <div style={{fontSize:"clamp(11px, 3vw, 14px)", letterSpacing:"0.15em", textTransform:"uppercase", color:"#C0B8AC", fontWeight:400,
+              textShadow:"0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)", marginTop:4}}>Science-Driven Training</div>
           </div>
           <div style={{position:"relative", zIndex:2, display:"flex", flexDirection:"column", alignItems:"center", gap:10, padding:"0 24px 48px"}}>
             <button onClick={advance} className="btn-primary" style={ctaBtnStyle}>Enter The Forge</button>
-            <div style={{fontSize:"clamp(11px, 3vw, 14px)", color:"#8A7A68", letterSpacing:"0.06em", textTransform:"uppercase"}}>Science-driven strength training</div>
             <ProgressDots />
           </div>
         </div>
