@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { store } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
 import { EXERCISE_DB } from '../../data/exercises';
