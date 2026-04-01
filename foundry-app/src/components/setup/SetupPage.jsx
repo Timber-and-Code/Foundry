@@ -110,7 +110,7 @@ export function SetupPage({ onComplete }) {
       const exists = prev.find(s => s.dayOfWeek === dow);
       if (exists) { setExpandedCardioDow(null); return prev.filter(s => s.dayOfWeek !== dow); }
       setExpandedCardioDow(dow);
-      return [...prev, { dayOfWeek: dow, protocol: "zone2" }];
+      return [...prev, { dayOfWeek: dow, protocol: "zone2_run" }];
     });
   };
   const setCardioProtocol = (dow, protocol) => {

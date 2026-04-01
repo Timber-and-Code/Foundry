@@ -163,7 +163,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }) {
               fontSize:10, fontWeight:800, letterSpacing:"0.04em", padding:"2px 7px", borderRadius:4,
               color: proto.defaultIntensity === "Hard" ? "#E75831" : proto.defaultIntensity === "Moderate" ? "#D4983C" : "#E8E4DC",
               background: (proto.defaultIntensity === "Hard" ? "#E75831" : proto.defaultIntensity === "Moderate" ? "#D4983C" : "#E8E4DC") + "18",
-            }}>{proto.defaultIntensity.toUpperCase()}</span>
+            }}>{proto.defaultIntensity?.toUpperCase()}</span>
           </div>
         </div>
         {active && (

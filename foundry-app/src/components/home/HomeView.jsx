@@ -1045,7 +1045,7 @@ function HomeView({ tabRef, currentWeek, setCurrentWeek, onSelectDay, onSelectDa
                           {proto ? proto.label : todayCardioSlot.protocol}
                         </div>
                         <div style={{fontSize:12, color:"var(--text-secondary)"}}>
-                          {proto ? proto.description.split(".")[0] + "." : "Cardio session"}
+                          {proto ? (proto.description?.split(".")[0] ?? proto.description) + "." : "Cardio session"}
                         </div>
                       </div>
                       {proto?.intervals && !done && (
