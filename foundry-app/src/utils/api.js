@@ -4,19 +4,37 @@ import { store } from './store.js';
  * Call the Foundry AI Worker to generate a personalized training program.
  * Uses Claude AI to create exercise selections and progression based on profile.
  */
-export async function callFoundryAI({ split, daysPerWeek, mesoLength, experience, equipment, name, gender, goal, goalNote }, EXERCISE_DB = []) {
-  const splitLabels = { ppl:"Push/Pull/Legs", upper_lower:"Upper/Lower", full_body:"Full Body", push_pull:"Push/Pull" };
+export async function callFoundryAI(
+  { split, daysPerWeek, mesoLength, experience, equipment, name, gender, goal, goalNote },
+  EXERCISE_DB = []
+) {
+  const splitLabels = {
+    ppl: 'Push/Pull/Legs',
+    upper_lower: 'Upper/Lower',
+    full_body: 'Full Body',
+    push_pull: 'Push/Pull',
+  };
 
   // Normalize experience values — unify all formats to canonical labels
-  const expNormalize = { new:"beginner", beginner:"beginner", intermediate:"intermediate", advanced:"experienced", experienced:"experienced" };
-  const expKey = expNormalize[experience] || "intermediate";
-  const expLabels = { beginner:"beginner (under 1 year)", intermediate:"intermediate (1–3 years)", experienced:"experienced (3+ years)" };
+  const expNormalize = {
+    new: 'beginner',
+    beginner: 'beginner',
+    intermediate: 'intermediate',
+    advanced: 'experienced',
+    experienced: 'experienced',
+  };
+  const expKey = expNormalize[experience] || 'intermediate';
+  const expLabels = {
+    beginner: 'beginner (under 1 year)',
+    intermediate: 'intermediate (1–3 years)',
+    experienced: 'experienced (3+ years)',
+  };
 
   // Client-side intensity norms — enforced regardless of AI response
   const EXPERIENCE_NORMS = {
-    beginner:     { anchorSets: 3, accSets: 2, repFloor: 8,  repCeil: 15 },
-    intermediate: { anchorSets: 4, accSets: 3, repFloor: 6,  repCeil: 12 },
-    experienced:  { anchorSets: 5, accSets: 4, repFloor: 3,  repCeil: 12 },
+    beginner: { anchorSets: 3, accSets: 2, repFloor: 8, repCeil: 15 },
+    intermediate: { anchorSets: 4, accSets: 3, repFloor: 6, repCeil: 12 },
+    experienced: { anchorSets: 5, accSets: 4, repFloor: 3, repCeil: 12 },
   };
   const norms = EXPERIENCE_NORMS[expKey];
 
@@ -69,20 +87,26 @@ export async function callFoundryAI({ split, daysPerWeek, mesoLength, experience
   • Exercise selection: bias toward explosive and athletic movements (power cleans, trap bar, Bulgarian splits, single-leg work); minimize pure isolation
   • Progression: power and strength gains are the signal — prioritize quality of movement over volume`,
   };
-  const goalBlock = goalGuidance[goal] || `- Goal: General fitness — balanced rep ranges (8–12), moderate volume, broad exercise selection`;
-  const goalNoteBlock = goalNote && goalNote.trim()
-    ? `- Trainee notes (read carefully and let this shape the program): ${goalNote.trim()}`
-    : "";
+  const goalBlock =
+    goalGuidance[goal] ||
+    `- Goal: General fitness — balanced rep ranges (8–12), moderate volume, broad exercise selection`;
+  const goalNoteBlock =
+    goalNote && goalNote.trim()
+      ? `- Trainee notes (read carefully and let this shape the program): ${goalNote.trim()}`
+      : '';
 
-  const exerciseNames = EXERCISE_DB.map(e => `${e.id}|${e.name}|${e.tag}|${e.muscle}|${e.anchor?"anchor":"acc"}|sets:${e.sets}|reps:${e.reps}`).join("\n");
+  const exerciseNames = EXERCISE_DB.map(
+    (e) =>
+      `${e.id}|${e.name}|${e.tag}|${e.muscle}|${e.anchor ? 'anchor' : 'acc'}|sets:${e.sets}|reps:${e.reps}`
+  ).join('\n');
 
   // Meso 2+ context injection — if this is a continuation
-  let mesoTransitionBlock = "";
+  let mesoTransitionBlock = '';
   try {
-    const t = JSON.parse(store.get("foundry:meso_transition") || "null");
+    const t = JSON.parse(store.get('foundry:meso_transition') || 'null');
     if (t && t.anchorPeaks && t.anchorPeaks.length > 0) {
-      const anchorList = t.anchorPeaks.map(a => `${a.name}: ${a.peak} lbs peak`).join(", ");
-      const accList = (t.accessoryIds || []).slice(0, 20).join(", ");
+      const anchorList = t.anchorPeaks.map((a) => `${a.name}: ${a.peak} lbs peak`).join(', ');
+      const accList = (t.accessoryIds || []).slice(0, 20).join(', ');
       mesoTransitionBlock = `
 MESO 2 CONTEXT (this is a continuation — apply these rules):
 - Previous anchor peak weights: ${anchorList}
@@ -94,17 +118,20 @@ MESO 2 CONTEXT (this is a continuation — apply these rules):
       if (t.readinessSummary && t.readinessSummary.totalLogged >= 5) {
         const rs = t.readinessSummary;
         const pct = Math.round((rs.totalLogged / rs.totalDays) * 100);
-        const chronic = rs.avgScore <= 2.5 ? "chronically low" : rs.avgScore <= 3.5 ? "moderate" : "good";
+        const chronic =
+          rs.avgScore <= 2.5 ? 'chronically low' : rs.avgScore <= 3.5 ? 'moderate' : 'good';
         mesoTransitionBlock += `
 - Recovery profile (meso 1): logged ${rs.totalLogged}/${rs.totalDays} days (${pct}%). Avg readiness: ${rs.avgScore}/6. Low-readiness days: ${rs.lowDays}.
-- Recovery capacity is ${chronic}. ${rs.avgScore <= 2.5 ? "Keep weeks 1–2 conservative — fewer sets, higher RIR. Let fatigue clear before ramping. Do not front-load intensity." : rs.avgScore <= 3.5 ? "Use standard volume ramp. Watch for fatigue accumulation in peak weeks." : "This athlete recovers well. Standard or slightly aggressive volume ramp is appropriate."}`;
+- Recovery capacity is ${chronic}. ${rs.avgScore <= 2.5 ? 'Keep weeks 1–2 conservative — fewer sets, higher RIR. Let fatigue clear before ramping. Do not front-load intensity.' : rs.avgScore <= 3.5 ? 'Use standard volume ramp. Watch for fatigue accumulation in peak weeks.' : 'This athlete recovers well. Standard or slightly aggressive volume ramp is appropriate.'}`;
       }
     }
-  } catch (e) { console.warn('[Foundry]', 'Failed to load meso transition context', e); }
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to load meso transition context', e);
+  }
 
   const prompt = `You are an elite personal trainer with 40 years of experience designing mesocycle programs using progressive overload and linear periodization principles. You specialize in hypertrophy and strength development.
 
-Design a complete ${mesoLength}-week mesocycle for a ${expLabels[expKey]} trainee named ${name || "the user"} using a ${splitLabels[split] || split} split, training ${daysPerWeek} days per week.
+Design a complete ${mesoLength}-week mesocycle for a ${expLabels[expKey]} trainee named ${name || 'the user'} using a ${splitLabels[split] || split} split, training ${daysPerWeek} days per week.
 
 AVAILABLE EXERCISES (id|name|tag|muscle|type|sets|reps):
 ${exerciseNames}
@@ -112,11 +139,11 @@ ${exerciseNames}
 REQUIREMENTS:
 ${expGuidance[expKey]}
 - Always start each day with 1 anchor (compound) lift
-- Select exercises appropriate for equipment: ${equipment.join(", ")}
+- Select exercises appropriate for equipment: ${equipment.join(', ')}
 - Use progressive overload: first week establishes baseline, last week targets PRs
 - Balance muscle groups appropriately across the week
 - Identify 1–2 antagonist superset pairs per day where appropriate. Classic pairs: bench press + row, OHP + lat pulldown, curl + tricep pushdown, leg extension + leg curl, chest fly + rear delt fly. Only pair accessories — never pair two anchor/compound lifts. Mark the PRIMARY exercise in each pair with "supersetWith": <index of partner in this day's exercises array (0-based)>. Only the primary (lower index) exercise carries this field.
-${goalBlock}${goalNoteBlock ? "\n" + goalNoteBlock : ""}${mesoTransitionBlock ? "\n" + mesoTransitionBlock : ""}
+${goalBlock}${goalNoteBlock ? '\n' + goalNoteBlock : ''}${mesoTransitionBlock ? '\n' + mesoTransitionBlock : ''}
 
 Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
 {
@@ -145,20 +172,21 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
   "coachNote": "Overall philosophy note for this meso from the coach."
 }`;
 
-  const workerUrl = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL || "https://foundry-ai.timberandcode3.workers.dev";
-  const appKey = import.meta.env.VITE_FOUNDRY_APP_KEY || "";
+  const workerUrl =
+    import.meta.env.VITE_FOUNDRY_AI_WORKER_URL || 'https://foundry-ai.timberandcode3.workers.dev';
+  const appKey = import.meta.env.VITE_FOUNDRY_APP_KEY || '';
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
     const response = await fetch(workerUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Foundry-Key": appKey },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Foundry-Key': appKey },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 4096,
-        messages: [{ role: "user", content: prompt }]
+        messages: [{ role: 'user', content: prompt }],
       }),
       signal: controller.signal,
     });
@@ -167,8 +195,11 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
 
     if (!response.ok) throw new Error(`AI API error: ${response.status}`);
     const data = await response.json();
-    const text = data.content?.find(b => b.type === "text")?.text || "";
-    const clean = text.replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
+    const text = data.content?.find((b) => b.type === 'text')?.text || '';
+    const clean = text
+      .replace(/```json\s*/g, '')
+      .replace(/```\s*/g, '')
+      .trim();
     const parsed = JSON.parse(clean);
 
     // Clamp set counts and rep ranges to experience norms
@@ -179,8 +210,11 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
 
     const clampReps = (repsStr) => {
       if (!repsStr) return `${norms.repFloor}-${norms.repCeil}`;
-      const str = String(repsStr).replace("–", "-");
-      const parts = str.split("-").map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      const str = String(repsStr).replace('–', '-');
+      const parts = str
+        .split('-')
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n));
       if (parts.length === 2) {
         const lo = Math.max(parts[0], norms.repFloor);
         const hi = Math.min(parts[1], norms.repCeil);
@@ -193,33 +227,39 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
     };
 
     // Hydrate exercises by matching to EXERCISE_DB
-    const hydrated = parsed.days.map(day => ({
+    const hydrated = parsed.days.map((day) => ({
       ...day,
       cardio: null,
-      exercises: day.exercises.map(ex => {
-        const dbEx = EXERCISE_DB.find(e => e.id === ex.id);
+      exercises: day.exercises.map((ex) => {
+        const dbEx = EXERCISE_DB.find((e) => e.id === ex.id);
         const isAnchor = !!ex.anchor;
         return {
           id: ex.id,
           name: ex.name || dbEx?.name || ex.id,
-          muscle: ex.muscle || dbEx?.muscle || "",
-          muscles: dbEx?.muscles || [ex.muscle || ""],
-          equipment: dbEx?.equipment || equipment[0] || "barbell",
+          muscle: ex.muscle || dbEx?.muscle || '',
+          muscles: dbEx?.muscles || [ex.muscle || ''],
+          equipment: dbEx?.equipment || equipment[0] || 'barbell',
           tag: day.tag,
           anchor: isAnchor,
-          sets: clampSets(ex.sets || dbEx?.sets || (isAnchor ? norms.anchorSets : norms.accSets), isAnchor),
+          sets: clampSets(
+            ex.sets || dbEx?.sets || (isAnchor ? norms.anchorSets : norms.accSets),
+            isAnchor
+          ),
           reps: clampReps(ex.reps || dbEx?.reps),
-          rest: ex.rest || dbEx?.rest || "2 min",
-          warmup: isAnchor ? "Full protocol" : "1 feeler set",
-          progression: ex.progression || "weight",
-          description: dbEx?.description || "",
-          videoUrl: dbEx?.videoUrl || "",
-          supersetWith: (ex.supersetWith != null && typeof ex.supersetWith === 'number') ? ex.supersetWith : undefined,
+          rest: ex.rest || dbEx?.rest || '2 min',
+          warmup: isAnchor ? 'Full protocol' : '1 feeler set',
+          progression: ex.progression || 'weight',
+          description: dbEx?.description || '',
+          videoUrl: dbEx?.videoUrl || '',
+          supersetWith:
+            ex.supersetWith != null && typeof ex.supersetWith === 'number'
+              ? ex.supersetWith
+              : undefined,
         };
       }),
     }));
 
-    return { days: hydrated, coachNote: parsed.coachNote || "" };
+    return { days: hydrated, coachNote: parsed.coachNote || '' };
   } catch (error) {
     clearTimeout(timeout);
     throw error;

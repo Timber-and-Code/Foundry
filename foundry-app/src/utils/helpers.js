@@ -15,12 +15,16 @@ export function parseRestSeconds(restStr) {
 // navigator.vibrate is silently ignored on iOS Safari/WKWebView — works on Android.
 // Will activate properly on iOS once wrapped in Capacitor (v2.0).
 const HAPTIC = {
-  tap:      [40],
-  done:     [50, 40, 80],
+  tap: [40],
+  done: [50, 40, 80],
   complete: [80, 50, 80, 50, 120],
-  victory:  [60, 30, 60, 30, 60, 30, 200],
+  victory: [60, 30, 60, 30, 60, 30, 200],
 };
 
 export function haptic(type) {
-  try { navigator.vibrate && navigator.vibrate(HAPTIC[type] || HAPTIC.tap); } catch (e) { console.warn('[Foundry]', 'Failed to trigger haptic feedback', e); }
+  try {
+    navigator.vibrate && navigator.vibrate(HAPTIC[type] || HAPTIC.tap);
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to trigger haptic feedback', e);
+  }
 }

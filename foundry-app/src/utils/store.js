@@ -4,14 +4,32 @@ export { store };
 
 // Re-export training utilities so components can import from a single location
 export {
-  getWeekSets, generateWarmupSteps, getWarmupDetail, shuffle,
-  loadBwLog, saveBwLog, addBwEntry, bwLoggedThisWeek, currentWeekSundayStr,
-  markBwPromptShown, bwPromptShownThisWeek,
-  saveSessionDuration, loadSessionDuration, loadSparklineData,
-  loadCurrentWeek, saveCurrentWeek, loadCompleted, markComplete,
-  loadProfile, saveProfile,
-  isSkipped, setSkipped, getWorkoutDaysForWeek, ensureWorkoutDaysHistory,
-  ageFromDob, getTimeGreeting,
+  getWeekSets,
+  generateWarmupSteps,
+  getWarmupDetail,
+  shuffle,
+  loadBwLog,
+  saveBwLog,
+  addBwEntry,
+  bwLoggedThisWeek,
+  currentWeekSundayStr,
+  markBwPromptShown,
+  bwPromptShownThisWeek,
+  saveSessionDuration,
+  loadSessionDuration,
+  loadSparklineData,
+  loadCurrentWeek,
+  saveCurrentWeek,
+  loadCompleted,
+  markComplete,
+  loadProfile,
+  saveProfile,
+  isSkipped,
+  setSkipped,
+  getWorkoutDaysForWeek,
+  ensureWorkoutDaysHistory,
+  ageFromDob,
+  getTimeGreeting,
 } from './training';
 
 // ─── TRAINING DATA PERSISTENCE ────────────────────────────────────────────────
@@ -29,28 +47,34 @@ export function loadDayWeek(dayIdx, weekIdx) {
  * Cable/machine advanced gets smaller jumps.
  */
 export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
-  const expRaw = profile?.experience || "intermediate";
-  const expNorm = { new:"beginner", beginner:"beginner", intermediate:"intermediate", advanced:"experienced", experienced:"experienced" };
-  const expKey = expNorm[expRaw] || "intermediate";
+  const expRaw = profile?.experience || 'intermediate';
+  const expNorm = {
+    new: 'beginner',
+    beginner: 'beginner',
+    intermediate: 'intermediate',
+    advanced: 'experienced',
+    experienced: 'experienced',
+  };
+  const expKey = expNorm[expRaw] || 'intermediate';
   const current = loadDayWeek(dayIdx, weekIdx);
 
-  const hasData = Object.values(current).some(exData =>
-    Object.values(exData).some(s => s && (s.weight || s.reps))
+  const hasData = Object.values(current).some((exData) =>
+    Object.values(exData).some((s) => s && (s.weight || s.reps))
   );
   if (hasData || weekIdx === 0) return current;
 
   // Nothing logged yet this week — carry forward weights from the most recent prior week
   for (let w = weekIdx - 1; w >= 0; w--) {
     const prev = loadDayWeek(dayIdx, w);
-    const prevHasWeights = Object.values(prev).some(exData =>
-      Object.values(exData).some(s => s && s.weight)
+    const prevHasWeights = Object.values(prev).some((exData) =>
+      Object.values(exData).some((s) => s && s.weight)
     );
     if (!prevHasWeights) continue;
 
     const carried = {};
     day.exercises.forEach((ex, exIdx) => {
       const prevEx = prev[exIdx] || {};
-      const repParts = String(ex.reps).split("-");
+      const repParts = String(ex.reps).split('-');
       const rangeMin = parseInt(repParts[0]) || 1;
       const rangeMax = parseInt(repParts[repParts.length - 1]) || rangeMin;
 
@@ -60,40 +84,43 @@ export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
         const prevSet = prevEx[s] || {};
         if (prevSet.warmup) continue;
         hasAnyWorkingSet = true;
-        const logged = parseInt(prevSet.reps || "0");
-        if (!logged || logged < rangeMax) { allRepsHit = false; break; }
+        const logged = parseInt(prevSet.reps || '0');
+        if (!logged || logged < rangeMax) {
+          allRepsHit = false;
+          break;
+        }
       }
 
       let nudge = 0;
       if (allRepsHit && hasAnyWorkingSet) {
-        const equip = ex.equipment || "";
+        const equip = ex.equipment || '';
         if (ex.bw) {
           nudge = 0;
-        } else if (equip === "barbell") {
+        } else if (equip === 'barbell') {
           nudge = 5;
-        } else if (equip === "dumbbell") {
+        } else if (equip === 'dumbbell') {
           const currentWeight = (() => {
             for (let s = 0; s < ex.sets; s++) {
-              const w = parseFloat((prevEx[s] || {}).weight || "0");
+              const w = parseFloat((prevEx[s] || {}).weight || '0');
               if (w > 0) return w;
             }
             return 0;
           })();
           nudge = currentWeight < 25 ? 2.5 : 5;
         } else {
-          nudge = expKey === "experienced" ? 2.5 : 5;
+          nudge = expKey === 'experienced' ? 2.5 : 5;
         }
       }
 
       carried[exIdx] = {};
       for (let s = 0; s < ex.sets; s++) {
         const prevSet = prevEx[s] || {};
-        let suggestedWeight = prevSet.weight || "";
-        if (nudge > 0 && suggestedWeight !== "" && !isNaN(parseFloat(suggestedWeight))) {
+        let suggestedWeight = prevSet.weight || '';
+        if (nudge > 0 && suggestedWeight !== '' && !isNaN(parseFloat(suggestedWeight))) {
           suggestedWeight = String(parseFloat(suggestedWeight) + nudge);
         }
 
-        const prevReps = parseInt(prevSet.reps || "0");
+        const prevReps = parseInt(prevSet.reps || '0');
         let suggestedReps;
         if (nudge > 0) {
           suggestedReps = String(rangeMin);
@@ -106,7 +133,7 @@ export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
         carried[exIdx][s] = {
           weight: suggestedWeight,
           reps: suggestedReps,
-          suggested: nudge > 0 && suggestedWeight !== "",
+          suggested: nudge > 0 && suggestedWeight !== '',
           repsSuggested: true,
         };
       }
@@ -130,7 +157,13 @@ export function saveCardioLog(dayIdx, weekIdx, data) {
 }
 
 export function loadCardioSession(dateStr) {
-  try { const r = store.get(`foundry:cardio:session:${dateStr}`); return r ? JSON.parse(r) : null; } catch (e) { console.warn('[Foundry]', 'Failed to load cardio session', e); return null; }
+  try {
+    const r = store.get(`foundry:cardio:session:${dateStr}`);
+    return r ? JSON.parse(r) : null;
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to load cardio session', e);
+    return null;
+  }
 }
 
 export function saveCardioSession(dateStr, data) {
@@ -138,7 +171,13 @@ export function saveCardioSession(dateStr, data) {
 }
 
 export function loadMobilitySession(dateStr) {
-  try { const r = store.get(`foundry:mobility:session:${dateStr}`); return r ? JSON.parse(r) : null; } catch (e) { console.warn('[Foundry]', 'Failed to load mobility session', e); return null; }
+  try {
+    const r = store.get(`foundry:mobility:session:${dateStr}`);
+    return r ? JSON.parse(r) : null;
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to load mobility session', e);
+    return null;
+  }
 }
 
 export function saveMobilitySession(dateStr, data) {
@@ -146,7 +185,7 @@ export function saveMobilitySession(dateStr, data) {
 }
 
 export function loadNotes(dayIdx, weekIdx) {
-  return store.get(`foundry:notes:d${dayIdx}:w${weekIdx}`) || "";
+  return store.get(`foundry:notes:d${dayIdx}:w${weekIdx}`) || '';
 }
 
 export function saveNotes(dayIdx, weekIdx, text) {
@@ -154,7 +193,12 @@ export function saveNotes(dayIdx, weekIdx, text) {
 }
 
 export function loadExNotes(dayIdx, weekIdx) {
-  try { return JSON.parse(store.get(`foundry:exnotes:d${dayIdx}:w${weekIdx}`) || "{}"); } catch (e) { console.warn('[Foundry]', 'Failed to parse exercise notes', e); return {}; }
+  try {
+    return JSON.parse(store.get(`foundry:exnotes:d${dayIdx}:w${weekIdx}`) || '{}');
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to parse exercise notes', e);
+    return {};
+  }
 }
 
 export function saveExNotes(dayIdx, weekIdx, obj) {
@@ -162,7 +206,12 @@ export function saveExNotes(dayIdx, weekIdx, obj) {
 }
 
 export function loadExtraExNotes(dateStr) {
-  try { return JSON.parse(store.get(`foundry:extra:exnotes:${dateStr}`) || "{}"); } catch (e) { console.warn('[Foundry]', 'Failed to parse extra exercise notes', e); return {}; }
+  try {
+    return JSON.parse(store.get(`foundry:extra:exnotes:${dateStr}`) || '{}');
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to parse extra exercise notes', e);
+    return {};
+  }
 }
 
 export function saveExtraExNotes(dateStr, obj) {
@@ -171,32 +220,39 @@ export function saveExtraExNotes(dateStr, obj) {
 
 export function hasAnyNotes(dayIdx, weekIdx) {
   if (loadNotes(dayIdx, weekIdx).trim()) return true;
-  return Object.values(loadExNotes(dayIdx, weekIdx)).some(v => v && v.trim());
+  return Object.values(loadExNotes(dayIdx, weekIdx)).some((v) => v && v.trim());
 }
 
 export function hasAnyExtraNotes(dateStr) {
-  const sn = store.get(`foundry:extra:notes:${dateStr}`) || "";
+  const sn = store.get(`foundry:extra:notes:${dateStr}`) || '';
   if (sn.trim()) return true;
-  return Object.values(loadExtraExNotes(dateStr)).some(v => v && v.trim());
+  return Object.values(loadExtraExNotes(dateStr)).some((v) => v && v.trim());
 }
 
 export function loadArchive() {
-  try { return JSON.parse(store.get("foundry:archive") || "[]"); } catch (e) { console.warn('[Foundry]', 'Failed to load archive', e); return []; }
+  try {
+    return JSON.parse(store.get('foundry:archive') || '[]');
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to load archive', e);
+    return [];
+  }
 }
 
 export function deleteArchiveEntry(id) {
-  const archive = loadArchive().filter(r => r.id !== id);
-  store.set("foundry:archive", JSON.stringify(archive));
+  const archive = loadArchive().filter((r) => r.id !== id);
+  store.set('foundry:archive', JSON.stringify(archive));
 }
 
 export function loadExOverride(dayIdx, weekIdx, exIdx) {
-  return store.get(`foundry:exov:d${dayIdx}:w${weekIdx}:ex${exIdx}`)
-    || store.get(`foundry:exov:d${dayIdx}:ex${exIdx}`)
-    || null;
+  return (
+    store.get(`foundry:exov:d${dayIdx}:w${weekIdx}:ex${exIdx}`) ||
+    store.get(`foundry:exov:d${dayIdx}:ex${exIdx}`) ||
+    null
+  );
 }
 
 export function saveExOverride(dayIdx, weekIdx, exIdx, exId, scope) {
-  if (scope === "week") {
+  if (scope === 'week') {
     store.set(`foundry:exov:d${dayIdx}:w${weekIdx}:ex${exIdx}`, exId);
   } else {
     store.set(`foundry:exov:d${dayIdx}:ex${exIdx}`, exId);
@@ -212,17 +268,23 @@ export function snapshotData() {
     const data = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith("foundry:") && !key.startsWith("foundry:backup:")) {
+      if (key && key.startsWith('foundry:') && !key.startsWith('foundry:backup:')) {
         data[key] = localStorage.getItem(key);
       }
     }
-    const snap = JSON.stringify({ version:1, snappedAt: new Date().toISOString(), data });
-    const b2 = localStorage.getItem("foundry:backup:1");
-    if (b2) localStorage.setItem("foundry:backup:2", b2);
-    const b1 = localStorage.getItem("foundry:backup:0");
-    if (b1) localStorage.setItem("foundry:backup:1", b1);
-    localStorage.setItem("foundry:backup:0", snap);
-  } catch(e) { console.warn('[Foundry]', 'Failed to snapshot data', e); }
+    const snap = JSON.stringify({
+      version: 1,
+      snappedAt: new Date().toISOString(),
+      data,
+    });
+    const b2 = localStorage.getItem('foundry:backup:1');
+    if (b2) localStorage.setItem('foundry:backup:2', b2);
+    const b1 = localStorage.getItem('foundry:backup:0');
+    if (b1) localStorage.setItem('foundry:backup:1', b1);
+    localStorage.setItem('foundry:backup:0', snap);
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to snapshot data', e);
+  }
 }
 
 /**
@@ -231,25 +293,37 @@ export function snapshotData() {
  */
 export function exportData() {
   try {
-    const raw = localStorage.getItem("foundry:backup:0");
-    const payload = raw || JSON.stringify({ version:1, snappedAt: new Date().toISOString(), data: (() => {
-      const d = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith("foundry:") && !k.startsWith("foundry:backup:")) d[k] = localStorage.getItem(k);
-      }
-      return d;
-    })() });
-    const blob = new Blob([payload], { type:"application/json" });
+    const raw = localStorage.getItem('foundry:backup:0');
+    const payload =
+      raw ||
+      JSON.stringify({
+        version: 1,
+        snappedAt: new Date().toISOString(),
+        data: (() => {
+          const d = {};
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('foundry:') && !k.startsWith('foundry:backup:'))
+              d[k] = localStorage.getItem(k);
+          }
+          return d;
+        })(),
+      });
+    const blob = new Blob([payload], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = `foundry-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `foundry-backup-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
-    store.set("foundry:last_backup_ts", Date.now().toString());
-  } catch(e) { alert("Export failed."); }
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 500);
+    store.set('foundry:last_backup_ts', Date.now().toString());
+  } catch (e) {
+    alert('Export failed.');
+  }
 }
 
 /**
@@ -263,13 +337,13 @@ export function importData(file, onDone) {
       const parsed = JSON.parse(e.target.result);
       const data = parsed.data || parsed;
       let imported = 0;
-      Object.entries(data).forEach(([k,v]) => {
-        if (k.startsWith("foundry:")) {
+      Object.entries(data).forEach(([k, v]) => {
+        if (k.startsWith('foundry:')) {
           localStorage.setItem(k, v);
           imported++;
-        } else if (k.startsWith("ppl:")) {
+        } else if (k.startsWith('ppl:')) {
           // Migrate old ppl: keys to foundry: on import
-          const newKey = "foundry:" + k.slice(4);
+          const newKey = 'foundry:' + k.slice(4);
           localStorage.setItem(newKey, v);
           imported++;
         }
@@ -287,18 +361,35 @@ export function importData(file, onDone) {
 // ─── READINESS SCORING ───────────────────────────────────────────────────────
 export function getReadinessScore(r) {
   if (!r) return null;
-  const s = ({ poor:0, ok:1, good:2 }[r.sleep]       ?? null);
-  const o = ({ high:0, moderate:1, low:2 }[r.soreness] ?? null);
-  const e = ({ low:0, moderate:1, high:2 }[r.energy]   ?? null);
+  const s = { poor: 0, ok: 1, good: 2 }[r.sleep] ?? null;
+  const o = { high: 0, moderate: 1, low: 2 }[r.soreness] ?? null;
+  const e = { low: 0, moderate: 1, high: 2 }[r.energy] ?? null;
   if (s === null || o === null || e === null) return null;
   return s + o + e;
 }
 
 export function getReadinessLabel(score) {
   if (score === null) return null;
-  if (score >= 5) return { label:"READY",    color:"var(--phase-accum)", advice:"All systems go. Train as planned.",                                              banner:null };
-  if (score >= 3) return { label:"MODERATE", color:"#e0a030",            advice:"Watch intensity. Push where it feels right, back off where it doesn't.",         banner:null };
-  return             { label:"LOW",      color:"#e05252",            advice:"Recovery comes first. Consider 10–15% load reduction today.",                    banner:"Low readiness today — consider 10–15% load reduction." };
+  if (score >= 5)
+    return {
+      label: 'READY',
+      color: 'var(--phase-accum)',
+      advice: 'All systems go. Train as planned.',
+      banner: null,
+    };
+  if (score >= 3)
+    return {
+      label: 'MODERATE',
+      color: '#e0a030',
+      advice: "Watch intensity. Push where it feels right, back off where it doesn't.",
+      banner: null,
+    };
+  return {
+    label: 'LOW',
+    color: '#e05252',
+    advice: 'Recovery comes first. Consider 10–15% load reduction today.',
+    banner: 'Low readiness today — consider 10–15% load reduction.',
+  };
 }
 
 // ─── EXERCISE HISTORY ────────────────────────────────────────────────────────
@@ -306,15 +397,20 @@ export function loadExerciseHistory(dayIdx, exIdx, mesoWeeks) {
   const weeks = mesoWeeks || 6;
   const rows = [];
   for (let w = 0; w <= weeks; w++) {
-    if (store.get(`foundry:done:d${dayIdx}:w${w}`) !== "1") continue;
+    if (store.get(`foundry:done:d${dayIdx}:w${w}`) !== '1') continue;
     const raw = store.get(`foundry:day${dayIdx}:week${w}`);
     if (!raw) continue;
     const dayData = JSON.parse(raw);
     const exData = dayData[exIdx];
     if (!exData) continue;
     const sets = Object.entries(exData)
-      .map(([si, s]) => ({ setNum: parseInt(si)+1, weight: s?.weight || "", reps: s?.reps || "", rpe: s?.rpe || null }))
-      .filter(s => s.weight || s.reps);
+      .map(([si, s]) => ({
+        setNum: parseInt(si) + 1,
+        weight: s?.weight || '',
+        reps: s?.reps || '',
+        rpe: s?.rpe || null,
+      }))
+      .filter((s) => s.weight || s.reps);
     if (sets.length > 0) rows.push({ week: w, sets });
   }
   return rows.reverse();
@@ -324,7 +420,7 @@ export function loadExerciseHistory(dayIdx, exIdx, mesoWeeks) {
 export function detectSessionPRs(exercises, weekData, mode, opts) {
   const getBestWeight = (data) => {
     let best = 0;
-    Object.values(data || {}).forEach(s => {
+    Object.values(data || {}).forEach((s) => {
       const w = parseFloat(s?.weight);
       if (!isNaN(w) && w > best && (s?.reps || s?.reps === 0)) best = w;
     });
@@ -333,7 +429,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
 
   const prs = [];
 
-  if (mode === "meso") {
+  if (mode === 'meso') {
     const { dayIdx, weekIdx } = opts;
     exercises.forEach((ex, exIdx) => {
       const todayBest = getBestWeight(weekData[exIdx] || {});
@@ -346,7 +442,9 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
           const dd = JSON.parse(raw);
           const b = getBestWeight(dd[exIdx] || {});
           if (b > priorBest) priorBest = b;
-        } catch (e) { console.warn('[Foundry]', 'Failed to read prior week data for PR detection', e); }
+        } catch (e) {
+          console.warn('[Foundry]', 'Failed to read prior week data for PR detection', e);
+        }
       }
       if (todayBest > priorBest && priorBest > 0) {
         prs.push({ name: ex.name, newBest: todayBest, prevBest: priorBest });
@@ -354,7 +452,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
     });
   }
 
-  if (mode === "extra") {
+  if (mode === 'extra') {
     const { activeDays, currentDateStr } = opts;
     const mesoWeeks = 6;
     exercises.forEach((ex, exIdx) => {
@@ -364,7 +462,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
       let priorBest = 0;
       if (activeDays) {
         for (let d = 0; d < activeDays.length; d++) {
-          const slot = activeDays[d].exercises.findIndex(e => e.id === ex.id);
+          const slot = activeDays[d].exercises.findIndex((e) => e.id === ex.id);
           if (slot < 0) continue;
           for (let w = 0; w <= mesoWeeks; w++) {
             try {
@@ -373,14 +471,16 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
               const dd = JSON.parse(raw);
               const b = getBestWeight(dd[slot] || {});
               if (b > priorBest) priorBest = b;
-            } catch (e) { console.warn('[Foundry]', 'Failed to read meso data for PR detection', e); }
+            } catch (e) {
+              console.warn('[Foundry]', 'Failed to read meso data for PR detection', e);
+            }
           }
         }
       }
       try {
-        Object.keys(localStorage).forEach(key => {
-          if (!key.startsWith("foundry:extra:data:")) return;
-          const dateStr = key.replace("foundry:extra:data:", "");
+        Object.keys(localStorage).forEach((key) => {
+          if (!key.startsWith('foundry:extra:data:')) return;
+          const dateStr = key.replace('foundry:extra:data:', '');
           if (dateStr === currentDateStr) return;
           const raw = store.get(key);
           if (!raw) return;
@@ -395,7 +495,9 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
             if (b > priorBest) priorBest = b;
           });
         });
-      } catch (e) { console.warn('[Foundry]', 'Failed to scan extra sessions for PR detection', e); }
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to scan extra sessions for PR detection', e);
+      }
       if (todayBest > priorBest && priorBest > 0) {
         prs.push({ name: ex.name, newBest: todayBest, prevBest: priorBest });
       }
@@ -416,28 +518,32 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
     const window = [];
 
     for (let w = 0; w < currentWeekIdx; w++) {
-      if (store.get(`foundry:done:d${dayIdx}:w${w}`) !== "1") continue;
-      const histOvId = store.get(`foundry:exov:d${dayIdx}:w${w}:ex${exIdx}`)
-                    || store.get(`foundry:exov:d${dayIdx}:ex${exIdx}`)
-                    || null;
+      if (store.get(`foundry:done:d${dayIdx}:w${w}`) !== '1') continue;
+      const histOvId =
+        store.get(`foundry:exov:d${dayIdx}:w${w}:ex${exIdx}`) ||
+        store.get(`foundry:exov:d${dayIdx}:ex${exIdx}`) ||
+        null;
       const histName = histOvId
-        ? ((EXERCISE_DB.find(e => e.id === histOvId) || {}).name || null)
+        ? (EXERCISE_DB.find((e) => e.id === histOvId) || {}).name || null
         : baseExName;
       if (!histName || histName !== ex.name) break;
       try {
         const raw = store.get(`foundry:day${dayIdx}:week${w}`);
         if (!raw) continue;
-        const exData = (JSON.parse(raw))[exIdx] || {};
+        const exData = JSON.parse(raw)[exIdx] || {};
         let heaviest = 0;
-        Object.values(exData).forEach(s => {
+        Object.values(exData).forEach((s) => {
           if (!s || s.warmup || s.repsSuggested) return;
           const wt = parseFloat(s.weight);
-          if (!isNaN(wt) && wt > 0 && s.reps && s.reps !== "") {
+          if (!isNaN(wt) && wt > 0 && s.reps && s.reps !== '') {
             if (wt > heaviest) heaviest = wt;
           }
         });
         if (heaviest > 0) window.push({ w, weight: heaviest });
-      } catch (e) { console.warn('[Foundry]', 'Failed to read week data for stall detection', e); break; }
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to read week data for stall detection', e);
+        break;
+      }
     }
 
     if (window.length === 0) return;
@@ -446,65 +552,90 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
     if (window.length >= 2) {
       const prev = window[window.length - 2];
       if (last.weight < prev.weight) {
-        regressions.push({ name: ex.name, current: last.weight, previous: prev.weight });
+        regressions.push({
+          name: ex.name,
+          current: last.weight,
+          previous: prev.weight,
+        });
         return;
       }
     }
 
     if (window.length >= 3) {
       const last3 = window.slice(-3);
-      if (last3.every(s => s.weight === last3[0].weight)) {
+      if (last3.every((s) => s.weight === last3[0].weight)) {
         try {
           const curRaw = store.get(`foundry:day${dayIdx}:week${currentWeekIdx}`);
           if (curRaw) {
-            const curExData = (JSON.parse(curRaw))[exIdx] || {};
+            const curExData = JSON.parse(curRaw)[exIdx] || {};
             let curHeaviest = 0;
-            Object.values(curExData).forEach(s => {
+            Object.values(curExData).forEach((s) => {
               if (!s || s.warmup) return;
               const wt = parseFloat(s.weight);
               if (!isNaN(wt) && wt > curHeaviest) curHeaviest = wt;
             });
             if (curHeaviest > last3[0].weight) return;
           }
-        } catch (e) { console.warn('[Foundry]', 'Failed to read current week for stall detection', e); }
+        } catch (e) {
+          console.warn('[Foundry]', 'Failed to read current week for stall detection', e);
+        }
 
         let isFatigueSignal = false;
         try {
           const today = new Date();
-          let readinessTotal = 0, readinessCount = 0;
+          let readinessTotal = 0,
+            readinessCount = 0;
           for (let d = 0; d < 7; d++) {
             const dt = new Date(today);
             dt.setDate(dt.getDate() - d);
-            const key = `foundry:readiness:${dt.toISOString().slice(0,10)}`;
+            const key = `foundry:readiness:${dt.toISOString().slice(0, 10)}`;
             const raw = store.get(key);
             if (raw) {
               const score = getReadinessScore(JSON.parse(raw));
-              if (score !== null) { readinessTotal += score; readinessCount++; }
+              if (score !== null) {
+                readinessTotal += score;
+                readinessCount++;
+              }
             }
           }
-          if (readinessCount >= 3 && (readinessTotal / readinessCount) <= 2.5) {
+          if (readinessCount >= 3 && readinessTotal / readinessCount <= 2.5) {
             isFatigueSignal = true;
           }
-        } catch (e) { console.warn('[Foundry]', 'Failed to compute fatigue signal', e); }
+        } catch (e) {
+          console.warn('[Foundry]', 'Failed to compute fatigue signal', e);
+        }
 
-        if (profile?.goal === "lose_fat" && _loadBwLog) {
+        if (profile?.goal === 'lose_fat' && _loadBwLog) {
           const sessionDates = last3
-            .map(entry => store.get(`foundry:completedDate:d${dayIdx}:w${entry.w}`) || null)
+            .map((entry) => store.get(`foundry:completedDate:d${dayIdx}:w${entry.w}`) || null)
             .filter(Boolean)
             .sort();
           if (sessionDates.length >= 2) {
             const earliest = sessionDates[0];
-            const latest   = sessionDates[sessionDates.length - 1];
-            const bwLog    = _loadBwLog();
-            const inWindow = bwLog.filter(e => e.date >= earliest && e.date <= latest);
+            const latest = sessionDates[sessionDates.length - 1];
+            const bwLog = _loadBwLog();
+            const inWindow = bwLog.filter((e) => e.date >= earliest && e.date <= latest);
             if (inWindow.length >= 2) {
               const bwDown = inWindow[0].weight > inWindow[inWindow.length - 1].weight;
-              stalls.push({ name: ex.name, weight: last.weight, isProtecting: bwDown, isFatigueSignal });
+              stalls.push({
+                name: ex.name,
+                weight: last.weight,
+                isProtecting: bwDown,
+                isFatigueSignal,
+              });
             } else {
-              stalls.push({ name: ex.name, weight: last.weight, isFatigueSignal });
+              stalls.push({
+                name: ex.name,
+                weight: last.weight,
+                isFatigueSignal,
+              });
             }
           } else {
-            stalls.push({ name: ex.name, weight: last.weight, isFatigueSignal });
+            stalls.push({
+              name: ex.name,
+              weight: last.weight,
+              isFatigueSignal,
+            });
           }
         } else {
           stalls.push({ name: ex.name, weight: last.weight, isFatigueSignal });
@@ -519,33 +650,81 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
 // ─── CLEAR ALL SKIPS ─────────────────────────────────────────────────────────
 export function clearAllSkips(mesoWeeks, mesoDays) {
   const weeks = mesoWeeks || 12;
-  const days  = mesoDays || 6;
+  const days = mesoDays || 6;
   for (let d = 0; d < days; d++)
     for (let w = 0; w <= weeks; w++)
-      try { localStorage.removeItem(`foundry:skip:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove skip key', e); }
+      try {
+        localStorage.removeItem(`foundry:skip:d${d}:w${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove skip key', e);
+      }
 }
 
 // ─── RESET MESO ──────────────────────────────────────────────────────────────
 export function resetMeso(mesoWeeks, mesoDays) {
   const weeks = mesoWeeks || 12;
-  const days  = mesoDays || 6;
+  const days = mesoDays || 6;
   for (let d = 0; d < days; d++) {
     for (let w = 0; w <= weeks; w++) {
-      try { localStorage.removeItem(`foundry:day${d}:week${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove day/week data during meso reset', e); }
-      try { localStorage.removeItem(`foundry:notes:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove notes during meso reset', e); }
-      try { localStorage.removeItem(`foundry:exnotes:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove exercise notes during meso reset', e); }
-      try { localStorage.removeItem(`foundry:done:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove completion marker during meso reset', e); }
-      try { localStorage.removeItem(`foundry:cardio:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove cardio log during meso reset', e); }
-      try { localStorage.removeItem(`foundry:skip:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove skip marker during meso reset', e); }
-      try { localStorage.removeItem(`foundry:sessionStart:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove session start during meso reset', e); }
-      try { localStorage.removeItem(`foundry:strengthEnd:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove strength end during meso reset', e); }
-      try { localStorage.removeItem(`foundry:completedDate:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove completed date during meso reset', e); }
+      try {
+        localStorage.removeItem(`foundry:day${d}:week${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove day/week data during meso reset', e);
+      }
+      try {
+        localStorage.removeItem(`foundry:notes:d${d}:w${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove notes during meso reset', e);
+      }
+      try {
+        localStorage.removeItem(`foundry:exnotes:d${d}:w${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove exercise notes during meso reset', e);
+      }
+      try {
+        localStorage.removeItem(`foundry:done:d${d}:w${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove completion marker during meso reset', e);
+      }
+      try {
+        localStorage.removeItem(`foundry:cardio:d${d}:w${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove cardio log during meso reset', e);
+      }
+      try {
+        localStorage.removeItem(`foundry:skip:d${d}:w${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove skip marker during meso reset', e);
+      }
+      try {
+        localStorage.removeItem(`foundry:sessionStart:d${d}:w${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove session start during meso reset', e);
+      }
+      try {
+        localStorage.removeItem(`foundry:strengthEnd:d${d}:w${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove strength end during meso reset', e);
+      }
+      try {
+        localStorage.removeItem(`foundry:completedDate:d${d}:w${w}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove completed date during meso reset', e);
+      }
     }
     for (let ex = 0; ex < 10; ex++) {
-      try { localStorage.removeItem(`foundry:exov:d${d}:ex${ex}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove exercise override during meso reset', e); }
+      try {
+        localStorage.removeItem(`foundry:exov:d${d}:ex${ex}`);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to remove exercise override during meso reset', e);
+      }
     }
   }
-  try { localStorage.setItem("foundry:currentWeek", "0"); } catch (e) { console.warn('[Foundry]', 'Failed to reset current week', e); }
+  try {
+    localStorage.setItem('foundry:currentWeek', '0');
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to reset current week', e);
+  }
 }
 
 // ─── ARCHIVE CURRENT MESO ───────────────────────────────────────────────────
@@ -559,14 +738,15 @@ export function archiveCurrentMeso(profile, deps) {
   let completedCount = 0;
   for (let d = 0; d < mesoDays; d++) {
     for (let w = 0; w <= mesoWeeks; w++) {
-      const raw  = store.get(`foundry:day${d}:week${w}`);
-      const done = store.get(`foundry:done:d${d}:w${w}`) === "1";
+      const raw = store.get(`foundry:day${d}:week${w}`);
+      const done = store.get(`foundry:done:d${d}:w${w}`) === '1';
       if (done) completedCount++;
       if (!raw) continue;
       const data = JSON.parse(raw);
       const exOvs = {};
       for (let ex = 0; ex < 8; ex++) {
-        const ov = store.get(`foundry:exov:d${d}:w${w}:ex${ex}`) || store.get(`foundry:exov:d${d}:ex${ex}`);
+        const ov =
+          store.get(`foundry:exov:d${d}:w${w}:ex${ex}`) || store.get(`foundry:exov:d${d}:ex${ex}`);
         if (ov) exOvs[ex] = ov;
       }
       const cardioRaw = store.get(`foundry:cardio:d${d}:w${w}`);
@@ -587,10 +767,14 @@ export function archiveCurrentMeso(profile, deps) {
   };
 
   let archive = [];
-  try { archive = JSON.parse(store.get("foundry:archive") || "[]"); } catch (e) { console.warn('[Foundry]', 'Failed to load archive for meso archival', e); }
+  try {
+    archive = JSON.parse(store.get('foundry:archive') || '[]');
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to load archive for meso archival', e);
+  }
   archive.unshift(record);
   if (archive.length > 10) archive = archive.slice(0, 10);
-  store.set("foundry:archive", JSON.stringify(archive));
+  store.set('foundry:archive', JSON.stringify(archive));
 
   // ── Meso transition context ──
   try {
@@ -606,38 +790,40 @@ export function archiveCurrentMeso(profile, deps) {
             if (!raw) continue;
             try {
               const wd = JSON.parse(raw);
-              Object.values(wd[exIdx] || {}).forEach(s => {
+              Object.values(wd[exIdx] || {}).forEach((s) => {
                 const wVal = parseFloat(s?.weight || 0);
                 if (wVal > peakWeight) peakWeight = wVal;
               });
-            } catch (e) { console.warn('[Foundry]', 'Failed to parse week data for anchor peak', e); }
+            } catch (e) {
+              console.warn('[Foundry]', 'Failed to parse week data for anchor peak', e);
+            }
           }
           if (peakWeight > 0) anchorPeaks.push({ name: ex.name, id: ex.id, peak: peakWeight });
         });
       });
 
       const accessoryIds = [];
-      prog.forEach(day => {
-        day.exercises.forEach(ex => {
+      prog.forEach((day) => {
+        day.exercises.forEach((ex) => {
           if (!ex.anchor && ex.id && !accessoryIds.includes(ex.id)) accessoryIds.push(ex.id);
         });
       });
 
       const transition = {
-        builtBy: profile.autoBuilt ? "ai" : "manual",
+        builtBy: profile.autoBuilt ? 'ai' : 'manual',
         anchorPeaks,
         accessoryIds,
         profile: {
           experience: profile.experience,
-          equipment:  profile.equipment,
-          splitType:  profile.splitType,
+          equipment: profile.equipment,
+          splitType: profile.splitType,
           daysPerWeek: profile.daysPerWeek,
           workoutDays: profile.workoutDays,
-          mesoLength:  profile.mesoLength,
+          mesoLength: profile.mesoLength,
           sessionDuration: profile.sessionDuration,
           goal: profile.goal,
           name: profile.name,
-          age:  profile.age,
+          age: profile.age,
           gender: profile.gender,
           weight: profile.weight,
         },
@@ -645,34 +831,46 @@ export function archiveCurrentMeso(profile, deps) {
 
       try {
         if (profile.startDate) {
-          const start = new Date(profile.startDate + "T00:00:00");
-          const end   = new Date();
-          let totalScore = 0, totalLogged = 0, lowDays = 0;
+          const start = new Date(profile.startDate + 'T00:00:00');
+          const end = new Date();
+          let totalScore = 0,
+            totalLogged = 0,
+            lowDays = 0;
           const cursor = new Date(start);
           while (cursor <= end) {
-            const key = `foundry:readiness:${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,"0")}-${String(cursor.getDate()).padStart(2,"0")}`;
+            const key = `foundry:readiness:${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
             const raw = store.get(key);
             if (raw) {
               try {
                 const r = JSON.parse(raw);
                 const score = getReadinessScore(r);
-                if (score !== null) { totalScore += score; totalLogged++; if (score <= 2) lowDays++; }
-              } catch (e) { console.warn('[Foundry]', 'Failed to parse readiness entry', e); }
+                if (score !== null) {
+                  totalScore += score;
+                  totalLogged++;
+                  if (score <= 2) lowDays++;
+                }
+              } catch (e) {
+                console.warn('[Foundry]', 'Failed to parse readiness entry', e);
+              }
             }
             cursor.setDate(cursor.getDate() + 1);
           }
           if (totalLogged > 0) {
             transition.readinessSummary = {
-              avgScore:    Math.round((totalScore / totalLogged) * 10) / 10,
+              avgScore: Math.round((totalScore / totalLogged) * 10) / 10,
               lowDays,
               totalLogged,
-              totalDays:   Math.round((end - start) / 86400000) + 1,
+              totalDays: Math.round((end - start) / 86400000) + 1,
             };
           }
         }
-      } catch (e) { console.warn('[Foundry]', 'Failed to compute readiness summary', e); }
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to compute readiness summary', e);
+      }
 
-      store.set("foundry:meso_transition", JSON.stringify(transition));
+      store.set('foundry:meso_transition', JSON.stringify(transition));
     }
-  } catch (e) { console.warn('[Foundry]', 'Failed to build meso transition context', e); }
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to build meso transition context', e);
+  }
 }

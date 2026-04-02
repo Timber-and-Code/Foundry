@@ -13,9 +13,34 @@ import {
 } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
 
-function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet, onWeightAutoFill, onLastSetFilled, expanded, onToggle, done, readOnly, onSwapClick, onSetLogged, bodyweight, note, onNoteChange }) {
+function ExerciseCard({
+  exercise,
+  exIdx,
+  dayIdx,
+  weekIdx,
+  weekData,
+  onUpdateSet,
+  onWeightAutoFill,
+  onLastSetFilled,
+  expanded,
+  onToggle,
+  done,
+  readOnly,
+  onSwapClick,
+  onSetLogged,
+  bodyweight,
+  note,
+  onNoteChange,
+}) {
   const goal = getProgTargets()[exercise.progression]?.[weekIdx];
-  const goalColor = weekIdx < 2 ? "var(--text-muted)" : weekIdx < 4 ? "var(--phase-accum)" : weekIdx < 5 ? "var(--phase-intens)" : "var(--danger)";
+  const goalColor =
+    weekIdx < 2
+      ? 'var(--text-muted)'
+      : weekIdx < 4
+        ? 'var(--phase-accum)'
+        : weekIdx < 5
+          ? 'var(--phase-intens)'
+          : 'var(--danger)';
   const [showHistory, setShowHistory] = useState(false);
   const [historyRows, setHistoryRows] = useState([]);
   const [showHowTo, setShowHowTo] = useState(false);
@@ -29,7 +54,9 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
     try {
       const raw = store.get(`foundry:day${dayIdx}:week${weekIdx - 1}`);
       return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
+    } catch {
+      return {};
+    }
   }, [dayIdx, weekIdx]);
 
   // Cross-meso context note — week 0 only
@@ -44,25 +71,28 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
       const lastWorkingWeek = recent.mesoWeeks - 1;
       // Find sessions for this exercise name in the last working week
       const exName = exercise.name.toLowerCase();
-      let bestWeight = 0, bestReps = 0;
-      recent.sessions.forEach(sess => {
+      let bestWeight = 0,
+        bestReps = 0;
+      recent.sessions.forEach((sess) => {
         if (sess.w !== lastWorkingWeek) return;
         const exData = sess.data;
         // Check all exercise slots in that session
         Object.values(exData).forEach((exSets, idx) => {
           // Match by exercise name via override or program position
-          const ovId = recent.sessions.find(s2 => s2.d === sess.d && s2.w === sess.w)
-            ?.exOvs?.[idx];
+          const ovId = recent.sessions.find((s2) => s2.d === sess.d && s2.w === sess.w)?.exOvs?.[
+            idx
+          ];
           // We don't have the exercise name easily — match by finding the best set
           // with meaningful weight across the session and compare to current exercise
           // Simple approach: look for data under same exIdx in same day position
           if (idx === exIdx) {
-            Object.values(exSets || {}).forEach(sd => {
+            Object.values(exSets || {}).forEach((sd) => {
               if (!sd || !sd.weight || !sd.reps || sd.warmup) return;
               const w = parseFloat(sd.weight);
               const r = parseInt(sd.reps);
               if (w > bestWeight || (w === bestWeight && r > bestReps)) {
-                bestWeight = w; bestReps = r;
+                bestWeight = w;
+                bestReps = r;
               }
             });
           }
@@ -72,7 +102,9 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
         return `Last meso: ${bestWeight} lbs × ${bestReps}`;
       }
       return null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }, [weekIdx, exIdx, exercise.name]);
 
   const [doneSets, setDoneSets] = React.useState(() => {
@@ -86,15 +118,19 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
     return restored;
   });
   const handleWeightBlur = (s, value) => {
-    if (s === 0 && value.trim() !== "" && !isNaN(parseFloat(value))) {
+    if (s === 0 && value.trim() !== '' && !isNaN(parseFloat(value))) {
       onWeightAutoFill(exIdx, value, exercise.sets);
     }
   };
 
   const handleRepsChange = (s, value) => {
-    onUpdateSet(exIdx, s, "reps", value);
+    onUpdateSet(exIdx, s, 'reps', value);
     // Un-done the set if user edits it
-    setDoneSets(prev => { const n = new Set(prev); n.delete(s); return n; });
+    setDoneSets((prev) => {
+      const n = new Set(prev);
+      n.delete(s);
+      return n;
+    });
   };
 
   const handleRepsBlur = (s, value) => {
@@ -104,36 +140,41 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
   const handleSetCheckmark = (s) => {
     if (doneSets.has(s)) {
       // Uncheck — re-enable editing, clear confirmed flag
-      setDoneSets(prev => { const n = new Set(prev); n.delete(s); return n; });
-      onUpdateSet(exIdx, s, "confirmed", false);
+      setDoneSets((prev) => {
+        const n = new Set(prev);
+        n.delete(s);
+        return n;
+      });
+      onUpdateSet(exIdx, s, 'confirmed', false);
       return;
     }
-    const setData = (weekData[exIdx] || {})[s] || {weight:"", reps:""};
+    const setData = (weekData[exIdx] || {})[s] || { weight: '', reps: '' };
     // Only allow check if reps are entered
-    if (!setData.reps || setData.reps === "") return;
+    if (!setData.reps || setData.reps === '') return;
     // Write confirmed flag so doneSets restores correctly on remount
     // Also clear repsSuggested so stall detection counts this as real data
-    onUpdateSet(exIdx, s, "confirmed", true);
-    setDoneSets(prev => new Set([...prev, s]));
+    onUpdateSet(exIdx, s, 'confirmed', true);
+    setDoneSets((prev) => new Set([...prev, s]));
     // Track that user confirmed at least one set — used for "Last set filled" tracking
     onLastSetFilled(exIdx, s);
   };
 
   // Compute stall detection based on previous week's set data and this week's input
-  const {stallWarning, stallTarget} = useMemo(() => {
+  const { stallWarning, stallTarget } = useMemo(() => {
     const curr = (weekData[exIdx] || {})[0] || {};
     const reps = parseInt(curr.reps || 0);
     const weight = parseFloat(curr.weight || 0);
     const prevData = prevWeekRaw[exIdx] || {};
     // Default: match prev week's best
-    let stallTarget = null, stallWarning = false;
+    let stallTarget = null,
+      stallWarning = false;
     for (let ps = 0; ps < (exercise.sets || 4); ps++) {
       const psd = prevData[ps] || {};
       if (!psd.reps || !psd.weight || psd.warmup) continue;
       const pw = parseFloat(psd.weight);
       const pr = parseInt(psd.reps);
       if (!stallTarget || pw > stallTarget.w || (pw === stallTarget.w && pr > stallTarget.r)) {
-        stallTarget = {w:pw, r:pr};
+        stallTarget = { w: pw, r: pr };
       }
     }
     // Stall if weight drops and reps don't increase enough to compensate
@@ -143,7 +184,7 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
         stallWarning = true;
       }
     }
-    return {stallTarget, stallWarning};
+    return { stallTarget, stallWarning };
   }, [weekData, exIdx, prevWeekRaw, exercise.sets]);
 
   // Load history sparkline on expanded
@@ -157,7 +198,8 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
         if (!rawData) continue;
         const parsed = JSON.parse(rawData);
         const exData = parsed[exIdx] || {};
-        const weights = [], reps = [];
+        const weights = [],
+          reps = [];
         for (const [setIdx, sd] of Object.entries(exData)) {
           if (!sd.weight || !sd.reps || sd.warmup) continue;
           weights.push(parseFloat(sd.weight));
@@ -168,7 +210,7 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
             w: w,
             maxW: Math.max(...weights),
             maxR: Math.max(...reps),
-            sets: weights.length
+            sets: weights.length,
           });
         }
       }
@@ -208,23 +250,83 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
   }, [weekData, exIdx, prevWeekRaw, exercise.sets]);
 
   return (
-    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, marginBottom: 12, overflow: "hidden", transition: "border-color 0.2s" }}>
+    <div
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        marginBottom: 12,
+        overflow: 'hidden',
+        transition: 'border-color 0.2s',
+      }}
+    >
       {/* ── HEADER (clickable to expand) ── */}
-      <div onClick={() => onToggle()} style={{ padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-card-hover)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+      <div
+        onClick={() => onToggle()}
+        style={{
+          padding: '14px 16px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'var(--bg-card-hover)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
           {/* Icon / Status */}
-          <div style={{ fontSize: 18, width: 24, textAlign: "center", flexShrink: 0 }}>
-            {done ? "✓" : exercise.cardio ? "♪" : "💪"}
+          <div
+            style={{
+              fontSize: 18,
+              width: 24,
+              textAlign: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {done ? '✓' : exercise.cardio ? '♪' : '💪'}
           </div>
 
           {/* Title + Badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {exercise.name}
             </span>
             {exercise.anchor && <HammerIcon size={16} style={{ marginTop: 1 }} />}
             {exercise.modifier && (
-              <span style={{ fontSize: 11, background: "var(--bg-inset)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: 3, whiteSpace: "nowrap" }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  background: 'var(--bg-inset)',
+                  color: 'var(--text-muted)',
+                  padding: '2px 6px',
+                  borderRadius: 3,
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {exercise.modifier}
               </span>
             )}
@@ -232,47 +334,142 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
         </div>
 
         {/* Goal + Expand arrow */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: goalColor }}>
-            {goal}
-          </div>
-          <span style={{ fontSize: 16, color: "var(--text-secondary)" }}>
-            {expanded ? "▼" : "▶"}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 600, color: goalColor }}>{goal}</div>
+          <span style={{ fontSize: 16, color: 'var(--text-secondary)' }}>
+            {expanded ? '▼' : '▶'}
           </span>
         </div>
       </div>
 
       {/* ── EXPANDED CONTENT ── */}
       {expanded && (
-        <div style={{ borderTop: "1px solid var(--border)", padding: "12px 16px" }}>
+        <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px' }}>
           {/* Exercise meta */}
           {exercise.description && (
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid var(--border)" }}>
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-secondary)',
+                marginBottom: 12,
+                paddingBottom: 12,
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
               {exercise.description}
             </div>
           )}
 
           {/* Warmup & How To buttons */}
           {exercise.warmup && !done && (
-            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-              <button onClick={handleWarmupClick} style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, padding: "10px 12px", borderRadius: 6, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-accent)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                marginBottom: 12,
+                flexWrap: 'wrap',
+              }}
+            >
+              <button
+                onClick={handleWarmupClick}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-accent)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
                 🔥 Warmup Guide
               </button>
-              <button onClick={() => setWarmupOpen(!warmupOpen)} style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, padding: "10px 12px", borderRadius: 6, background: warmupOpen ? "rgba(var(--accent-rgb),0.15)" : "var(--bg-inset)", border: warmupOpen ? "1px solid var(--text-accent)" : "1px solid var(--border)", color: "var(--text-accent)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <button
+                onClick={() => setWarmupOpen(!warmupOpen)}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  background: warmupOpen ? 'rgba(var(--accent-rgb),0.15)' : 'var(--bg-inset)',
+                  border: warmupOpen ? '1px solid var(--text-accent)' : '1px solid var(--border)',
+                  color: 'var(--text-accent)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
                 🏋️ 2 Ramp Sets
               </button>
-              <button onClick={handleHowToClick} style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, padding: "10px 12px", borderRadius: 6, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-accent)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <button
+                onClick={handleHowToClick}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-accent)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
                 🎬 How To Video
               </button>
             </div>
           )}
           {/* Ramp sets detail (toggles open/closed) */}
           {warmupOpen && exercise.warmup && !done && (
-            <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-secondary)", background: "var(--bg-inset)", padding: 12, borderRadius: 6, marginBottom: 12, border: "1px solid var(--border)" }}>
-              <div style={{ fontWeight: 700, color: "var(--text-accent)", marginBottom: 6 }}>Ramp-Up Sets</div>
+            <div
+              style={{
+                fontSize: 12,
+                lineHeight: 1.6,
+                color: 'var(--text-secondary)',
+                background: 'var(--bg-inset)',
+                padding: 12,
+                borderRadius: 6,
+                marginBottom: 12,
+                border: '1px solid var(--border)',
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 700,
+                  color: 'var(--text-accent)',
+                  marginBottom: 6,
+                }}
+              >
+                Ramp-Up Sets
+              </div>
               <ol style={{ paddingLeft: 20, margin: 0 }}>
                 {generateWarmupSteps(exercise, workingWeight).map((step, idx) => (
-                  <li key={idx} style={{ marginBottom: 4 }}>{step}</li>
+                  <li key={idx} style={{ marginBottom: 4 }}>
+                    {step}
+                  </li>
                 ))}
               </ol>
             </div>
@@ -280,21 +477,55 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
 
           {/* Stall warning */}
           {stallWarning && (
-            <div style={{ background: "rgba(255, 193, 7, 0.1)", border: "1px solid var(--danger)", borderRadius: 6, padding: 10, marginBottom: 12, fontSize: 12, color: "var(--danger)", lineHeight: 1.5 }}>
+            <div
+              style={{
+                background: 'rgba(255, 193, 7, 0.1)',
+                border: '1px solid var(--danger)',
+                borderRadius: 6,
+                padding: 10,
+                marginBottom: 12,
+                fontSize: 12,
+                color: 'var(--danger)',
+                lineHeight: 1.5,
+              }}
+            >
               ⚠ Weight drop detected. Last week: {stallTarget?.w} × {stallTarget?.r}
             </div>
           )}
 
           {/* Previous week hint */}
           {prevWeekRaw[exIdx] && (
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, padding: "8px", background: "var(--bg-inset)", borderRadius: 4 }}>
-              Last session: {Object.values(prevWeekRaw[exIdx] || {}).find(sd => sd.weight && sd.reps && !sd.warmup) ? `${Object.values(prevWeekRaw[exIdx])[0]?.weight} × ${Object.values(prevWeekRaw[exIdx])[0]?.reps}` : "—"}
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                marginBottom: 12,
+                padding: '8px',
+                background: 'var(--bg-inset)',
+                borderRadius: 4,
+              }}
+            >
+              Last session:{' '}
+              {Object.values(prevWeekRaw[exIdx] || {}).find(
+                (sd) => sd.weight && sd.reps && !sd.warmup
+              )
+                ? `${Object.values(prevWeekRaw[exIdx])[0]?.weight} × ${Object.values(prevWeekRaw[exIdx])[0]?.reps}`
+                : '—'}
             </div>
           )}
 
           {/* Cross-meso note */}
           {crossMesoNote && (
-            <div style={{ fontSize: 12, color: "var(--text-accent)", marginBottom: 12, padding: "8px", background: "var(--bg-inset)", borderRadius: 4 }}>
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-accent)',
+                marginBottom: 12,
+                padding: '8px',
+                background: 'var(--bg-inset)',
+                borderRadius: 4,
+              }}
+            >
               {crossMesoNote}
             </div>
           )}
@@ -302,7 +533,17 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
           {/* Set logging grid */}
           {!done && (
             <div style={{ marginBottom: 12 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, marginBottom: 8, fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr auto',
+                  gap: 8,
+                  marginBottom: 8,
+                  fontSize: 11,
+                  color: 'var(--text-muted)',
+                  fontWeight: 600,
+                }}
+              >
                 <div>Weight (lbs)</div>
                 <div>Reps</div>
                 <div>RPE</div>
@@ -312,39 +553,82 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
                 const sd = (weekData[exIdx] || {})[s] || {};
                 const isDone = doneSets.has(s);
                 return (
-                  <div key={s} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, marginBottom: 6, opacity: isDone ? 0.6 : 1 }}>
+                  <div
+                    key={s}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr 1fr auto',
+                      gap: 8,
+                      marginBottom: 6,
+                      opacity: isDone ? 0.6 : 1,
+                    }}
+                  >
                     <input
                       type="number"
                       placeholder="—"
-                      value={sd.weight || ""}
-                      onChange={(e) => onUpdateSet(exIdx, s, "weight", e.target.value)}
+                      value={sd.weight || ''}
+                      onChange={(e) => onUpdateSet(exIdx, s, 'weight', e.target.value)}
                       onBlur={(e) => handleWeightBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
-                      style={{ background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 8px", fontSize: 13, color: "var(--text-primary)", outline: "none" }}
+                      style={{
+                        background: 'var(--bg-inset)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 4,
+                        padding: '6px 8px',
+                        fontSize: 13,
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                      }}
                     />
                     <input
                       type="number"
                       placeholder="—"
-                      value={sd.reps || ""}
+                      value={sd.reps || ''}
                       onChange={(e) => handleRepsChange(s, e.target.value)}
                       onBlur={(e) => handleRepsBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
-                      style={{ background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 8px", fontSize: 13, color: "var(--text-primary)", outline: "none" }}
+                      style={{
+                        background: 'var(--bg-inset)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 4,
+                        padding: '6px 8px',
+                        fontSize: 13,
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                      }}
                     />
                     <input
                       type="number"
                       placeholder="—"
-                      value={sd.rpe || ""}
-                      onChange={(e) => onUpdateSet(exIdx, s, "rpe", e.target.value)}
+                      value={sd.rpe || ''}
+                      onChange={(e) => onUpdateSet(exIdx, s, 'rpe', e.target.value)}
                       disabled={isDone || readOnly}
-                      style={{ background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 8px", fontSize: 13, color: "var(--text-primary)", outline: "none" }}
+                      style={{
+                        background: 'var(--bg-inset)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 4,
+                        padding: '6px 8px',
+                        fontSize: 13,
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                      }}
                     />
                     <button
                       onClick={() => handleSetCheckmark(s)}
                       disabled={readOnly}
-                      style={{ width: 32, height: 32, border: isDone ? "2px solid var(--success)" : "1px solid var(--border)", borderRadius: 4, background: isDone ? "var(--success)" : "var(--bg-inset)", color: isDone ? "white" : "var(--text-primary)", cursor: readOnly ? "default" : "pointer", fontSize: 14, fontWeight: 700 }}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        border: isDone ? '2px solid var(--success)' : '1px solid var(--border)',
+                        borderRadius: 4,
+                        background: isDone ? 'var(--success)' : 'var(--bg-inset)',
+                        color: isDone ? 'white' : 'var(--text-primary)',
+                        cursor: readOnly ? 'default' : 'pointer',
+                        fontSize: 14,
+                        fontWeight: 700,
+                      }}
                     >
-                      {isDone ? "✓" : ""}
+                      {isDone ? '✓' : ''}
                     </button>
                   </div>
                 );
@@ -353,15 +637,54 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
           )}
 
           {/* Action buttons */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={handleHistoryClick} style={{ flex: 1, minWidth: 100, fontSize: 12, padding: "8px 12px", borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-accent)", cursor: "pointer" }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={handleHistoryClick}
+              style={{
+                flex: 1,
+                minWidth: 100,
+                fontSize: 12,
+                padding: '8px 12px',
+                borderRadius: 4,
+                background: 'var(--bg-inset)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-accent)',
+                cursor: 'pointer',
+              }}
+            >
               📊 History
             </button>
-            <button onClick={handleHowToClick} style={{ flex: 1, minWidth: 100, fontSize: 12, padding: "8px 12px", borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-accent)", cursor: "pointer" }}>
+            <button
+              onClick={handleHowToClick}
+              style={{
+                flex: 1,
+                minWidth: 100,
+                fontSize: 12,
+                padding: '8px 12px',
+                borderRadius: 4,
+                background: 'var(--bg-inset)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-accent)',
+                cursor: 'pointer',
+              }}
+            >
               🎬 How To Video
             </button>
             {!done && !readOnly && (
-              <button onClick={() => onSwapClick(exIdx)} style={{ flex: 1, minWidth: 100, fontSize: 12, padding: "8px 12px", borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-accent)", cursor: "pointer" }}>
+              <button
+                onClick={() => onSwapClick(exIdx)}
+                style={{
+                  flex: 1,
+                  minWidth: 100,
+                  fontSize: 12,
+                  padding: '8px 12px',
+                  borderRadius: 4,
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-accent)',
+                  cursor: 'pointer',
+                }}
+              >
                 🔄 Swap
               </button>
             )}
@@ -369,33 +692,97 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
 
           {/* Notes section */}
           {noteOpen && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+            <div
+              style={{
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: '1px solid var(--border)',
+              }}
+            >
               <textarea
                 placeholder="Add notes..."
-                value={note || ""}
+                value={note || ''}
                 onChange={(e) => onNoteChange(exIdx, e.target.value)}
-                style={{ width: "100%", minHeight: 80, padding: "8px", borderRadius: 4, border: "1px solid var(--border)", background: "var(--bg-inset)", color: "var(--text-primary)", fontSize: 12, resize: "vertical", outline: "none" }}
+                style={{
+                  width: '100%',
+                  minHeight: 80,
+                  padding: '8px',
+                  borderRadius: 4,
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-inset)',
+                  color: 'var(--text-primary)',
+                  fontSize: 12,
+                  resize: 'vertical',
+                  outline: 'none',
+                }}
               />
             </div>
           )}
 
           {/* History Modal */}
           {showHistory && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowHistory(false)}>
-              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: 20, maxWidth: 400, width: "90%", maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>{exercise.name} - History</div>
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.5)',
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onClick={() => setShowHistory(false)}
+            >
+              <div
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: 20,
+                  maxWidth: 400,
+                  width: '90%',
+                  maxHeight: '80vh',
+                  overflowY: 'auto',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
+                  {exercise.name} - History
+                </div>
                 {historyRows.length > 0 ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {historyRows.map((row, idx) => (
-                      <div key={idx} style={{ padding: 10, background: "var(--bg-inset)", borderRadius: 4, fontSize: 12 }}>
+                      <div
+                        key={idx}
+                        style={{
+                          padding: 10,
+                          background: 'var(--bg-inset)',
+                          borderRadius: 4,
+                          fontSize: 12,
+                        }}
+                      >
                         Week {row.w}: {row.maxW} lbs × {row.maxR} reps ({row.sets} sets)
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No history available</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    No history available
+                  </div>
                 )}
-                <button onClick={() => setShowHistory(false)} style={{ marginTop: 16, width: "100%", padding: "8px", borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-primary)", cursor: "pointer" }}>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  style={{
+                    marginTop: 16,
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: 4,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
                   Close
                 </button>
               </div>
@@ -404,14 +791,67 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
 
           {/* How-To Modal */}
           {showHowTo && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowHowTo(false)}>
-              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: 20, maxWidth: 400, width: "90%", maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{exercise.name}</div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.08em", marginBottom: 16 }}>HOW TO VIDEO</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 16 }}>
-                  {exercise.howTo || "Video guide coming soon"}
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.5)',
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onClick={() => setShowHowTo(false)}
+            >
+              <div
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: 20,
+                  maxWidth: 400,
+                  width: '90%',
+                  maxHeight: '80vh',
+                  overflowY: 'auto',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                  {exercise.name}
                 </div>
-                <button onClick={() => setShowHowTo(false)} style={{ width: "100%", padding: "8px", borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-primary)", cursor: "pointer" }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--text-muted)',
+                    letterSpacing: '0.08em',
+                    marginBottom: 16,
+                  }}
+                >
+                  HOW TO VIDEO
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.6,
+                    marginBottom: 16,
+                  }}
+                >
+                  {exercise.howTo || 'Video guide coming soon'}
+                </div>
+                <button
+                  onClick={() => setShowHowTo(false)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: 4,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
                   Close
                 </button>
               </div>
@@ -420,19 +860,69 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
 
           {/* Warmup Modal */}
           {showWarmupModal && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowWarmupModal(false)}>
-              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: 20, maxWidth: 400, width: "90%", maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.5)',
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onClick={() => setShowWarmupModal(false)}
+            >
+              <div
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: 20,
+                  maxWidth: 400,
+                  width: '90%',
+                  maxHeight: '80vh',
+                  overflowY: 'auto',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Warmup Guide</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 16 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.6,
+                    marginBottom: 16,
+                  }}
+                >
                   {getWarmupDetail(exercise.warmup, exercise.name)?.detail}
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Steps:</div>
-                <ol style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16, paddingLeft: 20 }}>
+                <ol
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--text-secondary)',
+                    marginBottom: 16,
+                    paddingLeft: 20,
+                  }}
+                >
                   {generateWarmupSteps(exercise, workingWeight).map((step, idx) => (
-                    <li key={idx} style={{ marginBottom: 6 }}>{step}</li>
+                    <li key={idx} style={{ marginBottom: 6 }}>
+                      {step}
+                    </li>
                   ))}
                 </ol>
-                <button onClick={() => setShowWarmupModal(false)} style={{ width: "100%", padding: "8px", borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-primary)", cursor: "pointer" }}>
+                <button
+                  onClick={() => setShowWarmupModal(false)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: 4,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
                   Close
                 </button>
               </div>
@@ -455,7 +945,8 @@ function areExerciseCardsEqual(prev, next) {
     prev.readOnly !== next.readOnly ||
     prev.bodyweight !== next.bodyweight ||
     prev.note !== next.note
-  ) return false;
+  )
+    return false;
 
   // exercise object — check identity, then key fields that affect render
   if (prev.exercise !== next.exercise) {
@@ -467,7 +958,8 @@ function areExerciseCardsEqual(prev, next) {
       prev.exercise.anchor !== next.exercise.anchor ||
       prev.exercise.modifier !== next.exercise.modifier ||
       prev.exercise.cardio !== next.exercise.cardio
-    ) return false;
+    )
+      return false;
   }
 
   // weekData: only the slice for this card matters — ignore sibling exercise updates
@@ -486,7 +978,8 @@ function areExerciseCardsEqual(prev, next) {
     prev.onSwapClick !== next.onSwapClick ||
     prev.onSetLogged !== next.onSetLogged ||
     prev.onNoteChange !== next.onNoteChange
-  ) return false;
+  )
+    return false;
 
   return true;
 }

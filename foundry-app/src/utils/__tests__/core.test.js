@@ -35,39 +35,219 @@ const mkEx = (overrides) => ({
 // Minimal DB covering PPL tags + anchor/non-anchor mixes
 const EXERCISE_DB = [
   // PUSH anchors
-  mkEx({ id: 'bench',   name: 'Bench Press',    tag: 'PUSH', anchor: true,  muscles: ['Chest','Shoulders','Triceps'], pattern: 'push' }),
-  mkEx({ id: 'ohp',     name: 'OHP',            tag: 'PUSH', anchor: true,  muscles: ['Shoulders','Triceps'],          pattern: 'push', equipment: 'barbell' }),
+  mkEx({
+    id: 'bench',
+    name: 'Bench Press',
+    tag: 'PUSH',
+    anchor: true,
+    muscles: ['Chest', 'Shoulders', 'Triceps'],
+    pattern: 'push',
+  }),
+  mkEx({
+    id: 'ohp',
+    name: 'OHP',
+    tag: 'PUSH',
+    anchor: true,
+    muscles: ['Shoulders', 'Triceps'],
+    pattern: 'push',
+    equipment: 'barbell',
+  }),
   // PUSH accessories
-  mkEx({ id: 'tricep',  name: 'Tricep Pushdown',tag: 'PUSH', anchor: false, muscles: ['Triceps'],                      pattern: 'isolation', diff: 1, equipment: 'cable' }),
-  mkEx({ id: 'fly',     name: 'Cable Fly',      tag: 'PUSH', anchor: false, muscles: ['Chest'],                        pattern: 'isolation', diff: 1, equipment: 'cable' }),
-  mkEx({ id: 'lat_raise',name:'Lat Raise',      tag: 'PUSH', anchor: false, muscles: ['Shoulders'],                    pattern: 'isolation', diff: 1, equipment: 'dumbbell' }),
-  mkEx({ id: 'dip',     name: 'Dip',            tag: 'PUSH', anchor: false, muscles: ['Chest','Triceps'],              pattern: 'push',      diff: 1, equipment: 'bodyweight' }),
-  mkEx({ id: 'incline', name: 'Incline Press',  tag: 'PUSH', anchor: false, muscles: ['Chest','Shoulders'],            pattern: 'push',      diff: 1, equipment: 'dumbbell' }),
+  mkEx({
+    id: 'tricep',
+    name: 'Tricep Pushdown',
+    tag: 'PUSH',
+    anchor: false,
+    muscles: ['Triceps'],
+    pattern: 'isolation',
+    diff: 1,
+    equipment: 'cable',
+  }),
+  mkEx({
+    id: 'fly',
+    name: 'Cable Fly',
+    tag: 'PUSH',
+    anchor: false,
+    muscles: ['Chest'],
+    pattern: 'isolation',
+    diff: 1,
+    equipment: 'cable',
+  }),
+  mkEx({
+    id: 'lat_raise',
+    name: 'Lat Raise',
+    tag: 'PUSH',
+    anchor: false,
+    muscles: ['Shoulders'],
+    pattern: 'isolation',
+    diff: 1,
+    equipment: 'dumbbell',
+  }),
+  mkEx({
+    id: 'dip',
+    name: 'Dip',
+    tag: 'PUSH',
+    anchor: false,
+    muscles: ['Chest', 'Triceps'],
+    pattern: 'push',
+    diff: 1,
+    equipment: 'bodyweight',
+  }),
+  mkEx({
+    id: 'incline',
+    name: 'Incline Press',
+    tag: 'PUSH',
+    anchor: false,
+    muscles: ['Chest', 'Shoulders'],
+    pattern: 'push',
+    diff: 1,
+    equipment: 'dumbbell',
+  }),
 
   // PULL anchors
-  mkEx({ id: 'row',     name: 'Barbell Row',    tag: 'PULL', anchor: true,  muscles: ['Lats','Back','Biceps'],         pattern: 'pull' }),
-  mkEx({ id: 'pullup',  name: 'Pull-up',        tag: 'PULL', anchor: true,  muscles: ['Lats','Back'],                  pattern: 'pull', equipment: 'bodyweight', bw: true }),
+  mkEx({
+    id: 'row',
+    name: 'Barbell Row',
+    tag: 'PULL',
+    anchor: true,
+    muscles: ['Lats', 'Back', 'Biceps'],
+    pattern: 'pull',
+  }),
+  mkEx({
+    id: 'pullup',
+    name: 'Pull-up',
+    tag: 'PULL',
+    anchor: true,
+    muscles: ['Lats', 'Back'],
+    pattern: 'pull',
+    equipment: 'bodyweight',
+    bw: true,
+  }),
   // PULL accessories
-  mkEx({ id: 'curl',    name: 'Bicep Curl',     tag: 'PULL', anchor: false, muscles: ['Biceps'],                       pattern: 'isolation', diff: 1, equipment: 'dumbbell' }),
-  mkEx({ id: 'face',    name: 'Face Pull',      tag: 'PULL', anchor: false, muscles: ['Shoulders','Upper Traps'],      pattern: 'isolation', diff: 1, equipment: 'cable' }),
-  mkEx({ id: 'rdl',     name: 'RDL',            tag: 'PULL', anchor: false, muscles: ['Hamstrings','Glutes'],          pattern: 'hinge',     diff: 2, equipment: 'barbell' }),
-  mkEx({ id: 'cable_row',name:'Cable Row',      tag: 'PULL', anchor: false, muscles: ['Lats','Back'],                  pattern: 'pull',      diff: 1, equipment: 'cable' }),
-  mkEx({ id: 'shrug',   name: 'Shrug',          tag: 'PULL', anchor: false, muscles: ['Upper Traps'],                  pattern: 'isolation', diff: 1, equipment: 'dumbbell' }),
+  mkEx({
+    id: 'curl',
+    name: 'Bicep Curl',
+    tag: 'PULL',
+    anchor: false,
+    muscles: ['Biceps'],
+    pattern: 'isolation',
+    diff: 1,
+    equipment: 'dumbbell',
+  }),
+  mkEx({
+    id: 'face',
+    name: 'Face Pull',
+    tag: 'PULL',
+    anchor: false,
+    muscles: ['Shoulders', 'Upper Traps'],
+    pattern: 'isolation',
+    diff: 1,
+    equipment: 'cable',
+  }),
+  mkEx({
+    id: 'rdl',
+    name: 'RDL',
+    tag: 'PULL',
+    anchor: false,
+    muscles: ['Hamstrings', 'Glutes'],
+    pattern: 'hinge',
+    diff: 2,
+    equipment: 'barbell',
+  }),
+  mkEx({
+    id: 'cable_row',
+    name: 'Cable Row',
+    tag: 'PULL',
+    anchor: false,
+    muscles: ['Lats', 'Back'],
+    pattern: 'pull',
+    diff: 1,
+    equipment: 'cable',
+  }),
+  mkEx({
+    id: 'shrug',
+    name: 'Shrug',
+    tag: 'PULL',
+    anchor: false,
+    muscles: ['Upper Traps'],
+    pattern: 'isolation',
+    diff: 1,
+    equipment: 'dumbbell',
+  }),
 
   // LEGS anchors
-  mkEx({ id: 'squat',   name: 'Barbell Squat',  tag: 'LEGS', anchor: true,  muscles: ['Quads','Hamstrings','Glutes'],  pattern: 'squat' }),
-  mkEx({ id: 'deadlift',name: 'Deadlift',       tag: 'LEGS', anchor: true,  muscles: ['Hamstrings','Glutes','Back'],   pattern: 'hinge' }),
+  mkEx({
+    id: 'squat',
+    name: 'Barbell Squat',
+    tag: 'LEGS',
+    anchor: true,
+    muscles: ['Quads', 'Hamstrings', 'Glutes'],
+    pattern: 'squat',
+  }),
+  mkEx({
+    id: 'deadlift',
+    name: 'Deadlift',
+    tag: 'LEGS',
+    anchor: true,
+    muscles: ['Hamstrings', 'Glutes', 'Back'],
+    pattern: 'hinge',
+  }),
   // LEGS accessories
-  mkEx({ id: 'leg_press',name:'Leg Press',      tag: 'LEGS', anchor: false, muscles: ['Quads','Hamstrings'],           pattern: 'push',      diff: 1, equipment: 'machine' }),
-  mkEx({ id: 'leg_curl', name:'Leg Curl',       tag: 'LEGS', anchor: false, muscles: ['Hamstrings'],                   pattern: 'isolation', diff: 1, equipment: 'machine' }),
-  mkEx({ id: 'calf',     name:'Calf Raise',     tag: 'LEGS', anchor: false, muscles: ['Gastrocnemius'],                pattern: 'isolation', diff: 1, equipment: 'machine' }),
-  mkEx({ id: 'lunge',    name:'Lunge',          tag: 'LEGS', anchor: false, muscles: ['Quads','Glutes'],               pattern: 'squat',     diff: 1, equipment: 'dumbbell' }),
-  mkEx({ id: 'goblet',   name:'Goblet Squat',   tag: 'LEGS', anchor: false, muscles: ['Quads','Glutes'],               pattern: 'squat',     diff: 1, equipment: 'kettlebell' }),
+  mkEx({
+    id: 'leg_press',
+    name: 'Leg Press',
+    tag: 'LEGS',
+    anchor: false,
+    muscles: ['Quads', 'Hamstrings'],
+    pattern: 'push',
+    diff: 1,
+    equipment: 'machine',
+  }),
+  mkEx({
+    id: 'leg_curl',
+    name: 'Leg Curl',
+    tag: 'LEGS',
+    anchor: false,
+    muscles: ['Hamstrings'],
+    pattern: 'isolation',
+    diff: 1,
+    equipment: 'machine',
+  }),
+  mkEx({
+    id: 'calf',
+    name: 'Calf Raise',
+    tag: 'LEGS',
+    anchor: false,
+    muscles: ['Gastrocnemius'],
+    pattern: 'isolation',
+    diff: 1,
+    equipment: 'machine',
+  }),
+  mkEx({
+    id: 'lunge',
+    name: 'Lunge',
+    tag: 'LEGS',
+    anchor: false,
+    muscles: ['Quads', 'Glutes'],
+    pattern: 'squat',
+    diff: 1,
+    equipment: 'dumbbell',
+  }),
+  mkEx({
+    id: 'goblet',
+    name: 'Goblet Squat',
+    tag: 'LEGS',
+    anchor: false,
+    muscles: ['Quads', 'Glutes'],
+    pattern: 'squat',
+    diff: 1,
+    equipment: 'kettlebell',
+  }),
 ];
 
 const BASE_PROFILE = {
   experience: 'intermediate',
-  equipment: ['barbell','dumbbell','cable','machine','bodyweight','kettlebell'],
+  equipment: ['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight', 'kettlebell'],
   sessionDuration: 60,
   goal: 'build_muscle',
 };
@@ -87,43 +267,67 @@ function setLSJson(key, obj) {
 // ============================================================================
 describe('generateProgram', () => {
   it('returns 3 days for PPL with daysPerWeek=3', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3 }, EXERCISE_DB);
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3 },
+      EXERCISE_DB
+    );
     expect(days).toHaveLength(3);
   });
 
   it('returns 5 days for PPL with daysPerWeek=5', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 5 }, EXERCISE_DB);
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 5 },
+      EXERCISE_DB
+    );
     expect(days).toHaveLength(5);
   });
 
   it('returns 6 days for PPL with daysPerWeek=6', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 6 }, EXERCISE_DB);
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 6 },
+      EXERCISE_DB
+    );
     expect(days).toHaveLength(6);
   });
 
   it('returns 2 days for upper_lower with daysPerWeek=2', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'upper_lower', daysPerWeek: 2 }, EXERCISE_DB);
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'upper_lower', daysPerWeek: 2 },
+      EXERCISE_DB
+    );
     expect(days).toHaveLength(2);
   });
 
   it('returns 4 days for upper_lower with daysPerWeek=4', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'upper_lower', daysPerWeek: 4 }, EXERCISE_DB);
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'upper_lower', daysPerWeek: 4 },
+      EXERCISE_DB
+    );
     expect(days).toHaveLength(4);
   });
 
   it('returns 3 days for full_body with daysPerWeek=3', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'full_body', daysPerWeek: 3 }, EXERCISE_DB);
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'full_body', daysPerWeek: 3 },
+      EXERCISE_DB
+    );
     expect(days).toHaveLength(3);
   });
 
   it('returns 4 days for push_pull', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'push_pull', daysPerWeek: 4 }, EXERCISE_DB);
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'push_pull', daysPerWeek: 4 },
+      EXERCISE_DB
+    );
     expect(days).toHaveLength(4);
   });
 
   it('each day has required fields', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3 }, EXERCISE_DB);
-    days.forEach(day => {
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3 },
+      EXERCISE_DB
+    );
+    days.forEach((day) => {
       expect(day).toHaveProperty('dayNum');
       expect(day).toHaveProperty('label');
       expect(day).toHaveProperty('tag');
@@ -135,9 +339,12 @@ describe('generateProgram', () => {
   });
 
   it('each exercise has required output fields', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3 }, EXERCISE_DB);
-    days.forEach(day => {
-      day.exercises.forEach(ex => {
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3 },
+      EXERCISE_DB
+    );
+    days.forEach((day) => {
+      day.exercises.forEach((ex) => {
         expect(ex).toHaveProperty('id');
         expect(ex).toHaveProperty('name');
         expect(ex).toHaveProperty('sets');
@@ -150,8 +357,11 @@ describe('generateProgram', () => {
   });
 
   it('first exercise in each PPL day is the anchor', () => {
-    const days = generateProgram({ ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3 }, EXERCISE_DB);
-    days.forEach(day => {
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3 },
+      EXERCISE_DB
+    );
+    days.forEach((day) => {
       if (day.exercises.length > 0) {
         expect(day.exercises[0].anchor).toBe(true);
       }
@@ -225,7 +435,9 @@ describe('detectStallingLifts', () => {
   it('does not flag stall when only 2 weeks at same weight', () => {
     for (let w = 0; w < 2; w++) {
       setLS(`foundry:done:d0:w${w}`, '1');
-      setLSJson(`foundry:day0:week${w}`, { 0: { 0: { weight: '100', reps: '8' } } });
+      setLSJson(`foundry:day0:week${w}`, {
+        0: { 0: { weight: '100', reps: '8' } },
+      });
     }
     const result = detectStallingLifts(0, day, resolvedEx, 2, profile, deps);
     expect(result.stalls).toHaveLength(0);
@@ -245,7 +457,9 @@ describe('detectStallingLifts', () => {
   it('does not flag stall when progression happened in current week', () => {
     for (let w = 0; w < 3; w++) {
       setLS(`foundry:done:d0:w${w}`, '1');
-      setLSJson(`foundry:day0:week${w}`, { 0: { 0: { weight: '100', reps: '8' } } });
+      setLSJson(`foundry:day0:week${w}`, {
+        0: { 0: { weight: '100', reps: '8' } },
+      });
     }
     // Current week (w=3) has higher weight
     setLSJson('foundry:day0:week3', { 0: { 0: { weight: '105', reps: '8' } } });
@@ -266,11 +480,18 @@ describe('detectSessionPRs', () => {
   describe('mode: meso', () => {
     it('returns PR when current best beats prior weeks', () => {
       // Prior week data
-      setLSJson('foundry:day0:week0', { 0: { 0: { weight: '100', reps: '8' } } });
-      setLSJson('foundry:day0:week1', { 0: { 0: { weight: '105', reps: '8' } } });
+      setLSJson('foundry:day0:week0', {
+        0: { 0: { weight: '100', reps: '8' } },
+      });
+      setLSJson('foundry:day0:week1', {
+        0: { 0: { weight: '105', reps: '8' } },
+      });
 
       const weekData = { 0: { 0: { weight: '110', reps: '8' } } };
-      const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx: 0, weekIdx: 2 });
+      const prs = detectSessionPRs(exercises, weekData, 'meso', {
+        dayIdx: 0,
+        weekIdx: 2,
+      });
       expect(prs).toHaveLength(1);
       expect(prs[0].name).toBe('Bench Press');
       expect(prs[0].newBest).toBe(110);
@@ -278,23 +499,36 @@ describe('detectSessionPRs', () => {
     });
 
     it('returns empty array when no improvement over prior weeks', () => {
-      setLSJson('foundry:day0:week0', { 0: { 0: { weight: '110', reps: '8' } } });
+      setLSJson('foundry:day0:week0', {
+        0: { 0: { weight: '110', reps: '8' } },
+      });
 
       const weekData = { 0: { 0: { weight: '105', reps: '8' } } };
-      const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx: 0, weekIdx: 1 });
+      const prs = detectSessionPRs(exercises, weekData, 'meso', {
+        dayIdx: 0,
+        weekIdx: 1,
+      });
       expect(prs).toHaveLength(0);
     });
 
     it('returns empty array when no prior week data exists', () => {
       const weekData = { 0: { 0: { weight: '100', reps: '8' } } };
-      const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx: 0, weekIdx: 0 });
+      const prs = detectSessionPRs(exercises, weekData, 'meso', {
+        dayIdx: 0,
+        weekIdx: 0,
+      });
       expect(prs).toHaveLength(0);
     });
 
     it('returns empty array when current weight is 0', () => {
-      setLSJson('foundry:day0:week0', { 0: { 0: { weight: '100', reps: '8' } } });
+      setLSJson('foundry:day0:week0', {
+        0: { 0: { weight: '100', reps: '8' } },
+      });
       const weekData = { 0: { 0: { weight: '0', reps: '8' } } };
-      const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx: 0, weekIdx: 1 });
+      const prs = detectSessionPRs(exercises, weekData, 'meso', {
+        dayIdx: 0,
+        weekIdx: 1,
+      });
       expect(prs).toHaveLength(0);
     });
   });
@@ -341,7 +575,12 @@ describe('loadDayWeekWithCarryover', () => {
   const makeDay = (equipment = 'barbell', reps = '6-10') => ({
     exercises: [
       {
-        id: 'bench', name: 'Bench Press', equipment, reps, sets: 3, bw: false,
+        id: 'bench',
+        name: 'Bench Press',
+        equipment,
+        reps,
+        sets: 3,
+        bw: false,
       },
     ],
   });
@@ -479,7 +718,10 @@ describe('archiveCurrentMeso', () => {
 
   it('respects 10-meso cap — trims oldest entries', () => {
     const fullArchive = Array.from({ length: 10 }, (_, i) => ({
-      id: i + 1, archivedAt: '2024-01-01', profile: {}, sessions: [],
+      id: i + 1,
+      archivedAt: '2024-01-01',
+      profile: {},
+      sessions: [],
     }));
     setLSJson('foundry:archive', fullArchive);
 
@@ -487,9 +729,9 @@ describe('archiveCurrentMeso', () => {
     const archive = JSON.parse(localStorage.getItem('foundry:archive') || '[]');
     expect(archive).toHaveLength(10);
     // The last entry (id=10) is pushed off the end after unshift + slice(0,10)
-    expect(archive.find(e => e.id === 10)).toBeUndefined();
+    expect(archive.find((e) => e.id === 10)).toBeUndefined();
     // The first 9 existing entries are still present
-    expect(archive.find(e => e.id === 1)).toBeDefined();
+    expect(archive.find((e) => e.id === 1)).toBeDefined();
   });
 
   it('saves anchor peak weights when generateProgram is provided', () => {
@@ -499,9 +741,21 @@ describe('archiveCurrentMeso', () => {
 
     const mockGenerateProgram = () => [
       {
-        dayNum: 1, label: 'Push', tag: 'PUSH', muscles: '', note: '',
+        dayNum: 1,
+        label: 'Push',
+        tag: 'PUSH',
+        muscles: '',
+        note: '',
         exercises: [
-          { id: 'bench', name: 'Bench Press', anchor: true, sets: 3, reps: '4-6', rest: '3 min', warmup: '' },
+          {
+            id: 'bench',
+            name: 'Bench Press',
+            anchor: true,
+            sets: 3,
+            reps: '4-6',
+            rest: '3 min',
+            warmup: '',
+          },
         ],
       },
     ];

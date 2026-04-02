@@ -8,21 +8,32 @@
  *   zIndex    {number}    Stack order (default 300).
  *   blur      {boolean}   Apply backdrop blur (default false).
  */
-export default function Modal({ open, onClose, children, maxWidth = 380, zIndex = 300, blur = false }) {
+export default function Modal({
+  open,
+  onClose,
+  children,
+  maxWidth = 380,
+  zIndex = 300,
+  blur = false,
+}) {
   if (!open) return null;
   return (
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex,
+        position: 'fixed',
+        inset: 0,
+        zIndex,
         background: 'rgba(0,0,0,0.82)',
         backdropFilter: blur ? 'blur(6px)' : undefined,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         padding: 24,
       }}
     >
       <div
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',

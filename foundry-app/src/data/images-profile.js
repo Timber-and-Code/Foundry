@@ -1,1 +1,1 @@
-export const FOUNDRY_PROFILE_IMG = "/images/profile.jpg";
+export const FOUNDRY_PROFILE_IMG = '/images/profile.jpg';

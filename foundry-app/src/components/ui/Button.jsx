@@ -31,7 +31,14 @@ const VARIANTS = {
   },
 };
 
-export default function Button({ children, onClick, variant = 'primary', disabled = false, fullWidth = false, style }) {
+export default function Button({
+  children,
+  onClick,
+  variant = 'primary',
+  disabled = false,
+  fullWidth = false,
+  style,
+}) {
   const base = VARIANTS[variant] || VARIANTS.primary;
   return (
     <button

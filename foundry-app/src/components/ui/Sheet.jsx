@@ -13,13 +13,17 @@ export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex 
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex,
+        position: 'fixed',
+        inset: 0,
+        zIndex,
         background: 'rgba(0,0,0,0.82)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
       }}
     >
       <div
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
@@ -33,8 +37,21 @@ export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex 
         }}
       >
         {/* drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            padding: '12px 0 4px',
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 4,
+              borderRadius: 2,
+              background: 'var(--border)',
+            }}
+          />
         </div>
         {children}
       </div>

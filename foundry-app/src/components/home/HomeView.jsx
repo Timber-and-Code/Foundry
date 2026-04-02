@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
 // Data
-import {
-  TAG_ACCENT, PHASE_COLOR,
-  getMeso, getWeekPhase, getWeekRir,
-} from '../../data/constants';
+import { TAG_ACCENT, PHASE_COLOR, getMeso, getWeekPhase, getWeekRir } from '../../data/constants';
 
 // Utils
 import {
@@ -15,7 +12,8 @@ import {
   saveCurrentWeek,
   setSkipped,
   saveProfile,
-  exportData, importData,
+  exportData,
+  importData,
 } from '../../utils/store';
 
 // Shared UI
@@ -31,18 +29,37 @@ import ExplorePage from '../explore/ExplorePage';
 import { PricingPage } from '../settings/PricingPage';
 
 function HomeView({
-  tabRef, currentWeek, setCurrentWeek,
-  onSelectDay, onSelectDayWeek, onOpenExtra, onOpenCardio, onOpenMobility,
-  completedDays, onReset, activeDays, profile,
-  openWeekly, onOpenWeeklyHandled, onProfileUpdate,
+  tabRef,
+  currentWeek,
+  setCurrentWeek,
+  onSelectDay,
+  onSelectDayWeek,
+  onOpenExtra,
+  onOpenCardio,
+  onOpenMobility,
+  completedDays,
+  onReset,
+  activeDays,
+  profile,
+  openWeekly,
+  onOpenWeeklyHandled,
+  onProfileUpdate,
 }) {
   // ── Tab navigation ─────────────────────────────────────────────────────
   const [tab, setTab] = useState('landing');
-  const goTo   = (key) => { setTab(key); window.scrollTo(0, 0); };
-  const goBack = ()    => { setTab('landing'); window.scrollTo(0, 0); };
+  const goTo = (key) => {
+    setTab(key);
+    window.scrollTo(0, 0);
+  };
+  const goBack = () => {
+    setTab('landing');
+    window.scrollTo(0, 0);
+  };
   if (tabRef) tabRef.current = goTo;
 
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     if (openWeekly) {
@@ -53,27 +70,27 @@ function HomeView({
   }, [openWeekly]);
 
   // ── Overlay / modal state ───────────────────────────────────────────────
-  const [showReset,         setShowReset]         = useState(false);
-  const [showPricing,       setShowPricing]        = useState(false);
-  const [showSkipConfirm,   setShowSkipConfirm]    = useState(null);
-  const [skipVersion,       setSkipVersion]        = useState(0);
-  const [addWorkoutModal,   setAddWorkoutModal]    = useState(null);
-  const [addWorkoutStep,    setAddWorkoutStep]     = useState('type');
-  const [addWorkoutType,    setAddWorkoutType]     = useState(null);
-  const [addWorkoutDayType, setAddWorkoutDayType]  = useState(null);
+  const [showReset, setShowReset] = useState(false);
+  const [showPricing, setShowPricing] = useState(false);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(null);
+  const [skipVersion, setSkipVersion] = useState(0);
+  const [addWorkoutModal, setAddWorkoutModal] = useState(null);
+  const [addWorkoutStep, setAddWorkoutStep] = useState('type');
+  const [addWorkoutType, setAddWorkoutType] = useState(null);
+  const [addWorkoutDayType, setAddWorkoutDayType] = useState(null);
 
   // ── Schedule tab state ──────────────────────────────────────────────────
-  const [expandedWeek,     setExpandedWeek]     = useState(null);
-  const [calendarOffset,   setCalendarOffset]   = useState(0);
-  const [showRestDay,      setShowRestDay]       = useState(null);
+  const [expandedWeek, setExpandedWeek] = useState(null);
+  const [calendarOffset, setCalendarOffset] = useState(0);
+  const [showRestDay, setShowRestDay] = useState(null);
   const [showEditSchedule, setShowEditSchedule] = useState(false);
-  const [noteViewer,       setNoteViewer]       = useState(null);
+  const [noteViewer, setNoteViewer] = useState(null);
 
   // ── Home tab UI state ───────────────────────────────────────────────────
-  const [showNextSession,     setShowNextSession]     = useState(false);
+  const [showNextSession, setShowNextSession] = useState(false);
   const [showMorningMobility, setShowMorningMobility] = useState(true);
   const [showRecoveryMorning, setShowRecoveryMorning] = useState(false);
-  const [showRecoveryTag,     setShowRecoveryTag]     = useState(false);
+  const [showRecoveryTag, setShowRecoveryTag] = useState(false);
 
   // ── Readiness state ─────────────────────────────────────────────────────
   const todayReadinessKey = (() => {
@@ -81,10 +98,19 @@ function HomeView({
     return `foundry:readiness:${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   })();
   const [readiness, setReadiness] = useState(() => {
-    try { return JSON.parse(store.get(todayReadinessKey) || 'null'); } catch { return null; }
+    try {
+      return JSON.parse(store.get(todayReadinessKey) || 'null');
+    } catch {
+      return null;
+    }
   });
   const [readinessOpen, setReadinessOpen] = useState(() => {
-    try { const r = JSON.parse(store.get(todayReadinessKey) || 'null'); return !r || !r.sleep || !r.soreness || !r.energy; } catch { return true; }
+    try {
+      const r = JSON.parse(store.get(todayReadinessKey) || 'null');
+      return !r || !r.sleep || !r.soreness || !r.energy;
+    } catch {
+      return true;
+    }
   });
 
   const updateReadiness = (key, val) => {
@@ -102,15 +128,16 @@ function HomeView({
     for (let w = 0; w <= getMeso().weeks; w++) {
       for (let d = 0; d < getMeso().days; d++) {
         const start = store.get(`foundry:sessionStart:d${d}:w${w}`);
-        const done  = store.get(`foundry:done:d${d}:w${w}`);
+        const done = store.get(`foundry:done:d${d}:w${w}`);
         if (start && done !== '1') return true;
       }
     }
     for (let i = 0; i < 14; i++) {
-      const dt = new Date(); dt.setDate(dt.getDate() - i);
+      const dt = new Date();
+      dt.setDate(dt.getDate() - i);
       const dateStr = dt.toISOString().slice(0, 10);
       const start = store.get(`foundry:extra:start:${dateStr}`);
-      const done  = store.get(`foundry:extra:done:${dateStr}`);
+      const done = store.get(`foundry:extra:done:${dateStr}`);
       if (start && done !== '1') return true;
     }
     return false;
@@ -124,14 +151,17 @@ function HomeView({
     return getMeso().weeks;
   }, [completedDays, activeDays]);
 
-  useEffect(() => { setShowNextSession(false); }, [activeWeek]);
+  useEffect(() => {
+    setShowNextSession(false);
+  }, [activeWeek]);
 
   const calendarWeek = useMemo(() => {
     const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;
     if (!startDate || activeDays.length === 0) return activeWeek;
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    let lastWk = 0, sessionCount = 0;
+    let lastWk = 0,
+      sessionCount = 0;
     let cursor = new Date(startDate);
     const total = (getMeso().weeks + 1) * activeDays.length;
     for (let d = 0; d < 400 && sessionCount < total; d++) {
@@ -150,47 +180,92 @@ function HomeView({
   const displayWeek = Math.min(activeWeek, calendarWeek);
 
   const phase = getWeekPhase()[Math.min(displayWeek, getMeso().weeks - 1)] || 'Deload';
-  const pc    = PHASE_COLOR[phase];
-  const rir   = getWeekRir()[Math.min(displayWeek, getMeso().weeks - 1)] || 'N/A';
+  const pc = PHASE_COLOR[phase];
+  const rir = getWeekRir()[Math.min(displayWeek, getMeso().weeks - 1)] || 'N/A';
 
-  const weekDone  = activeDays.filter((_, i) => completedDays.has(`${i}:${displayWeek}`)).length;
+  const weekDone = activeDays.filter((_, i) => completedDays.has(`${i}:${displayWeek}`)).length;
   const weekTotal = activeDays.length;
-  const weekPct   = weekTotal > 0 ? Math.round((weekDone / weekTotal) * 100) : 0;
+  const weekPct = weekTotal > 0 ? Math.round((weekDone / weekTotal) * 100) : 0;
 
   const totalSessions = getMeso().weeks * getMeso().days;
-  const doneSessions  = completedDays.size;
+  const doneSessions = completedDays.size;
   const mesoPct = totalSessions > 0 ? Math.round((doneSessions / totalSessions) * 100) : 0;
 
   // ── Add Workout Modal ───────────────────────────────────────────────────
 
-  const generateExtraWorkout = (dayTypeId) => ({ label: dayTypeId, exercises: [] });
+  const generateExtraWorkout = (dayTypeId) => ({
+    label: dayTypeId,
+    exercises: [],
+  });
 
   const AddWorkoutModal = () => {
     if (!addWorkoutModal) return null;
     const { dateStr } = addWorkoutModal;
     const splitType = profile?.splitType || 'ppl';
-    const dateLabel = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const dateLabel = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+    });
 
     const dayTypeOptions =
-      splitType === 'ppl' ? [
-        { id: 'push',     label: 'Push',       desc: 'Chest · Shoulders · Triceps' },
-        { id: 'pull',     label: 'Pull',       desc: 'Back · Biceps · Rear Delts' },
-        { id: 'legs',     label: 'Legs',       desc: 'Quads · Hamstrings · Glutes' },
-        { id: 'fullbody', label: 'Full Body',  desc: 'Full compound session' },
-      ] : splitType === 'upper_lower' ? [
-        { id: 'upper',    label: 'Upper Body', desc: 'Chest · Back · Shoulders · Arms' },
-        { id: 'lower',    label: 'Lower Body', desc: 'Quads · Hamstrings · Glutes' },
-        { id: 'fullbody', label: 'Full Body',  desc: 'Full compound session' },
-      ] : [
-        { id: 'fullbody', label: 'Full Body',  desc: 'Full compound session' },
-        { id: 'push',     label: 'Push Focus', desc: 'Chest · Shoulders · Triceps' },
-        { id: 'pull',     label: 'Pull Focus', desc: 'Back · Biceps · Rear Delts' },
-        { id: 'legs',     label: 'Legs Focus', desc: 'Quads · Hamstrings · Glutes' },
-      ];
+      splitType === 'ppl'
+        ? [
+            { id: 'push', label: 'Push', desc: 'Chest · Shoulders · Triceps' },
+            { id: 'pull', label: 'Pull', desc: 'Back · Biceps · Rear Delts' },
+            { id: 'legs', label: 'Legs', desc: 'Quads · Hamstrings · Glutes' },
+            {
+              id: 'fullbody',
+              label: 'Full Body',
+              desc: 'Full compound session',
+            },
+          ]
+        : splitType === 'upper_lower'
+          ? [
+              {
+                id: 'upper',
+                label: 'Upper Body',
+                desc: 'Chest · Back · Shoulders · Arms',
+              },
+              {
+                id: 'lower',
+                label: 'Lower Body',
+                desc: 'Quads · Hamstrings · Glutes',
+              },
+              {
+                id: 'fullbody',
+                label: 'Full Body',
+                desc: 'Full compound session',
+              },
+            ]
+          : [
+              {
+                id: 'fullbody',
+                label: 'Full Body',
+                desc: 'Full compound session',
+              },
+              {
+                id: 'push',
+                label: 'Push Focus',
+                desc: 'Chest · Shoulders · Triceps',
+              },
+              {
+                id: 'pull',
+                label: 'Pull Focus',
+                desc: 'Back · Biceps · Rear Delts',
+              },
+              {
+                id: 'legs',
+                label: 'Legs Focus',
+                desc: 'Quads · Hamstrings · Glutes',
+              },
+            ];
 
     const closeModal = () => {
-      setAddWorkoutModal(null); setAddWorkoutStep('type');
-      setAddWorkoutType(null); setAddWorkoutDayType(null);
+      setAddWorkoutModal(null);
+      setAddWorkoutStep('type');
+      setAddWorkoutType(null);
+      setAddWorkoutDayType(null);
     };
 
     const handleFoundryBuild = (dayTypeId) => {
@@ -202,41 +277,162 @@ function HomeView({
 
     return (
       <Modal open={!!addWorkoutModal} onClose={closeModal} maxWidth={340} zIndex={500} blur>
-        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 4 }}>ADD WORKOUT</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>{dateLabel}</div>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: '0.1em',
+            color: 'var(--text-muted)',
+            marginBottom: 4,
+          }}
+        >
+          ADD WORKOUT
+        </div>
+        <div
+          style={{
+            fontSize: 16,
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            marginBottom: 4,
+          }}
+        >
+          {dateLabel}
+        </div>
 
         {addWorkoutStep === 'type' && (
           <>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 22 }}>How do you want to set up this session?</div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.5,
+                marginBottom: 22,
+              }}
+            >
+              How do you want to set up this session?
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button onClick={() => { setAddWorkoutType('foundry'); setAddWorkoutStep('daytype'); }} style={{ padding: '16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', background: 'var(--accent)11', border: '1px solid var(--accent)55', color: 'var(--text-primary)' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--accent)', marginBottom: 2 }}> Foundry Build</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Auto-generate a workout based on your equipment and level</div>
+              <button
+                onClick={() => {
+                  setAddWorkoutType('foundry');
+                  setAddWorkoutStep('daytype');
+                }}
+                style={{
+                  padding: '16px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  background: 'var(--accent)11',
+                  border: '1px solid var(--accent)55',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: 'var(--accent)',
+                    marginBottom: 2,
+                  }}
+                >
+                  {' '}
+                  Foundry Build
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Auto-generate a workout based on your equipment and level
+                </div>
               </button>
-              <button onClick={() => { store.set(`foundry:extra:${dateStr}`, JSON.stringify({ isExtra: true, isManual: true, label: 'Manual Session', exercises: [], dateStr })); closeModal(); onOpenExtra(dateStr); }} style={{ padding: '16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+              <button
+                onClick={() => {
+                  store.set(
+                    `foundry:extra:${dateStr}`,
+                    JSON.stringify({
+                      isExtra: true,
+                      isManual: true,
+                      label: 'Manual Session',
+                      exercises: [],
+                      dateStr,
+                    })
+                  );
+                  closeModal();
+                  onOpenExtra(dateStr);
+                }}
+                style={{
+                  padding: '16px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              >
                 <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 2 }}>Manual</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Log a workout your own way — freeform notes</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Log a workout your own way — freeform notes
+                </div>
               </button>
             </div>
-            <Button variant="ghost" onClick={closeModal} fullWidth style={{ marginTop: 12 }}>Cancel</Button>
+            <Button variant="ghost" onClick={closeModal} fullWidth style={{ marginTop: 12 }}>
+              Cancel
+            </Button>
           </>
         )}
 
         {addWorkoutStep === 'daytype' && (
           <>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 18 }}>What kind of session?</div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.5,
+                marginBottom: 18,
+              }}
+            >
+              What kind of session?
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {dayTypeOptions.map(opt => (
-                <button key={opt.id} onClick={() => handleFoundryBuild(opt.id)} style={{ padding: '13px 16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              {dayTypeOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => handleFoundryBuild(opt.id)}
+                  style={{
+                    padding: '13px 16px',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 800 }}>{opt.label}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{opt.desc}</div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--text-muted)',
+                        marginTop: 2,
+                      }}
+                    >
+                      {opt.desc}
+                    </div>
                   </div>
                   <span style={{ fontSize: 16, color: 'var(--text-muted)' }}>›</span>
                 </button>
               ))}
             </div>
-            <Button variant="ghost" onClick={() => setAddWorkoutStep('type')} fullWidth style={{ marginTop: 12 }}>← Back</Button>
+            <Button
+              variant="ghost"
+              onClick={() => setAddWorkoutStep('type')}
+              fullWidth
+              style={{ marginTop: 12 }}
+            >
+              ← Back
+            </Button>
           </>
         )}
       </Modal>
@@ -247,11 +443,40 @@ function HomeView({
   const ResetDialog = () => (
     <Modal open={showReset} onClose={() => setShowReset(false)} maxWidth={360} zIndex={100}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>Reset Mesocycle?</div>
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>This will archive your current meso and start fresh. Your data will be saved in history.</div>
+        <div
+          style={{
+            fontSize: 16,
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            marginBottom: 8,
+          }}
+        >
+          Reset Mesocycle?
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            color: 'var(--text-secondary)',
+            marginBottom: 20,
+            lineHeight: 1.5,
+          }}
+        >
+          This will archive your current meso and start fresh. Your data will be saved in history.
+        </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <Button variant="secondary" onClick={() => setShowReset(false)} style={{ flex: 1 }}>Cancel</Button>
-          <Button variant="danger" onClick={() => { setShowReset(false); onReset(); }} style={{ flex: 1 }}>Reset</Button>
+          <Button variant="secondary" onClick={() => setShowReset(false)} style={{ flex: 1 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              setShowReset(false);
+              onReset();
+            }}
+            style={{ flex: 1 }}
+          >
+            Reset
+          </Button>
         </div>
       </div>
     </Modal>
@@ -259,38 +484,90 @@ function HomeView({
 
   // ── Bottom tab bar ──────────────────────────────────────────────────────
   const MAIN_TABS = [
-    { key: 'landing',  label: 'Home',     icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--accent)' : '#A89A8A'} strokeWidth={active ? 2.5 : 1.75} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
-        <polyline points="9 21 9 12 15 12 15 21"/>
-      </svg>
-    )},
-    { key: 'progress', label: 'Progress', icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--accent)' : '#A89A8A'} strokeWidth={active ? 2.5 : 1.75} strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
-        <line x1="6" y1="20" x2="6" y2="14"/>
-      </svg>
-    )},
-    { key: 'schedule', label: 'Schedule', icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--accent)' : '#A89A8A'} strokeWidth={active ? 2.5 : 1.75} strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="3"/>
-        <line x1="3" y1="9" x2="21" y2="9"/>
-        <line x1="8" y1="2" x2="8" y2="6"/>
-        <line x1="16" y1="2" x2="16" y2="6"/>
-      </svg>
-    )},
-    { key: 'explore',  label: 'Explore',  icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--accent)' : '#A89A8A'} strokeWidth={active ? 2.5 : 1.75} strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8"/>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-    )},
+    {
+      key: 'landing',
+      label: 'Home',
+      icon: (active) => (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={active ? 'var(--accent)' : '#A89A8A'}
+          strokeWidth={active ? 2.5 : 1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+          <polyline points="9 21 9 12 15 12 15 21" />
+        </svg>
+      ),
+    },
+    {
+      key: 'progress',
+      label: 'Progress',
+      icon: (active) => (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={active ? 'var(--accent)' : '#A89A8A'}
+          strokeWidth={active ? 2.5 : 1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      ),
+    },
+    {
+      key: 'schedule',
+      label: 'Schedule',
+      icon: (active) => (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={active ? 'var(--accent)' : '#A89A8A'}
+          strokeWidth={active ? 2.5 : 1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="3" />
+          <line x1="3" y1="9" x2="21" y2="9" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+        </svg>
+      ),
+    },
+    {
+      key: 'explore',
+      label: 'Explore',
+      icon: (active) => (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={active ? 'var(--accent)' : '#A89A8A'}
+          strokeWidth={active ? 2.5 : 1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      ),
+    },
   ];
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ paddingBottom: 140 }}>
-
       {/* Global overlays */}
       {showReset && <ResetDialog />}
       <AddWorkoutModal />
@@ -298,13 +575,87 @@ function HomeView({
 
       {/* Skip confirm modal */}
       {showSkipConfirm && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 280, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '24px', maxWidth: 320, width: '100%', boxShadow: 'var(--shadow-xl)' }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>Skip today's session?</div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>This session will be marked as skipped. You can restore it from the Schedule tab at any time.</div>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 280,
+            background: 'rgba(0,0,0,0.78)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '24px',
+              maxWidth: 320,
+              width: '100%',
+              boxShadow: 'var(--shadow-xl)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                marginBottom: 8,
+              }}
+            >
+              Skip today's session?
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+                marginBottom: 20,
+              }}
+            >
+              This session will be marked as skipped. You can restore it from the Schedule tab at
+              any time.
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => { setSkipped(showSkipConfirm.dayIdx, showSkipConfirm.weekIdx, true); setSkipVersion(v => v + 1); setShowSkipConfirm(null); }} style={{ flex: 1, padding: '12px', borderRadius: 8, cursor: 'pointer', background: 'var(--danger)', border: '1px solid var(--danger)', color: '#fff', fontSize: 13, fontWeight: 700 }}>Skip It</button>
-              <button onClick={() => setShowSkipConfirm(null)} style={{ flex: 1, padding: '12px', borderRadius: 8, cursor: 'pointer', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600 }}>Keep It</button>
+              <button
+                onClick={() => {
+                  setSkipped(showSkipConfirm.dayIdx, showSkipConfirm.weekIdx, true);
+                  setSkipVersion((v) => v + 1);
+                  setShowSkipConfirm(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  background: 'var(--danger)',
+                  border: '1px solid var(--danger)',
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                Skip It
+              </button>
+              <button
+                onClick={() => setShowSkipConfirm(null)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Keep It
+              </button>
             </div>
           </div>
         </div>
@@ -410,27 +761,90 @@ function HomeView({
       {tab === 'explore' && (
         <ExplorePage
           profile={profile}
-          onStartProgram={newProfile => { saveProfile(newProfile); window.location.reload(); }}
+          onStartProgram={(newProfile) => {
+            saveProfile(newProfile);
+            window.location.reload();
+          }}
         />
       )}
 
       {/* ── Bottom tab bar ── */}
       {['landing', 'progress', 'schedule', 'explore'].includes(tab) && (
-        <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, zIndex: 100, background: 'var(--bg-card)', borderTop: '1px solid var(--border)', boxShadow: '0 -4px 20px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'stretch', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '100%',
+            maxWidth: 480,
+            zIndex: 100,
+            background: 'var(--bg-card)',
+            borderTop: '1px solid var(--border)',
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'stretch',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          }}
+        >
           {MAIN_TABS.map(({ key, label, icon }) => {
-            const active  = tab === key;
+            const active = tab === key;
             const showDot = key === 'landing' && hasActiveWorkout;
             return (
-              <button key={key} onClick={() => goTo(key)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '10px 0 10px', background: 'transparent', border: 'none', cursor: 'pointer', position: 'relative' }}
-                data-tour={key === 'schedule' ? 'nav-schedule' : key === 'progress' ? 'nav-progress' : undefined}
+              <button
+                key={key}
+                onClick={() => goTo(key)}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 4,
+                  padding: '10px 0 10px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  position: 'relative',
+                }}
+                data-tour={
+                  key === 'schedule'
+                    ? 'nav-schedule'
+                    : key === 'progress'
+                      ? 'nav-progress'
+                      : undefined
+                }
               >
                 <div style={{ position: 'relative', display: 'inline-flex' }}>
                   {icon(active)}
                   {showDot && (
-                    <span style={{ position: 'absolute', top: -1, right: -3, width: 7, height: 7, borderRadius: '50%', background: 'var(--phase-peak)', boxShadow: '0 0 5px var(--phase-peak)', animation: 'livePulse 1.6s ease-in-out infinite', border: '1.5px solid var(--bg-card)' }}/>
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: -1,
+                        right: -3,
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: 'var(--phase-peak)',
+                        boxShadow: '0 0 5px var(--phase-peak)',
+                        animation: 'livePulse 1.6s ease-in-out infinite',
+                        border: '1.5px solid var(--bg-card)',
+                      }}
+                    />
                   )}
                 </div>
-                <span style={{ fontSize: 12, fontWeight: active ? 700 : 500, letterSpacing: '0.04em', color: active ? 'var(--accent)' : '#A89A8A', transition: 'color 0.15s' }}>{label}</span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: active ? 700 : 500,
+                    letterSpacing: '0.04em',
+                    color: active ? 'var(--accent)' : '#A89A8A',
+                    transition: 'color 0.15s',
+                  }}
+                >
+                  {label}
+                </span>
               </button>
             );
           })}
