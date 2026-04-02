@@ -498,7 +498,7 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
             const bwLog    = _loadBwLog();
             const inWindow = bwLog.filter(e => e.date >= earliest && e.date <= latest);
             if (inWindow.length >= 2) {
-              const bwDown = inWindow[0].weight < inWindow[inWindow.length - 1].weight;
+              const bwDown = inWindow[0].weight > inWindow[inWindow.length - 1].weight;
               stalls.push({ name: ex.name, weight: last.weight, isProtecting: bwDown, isFatigueSignal });
             } else {
               stalls.push({ name: ex.name, weight: last.weight, isFatigueSignal });

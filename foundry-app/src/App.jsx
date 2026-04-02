@@ -225,6 +225,7 @@ function App() {
   if (!profile) {
     return <React.Suspense fallback={suspenseFallback}><SetupPage onComplete={p => {
       saveProfile(p);
+      localStorage.removeItem('foundry:storedProgram');
       if (!store.get("foundry:toured")) store.set("foundry:show_tour", "1");
       window.location.reload();
     }} /></React.Suspense>;
@@ -242,7 +243,8 @@ function App() {
     if (weekFinished) {
       snapshotData();
       let totalSets = 0;
-      const prog = generateProgram(loadProfile()).slice(0, getMeso().days);
+      const _storedProg = store.get('foundry:storedProgram');
+      const prog = (_storedProg ? JSON.parse(_storedProg) : generateProgram(loadProfile())).slice(0, getMeso().days);
       const bw = parseFloat(loadProfile()?.weight || 0);
       let totalVolume = 0;
       let prCount = 0;
@@ -399,9 +401,10 @@ function App() {
   };
 
   const handleReset = () => {
-    archiveCurrentMeso(profile);
+    archiveCurrentMeso(profile, { generateProgram, EXERCISE_DB });
     resetMeso();
     localStorage.removeItem("foundry:profile");
+    localStorage.removeItem("foundry:storedProgram");
     window.location.reload();
   };
 
@@ -424,7 +427,13 @@ function App() {
   // Compute active days from profile
   const activeDays = useMemo(() => {
     if (!profile) return [];
-    const days = generateProgram(profile).slice(0, getMeso().days);
+    const stored = store.get('foundry:storedProgram');
+    const base = stored ? JSON.parse(stored) : (() => {
+      const result = generateProgram(profile);
+      store.set('foundry:storedProgram', JSON.stringify(result));
+      return result;
+    })();
+    const days = base.slice(0, getMeso().days);
     const added = profile.addedDayExercises || {};
     return days.map((day, dayIdx) => {
       const extraIds = added[dayIdx] || [];
@@ -453,6 +462,9 @@ function App() {
   })();
 
   const handleProfileUpdate = (updates) => {
+    if ('split' in updates || 'days' in updates) {
+      localStorage.removeItem('foundry:storedProgram');
+    }
     const updated = { ...profile, ...updates };
     setProfile(updated);
     saveProfile(updated);
