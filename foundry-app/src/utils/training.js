@@ -127,19 +127,6 @@ export function getWarmupDetail(warmupStr, exerciseName) {
   return { title: "Warmup", rationale: "", steps: [] };
 }
 
-export function loadDayWeek(dayIdx, weekIdx) {
-  const raw = store.get(`foundry:day${dayIdx}:week${weekIdx}`);
-  return raw ? JSON.parse(raw) : {};
-}
-
-export function loadNotes(dayIdx, weekIdx) {
-  return store.get(`foundry:notes:d${dayIdx}:w${weekIdx}`) || "";
-}
-
-export function saveNotes(dayIdx, weekIdx, text) {
-  store.set(`foundry:notes:d${dayIdx}:w${weekIdx}`, text);
-}
-
 /**
  * Fisher-Yates shuffle for array randomization.
  */
@@ -153,7 +140,7 @@ export function shuffle(arr) {
 }
 
 export function loadBwLog() {
-  try { return JSON.parse(store.get("foundry:bwlog") || "[]"); } catch { return []; }
+  try { return JSON.parse(store.get("foundry:bwlog") || "[]"); } catch (e) { console.warn('[Foundry]', 'Failed to load body weight log', e); return []; }
 }
 
 export function saveBwLog(entries) {
@@ -221,7 +208,7 @@ export function loadSparklineData(dayIdx, exIdx, mesoWeeks = 7) {
           : bestWeight || 0;
         pts.push({ week: w, bestWeight, bestReps, e1rm });
       }
-    } catch {}
+    } catch (e) { console.warn('[Foundry]', 'Failed to parse sparkline week data', e); }
   }
   return pts;
 }
@@ -267,7 +254,7 @@ export function isSkipped(dayIdx, weekIdx) {
 
 export function setSkipped(dayIdx, weekIdx, val) {
   if (val) store.set(`foundry:skip:d${dayIdx}:w${weekIdx}`, "1");
-  else { try { localStorage.removeItem(`foundry:skip:d${dayIdx}:w${weekIdx}`); } catch {} }
+  else { try { localStorage.removeItem(`foundry:skip:d${dayIdx}:w${weekIdx}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove skip key', e); } }
 }
 
 export function getWorkoutDaysForWeek(profile, weekIdx) {

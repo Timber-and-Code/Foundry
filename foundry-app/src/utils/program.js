@@ -1,3 +1,5 @@
+import { shuffle } from './training.js';
+
 /**
  * Generate a complete training program from a user profile.
  * Supports PPL, Upper/Lower, Full Body, and Push/Pull splits.
@@ -14,15 +16,6 @@ export function generateProgram(profile, EXERCISE_DB = []) {
   const dayMuscleConfig = profile?.dayMuscleConfig || {};
   const shortWarmup = duration <= 30;
   const exCount    = duration <= 30 ? 3 : duration <= 45 ? 4 : duration <= 60 ? 5 : duration <= 75 ? 6 : 7;
-
-  function shuffle(arr) {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
 
   const experience = profile?.experience || "intermediate";
   const maxDiff = experience === "beginner" ? 1 : experience === "intermediate" ? 2 : 3;

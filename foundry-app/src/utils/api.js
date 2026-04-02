@@ -100,7 +100,7 @@ MESO 2 CONTEXT (this is a continuation — apply these rules):
 - Recovery capacity is ${chronic}. ${rs.avgScore <= 2.5 ? "Keep weeks 1–2 conservative — fewer sets, higher RIR. Let fatigue clear before ramping. Do not front-load intensity." : rs.avgScore <= 3.5 ? "Use standard volume ramp. Watch for fatigue accumulation in peak weeks." : "This athlete recovers well. Standard or slightly aggressive volume ramp is appropriate."}`;
       }
     }
-  } catch {}
+  } catch (e) { console.warn('[Foundry]', 'Failed to load meso transition context', e); }
 
   const prompt = `You are an elite personal trainer with 40 years of experience designing mesocycle programs using progressive overload and linear periodization principles. You specialize in hypertrophy and strength development.
 

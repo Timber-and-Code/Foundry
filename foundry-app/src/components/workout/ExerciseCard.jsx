@@ -444,4 +444,51 @@ function ExerciseCard({ exercise, exIdx, dayIdx, weekIdx, weekData, onUpdateSet,
   );
 }
 
-export default ExerciseCard;
+function areExerciseCardsEqual(prev, next) {
+  // Cheap primitive checks first
+  if (
+    prev.exIdx !== next.exIdx ||
+    prev.dayIdx !== next.dayIdx ||
+    prev.weekIdx !== next.weekIdx ||
+    prev.expanded !== next.expanded ||
+    prev.done !== next.done ||
+    prev.readOnly !== next.readOnly ||
+    prev.bodyweight !== next.bodyweight ||
+    prev.note !== next.note
+  ) return false;
+
+  // exercise object — check identity, then key fields that affect render
+  if (prev.exercise !== next.exercise) {
+    if (
+      prev.exercise.name !== next.exercise.name ||
+      prev.exercise.sets !== next.exercise.sets ||
+      prev.exercise.progression !== next.exercise.progression ||
+      prev.exercise.warmup !== next.exercise.warmup ||
+      prev.exercise.anchor !== next.exercise.anchor ||
+      prev.exercise.modifier !== next.exercise.modifier ||
+      prev.exercise.cardio !== next.exercise.cardio
+    ) return false;
+  }
+
+  // weekData: only the slice for this card matters — ignore sibling exercise updates
+  const prevSlice = prev.weekData[prev.exIdx];
+  const nextSlice = next.weekData[next.exIdx];
+  if (prevSlice !== nextSlice) {
+    if (JSON.stringify(prevSlice) !== JSON.stringify(nextSlice)) return false;
+  }
+
+  // Callbacks — parent should memoize with useCallback; compare by reference
+  if (
+    prev.onUpdateSet !== next.onUpdateSet ||
+    prev.onWeightAutoFill !== next.onWeightAutoFill ||
+    prev.onLastSetFilled !== next.onLastSetFilled ||
+    prev.onToggle !== next.onToggle ||
+    prev.onSwapClick !== next.onSwapClick ||
+    prev.onSetLogged !== next.onSetLogged ||
+    prev.onNoteChange !== next.onNoteChange
+  ) return false;
+
+  return true;
+}
+
+export default React.memo(ExerciseCard, areExerciseCardsEqual);

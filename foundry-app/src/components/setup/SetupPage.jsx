@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { store, ageFromDob } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
 import { EXERCISE_DB } from '../../data/exercises';
-import { GOAL_OPTIONS } from '../../data/constants';
+import { GOAL_OPTIONS, TAG_ACCENT, CARDIO_WORKOUTS } from '../../data/constants';
 import FoundryBanner from '../shared/FoundryBanner';
 import HammerIcon from '../shared/HammerIcon';
 

@@ -22,5 +22,5 @@ const HAPTIC = {
 };
 
 export function haptic(type) {
-  try { navigator.vibrate && navigator.vibrate(HAPTIC[type] || HAPTIC.tap); } catch {}
+  try { navigator.vibrate && navigator.vibrate(HAPTIC[type] || HAPTIC.tap); } catch (e) { console.warn('[Foundry]', 'Failed to trigger haptic feedback', e); }
 }

@@ -130,7 +130,7 @@ export function saveCardioLog(dayIdx, weekIdx, data) {
 }
 
 export function loadCardioSession(dateStr) {
-  try { const r = store.get(`foundry:cardio:session:${dateStr}`); return r ? JSON.parse(r) : null; } catch { return null; }
+  try { const r = store.get(`foundry:cardio:session:${dateStr}`); return r ? JSON.parse(r) : null; } catch (e) { console.warn('[Foundry]', 'Failed to load cardio session', e); return null; }
 }
 
 export function saveCardioSession(dateStr, data) {
@@ -138,22 +138,11 @@ export function saveCardioSession(dateStr, data) {
 }
 
 export function loadMobilitySession(dateStr) {
-  try { const r = store.get(`foundry:mobility:session:${dateStr}`); return r ? JSON.parse(r) : null; } catch { return null; }
+  try { const r = store.get(`foundry:mobility:session:${dateStr}`); return r ? JSON.parse(r) : null; } catch (e) { console.warn('[Foundry]', 'Failed to load mobility session', e); return null; }
 }
 
 export function saveMobilitySession(dateStr, data) {
   store.set(`foundry:mobility:session:${dateStr}`, JSON.stringify(data));
-}
-
-export function parseRestSeconds(restStr) {
-  if (!restStr) return 90;
-  const s = restStr.toLowerCase();
-  const match = s.match(/(\d+(?:\.\d+)?)/);
-  if (!match) return 90;
-  const val = parseFloat(match[1]);
-  if (s.includes('min')) return Math.round(val * 60);
-  if (s.includes('sec')) return Math.round(val);
-  return 90;
 }
 
 export function loadNotes(dayIdx, weekIdx) {
@@ -165,7 +154,7 @@ export function saveNotes(dayIdx, weekIdx, text) {
 }
 
 export function loadExNotes(dayIdx, weekIdx) {
-  try { return JSON.parse(store.get(`foundry:exnotes:d${dayIdx}:w${weekIdx}`) || "{}"); } catch { return {}; }
+  try { return JSON.parse(store.get(`foundry:exnotes:d${dayIdx}:w${weekIdx}`) || "{}"); } catch (e) { console.warn('[Foundry]', 'Failed to parse exercise notes', e); return {}; }
 }
 
 export function saveExNotes(dayIdx, weekIdx, obj) {
@@ -173,7 +162,7 @@ export function saveExNotes(dayIdx, weekIdx, obj) {
 }
 
 export function loadExtraExNotes(dateStr) {
-  try { return JSON.parse(store.get(`foundry:extra:exnotes:${dateStr}`) || "{}"); } catch { return {}; }
+  try { return JSON.parse(store.get(`foundry:extra:exnotes:${dateStr}`) || "{}"); } catch (e) { console.warn('[Foundry]', 'Failed to parse extra exercise notes', e); return {}; }
 }
 
 export function saveExtraExNotes(dateStr, obj) {
@@ -192,7 +181,7 @@ export function hasAnyExtraNotes(dateStr) {
 }
 
 export function loadArchive() {
-  try { return JSON.parse(store.get("foundry:archive") || "[]"); } catch { return []; }
+  try { return JSON.parse(store.get("foundry:archive") || "[]"); } catch (e) { console.warn('[Foundry]', 'Failed to load archive', e); return []; }
 }
 
 export function deleteArchiveEntry(id) {
@@ -233,7 +222,7 @@ export function snapshotData() {
     const b1 = localStorage.getItem("foundry:backup:0");
     if (b1) localStorage.setItem("foundry:backup:1", b1);
     localStorage.setItem("foundry:backup:0", snap);
-  } catch(e) { /* silent */ }
+  } catch(e) { console.warn('[Foundry]', 'Failed to snapshot data', e); }
 }
 
 /**
@@ -287,7 +276,8 @@ export function importData(file, onDone) {
       });
       console.log(`[Foundry] Imported ${imported} keys`);
       onDone(true);
-    } catch {
+    } catch (e) {
+      console.warn('[Foundry]', 'Failed to parse import file', e);
       onDone(false);
     }
   };
@@ -356,7 +346,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
           const dd = JSON.parse(raw);
           const b = getBestWeight(dd[exIdx] || {});
           if (b > priorBest) priorBest = b;
-        } catch {}
+        } catch (e) { console.warn('[Foundry]', 'Failed to read prior week data for PR detection', e); }
       }
       if (todayBest > priorBest && priorBest > 0) {
         prs.push({ name: ex.name, newBest: todayBest, prevBest: priorBest });
@@ -383,7 +373,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
               const dd = JSON.parse(raw);
               const b = getBestWeight(dd[slot] || {});
               if (b > priorBest) priorBest = b;
-            } catch {}
+            } catch (e) { console.warn('[Foundry]', 'Failed to read meso data for PR detection', e); }
           }
         }
       }
@@ -405,7 +395,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
             if (b > priorBest) priorBest = b;
           });
         });
-      } catch {}
+      } catch (e) { console.warn('[Foundry]', 'Failed to scan extra sessions for PR detection', e); }
       if (todayBest > priorBest && priorBest > 0) {
         prs.push({ name: ex.name, newBest: todayBest, prevBest: priorBest });
       }
@@ -447,7 +437,7 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
           }
         });
         if (heaviest > 0) window.push({ w, weight: heaviest });
-      } catch { break; }
+      } catch (e) { console.warn('[Foundry]', 'Failed to read week data for stall detection', e); break; }
     }
 
     if (window.length === 0) return;
@@ -476,7 +466,7 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
             });
             if (curHeaviest > last3[0].weight) return;
           }
-        } catch {}
+        } catch (e) { console.warn('[Foundry]', 'Failed to read current week for stall detection', e); }
 
         let isFatigueSignal = false;
         try {
@@ -495,7 +485,7 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
           if (readinessCount >= 3 && (readinessTotal / readinessCount) <= 2.5) {
             isFatigueSignal = true;
           }
-        } catch {}
+        } catch (e) { console.warn('[Foundry]', 'Failed to compute fatigue signal', e); }
 
         if (profile?.goal === "lose_fat" && _loadBwLog) {
           const sessionDates = last3
@@ -532,7 +522,7 @@ export function clearAllSkips(mesoWeeks, mesoDays) {
   const days  = mesoDays || 6;
   for (let d = 0; d < days; d++)
     for (let w = 0; w <= weeks; w++)
-      try { localStorage.removeItem(`foundry:skip:d${d}:w${w}`); } catch {}
+      try { localStorage.removeItem(`foundry:skip:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove skip key', e); }
 }
 
 // ─── RESET MESO ──────────────────────────────────────────────────────────────
@@ -541,21 +531,21 @@ export function resetMeso(mesoWeeks, mesoDays) {
   const days  = mesoDays || 6;
   for (let d = 0; d < days; d++) {
     for (let w = 0; w <= weeks; w++) {
-      try { localStorage.removeItem(`foundry:day${d}:week${w}`); } catch {}
-      try { localStorage.removeItem(`foundry:notes:d${d}:w${w}`); } catch {}
-      try { localStorage.removeItem(`foundry:exnotes:d${d}:w${w}`); } catch {}
-      try { localStorage.removeItem(`foundry:done:d${d}:w${w}`); } catch {}
-      try { localStorage.removeItem(`foundry:cardio:d${d}:w${w}`); } catch {}
-      try { localStorage.removeItem(`foundry:skip:d${d}:w${w}`); } catch {}
-      try { localStorage.removeItem(`foundry:sessionStart:d${d}:w${w}`); } catch {}
-      try { localStorage.removeItem(`foundry:strengthEnd:d${d}:w${w}`); } catch {}
-      try { localStorage.removeItem(`foundry:completedDate:d${d}:w${w}`); } catch {}
+      try { localStorage.removeItem(`foundry:day${d}:week${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove day/week data during meso reset', e); }
+      try { localStorage.removeItem(`foundry:notes:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove notes during meso reset', e); }
+      try { localStorage.removeItem(`foundry:exnotes:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove exercise notes during meso reset', e); }
+      try { localStorage.removeItem(`foundry:done:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove completion marker during meso reset', e); }
+      try { localStorage.removeItem(`foundry:cardio:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove cardio log during meso reset', e); }
+      try { localStorage.removeItem(`foundry:skip:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove skip marker during meso reset', e); }
+      try { localStorage.removeItem(`foundry:sessionStart:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove session start during meso reset', e); }
+      try { localStorage.removeItem(`foundry:strengthEnd:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove strength end during meso reset', e); }
+      try { localStorage.removeItem(`foundry:completedDate:d${d}:w${w}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove completed date during meso reset', e); }
     }
     for (let ex = 0; ex < 10; ex++) {
-      try { localStorage.removeItem(`foundry:exov:d${d}:ex${ex}`); } catch {}
+      try { localStorage.removeItem(`foundry:exov:d${d}:ex${ex}`); } catch (e) { console.warn('[Foundry]', 'Failed to remove exercise override during meso reset', e); }
     }
   }
-  try { localStorage.setItem("foundry:currentWeek", "0"); } catch {}
+  try { localStorage.setItem("foundry:currentWeek", "0"); } catch (e) { console.warn('[Foundry]', 'Failed to reset current week', e); }
 }
 
 // ─── ARCHIVE CURRENT MESO ───────────────────────────────────────────────────
@@ -597,7 +587,7 @@ export function archiveCurrentMeso(profile, deps) {
   };
 
   let archive = [];
-  try { archive = JSON.parse(store.get("foundry:archive") || "[]"); } catch {}
+  try { archive = JSON.parse(store.get("foundry:archive") || "[]"); } catch (e) { console.warn('[Foundry]', 'Failed to load archive for meso archival', e); }
   archive.unshift(record);
   if (archive.length > 10) archive = archive.slice(0, 10);
   store.set("foundry:archive", JSON.stringify(archive));
@@ -620,7 +610,7 @@ export function archiveCurrentMeso(profile, deps) {
                 const wVal = parseFloat(s?.weight || 0);
                 if (wVal > peakWeight) peakWeight = wVal;
               });
-            } catch {}
+            } catch (e) { console.warn('[Foundry]', 'Failed to parse week data for anchor peak', e); }
           }
           if (peakWeight > 0) anchorPeaks.push({ name: ex.name, id: ex.id, peak: peakWeight });
         });
@@ -667,7 +657,7 @@ export function archiveCurrentMeso(profile, deps) {
                 const r = JSON.parse(raw);
                 const score = getReadinessScore(r);
                 if (score !== null) { totalScore += score; totalLogged++; if (score <= 2) lowDays++; }
-              } catch {}
+              } catch (e) { console.warn('[Foundry]', 'Failed to parse readiness entry', e); }
             }
             cursor.setDate(cursor.getDate() + 1);
           }
@@ -680,9 +670,9 @@ export function archiveCurrentMeso(profile, deps) {
             };
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[Foundry]', 'Failed to compute readiness summary', e); }
 
       store.set("foundry:meso_transition", JSON.stringify(transition));
     }
-  } catch {}
+  } catch (e) { console.warn('[Foundry]', 'Failed to build meso transition context', e); }
 }

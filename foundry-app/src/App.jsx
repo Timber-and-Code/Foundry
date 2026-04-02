@@ -61,16 +61,24 @@ class ErrorBoundary extends React.Component {
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", color: "var(--phase-peak)", marginBottom: 8 }}>ERROR</div>
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", wordBreak: "break-word", fontFamily: "monospace" }}>{errMsg}</div>
         </div>
-        {errStack && (
-          <div style={{ background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px", maxHeight: 220, overflowY: "auto" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 8 }}>STACK TRACE</div>
-            <pre style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "monospace", lineHeight: 1.5 }}>{errStack}</pre>
-          </div>
-        )}
-        {compStack && (
-          <div style={{ background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px", maxHeight: 160, overflowY: "auto" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 8 }}>COMPONENT STACK</div>
-            <pre style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "monospace", lineHeight: 1.5 }}>{compStack}</pre>
+        {import.meta.env.DEV ? (
+          <>
+            {errStack && (
+              <div style={{ background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px", maxHeight: 220, overflowY: "auto" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 8 }}>STACK TRACE</div>
+                <pre style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "monospace", lineHeight: 1.5 }}>{errStack}</pre>
+              </div>
+            )}
+            {compStack && (
+              <div style={{ background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px", maxHeight: 160, overflowY: "auto" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 8 }}>COMPONENT STACK</div>
+                <pre style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "monospace", lineHeight: 1.5 }}>{compStack}</pre>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px", fontSize: 13, color: "var(--text-secondary)" }}>
+            Something went wrong. Please reload the app.
           </div>
         )}
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
@@ -84,7 +92,7 @@ class ErrorBoundary extends React.Component {
           </button>
         </div>
         <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.6 }}>
-          Screenshot this screen and send it to James for debugging.
+          If this keeps happening, try clearing your data and restarting.
         </div>
       </div>
     );
@@ -97,7 +105,7 @@ function App() {
   const [view, setView] = useState("home");
   const [selectedDay, setSelectedDay] = useState(null);
   const [currentWeek, setCurrentWeek] = useState(loadCurrentWeek);
-  const [completedDays, setCompletedDays] = useState(loadCompleted);
+  const [completedDays, setCompletedDays] = useState(() => loadCompleted(getMeso()));
   const [onboarded, setOnboarded] = useState(() => !!store.get("foundry:onboarded"));
   const [weekCompleteModal, setWeekCompleteModal] = useState(null);
   const [openWeekly, setOpenWeekly] = useState(false);
