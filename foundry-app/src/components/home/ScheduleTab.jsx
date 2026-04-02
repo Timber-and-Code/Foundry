@@ -3,6 +3,7 @@ import {
   TAG_ACCENT, PHASE_COLOR,
   getMeso, getWeekPhase,
 } from '../../data/constants';
+import Sheet from '../ui/Sheet';
 import {
   store,
   loadCardioSession,
@@ -70,8 +71,8 @@ function DeloadSection() {
 function NoteViewer({ noteViewer, setNoteViewer }) {
   if (!noteViewer) return null;
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setNoteViewer(null)}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px 14px 0 0', width: '100%', maxWidth: 480, padding: '24px 20px 40px', maxHeight: '75vh', overflowY: 'auto' }}>
+    <Sheet open={!!noteViewer} onClose={() => setNoteViewer(null)} zIndex={300}>
+      <div style={{ padding: '8px 20px 40px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 4 }}>SESSION NOTES</div>
@@ -96,7 +97,7 @@ function NoteViewer({ noteViewer, setNoteViewer }) {
           </div>
         )}
       </div>
-    </div>
+    </Sheet>
   );
 }
 

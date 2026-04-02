@@ -1,6 +1,7 @@
 import React from 'react';
 import { REST_QUOTES, FOUNDRY_MOBILITY, FOUNDRY_COOLDOWN, getMeso } from '../../data/constants';
 import { getWorkoutDaysForWeek } from '../../utils/store';
+import Sheet from '../ui/Sheet';
 
 function RestDaySheet({ showRestDay, setShowRestDay, profile, activeDays, setAddWorkoutModal, setAddWorkoutStep, setAddWorkoutType, setAddWorkoutDayType }) {
   if (!showRestDay) return null;
@@ -69,11 +70,7 @@ function RestDaySheet({ showRestDay, setShowRestDay, profile, activeDays, setAdd
   ];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowRestDay(null)}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px 14px 0 0', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', animation: 'slideUp 0.25s cubic-bezier(0.34,1.1,0.64,1)' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }}/>
-        </div>
+    <Sheet open={!!showRestDay} onClose={() => setShowRestDay(null)} zIndex={300}>
         <div style={{ padding: '8px 20px 36px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
             <div>
@@ -117,8 +114,7 @@ function RestDaySheet({ showRestDay, setShowRestDay, profile, activeDays, setAdd
             <button onClick={() => { setShowRestDay(null); setAddWorkoutModal({ dateStr: showRestDay.dateStr }); setAddWorkoutStep('type'); setAddWorkoutType(null); setAddWorkoutDayType(null); }} style={{ width: '100%', marginTop: 20, padding: '14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.03em' }}>+ Add Extra Session</button>
           )}
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

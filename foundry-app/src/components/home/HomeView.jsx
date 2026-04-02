@@ -18,6 +18,10 @@ import {
   exportData, importData,
 } from '../../utils/store';
 
+// Shared UI
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+
 // Sub-components
 import HomeTab from './HomeTab';
 import ScheduleTab from './ScheduleTab';
@@ -197,62 +201,60 @@ function HomeView({
     };
 
     return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 500, backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '28px 24px', maxWidth: 340, width: '100%', boxShadow: 'var(--shadow-xl)', animation: 'dialogIn 0.2s cubic-bezier(0.34,1.56,0.64,1)' }}>
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 4 }}>ADD WORKOUT</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>{dateLabel}</div>
+      <Modal open={!!addWorkoutModal} onClose={closeModal} maxWidth={340} zIndex={500} blur>
+        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 4 }}>ADD WORKOUT</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>{dateLabel}</div>
 
-          {addWorkoutStep === 'type' && (
-            <>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 22 }}>How do you want to set up this session?</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <button onClick={() => { setAddWorkoutType('foundry'); setAddWorkoutStep('daytype'); }} style={{ padding: '16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', background: 'var(--accent)11', border: '1px solid var(--accent)55', color: 'var(--text-primary)' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--accent)', marginBottom: 2 }}> Foundry Build</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Auto-generate a workout based on your equipment and level</div>
-                </button>
-                <button onClick={() => { store.set(`foundry:extra:${dateStr}`, JSON.stringify({ isExtra: true, isManual: true, label: 'Manual Session', exercises: [], dateStr })); closeModal(); onOpenExtra(dateStr); }} style={{ padding: '16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 2 }}>Manual</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Log a workout your own way — freeform notes</div>
-                </button>
-              </div>
-              <button onClick={closeModal} style={{ width: '100%', marginTop: 12, padding: '12px', borderRadius: 8, cursor: 'pointer', background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 13 }}>Cancel</button>
-            </>
-          )}
+        {addWorkoutStep === 'type' && (
+          <>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 22 }}>How do you want to set up this session?</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button onClick={() => { setAddWorkoutType('foundry'); setAddWorkoutStep('daytype'); }} style={{ padding: '16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', background: 'var(--accent)11', border: '1px solid var(--accent)55', color: 'var(--text-primary)' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--accent)', marginBottom: 2 }}> Foundry Build</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Auto-generate a workout based on your equipment and level</div>
+              </button>
+              <button onClick={() => { store.set(`foundry:extra:${dateStr}`, JSON.stringify({ isExtra: true, isManual: true, label: 'Manual Session', exercises: [], dateStr })); closeModal(); onOpenExtra(dateStr); }} style={{ padding: '16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 2 }}>Manual</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Log a workout your own way — freeform notes</div>
+              </button>
+            </div>
+            <Button variant="ghost" onClick={closeModal} fullWidth style={{ marginTop: 12 }}>Cancel</Button>
+          </>
+        )}
 
-          {addWorkoutStep === 'daytype' && (
-            <>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 18 }}>What kind of session?</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {dayTypeOptions.map(opt => (
-                  <button key={opt.id} onClick={() => handleFoundryBuild(opt.id)} style={{ padding: '13px 16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 800 }}>{opt.label}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{opt.desc}</div>
-                    </div>
-                    <span style={{ fontSize: 16, color: 'var(--text-muted)' }}>›</span>
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setAddWorkoutStep('type')} style={{ width: '100%', marginTop: 12, padding: '12px', borderRadius: 8, cursor: 'pointer', background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 13 }}>← Back</button>
-            </>
-          )}
-        </div>
-      </div>
+        {addWorkoutStep === 'daytype' && (
+          <>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 18 }}>What kind of session?</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {dayTypeOptions.map(opt => (
+                <button key={opt.id} onClick={() => handleFoundryBuild(opt.id)} style={{ padding: '13px 16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800 }}>{opt.label}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{opt.desc}</div>
+                  </div>
+                  <span style={{ fontSize: 16, color: 'var(--text-muted)' }}>›</span>
+                </button>
+              ))}
+            </div>
+            <Button variant="ghost" onClick={() => setAddWorkoutStep('type')} fullWidth style={{ marginTop: 12 }}>← Back</Button>
+          </>
+        )}
+      </Modal>
     );
   };
 
   // ── Reset dialog ────────────────────────────────────────────────────────
   const ResetDialog = () => (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowReset(false)}>
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, maxWidth: 360, width: '90%', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+    <Modal open={showReset} onClose={() => setShowReset(false)} maxWidth={360} zIndex={100}>
+      <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>Reset Mesocycle?</div>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>This will archive your current meso and start fresh. Your data will be saved in history.</div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={() => setShowReset(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, background: 'var(--bg-inset)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
-          <button onClick={() => { setShowReset(false); onReset(); }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: 'var(--danger)', border: '1px solid var(--danger)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Reset</button>
+          <Button variant="secondary" onClick={() => setShowReset(false)} style={{ flex: 1 }}>Cancel</Button>
+          <Button variant="danger" onClick={() => { setShowReset(false); onReset(); }} style={{ flex: 1 }}>Reset</Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 
   // ── Bottom tab bar ──────────────────────────────────────────────────────

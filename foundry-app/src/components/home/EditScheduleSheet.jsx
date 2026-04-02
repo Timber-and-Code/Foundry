@@ -1,5 +1,6 @@
 import React from 'react';
 import { getWorkoutDaysForWeek, ensureWorkoutDaysHistory, saveProfile } from '../../utils/store';
+import Sheet from '../ui/Sheet';
 
 function EditScheduleSheet({ showEditSchedule, setShowEditSchedule, profile, currentWeek, onProfileUpdate }) {
   if (!showEditSchedule) return null;
@@ -108,14 +109,9 @@ function EditScheduleSheet({ showEditSchedule, setShowEditSchedule, profile, cur
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 400, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowEditSchedule(false)}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px 14px 0 0', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', animation: 'slideUp 0.25s cubic-bezier(0.34,1.1,0.64,1)' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }}/>
-        </div>
-        <Inner />
-      </div>
-    </div>
+    <Sheet open={!!showEditSchedule} onClose={() => setShowEditSchedule(false)} zIndex={400}>
+      <Inner />
+    </Sheet>
   );
 }
 
