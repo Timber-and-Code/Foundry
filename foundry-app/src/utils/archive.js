@@ -1,11 +1,12 @@
 import { store } from './storage.js';
 import { getReadinessScore } from './analytics.js';
+import { validateArchive } from './validate.js';
 
 // ─── ARCHIVE HELPERS ─────────────────────────────────────────────────────────
 
 export function loadArchive() {
   try {
-    return JSON.parse(store.get('foundry:archive') || '[]');
+    return validateArchive(JSON.parse(store.get('foundry:archive') || '[]'));
   } catch (e) {
     console.warn('[Foundry]', 'Failed to load archive', e);
     return [];
@@ -141,7 +142,7 @@ export function archiveCurrentMeso(profile, deps) {
 
   let archive = [];
   try {
-    archive = JSON.parse(store.get('foundry:archive') || '[]');
+    archive = validateArchive(JSON.parse(store.get('foundry:archive') || '[]'));
   } catch (e) {
     console.warn('[Foundry]', 'Failed to load archive for meso archival', e);
   }

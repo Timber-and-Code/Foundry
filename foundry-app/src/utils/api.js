@@ -1,4 +1,5 @@
 import { store } from './store.js';
+import { supabase } from './supabase.js';
 
 /**
  * Call the Foundry AI Worker to generate a personalized training program.
@@ -174,7 +175,22 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
 
   const workerUrl =
     import.meta.env.VITE_FOUNDRY_AI_WORKER_URL || 'https://foundry-ai.timberandcode3.workers.dev';
-  const appKey = import.meta.env.VITE_FOUNDRY_APP_KEY || '';
+
+  // Prefer Supabase JWT; fall back to legacy shared key if not signed in
+  let authHeader;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (token) {
+      authHeader = { Authorization: `Bearer ${token}` };
+    }
+  } catch (_) {
+    // ignore — fallback below
+  }
+  if (!authHeader) {
+    const appKey = import.meta.env.VITE_FOUNDRY_APP_KEY || '';
+    authHeader = { 'X-Foundry-Key': appKey };
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -182,7 +198,7 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
   try {
     const response = await fetch(workerUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Foundry-Key': appKey },
+      headers: { 'Content-Type': 'application/json', ...authHeader },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4096,

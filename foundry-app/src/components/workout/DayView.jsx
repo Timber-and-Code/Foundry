@@ -1124,4 +1124,4 @@ function DayView({
   );
 }
 
-export default DayView;
+export default React.memo(DayView);

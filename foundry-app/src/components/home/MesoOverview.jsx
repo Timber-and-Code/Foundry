@@ -447,4 +447,4 @@ function MesoOverview({ tab, goBack, goTo, setShowReset, activeDays, completedDa
   return null;
 }
 
-export default MesoOverview;
+export default React.memo(MesoOverview);

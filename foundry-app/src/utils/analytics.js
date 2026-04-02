@@ -1,4 +1,5 @@
 import { store } from './storage.js';
+import { validateDayData } from './validate.js';
 
 // ─── READINESS SCORING ───────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ export function loadExerciseHistory(dayIdx, exIdx, mesoWeeks) {
     if (store.get(`foundry:done:d${dayIdx}:w${w}`) !== '1') continue;
     const raw = store.get(`foundry:day${dayIdx}:week${w}`);
     if (!raw) continue;
-    const dayData = JSON.parse(raw);
+    const dayData = validateDayData(JSON.parse(raw));
     const exData = dayData[exIdx];
     if (!exData) continue;
     const sets = Object.entries(exData)
@@ -84,7 +85,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
         try {
           const raw = store.get(`foundry:day${dayIdx}:week${w}`);
           if (!raw) continue;
-          const dd = JSON.parse(raw);
+          const dd = validateDayData(JSON.parse(raw));
           const b = getBestWeight(dd[exIdx] || {});
           if (b > priorBest) priorBest = b;
         } catch (e) {
@@ -113,7 +114,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
             try {
               const raw = store.get(`foundry:day${d}:week${w}`);
               if (!raw) continue;
-              const dd = JSON.parse(raw);
+              const dd = validateDayData(JSON.parse(raw));
               const b = getBestWeight(dd[slot] || {});
               if (b > priorBest) priorBest = b;
             } catch (e) {
@@ -176,7 +177,7 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
       try {
         const raw = store.get(`foundry:day${dayIdx}:week${w}`);
         if (!raw) continue;
-        const exData = JSON.parse(raw)[exIdx] || {};
+        const exData = validateDayData(JSON.parse(raw))[exIdx] || {};
         let heaviest = 0;
         Object.values(exData).forEach((s) => {
           if (!s || s.warmup || s.repsSuggested) return;
@@ -213,7 +214,7 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
         try {
           const curRaw = store.get(`foundry:day${dayIdx}:week${currentWeekIdx}`);
           if (curRaw) {
-            const curExData = JSON.parse(curRaw)[exIdx] || {};
+            const curExData = validateDayData(JSON.parse(curRaw))[exIdx] || {};
             let curHeaviest = 0;
             Object.values(curExData).forEach((s) => {
               if (!s || s.warmup) return;

@@ -950,4 +950,4 @@ function ScheduleTab({
   );
 }
 
-export default ScheduleTab;
+export default React.memo(ScheduleTab);
