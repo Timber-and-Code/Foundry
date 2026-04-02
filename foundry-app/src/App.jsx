@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
 const UserMenu = React.lazy(() => import('./components/auth/UserMenu'));
@@ -35,6 +35,10 @@ import { parseRestSeconds, haptic } from './utils/helpers';
 
 // Components
 import FoundryBanner from './components/shared/FoundryBanner';
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Hooks
+import { useMesoState } from './hooks/useMesoState';
 
 const OnboardingFlow = React.lazy(() => import('./components/onboarding/OnboardingFlow'));
 const HomeView = React.lazy(() => import('./components/home/HomeView'));
@@ -47,240 +51,11 @@ const TourOverlay = React.lazy(() => import('./components/tour/TourOverlay'));
 const ProfileDrawer = React.lazy(() => import('./components/settings/SettingsView'));
 const SetupPage = React.lazy(() => import('./components/setup/SetupPage'));
 
-// ─── ERROR BOUNDARY ─────────────────────────────────────────────────────────
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, info: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, info) {
-    this.setState({ info });
-  }
-  render() {
-    if (!this.state.hasError) return this.props.children;
-    const errMsg = this.state.error?.message || String(this.state.error);
-    const errStack = this.state.error?.stack || '';
-    const compStack = this.state.info?.componentStack || '';
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: 'var(--bg-root)',
-          color: 'var(--text-primary)',
-          fontFamily: "'Inter',system-ui,sans-serif",
-          maxWidth: 480,
-          margin: '0 auto',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            paddingTop: 16,
-          }}
-        >
-          <span style={{ fontSize: 28 }}>💥</span>
-          <div>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Something went wrong</div>
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--text-secondary)',
-                marginTop: 2,
-              }}
-            >
-              The Foundry hit an unexpected error
-            </div>
-          </div>
-        </div>
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            padding: '14px 16px',
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              color: 'var(--phase-peak)',
-              marginBottom: 8,
-            }}
-          >
-            ERROR
-          </div>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              wordBreak: 'break-word',
-              fontFamily: 'monospace',
-            }}
-          >
-            {errMsg}
-          </div>
-        </div>
-        {import.meta.env.DEV ? (
-          <>
-            {errStack && (
-              <div
-                style={{
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  padding: '14px 16px',
-                  maxHeight: 220,
-                  overflowY: 'auto',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    letterSpacing: '0.06em',
-                    color: 'var(--text-muted)',
-                    marginBottom: 8,
-                  }}
-                >
-                  STACK TRACE
-                </div>
-                <pre
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--text-secondary)',
-                    margin: 0,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    fontFamily: 'monospace',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {errStack}
-                </pre>
-              </div>
-            )}
-            {compStack && (
-              <div
-                style={{
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  padding: '14px 16px',
-                  maxHeight: 160,
-                  overflowY: 'auto',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    letterSpacing: '0.06em',
-                    color: 'var(--text-muted)',
-                    marginBottom: 8,
-                  }}
-                >
-                  COMPONENT STACK
-                </div>
-                <pre
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--text-secondary)',
-                    margin: 0,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    fontFamily: 'monospace',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {compStack}
-                </pre>
-              </div>
-            )}
-          </>
-        ) : (
-          <div
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              padding: '14px 16px',
-              fontSize: 13,
-              color: 'var(--text-secondary)',
-            }}
-          >
-            Something went wrong. Please reload the app.
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-          <button
-            onClick={() => window.location.reload()}
-            className="btn-primary"
-            style={{
-              flex: 1,
-              padding: '13px',
-              borderRadius: 6,
-              fontSize: 14,
-              fontWeight: 700,
-              background: 'var(--btn-primary-bg)',
-              border: '1px solid var(--btn-primary-border)',
-              color: 'var(--btn-primary-text)',
-            }}
-          >
-            Reload App
-          </button>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null, info: null })}
-            style={{
-              flex: 1,
-              padding: '13px',
-              borderRadius: 6,
-              fontSize: 14,
-              fontWeight: 700,
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-            }}
-          >
-            Try Again
-          </button>
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: 'var(--text-muted)',
-            textAlign: 'center',
-            lineHeight: 1.6,
-          }}
-        >
-          If this keeps happening, try clearing your data and restarting.
-        </div>
-      </div>
-    );
-  }
-}
-
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 function App() {
-  const [profile, setProfile] = useState(loadProfile);
   const [view, setView] = useState('home');
   const [selectedDay, setSelectedDay] = useState(null);
-  const [currentWeek, setCurrentWeek] = useState(loadCurrentWeek);
-  const [completedDays, setCompletedDays] = useState(() => loadCompleted(getMeso()));
   const [onboarded, setOnboarded] = useState(() => !!store.get('foundry:onboarded'));
-  const [weekCompleteModal, setWeekCompleteModal] = useState(null);
   const [openWeekly, setOpenWeekly] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [selectedExtraDate, setSelectedExtraDate] = useState(null);
@@ -290,6 +65,21 @@ function App() {
   const [showTour, setShowTour] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
   const homeTabRef = useRef(null);
+
+  const {
+    profile,
+    setProfile,
+    completedDays,
+    setCompletedDays,
+    currentWeek,
+    setCurrentWeek,
+    weekCompleteModal,
+    setWeekCompleteModal,
+    activeDays,
+    activeWeek,
+    handleComplete,
+    handleReset,
+  } = useMesoState({ setView, setOnboarded });
 
   // ── Global rest timer ──
   const [restTimer, setRestTimer] = useState(null);
@@ -461,213 +251,6 @@ function App() {
     );
   }
 
-  // ── Completion handler ──
-  const handleComplete = (dayIdx, weekIdx) => {
-    markComplete(dayIdx, weekIdx);
-    const newCompleted = new Set([...completedDays, `${dayIdx}:${weekIdx}`]);
-    setCompletedDays(newCompleted);
-
-    const weekFinished = Array.from({ length: getMeso().days }, (_, d) => d).every((d) =>
-      newCompleted.has(`${d}:${weekIdx}`)
-    );
-
-    if (weekFinished) {
-      snapshotData();
-      let totalSets = 0;
-      const _storedProg = store.get('foundry:storedProgram');
-      const prog = (_storedProg ? JSON.parse(_storedProg) : generateProgram(loadProfile())).slice(
-        0,
-        getMeso().days
-      );
-      const bw = parseFloat(loadProfile()?.weight || 0);
-      let totalVolume = 0;
-      let prCount = 0;
-
-      prog.forEach((day, d) => {
-        const raw = store.get(`foundry:day${d}:week${weekIdx}`);
-        if (!raw) return;
-        try {
-          const wd = JSON.parse(raw);
-          day.exercises.forEach((ex, exIdx) => {
-            const exData = wd[exIdx] || {};
-            let thisBest = 0;
-            Object.values(exData).forEach((s) => {
-              if (!s || !s.reps || s.reps === '' || s.repsSuggested) return;
-              totalSets++;
-              const w = parseFloat(s.weight || 0);
-              const r = parseInt(s.reps);
-              if (!r) return;
-              const eff = ex.bw ? bw + w : w;
-              totalVolume += eff * r;
-              if (eff * r > thisBest) thisBest = eff * r;
-            });
-            let priorBest = 0;
-            for (let pw = 0; pw < weekIdx; pw++) {
-              const pr = store.get(`foundry:day${d}:week${pw}`);
-              if (!pr) continue;
-              try {
-                const pwd = JSON.parse(pr);
-                Object.values(pwd[exIdx] || {}).forEach((s) => {
-                  if (!s || !s.reps) return;
-                  const w = parseFloat(s.weight || 0);
-                  const r = parseInt(s.reps);
-                  const eff = ex.bw ? bw + w : w;
-                  if (eff * r > priorBest) priorBest = eff * r;
-                });
-              } catch {}
-            }
-            if (thisBest > priorBest && priorBest > 0) prCount++;
-          });
-        } catch {}
-      });
-
-      const isFinal = weekIdx === getMeso().weeks;
-
-      // Meso retrospective data (isFinal only)
-      let mesoAnchorGains = [];
-      let mesoTotalVolume = 0;
-      let mesoTotalPRs = 0;
-      let mesoCompletedSessions = 0;
-      const mesoTotalSessions = getMeso().weeks * getMeso().days;
-
-      if (isFinal) {
-        for (let w = 0; w < getMeso().weeks; w++) {
-          for (let d = 0; d < getMeso().days; d++) {
-            if (newCompleted.has(`${d}:${w}`)) mesoCompletedSessions++;
-          }
-        }
-        for (let w = 0; w <= getMeso().weeks; w++) {
-          prog.forEach((day, d) => {
-            const raw = store.get(`foundry:day${d}:week${w}`);
-            if (!raw) return;
-            try {
-              const wd = JSON.parse(raw);
-              day.exercises.forEach((ex, exIdx) => {
-                const exData = wd[exIdx] || {};
-                let thisBest = 0;
-                Object.values(exData).forEach((s) => {
-                  if (!s || !s.reps) return;
-                  const weight = parseFloat(s.weight || 0);
-                  const reps = parseInt(s.reps);
-                  if (!reps) return;
-                  const eff = ex.bw ? bw + weight : weight;
-                  mesoTotalVolume += eff * reps;
-                  if (eff * reps > thisBest) thisBest = eff * reps;
-                });
-                if (w > 0) {
-                  let priorBest = 0;
-                  for (let pw = 0; pw < w; pw++) {
-                    const pr = store.get(`foundry:day${d}:week${pw}`);
-                    if (!pr) continue;
-                    try {
-                      const pwd = JSON.parse(pr);
-                      Object.values(pwd[exIdx] || {}).forEach((s) => {
-                        if (!s || !s.reps) return;
-                        const weight = parseFloat(s.weight || 0);
-                        const reps = parseInt(s.reps);
-                        const eff = ex.bw ? bw + weight : weight;
-                        if (eff * reps > priorBest) priorBest = eff * reps;
-                      });
-                    } catch {}
-                  }
-                  if (thisBest > priorBest && priorBest > 0) mesoTotalPRs++;
-                }
-              });
-            } catch {}
-          });
-        }
-
-        // Anchor lift progression
-        prog.forEach((day, d) => {
-          day.exercises.forEach((ex, exIdx) => {
-            if (!ex.anchor) return;
-            const w1Raw = store.get(`foundry:day${d}:week0`);
-            let w1Best = 0;
-            if (w1Raw) {
-              try {
-                const w1d = JSON.parse(w1Raw);
-                Object.values(w1d[exIdx] || {}).forEach((s) => {
-                  if (!s || !s.weight) return;
-                  const w = parseFloat(s.weight);
-                  if (w > w1Best) w1Best = w;
-                });
-              } catch {}
-            }
-            let peakBest = 0;
-            let peakWeek = 0;
-            for (let w = 0; w < getMeso().weeks; w++) {
-              const raw = store.get(`foundry:day${d}:week${w}`);
-              if (!raw) continue;
-              try {
-                const wd = JSON.parse(raw);
-                Object.values(wd[exIdx] || {}).forEach((s) => {
-                  if (!s || !s.weight) return;
-                  const weight = parseFloat(s.weight);
-                  if (weight > peakBest) {
-                    peakBest = weight;
-                    peakWeek = w;
-                  }
-                });
-              } catch {}
-            }
-            const ovId = store.get(`foundry:exov:d${d}:ex${exIdx}`);
-            const dbEx = ovId ? EXERCISE_DB.find((e) => e.id === ovId) : null;
-            const exName = dbEx ? dbEx.name : ex.name;
-            if (w1Best > 0 && peakBest > 0) {
-              mesoAnchorGains.push({
-                name: exName,
-                start: w1Best,
-                peak: peakBest,
-                delta: parseFloat((peakBest - w1Best).toFixed(1)),
-                peakWeek: peakWeek + 1,
-              });
-            }
-          });
-        });
-        const seen = new Set();
-        mesoAnchorGains = mesoAnchorGains.filter((g) => {
-          if (seen.has(g.name)) return false;
-          seen.add(g.name);
-          return true;
-        });
-      }
-
-      setWeekCompleteModal({
-        weekIdx,
-        sessions: getMeso().days,
-        totalSessions: getMeso().days,
-        sets: totalSets,
-        volume: Math.round(totalVolume),
-        prs: prCount,
-        isFinal,
-        anchorGains: mesoAnchorGains,
-        mesoTotalVolume: Math.round(mesoTotalVolume),
-        mesoTotalPRs,
-        mesoCompletedSessions,
-        mesoTotalSessions,
-      });
-
-      const nextWeek = weekIdx + 1;
-      if (nextWeek <= getMeso().weeks) {
-        setCurrentWeek(nextWeek);
-        saveCurrentWeek(nextWeek);
-      }
-    }
-  };
-
-  const handleReset = () => {
-    archiveCurrentMeso(profile, { generateProgram, EXERCISE_DB });
-    resetMeso();
-    localStorage.removeItem('foundry:profile');
-    localStorage.removeItem('foundry:storedProgram');
-    resetMesoCache();
-    setProfile(null);
-    setCompletedDays(new Set());
-    setCurrentWeek(1);
-    setView('home');
-    setOnboarded(!!store.get('foundry:onboarded'));
-  };
-
   const handleNextDay = (dayIdx, weekIdx) => {
     const nextDayIdx = dayIdx + 1;
     if (nextDayIdx <= getMeso().days - 1) {
@@ -683,55 +266,6 @@ function App() {
       }
     }
   };
-
-  // Compute active days from profile
-  const activeDays = useMemo(() => {
-    if (!profile) return [];
-    const stored = store.get('foundry:storedProgram');
-    const base = stored
-      ? JSON.parse(stored)
-      : (() => {
-          const result = generateProgram(profile);
-          store.set('foundry:storedProgram', JSON.stringify(result));
-          return result;
-        })();
-    const days = base.slice(0, getMeso().days);
-    const added = profile.addedDayExercises || {};
-    return days.map((day, dayIdx) => {
-      const extraIds = added[dayIdx] || [];
-      if (extraIds.length === 0) return day;
-      const extraExs = extraIds
-        .map((id) => EXERCISE_DB.find((e) => e.id === id))
-        .filter(Boolean)
-        .map((e) => ({
-          id: e.id,
-          name: e.name,
-          muscle: e.muscle,
-          muscles: e.muscles,
-          equipment: e.equipment,
-          tag: e.tag,
-          anchor: false,
-          sets: e.sets,
-          reps: e.reps,
-          rest: e.rest,
-          warmup: '1 feeler set',
-          progression: e.pattern === 'isolation' ? 'reps' : 'weight',
-          description: e.description || '',
-          videoUrl: e.videoUrl || '',
-          bw: !!e.bw,
-          addedMidMeso: true,
-        }));
-      return { ...day, exercises: [...day.exercises, ...extraExs] };
-    });
-  }, [profile]);
-
-  const activeWeek = (() => {
-    for (let w = 0; w < getMeso().weeks; w++) {
-      const allDone = activeDays.every((_, i) => completedDays.has(`${i}:${w}`));
-      if (!allDone) return w;
-    }
-    return getMeso().weeks;
-  })();
 
   const handleProfileUpdate = (updates) => {
     if ('split' in updates || 'days' in updates) {
