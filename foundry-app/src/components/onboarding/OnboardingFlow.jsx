@@ -130,7 +130,7 @@ export default function OnboardingFlow({ onDone }) {
             <div style={{fontFamily:"'Bebas Neue','Inter',sans-serif", fontSize:"clamp(38px, 10vw, 52px)", letterSpacing:"0.2em", color:"#FBF7E4",
               textShadow:"0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(232,101,26,0.25)"}}>THE FOUNDRY</div>
             <div style={{fontSize:"clamp(13px, 3.5vw, 17px)", letterSpacing:"0.2em", textTransform:"uppercase", color:"#F29A52", fontWeight:500,
-              textShadow:"0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)"}}>Forge Your Physique</div>
+              textShadow:"0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)"}}>Your Body. Your Blueprint.</div>
             <div style={{fontSize:"clamp(11px, 3vw, 14px)", letterSpacing:"0.15em", textTransform:"uppercase", color:"#C0B8AC", fontWeight:400,
               textShadow:"0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)", marginTop:4}}>Science-Driven Training</div>
           </div>

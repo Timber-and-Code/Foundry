@@ -28,10 +28,10 @@ function NoMesoShell({ onSetup, onStartProgram }) {
               opacity:0.8,
             }} />
           <div style={{fontSize:14, fontWeight:700, color:"var(--phase-accum)", letterSpacing:"0.06em", marginBottom:4}}>
-            THE FORGE IS COLD
+            THE FOUNDRY IS WAITING
           </div>
           <div style={{fontSize:12, color:"var(--text-secondary)", lineHeight:1.5, maxWidth:280}}>
-            Start a new mesocycle to fire it up.
+            Your next program is one tap away.
           </div>
         </div>
         <ExplorePage profile={null} onStartProgram={onStartProgram} />

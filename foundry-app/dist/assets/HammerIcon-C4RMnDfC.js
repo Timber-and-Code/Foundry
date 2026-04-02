@@ -1,0 +1,2 @@
+import{j as i}from"./index-BYSdCMVa.js";import"./vendor-react-wGySg1uH.js";function l({size:e=22,style:t={}}){return i.jsxs("svg",{width:e,height:e,viewBox:"0 0 24 24",fill:"none",style:{display:"inline-block",verticalAlign:"middle",flexShrink:0,...t},children:[i.jsx("line",{x1:"12",y1:"22",x2:"12",y2:"9",stroke:"#D4983C",strokeWidth:"3",strokeLinecap:"round"}),i.jsx("rect",{x:"3",y:"2",width:"18",height:"7",rx:"2",fill:"#E8651A"})]})}export{l as H};
+//# sourceMappingURL=HammerIcon-C4RMnDfC.js.map
