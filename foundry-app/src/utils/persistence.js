@@ -1,10 +1,16 @@
 import { store } from './storage.js';
+import { validateDayData } from './validate.js';
+import {
+  syncWorkoutToSupabase,
+  syncCardioSessionToSupabase,
+  syncNotesToSupabase,
+} from './sync.js';
 
 // ─── TRAINING DATA PERSISTENCE ────────────────────────────────────────────────
 
 export function loadDayWeek(dayIdx, weekIdx) {
   const raw = store.get(`foundry:day${dayIdx}:week${weekIdx}`);
-  return raw ? JSON.parse(raw) : {};
+  return raw ? validateDayData(JSON.parse(raw)) : {};
 }
 
 /**
@@ -113,6 +119,7 @@ export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
 
 export function saveDayWeek(dayIdx, weekIdx, data) {
   store.set(`foundry:day${dayIdx}:week${weekIdx}`, JSON.stringify(data));
+  syncWorkoutToSupabase(dayIdx, weekIdx, data);
 }
 
 export function loadCardioLog(dayIdx, weekIdx) {
@@ -136,6 +143,7 @@ export function loadCardioSession(dateStr) {
 
 export function saveCardioSession(dateStr, data) {
   store.set(`foundry:cardio:session:${dateStr}`, JSON.stringify(data));
+  syncCardioSessionToSupabase(dateStr, data);
 }
 
 export function loadMobilitySession(dateStr) {
@@ -158,6 +166,7 @@ export function loadNotes(dayIdx, weekIdx) {
 
 export function saveNotes(dayIdx, weekIdx, text) {
   store.set(`foundry:notes:d${dayIdx}:w${weekIdx}`, text);
+  syncNotesToSupabase(dayIdx, weekIdx, text, loadExNotes(dayIdx, weekIdx));
 }
 
 export function loadExNotes(dayIdx, weekIdx) {
@@ -171,6 +180,7 @@ export function loadExNotes(dayIdx, weekIdx) {
 
 export function saveExNotes(dayIdx, weekIdx, obj) {
   store.set(`foundry:exnotes:d${dayIdx}:w${weekIdx}`, JSON.stringify(obj));
+  syncNotesToSupabase(dayIdx, weekIdx, loadNotes(dayIdx, weekIdx), obj);
 }
 
 export function loadExtraExNotes(dateStr) {

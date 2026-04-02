@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../utils/supabase';
+import { pullFromSupabase, pushToSupabase } from '../utils/sync';
 
 const AuthContext = createContext(null);
 
@@ -25,9 +26,14 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
 
     try {
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        if (event === 'SIGNED_IN') {
+          pullFromSupabase();
+        } else if (event === 'USER_UPDATED') {
+          pullFromSupabase();
+        }
       });
       subscription = data.subscription;
     } catch {
@@ -37,7 +43,13 @@ export function AuthProvider({ children }) {
     return () => subscription?.unsubscribe();
   }, []);
 
-  const signup = (email, password) => supabase.auth.signUp({ email, password });
+  const signup = async (email, password) => {
+    const result = await supabase.auth.signUp({ email, password });
+    if (result.data?.user) {
+      pushToSupabase();
+    }
+    return result;
+  };
 
   const login = (email, password) => supabase.auth.signInWithPassword({ email, password });
 

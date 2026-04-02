@@ -15,6 +15,7 @@ import {
   exportData,
   importData,
 } from '../../utils/store';
+import { syncReadinessToSupabase } from '../../utils/sync';
 
 // Shared UI
 import Modal from '../ui/Modal';
@@ -118,7 +119,11 @@ function HomeView({
     store.set(todayReadinessKey, JSON.stringify(next));
     setReadiness(next);
     const score = getReadinessScore(next);
-    if (score !== null) setReadinessOpen(false);
+    if (score !== null) {
+      setReadinessOpen(false);
+      const dateStr = todayReadinessKey.replace('foundry:readiness:', '');
+      syncReadinessToSupabase(dateStr, next);
+    }
   };
 
   // ── Derived / computed values ───────────────────────────────────────────

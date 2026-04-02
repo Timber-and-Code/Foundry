@@ -1,4 +1,6 @@
 import { store } from './storage.js';
+import { validateProfile } from './validate.js';
+import { syncProfileToSupabase, syncBodyWeightToSupabase } from './sync.js';
 
 /**
  * Adjust base sets according to training phase.
@@ -238,6 +240,7 @@ export function addBwEntry(weight) {
   entries.unshift({ date, weight: parseFloat(weight) });
   if (entries.length > 52) entries.length = 52;
   saveBwLog(entries);
+  syncBodyWeightToSupabase(date, parseFloat(weight));
   return entries;
 }
 
@@ -337,11 +340,12 @@ export function markComplete(dayIdx, weekIdx) {
 
 export function loadProfile() {
   const raw = store.get('foundry:profile');
-  return raw ? JSON.parse(raw) : null;
+  return raw ? validateProfile(JSON.parse(raw)) : null;
 }
 
 export function saveProfile(profile) {
   store.set('foundry:profile', JSON.stringify(profile));
+  syncProfileToSupabase(profile);
 }
 
 export function isSkipped(dayIdx, weekIdx) {

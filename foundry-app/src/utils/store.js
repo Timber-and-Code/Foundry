@@ -35,3 +35,4 @@ export {
 export * from './persistence';
 export * from './analytics';
 export * from './archive';
+export { pullFromSupabase, pushToSupabase } from './sync';
