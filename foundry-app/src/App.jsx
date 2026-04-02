@@ -219,7 +219,7 @@ function App() {
   }
 
   if (!profile && !showSetup) {
-    return <React.Suspense fallback={suspenseFallback}><NoMesoShell onSetup={() => setShowSetup(true)} onStartProgram={newProfile => { saveProfile(newProfile); window.location.reload(); }} /></React.Suspense>;
+    return <React.Suspense fallback={suspenseFallback}><NoMesoShell onSetup={() => setShowSetup(true)} onStartProgram={newProfile => { saveProfile(newProfile); resetMesoCache(); setProfile(loadProfile()); setCompletedDays(loadCompleted(getMeso())); setCurrentWeek(loadCurrentWeek()); }} /></React.Suspense>;
   }
 
   if (!profile) {
@@ -227,7 +227,11 @@ function App() {
       saveProfile(p);
       localStorage.removeItem('foundry:storedProgram');
       if (!store.get("foundry:toured")) store.set("foundry:show_tour", "1");
-      window.location.reload();
+      resetMesoCache();
+      setProfile(loadProfile());
+      setCompletedDays(loadCompleted(getMeso()));
+      setCurrentWeek(loadCurrentWeek());
+      setShowSetup(false);
     }} /></React.Suspense>;
   }
 
@@ -405,7 +409,12 @@ function App() {
     resetMeso();
     localStorage.removeItem("foundry:profile");
     localStorage.removeItem("foundry:storedProgram");
-    window.location.reload();
+    resetMesoCache();
+    setProfile(null);
+    setCompletedDays(new Set());
+    setCurrentWeek(1);
+    setView("home");
+    setOnboarded(!!store.get("foundry:onboarded"));
   };
 
   const handleNextDay = (dayIdx, weekIdx) => {
