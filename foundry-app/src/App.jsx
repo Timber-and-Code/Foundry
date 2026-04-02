@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { RestTimerProvider, useRestTimer } from './contexts/RestTimerContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
 const UserMenu = React.lazy(() => import('./components/auth/UserMenu'));
@@ -31,7 +32,6 @@ import {
 // Run key migration before any reads (ppl: → foundry:)
 migrateKeys();
 import { generateProgram } from './utils/program';
-import { parseRestSeconds, haptic } from './utils/helpers';
 
 // Components
 import FoundryBanner from './components/shared/FoundryBanner';
@@ -84,85 +84,14 @@ function App() {
   } = useMesoState({ setView, setOnboarded });
 
   // ── Global rest timer ──
-  const [restTimer, setRestTimer] = useState(null);
-  const [restTimerMinimized, setRestTimerMinimized] = useState(false);
-  const restIntervalRef = useRef(null);
-  const restEndTimeRef = useRef(null);
-  const timerDayRef = useRef(null);
-
-  const fireTimerComplete = useCallback(() => {
-    try {
-      haptic('done');
-    } catch {}
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.4, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.6);
-    } catch {}
-  }, []);
-
-  const startRestTimer = useCallback(
-    (restStr, exName, dayIdx, weekIdx) => {
-      const secs = parseRestSeconds(restStr);
-      if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-      const endTime = Date.now() + secs * 1000;
-      restEndTimeRef.current = endTime;
-      if (dayIdx !== undefined) timerDayRef.current = { dayIdx, weekIdx };
-      setRestTimerMinimized(false);
-      setRestTimer({ remaining: secs, total: secs, exName });
-      restIntervalRef.current = setInterval(() => {
-        const remaining = Math.max(0, Math.ceil((restEndTimeRef.current - Date.now()) / 1000));
-        setRestTimer((prev) => {
-          if (!prev) {
-            clearInterval(restIntervalRef.current);
-            return null;
-          }
-          if (remaining <= 0) {
-            clearInterval(restIntervalRef.current);
-            fireTimerComplete();
-            return { ...prev, remaining: 0 };
-          }
-          return { ...prev, remaining };
-        });
-      }, 500);
-    },
-    [fireTimerComplete]
-  );
-
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && restEndTimeRef.current) {
-        const remaining = Math.max(0, Math.ceil((restEndTimeRef.current - Date.now()) / 1000));
-        setRestTimer((prev) => {
-          if (!prev) return null;
-          if (remaining <= 0) {
-            if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-            fireTimerComplete();
-            return { ...prev, remaining: 0 };
-          }
-          return { ...prev, remaining };
-        });
-      }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [fireTimerComplete]);
-
-  const dismissRestTimer = useCallback(() => {
-    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-    restEndTimeRef.current = null;
-    timerDayRef.current = null;
-    setRestTimer(null);
-    setRestTimerMinimized(false);
-  }, []);
+  const {
+    restTimer,
+    restTimerMinimized,
+    setRestTimerMinimized,
+    startRestTimer,
+    dismissRestTimer,
+    timerDayRef,
+  } = useRestTimer();
 
   // Listen for cardio open requests from DayView
   useEffect(() => {
@@ -400,11 +329,6 @@ function App() {
             profile={profile}
             activeDays={activeDays}
             onProfileUpdate={handleProfileUpdate}
-            restTimer={restTimer}
-            restTimerMinimized={restTimerMinimized}
-            setRestTimerMinimized={setRestTimerMinimized}
-            startRestTimer={startRestTimer}
-            dismissRestTimer={dismissRestTimer}
           />
         )}
 
@@ -519,7 +443,9 @@ export default function WrappedApp() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <AuthGate />
+        <RestTimerProvider>
+          <AuthGate />
+        </RestTimerProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

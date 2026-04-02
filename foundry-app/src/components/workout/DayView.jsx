@@ -35,6 +35,7 @@ import {
   loadExerciseHistory,
 } from '../../utils/store';
 import { haptic } from '../../utils/helpers';
+import { useRestTimer } from '../../contexts/RestTimerContext';
 
 // Components
 import ExerciseCard from './ExerciseCard';
@@ -50,12 +51,9 @@ function DayView({
   profile,
   activeDays,
   onProfileUpdate,
-  restTimer,
-  restTimerMinimized,
-  setRestTimerMinimized,
-  startRestTimer,
-  dismissRestTimer,
 }) {
+  const { restTimer, restTimerMinimized, setRestTimerMinimized, startRestTimer, dismissRestTimer } =
+    useRestTimer();
   const day = activeDays[dayIdx];
 
   // Guard: if the day slot doesn't exist (profile/MESO mismatch after restore), bail gracefully
