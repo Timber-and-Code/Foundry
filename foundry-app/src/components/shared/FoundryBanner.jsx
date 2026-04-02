@@ -1,7 +1,7 @@
 import React from 'react';
 import { FOUNDRY_ANVIL_IMG } from '../../data/images-core';
 
-function FoundryBanner({ subtitle, onProfileTap }) {
+function FoundryBanner({ subtitle, onProfileTap, userMenu }) {
   return (
     <div
       style={{
@@ -68,7 +68,9 @@ function FoundryBanner({ subtitle, onProfileTap }) {
           )}
         </div>
       </div>
-      {onProfileTap && (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {userMenu}
+        {onProfileTap && (
         <button
           onClick={onProfileTap}
           style={{
@@ -101,7 +103,8 @@ function FoundryBanner({ subtitle, onProfileTap }) {
             <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
           </svg>
         </button>
-      )}
+        )}
+      </div>
     </div>
   );
 }

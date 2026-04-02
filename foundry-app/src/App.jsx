@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
+const UserMenu = React.lazy(() => import('./components/auth/UserMenu'));
 
 // Data
 import {
@@ -770,6 +773,7 @@ function App() {
           <FoundryBanner
             subtitle={`${profile.name ? profile.name.toUpperCase() + ' · ' : ''}${getMeso().weeks}WK ${(getMeso().splitType || 'ppl').toUpperCase().replace(/_/g, ' ')} · WEEK ${activeWeek + 1}`}
             onProfileTap={view === 'home' ? () => setShowProfileDrawer(true) : undefined}
+            userMenu={<Suspense fallback={null}><UserMenu /></Suspense>}
           />
         </div>
 
@@ -1477,10 +1481,47 @@ function WeekCompleteModal({ modal, profile, onDismiss, onViewSummary, onReset }
   );
 }
 
+function AuthGate() {
+  const { user, loading, authUnavailable } = useAuth();
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: '#141414',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div style={{ color: '#e5e5e5', fontSize: 14 }}>Loading…</div>
+      </div>
+    );
+  }
+
+  // Supabase unreachable — bypass auth, use localStorage-only flow
+  if (authUnavailable) {
+    return <App />;
+  }
+
+  if (!user) {
+    return (
+      <React.Suspense fallback={null}>
+        <AuthPage />
+      </React.Suspense>
+    );
+  }
+
+  return <App />;
+}
+
 export default function WrappedApp() {
   return (
     <ErrorBoundary>
-      <App />
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

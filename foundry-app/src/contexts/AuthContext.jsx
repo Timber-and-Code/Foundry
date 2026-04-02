@@ -7,22 +7,34 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  // true when Supabase was unreachable on startup — app runs in offline/localStorage mode
+  const [authUnavailable, setAuthUnavailable] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    let subscription = null;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      })
+      .catch(() => {
+        setAuthUnavailable(true);
+      })
+      .finally(() => setLoading(false));
 
-    return () => subscription.unsubscribe();
+    try {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      });
+      subscription = data.subscription;
+    } catch {
+      // ignore if Supabase is unavailable
+    }
+
+    return () => subscription?.unsubscribe();
   }, []);
 
   const signup = (email, password) => supabase.auth.signUp({ email, password });
@@ -32,7 +44,7 @@ export function AuthProvider({ children }) {
   const logout = () => supabase.auth.signOut();
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signup, login, logout }}>
+    <AuthContext.Provider value={{ user, session, loading, authUnavailable, signup, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -34,6 +34,7 @@ const VARIANTS = {
 export default function Button({
   children,
   onClick,
+  type = 'button',
   variant = 'primary',
   disabled = false,
   fullWidth = false,
@@ -42,6 +43,7 @@ export default function Button({
   const base = VARIANTS[variant] || VARIANTS.primary;
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       style={{
