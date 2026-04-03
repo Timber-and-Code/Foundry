@@ -56,7 +56,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div
+    <main
       style={{
         minHeight: '100vh',
         background: 'var(--bg-root, #141414)',
@@ -69,7 +69,7 @@ export default function AuthPage() {
       }}
     >
       {/* Logo */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 40 }}>
+      <header style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 40 }}>
         <img
           src={typeof FOUNDRY_ANVIL_IMG !== 'undefined' ? FOUNDRY_ANVIL_IMG : ''}
           alt="Foundry"
@@ -81,28 +81,31 @@ export default function AuthPage() {
             boxShadow: '0 0 32px rgba(232,101,26,0.3)',
           }}
         />
-        <div
+        <h1
           style={{
             fontSize: tokens.fontSize.xxl,
             fontWeight: tokens.fontWeight.normal,
             letterSpacing: '0.25em',
             color: 'var(--text-primary, #e5e5e5)',
             fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+            margin: 0,
           }}
         >
           THE FOUNDRY
-        </div>
-        <div
+        </h1>
+        <h2
           style={{
             fontSize: 10,
             letterSpacing: '0.2em',
             color: 'rgba(232,101,26,0.7)',
             textTransform: 'uppercase',
+            margin: 0,
+            fontWeight: 400,
           }}
         >
           Forge your strength
-        </div>
-      </div>
+        </h2>
+      </header>
 
       {/* Card */}
       <div
@@ -132,6 +135,7 @@ export default function AuthPage() {
               onClick={() => { setMode(m); setError(''); setInfo(''); }}
               style={{
                 flex: 1,
+                minHeight: 44,
                 padding: `${tokens.spacing.sm}px`,
                 borderRadius: tokens.radius.md,
                 border: 'none',
@@ -153,6 +157,7 @@ export default function AuthPage() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label
+              htmlFor="email"
               style={{
                 display: 'block',
                 fontSize: tokens.fontSize.xs,
@@ -166,6 +171,7 @@ export default function AuthPage() {
               Email
             </label>
             <input
+              id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -174,6 +180,7 @@ export default function AuthPage() {
               placeholder="you@example.com"
               style={{
                 width: '100%',
+                minHeight: 44,
                 padding: '11px 12px',
                 background: 'var(--bg-root, #141414)',
                 border: '1px solid var(--border, rgba(255,255,255,0.1))',
@@ -188,6 +195,7 @@ export default function AuthPage() {
 
           <div>
             <label
+              htmlFor="password"
               style={{
                 display: 'block',
                 fontSize: tokens.fontSize.xs,
@@ -201,6 +209,7 @@ export default function AuthPage() {
               Password
             </label>
             <input
+              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -209,6 +218,7 @@ export default function AuthPage() {
               placeholder="••••••••"
               style={{
                 width: '100%',
+                minHeight: 44,
                 padding: '11px 12px',
                 background: 'var(--bg-root, #141414)',
                 border: '1px solid var(--border, rgba(255,255,255,0.1))',
@@ -270,6 +280,8 @@ export default function AuthPage() {
               color: 'var(--text-muted, #666)',
               textDecoration: 'underline',
               letterSpacing: '0.02em',
+              padding: '12px 16px',
+              minHeight: 44,
             }}
           >
             Forgot password?
@@ -286,6 +298,6 @@ export default function AuthPage() {
           background: 'linear-gradient(90deg, transparent, rgba(232,101,26,0.4), transparent)',
         }}
       />
-    </div>
+    </main>
   );
 }

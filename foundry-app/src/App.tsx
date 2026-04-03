@@ -363,6 +363,7 @@ function App() {
         )}
 
         {/* Views */}
+        <main>
         <Routes>
           <Route
             path="/"
@@ -423,6 +424,7 @@ function App() {
             element={<MobilityViewRoute profile={profile} />}
           />
         </Routes>
+        </main>
 
         {showTour && (
           <TourOverlay

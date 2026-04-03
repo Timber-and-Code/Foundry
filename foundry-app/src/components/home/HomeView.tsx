@@ -793,7 +793,8 @@ function HomeView({
 
       {/* ── Bottom tab bar ── */}
       {['landing', 'progress', 'schedule', 'explore'].includes(tab) && (
-        <div
+        <nav
+          aria-label="Main navigation"
           style={{
             position: 'fixed',
             bottom: 0,
@@ -871,7 +872,7 @@ function HomeView({
               </button>
             );
           })}
-        </div>
+        </nav>
       )}
     </div>
   );
