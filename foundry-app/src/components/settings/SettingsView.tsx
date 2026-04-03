@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { store } from '../../utils/store';
+import { tokens } from '../../styles/tokens';
 import { FOUNDRY_PROFILE_IMG } from '../../data/images-profile';
 
 const FOUNDRY_AI_WORKER_URL = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
@@ -79,10 +79,10 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   };
 
   const handleExport = () => {
-    const data = {};
+    const data: Record<string, string | null> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k.startsWith('foundry:')) data[k] = localStorage.getItem(k);
+      if (k && k.startsWith('foundry:')) data[k] = localStorage.getItem(k);
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: 'application/json',
@@ -112,12 +112,12 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 80 }, (_, i) => currentYear - 18 - i);
 
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     width: '100%',
     boxSizing: 'border-box',
     background: 'var(--bg-inset)',
     border: '1px solid var(--border)',
-    borderRadius: 6,
+    borderRadius: tokens.radius.md,
     color: 'var(--text-primary)',
     fontSize: 14,
     fontWeight: 600,
@@ -125,7 +125,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     outline: 'none',
     fontFamily: 'inherit',
   };
-  const selectStyle = {
+  const selectStyle: React.CSSProperties = {
     ...inputStyle,
     width: 'auto',
     appearance: 'none',
@@ -147,7 +147,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     padding: '9px 12px',
     background: 'var(--bg-inset)',
     border: '1px solid var(--border)',
-    borderRadius: 8,
+    borderRadius: tokens.radius.lg,
   };
   const fieldLabelStyle = { fontSize: 11, color: 'var(--text-muted)' };
   const fieldValueStyle = {
@@ -170,14 +170,14 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   // Load meso info
   const mesoData = (() => {
     try {
-      return JSON.parse(localStorage.getItem('foundry:meso'));
+      return JSON.parse(localStorage.getItem('foundry:meso')!);
     } catch (e) {
       return null;
     }
   })();
   const onboardData = (() => {
     try {
-      return JSON.parse(localStorage.getItem('foundry:onboarding_data'));
+      return JSON.parse(localStorage.getItem('foundry:onboarding_data')!);
     } catch (e) {
       return null;
     }
@@ -192,7 +192,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
         position: 'fixed',
         inset: 0,
         zIndex: 300,
-        background: 'rgba(0,0,0,0.55)',
+        background: tokens.colors.overlayMed,
         backdropFilter: 'blur(4px)',
       }}
       onClick={onClose}
@@ -334,7 +334,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                   textShadow: '0 1px 4px rgba(0,0,0,0.8)',
                 }}
               >
-                {expLabels[experience] || 'Not set'} · {splitLabels[saved.splitType] || '—'}
+                {(expLabels as Record<string, any>)[experience] || 'Not set'} · {(splitLabels as Record<string, any>)[saved.splitType] || '—'}
               </div>
             </div>
           </div>
@@ -355,11 +355,11 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={fieldRowStyle}>
               <span style={fieldLabelStyle}>Experience</span>
-              <span style={fieldValueStyle}>{expLabels[experience] || 'Not set'}</span>
+              <span style={fieldValueStyle}>{(expLabels as Record<string, any>)[experience] || 'Not set'}</span>
             </div>
             <div style={fieldRowStyle}>
               <span style={fieldLabelStyle}>Split</span>
-              <span style={fieldValueStyle}>{splitLabels[saved.splitType] || '—'}</span>
+              <span style={fieldValueStyle}>{(splitLabels as Record<string, any>)[saved.splitType] || '—'}</span>
             </div>
             {totalWeeks && (
               <div style={fieldRowStyle}>
@@ -383,7 +383,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             aria-expanded={showEditFields}
             style={{
               padding: '8px 12px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               background: 'var(--bg-inset)',
               border: '1px solid var(--border)',
@@ -492,7 +492,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                       style={{
                         flex: 1,
                         padding: '9px 6px',
-                        borderRadius: 6,
+                        borderRadius: tokens.radius.md,
                         cursor: 'pointer',
                         background:
                           form.gender === val ? 'rgba(var(--accent-rgb),0.12)' : 'var(--bg-inset)',
@@ -512,7 +512,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 onClick={handleSave}
                 style={{
                   padding: '13px',
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   cursor: 'pointer',
                   background: didSave ? 'var(--phase-accum)' : 'var(--btn-primary-bg)',
                   border: `1px solid ${didSave ? 'var(--phase-accum)' : 'var(--btn-primary-border)'}`,
@@ -561,10 +561,10 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             <button
               onClick={() => {
                 if (window.confirm('Reset ALL Foundry data? This cannot be undone.')) {
-                  const keys = [];
+                  const keys: string[] = [];
                   for (let i = 0; i < localStorage.length; i++) {
                     const k = localStorage.key(i);
-                    if (k.startsWith('foundry:')) keys.push(k);
+                    if (k && k.startsWith('foundry:')) keys.push(k);
                   }
                   keys.forEach((k) => localStorage.removeItem(k));
                   window.location.reload();
@@ -631,7 +631,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 position: 'fixed',
                 inset: 0,
                 zIndex: 9999,
-                background: 'rgba(0,0,0,0.7)',
+                background: tokens.colors.overlayMed,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -647,7 +647,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               <div
                 style={{
                   background: 'var(--bg-surface)',
-                  borderRadius: 14,
+                  borderRadius: tokens.radius.xxl,
                   padding: 20,
                   width: '100%',
                   maxWidth: 360,
@@ -688,7 +688,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                     resize: 'vertical',
                     background: 'var(--bg-inset)',
                     border: '1px solid var(--border)',
-                    borderRadius: 8,
+                    borderRadius: tokens.radius.lg,
                     color: 'var(--text-primary)',
                     fontSize: 13,
                     padding: '10px 12px',
@@ -708,7 +708,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                     style={{
                       flex: 1,
                       padding: '10px 0',
-                      borderRadius: 8,
+                      borderRadius: tokens.radius.lg,
                       fontSize: 13,
                       fontWeight: 600,
                       background: 'transparent',
@@ -730,7 +730,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                     style={{
                       flex: 1,
                       padding: '10px 0',
-                      borderRadius: 8,
+                      borderRadius: tokens.radius.lg,
                       fontSize: 13,
                       fontWeight: 600,
                       background:

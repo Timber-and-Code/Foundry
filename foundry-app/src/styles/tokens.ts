@@ -17,7 +17,10 @@ export const tokens = {
     bgInput:   '#161618',
 
     // Overlay
-    overlay:   'rgba(0,0,0,0.82)',
+    overlay:      'rgba(0,0,0,0.82)',
+    overlayLight: 'rgba(0,0,0,0.6)',
+    overlayHeavy: 'rgba(0,0,0,0.88)',
+    overlayMed:   'rgba(0,0,0,0.75)',
 
     // Brand / accent
     accent:         '#E8651A',
@@ -43,6 +46,23 @@ export const tokens = {
     btnPrimaryBg:     '#C0392B',
     btnPrimaryBorder: '#E8651A',
     btnPrimaryText:   '#E8E4DC',
+
+    // Warm gold / mobility / cardio-rest
+    gold:         '#D4983C',
+    goldDim:      '#D4983C20',
+    goldBorder:   '#D4983C55',
+    goldSubtle:   '#D4983C10',
+    goldMedium:   '#D4983C44',
+    goldAccent:   '#D4983C30',
+
+    // Amber / hover accent
+    amber:        '#F29A52',
+
+    // Cardio intensity
+    cardioHard:   '#E75831',
+
+    // Amber highlight (ExerciseCard PR glow)
+    amberHighlight: 'rgba(255, 193, 7, 0.1)',
 
     // Status
     dangerBg:     'rgba(220,38,38,0.1)',
@@ -71,6 +91,7 @@ export const tokens = {
     lg:   8,
     xl:   12,
     xxl:  14,
+    round: 20,
     pill: 999,
   },
 

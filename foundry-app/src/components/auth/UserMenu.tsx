@@ -6,7 +6,7 @@ function useSyncState() {
   const [state, setState] = useState(() => (typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'idle'));
 
   useEffect(() => {
-    const onSync = (e) => {
+    const onSync = (e: any) => {
       if (!navigator.onLine) return;
       setState(e.detail.inflight > 0 ? 'syncing' : 'synced');
     };
@@ -31,6 +31,27 @@ function useSyncState() {
   return state;
 }
 
+function useSyncDirtyCount() {
+  const read = () => {
+    try {
+      const raw = localStorage.getItem('foundry:sync:dirty');
+      if (!raw) return 0;
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.length : 0;
+    } catch { return 0; }
+  };
+
+  const [count, setCount] = useState(read);
+
+  useEffect(() => {
+    const handler = () => setCount(read());
+    window.addEventListener('foundry:sync', handler);
+    return () => window.removeEventListener('foundry:sync', handler);
+  }, []);
+
+  return count;
+}
+
 const SYNC_DOT = {
   idle:    { color: 'rgba(255,255,255,0.15)', title: 'Cloud sync active' },
   syncing: { color: '#60a5fa',                title: 'Syncing…' },
@@ -41,6 +62,7 @@ const SYNC_DOT = {
 export default function UserMenu() {
   const { user, logout } = useAuth();
   const syncState = useSyncState();
+  const dirtyCount = useSyncDirtyCount();
   if (!user) return null;
 
   const label = user.email ? user.email.split('@')[0] : 'account';
@@ -58,17 +80,32 @@ export default function UserMenu() {
       }}
     >
       <span
-        title={SYNC_DOT[syncState].title}
+        title={(SYNC_DOT as Record<string, any>)[syncState].title}
         style={{
           width: 6,
           height: 6,
           borderRadius: '50%',
-          background: SYNC_DOT[syncState].color,
+          background: (SYNC_DOT as Record<string, any>)[syncState].color,
           flexShrink: 0,
           transition: 'background 0.4s',
           boxShadow: syncState === 'syncing' ? `0 0 4px ${SYNC_DOT.syncing.color}` : 'none',
         }}
       />
+      {dirtyCount > 0 && (
+        <span
+          style={{
+            fontSize: 10,
+            color: 'var(--text-muted, #888)',
+            background: 'rgba(255,255,255,0.06)',
+            padding: '1px 5px',
+            borderRadius: tokens.radius.sm,
+            whiteSpace: 'nowrap',
+          }}
+          title={`${dirtyCount} change${dirtyCount === 1 ? '' : 's'} pending sync`}
+        >
+          {dirtyCount} pending
+        </span>
+      )}
       <span
         style={{
           fontSize: tokens.fontSize.xs,

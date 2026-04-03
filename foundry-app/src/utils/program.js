@@ -1,4 +1,4 @@
-import { shuffle } from './training.js';
+import { shuffle } from './training';
 
 /**
  * Generate a complete training program from a user profile.

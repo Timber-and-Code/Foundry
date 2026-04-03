@@ -3,7 +3,11 @@
 export interface WorkoutSet {
   weight: number | string;
   reps: number | string;
-  [key: string]: unknown;
+  rpe?: number | string;
+  confirmed?: boolean;
+  warmup?: boolean;
+  suggested?: boolean;
+  repsSuggested?: boolean;
 }
 
 /** { [exerciseIndex]: { [setIndex]: WorkoutSet } } */
@@ -13,7 +17,7 @@ export interface Exercise {
   id?: string | number;
   name: string;
   muscle: string;
-  equipment?: string;
+  equipment?: string | string[];
   anchor?: boolean;
   sets?: number | string;
   reps?: number | string;
@@ -21,7 +25,15 @@ export interface Exercise {
   warmup?: string;
   bw?: boolean;
   supersetWith?: number;
-  [key: string]: unknown;
+  progression?: string;
+  modifier?: string;
+  description?: string;
+  howTo?: string;
+  videoUrl?: string;
+  tag?: string;
+  muscles?: string[];
+  pattern?: string;
+  cardio?: boolean;
 }
 
 export interface TrainingDay {
@@ -30,7 +42,9 @@ export interface TrainingDay {
   type?: string;
   isRest?: boolean;
   isCardio?: boolean;
-  [key: string]: unknown;
+  tag?: string;
+  name?: string;
+  dayNum?: number;
 }
 
 // ─── PROFILE ─────────────────────────────────────────────────────────────────
@@ -52,7 +66,7 @@ export interface Profile {
   workoutDays?: number[];
   mesoLength?: number;
   startDate?: string;
-  equipment?: string;
+  equipment?: string | string[];
   sessionDuration?: number | string;
   autoBuilt?: boolean;
   aiDays?: TrainingDay[];
@@ -60,7 +74,29 @@ export interface Profile {
   manualDayPairs?: Record<string, [number, number][]>;
   manualCardioDays?: number[];
   workoutDaysHistory?: WorkoutDaysHistoryEntry[];
-  [key: string]: unknown;
+  birthdate?: string;
+  cardioSchedule?: CardioScheduleSlot[];
+  addedDayExercises?: Record<string, Exercise[]>;
+  pplLegBalance?: boolean;
+  theme?: string;
+  goalNote?: string;
+}
+
+// ─── CARDIO ─────────────────────────────────────────────────────────────────
+
+export interface CardioScheduleSlot {
+  dayOfWeek: number;
+  protocol: string;
+}
+
+export interface CardioSession {
+  completed?: boolean;
+  type?: string;
+  duration?: number;
+  intensity?: string;
+  protocolId?: string;
+  startedAt?: number | string;
+  data?: Record<string, unknown>;
 }
 
 // ─── MESO CONFIG ─────────────────────────────────────────────────────────────
@@ -70,8 +106,12 @@ export type SplitType = 'ppl' | 'upper_lower' | 'full_body' | 'push_pull';
 export interface MesoConfig {
   days: number;
   weeks: number;
-  split: SplitType;
-  [key: string]: unknown;
+  split?: SplitType;
+  splitType?: string;
+  phases?: string[];
+  rirs?: (number | string)[];
+  mesoRows?: [number | null, string, string, string][];
+  progTargets?: { weight: string[]; reps: string[] };
 }
 
 // ─── READINESS ───────────────────────────────────────────────────────────────
@@ -80,7 +120,6 @@ export interface ReadinessEntry {
   sleep?: 'poor' | 'ok' | 'good';
   soreness?: 'high' | 'moderate' | 'low';
   energy?: 'low' | 'moderate' | 'high';
-  [key: string]: unknown;
 }
 
 // ─── BODY WEIGHT ─────────────────────────────────────────────────────────────
@@ -94,7 +133,9 @@ export interface BodyWeightEntry {
 
 export interface ArchiveEntry {
   id: number | string;
-  profile?: Partial<Profile>;
+  profile?: Partial<Profile> & Record<string, unknown>;
   builtBy?: 'ai' | 'manual';
-  [key: string]: unknown;
+  completedAt?: string;
+  weeks?: number;
+  date?: string;
 }

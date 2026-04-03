@@ -1,4 +1,5 @@
 import React from 'react';
+import { tokens } from '../../styles/tokens';
 
 interface HammerIconProps {
   size?: number;
@@ -19,7 +20,7 @@ function HammerIcon({ size = 22, style = {} }: HammerIconProps) {
         ...style,
       }}
     >
-      <line x1="12" y1="22" x2="12" y2="9" stroke="#D4983C" strokeWidth="3" strokeLinecap="round" />
+      <line x1="12" y1="22" x2="12" y2="9" stroke={tokens.colors.gold} strokeWidth="3" strokeLinecap="round" />
       <rect x="3" y="2" width="18" height="7" rx="2" fill="#E8651A" />
     </svg>
   );

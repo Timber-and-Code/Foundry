@@ -1,5 +1,6 @@
 import React from 'react';
 import { haptic } from '../../utils/helpers';
+import { tokens } from '../../styles/tokens';
 
 interface CardioIntervalTimerProps {
   protocol: any;
@@ -15,11 +16,11 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
   const [round, setRound] = React.useState(1);
   const [remaining, setRemaining] = React.useState(workSecs);
   const [minimized, setMinimized] = React.useState(false);
-  const intervalRef = React.useRef(null);
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const WORK_COLOR = '#E75831';
-  const REST_COLOR = '#D4983C';
-  const DONE_COLOR = '#E8E4DC';
+  const WORK_COLOR = tokens.colors.cardioHard;
+  const REST_COLOR = tokens.colors.gold;
+  const DONE_COLOR = tokens.colors.textPrimary;
 
   const ringColor = phase === 'done' ? DONE_COLOR : phase === 'work' ? WORK_COLOR : REST_COLOR;
   const total = phase === 'work' ? workSecs : phase === 'rest' ? restSecs : 1;
@@ -36,11 +37,11 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
   // ── Tick ──
   React.useEffect(() => {
     if (phase === 'done') {
-      clearInterval(intervalRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
     intervalRef.current = setInterval(() => {
-      setRemaining((prev) => {
+      setRemaining((prev: any) => {
         if (prev <= 1) {
           if (phase === 'work') {
             haptic('tap');
@@ -62,11 +63,11 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(intervalRef.current);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [phase, round]);
 
   const handleSkip = () => {
-    clearInterval(intervalRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
     if (phase === 'work') {
       if (round >= rounds) {
         setPhase('done');
@@ -83,7 +84,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
   };
 
   const handleDone = () => {
-    clearInterval(intervalRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
     onComplete();
   };
 
@@ -132,7 +133,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
               style={{
                 fontSize: 24,
                 fontWeight: 900,
-                color: 'rgba(0,0,0,0.75)',
+                color: tokens.colors.overlayMed,
                 fontVariantNumeric: 'tabular-nums',
                 minWidth: 54,
                 lineHeight: 1,
@@ -145,7 +146,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
                 style={{
                   fontSize: 13,
                   fontWeight: 700,
-                  color: 'rgba(0,0,0,0.75)',
+                  color: tokens.colors.overlayMed,
                   lineHeight: 1,
                 }}
               >
@@ -154,7 +155,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
               <div
                 style={{
                   fontSize: 12,
-                  color: 'rgba(0,0,0,0.55)',
+                  color: tokens.colors.overlayMed,
                   lineHeight: 1,
                 }}
               >
@@ -170,7 +171,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
               color: 'rgba(0,0,0,0.65)',
               background: 'rgba(0,0,0,0.15)',
               border: '1px solid rgba(0,0,0,0.2)',
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
               padding: '7px 12px',
               whiteSpace: 'nowrap',
             }}
@@ -189,7 +190,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
         position: 'fixed',
         inset: 0,
         zIndex: 225,
-        background: 'rgba(0,0,0,0.88)',
+        background: tokens.colors.overlayHeavy,
         backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
@@ -201,7 +202,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
         style={{
           background: 'var(--bg-card)',
           border: `1px solid ${ringColor}44`,
-          borderRadius: 16,
+          borderRadius: tokens.radius.xxl,
           boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
           width: '100%',
           maxWidth: 340,
@@ -223,7 +224,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
               right: 12,
               background: 'var(--bg-inset)',
               border: '1px solid var(--border)',
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
               padding: '4px 8px',
               cursor: 'pointer',
               fontSize: 12,
@@ -368,7 +369,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
               padding: '16px',
               fontSize: 14,
               fontWeight: 800,
-              borderRadius: 10,
+              borderRadius: tokens.radius.xl,
               cursor: 'pointer',
               letterSpacing: '0.04em',
               background: DONE_COLOR,
@@ -387,7 +388,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
                 padding: '14px',
                 fontSize: 13,
                 fontWeight: 700,
-                borderRadius: 10,
+                borderRadius: tokens.radius.xl,
                 cursor: 'pointer',
                 background: 'var(--bg-inset)',
                 border: '1px solid var(--border)',
@@ -404,7 +405,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
                 padding: '14px',
                 fontSize: 13,
                 fontWeight: 800,
-                borderRadius: 10,
+                borderRadius: tokens.radius.xl,
                 cursor: 'pointer',
                 background: `${ringColor}22`,
                 border: `1px solid ${ringColor}55`,

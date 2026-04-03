@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { tokens } from '../../styles/tokens';
 
 // Data
-import { PHASE_COLOR, TAG_ACCENT, getProgTargets, getWeekPhase } from '../../data/constants';
+import { getProgTargets } from '../../data/constants';
 
 // Utils
 import {
@@ -9,9 +10,44 @@ import {
   getWarmupDetail,
   generateWarmupSteps,
   loadArchive,
-  loadExerciseHistory,
 } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
+
+interface HistoryRow {
+  w: number;
+  maxW: number;
+  maxR: number;
+  sets: number;
+}
+
+interface StallTarget {
+  w: number;
+  r: number;
+}
+
+interface SetData {
+  weight?: string | number;
+  reps?: string | number;
+  rpe?: string | number;
+  warmup?: boolean;
+  confirmed?: boolean;
+  repsSuggested?: boolean;
+  [key: string]: unknown;
+}
+
+interface ArchiveSession {
+  w: number;
+  d: number;
+  data: Record<string, Record<string, SetData>>;
+  exOvs?: Record<number, string>;
+  [key: string]: unknown;
+}
+
+interface ArchiveRecord {
+  mesoWeeks: number;
+  sessions: ArchiveSession[];
+  [key: string]: unknown;
+}
 
 interface ExerciseCardProps {
   exercise: any;
@@ -19,18 +55,18 @@ interface ExerciseCardProps {
   dayIdx: number;
   weekIdx: number;
   weekData: any;
-  onUpdateSet: (args: any) => void;
-  onWeightAutoFill: (args: any) => void;
-  onLastSetFilled: (args: any) => void;
+  onUpdateSet: (...args: any[]) => void;
+  onWeightAutoFill: (...args: any[]) => void;
+  onLastSetFilled: (...args: any[]) => void;
   expanded: boolean;
   onToggle: () => void;
   done: boolean;
   readOnly: boolean;
-  onSwapClick: () => void;
-  onSetLogged: (args: any) => void;
+  onSwapClick: (...args: any[]) => void;
+  onSetLogged: (...args: any[]) => void;
   bodyweight: any;
   note: string;
-  onNoteChange: (note: string) => void;
+  onNoteChange: (...args: any[]) => void;
 }
 
 function ExerciseCard({
@@ -47,12 +83,12 @@ function ExerciseCard({
   done,
   readOnly,
   onSwapClick,
-  onSetLogged,
-  bodyweight,
+  onSetLogged: _onSetLogged,
+  bodyweight: _bodyweight,
   note,
   onNoteChange,
 }: ExerciseCardProps) {
-  const goal = getProgTargets()[exercise.progression]?.[weekIdx];
+  const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression]?.[weekIdx];
   const goalColor =
     weekIdx < 2
       ? 'var(--text-muted)'
@@ -62,11 +98,11 @@ function ExerciseCard({
           ? 'var(--phase-intens)'
           : 'var(--danger)';
   const [showHistory, setShowHistory] = useState(false);
-  const [historyRows, setHistoryRows] = useState([]);
+  const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
   const [showHowTo, setShowHowTo] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
   const [warmupOpen, setWarmupOpen] = useState(false);
-  const [noteOpen, setNoteOpen] = useState(!!(note && note.trim()));
+  const [noteOpen, _setNoteOpen] = useState(!!(note && note.trim()));
 
   // Load prev week raw data for "Last session" context hints
   const prevWeekRaw = useMemo(() => {
@@ -84,32 +120,27 @@ function ExerciseCard({
   const crossMesoNote = useMemo(() => {
     if (weekIdx !== 0) return null;
     try {
-      const archive = loadArchive();
+      const archive = loadArchive() as unknown as ArchiveRecord[];
       if (!archive.length) return null;
       const recent = archive[0];
       // Last working week = mesoWeeks - 1 (skip deload which is index mesoWeeks)
       const lastWorkingWeek = recent.mesoWeeks - 1;
       // Find sessions for this exercise name in the last working week
-      const exName = exercise.name.toLowerCase();
       let bestWeight = 0,
         bestReps = 0;
-      recent.sessions.forEach((sess) => {
+      recent.sessions.forEach((sess: ArchiveSession) => {
         if (sess.w !== lastWorkingWeek) return;
         const exData = sess.data;
         // Check all exercise slots in that session
-        Object.values(exData).forEach((exSets, idx) => {
-          // Match by exercise name via override or program position
-          const ovId = recent.sessions.find((s2) => s2.d === sess.d && s2.w === sess.w)?.exOvs?.[
-            idx
-          ];
+        Object.values(exData).forEach((exSets: Record<string, SetData>, idx: number) => {
           // We don't have the exercise name easily — match by finding the best set
           // with meaningful weight across the session and compare to current exercise
           // Simple approach: look for data under same exIdx in same day position
           if (idx === exIdx) {
-            Object.values(exSets || {}).forEach((sd) => {
+            Object.values(exSets || {}).forEach((sd: SetData) => {
               if (!sd || !sd.weight || !sd.reps || sd.warmup) return;
-              const w = parseFloat(sd.weight);
-              const r = parseInt(sd.reps);
+              const w = parseFloat(String(sd.weight));
+              const r = parseInt(String(sd.reps));
               if (w > bestWeight || (w === bestWeight && r > bestReps)) {
                 bestWeight = w;
                 bestReps = r;
@@ -137,13 +168,13 @@ function ExerciseCard({
     }
     return restored;
   });
-  const handleWeightBlur = (s, value) => {
+  const handleWeightBlur = (s: any, value: any) => {
     if (s === 0 && value.trim() !== '' && !isNaN(parseFloat(value))) {
       onWeightAutoFill(exIdx, value, exercise.sets);
     }
   };
 
-  const handleRepsChange = (s, value) => {
+  const handleRepsChange = (s: any, value: any) => {
     onUpdateSet(exIdx, s, 'reps', value);
     // Un-done the set if user edits it
     setDoneSets((prev) => {
@@ -153,11 +184,11 @@ function ExerciseCard({
     });
   };
 
-  const handleRepsBlur = (s, value) => {
+  const handleRepsBlur = (_s: any, _value: any) => {
     // No-op: set completion now driven by explicit checkmark tap
   };
 
-  const handleSetCheckmark = (s) => {
+  const handleSetCheckmark = (s: any) => {
     if (doneSets.has(s)) {
       // Uncheck — re-enable editing, clear confirmed flag
       setDoneSets((prev) => {
@@ -186,13 +217,13 @@ function ExerciseCard({
     const weight = parseFloat(curr.weight || 0);
     const prevData = prevWeekRaw[exIdx] || {};
     // Default: match prev week's best
-    let stallTarget = null,
+    let stallTarget: StallTarget | null = null,
       stallWarning = false;
     for (let ps = 0; ps < (exercise.sets || 4); ps++) {
       const psd = prevData[ps] || {};
       if (!psd.reps || !psd.weight || psd.warmup) continue;
-      const pw = parseFloat(psd.weight);
-      const pr = parseInt(psd.reps);
+      const pw = parseFloat(String(psd.weight));
+      const pr = parseInt(String(psd.reps));
       if (!stallTarget || pw > stallTarget.w || (pw === stallTarget.w && pr > stallTarget.r)) {
         stallTarget = { w: pw, r: pr };
       }
@@ -211,19 +242,19 @@ function ExerciseCard({
   useEffect(() => {
     if (!expanded) return;
     try {
-      const rows = [];
+      const rows: HistoryRow[] = [];
       // Last 3 weeks in current meso
       for (let w = weekIdx - 1; w >= Math.max(0, weekIdx - 3); w--) {
         const rawData = store.get(`foundry:day${dayIdx}:week${w}`);
         if (!rawData) continue;
         const parsed = JSON.parse(rawData);
         const exData = parsed[exIdx] || {};
-        const weights = [],
-          reps = [];
-        for (const [setIdx, sd] of Object.entries(exData)) {
+        const weights: number[] = [],
+          reps: number[] = [];
+        for (const [_setIdx, sd] of Object.entries(exData) as [string, SetData][]) {
           if (!sd.weight || !sd.reps || sd.warmup) continue;
-          weights.push(parseFloat(sd.weight));
-          reps.push(parseInt(sd.reps));
+          weights.push(parseFloat(String(sd.weight)));
+          reps.push(parseInt(String(sd.reps)));
         }
         if (weights.length > 0) {
           rows.push({
@@ -274,7 +305,7 @@ function ExerciseCard({
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        borderRadius: 8,
+        borderRadius: tokens.radius.lg,
         marginBottom: 12,
         overflow: 'hidden',
         transition: 'border-color 0.2s',
@@ -348,7 +379,7 @@ function ExerciseCard({
                   background: 'var(--bg-inset)',
                   color: 'var(--text-muted)',
                   padding: '2px 6px',
-                  borderRadius: 3,
+                  borderRadius: tokens.radius.xs,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -410,7 +441,7 @@ function ExerciseCard({
                   fontSize: 12,
                   fontWeight: 600,
                   padding: '10px 12px',
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   background: 'var(--bg-inset)',
                   border: '1px solid var(--border)',
                   color: 'var(--text-accent)',
@@ -431,7 +462,7 @@ function ExerciseCard({
                   fontSize: 12,
                   fontWeight: 600,
                   padding: '10px 12px',
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   background: warmupOpen ? 'rgba(var(--accent-rgb),0.15)' : 'var(--bg-inset)',
                   border: warmupOpen ? '1px solid var(--text-accent)' : '1px solid var(--border)',
                   color: 'var(--text-accent)',
@@ -452,7 +483,7 @@ function ExerciseCard({
                   fontSize: 12,
                   fontWeight: 600,
                   padding: '10px 12px',
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   background: 'var(--bg-inset)',
                   border: '1px solid var(--border)',
                   color: 'var(--text-accent)',
@@ -476,7 +507,7 @@ function ExerciseCard({
                 color: 'var(--text-secondary)',
                 background: 'var(--bg-inset)',
                 padding: 12,
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 marginBottom: 12,
                 border: '1px solid var(--border)',
               }}
@@ -491,9 +522,9 @@ function ExerciseCard({
                 Ramp-Up Sets
               </div>
               <ol style={{ paddingLeft: 20, margin: 0 }}>
-                {generateWarmupSteps(exercise, workingWeight).map((step, idx) => (
+                {generateWarmupSteps(exercise, workingWeight)?.map((step: any, idx: number) => (
                   <li key={idx} style={{ marginBottom: 4 }}>
-                    {step}
+                    <strong>{step.label}</strong> — {step.reps}{step.detail ? `: ${step.detail}` : ''}
                   </li>
                 ))}
               </ol>
@@ -504,9 +535,9 @@ function ExerciseCard({
           {stallWarning && (
             <div
               style={{
-                background: 'rgba(255, 193, 7, 0.1)',
+                background: tokens.colors.amberHighlight,
                 border: '1px solid var(--danger)',
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 padding: 10,
                 marginBottom: 12,
                 fontSize: 12,
@@ -527,14 +558,14 @@ function ExerciseCard({
                 marginBottom: 12,
                 padding: '8px',
                 background: 'var(--bg-inset)',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
               }}
             >
               Last session:{' '}
-              {Object.values(prevWeekRaw[exIdx] || {}).find(
-                (sd) => sd.weight && sd.reps && !sd.warmup
+              {(Object.values(prevWeekRaw[exIdx] || {}) as SetData[]).find(
+                (sd: SetData) => sd.weight && sd.reps && !sd.warmup
               )
-                ? `${Object.values(prevWeekRaw[exIdx])[0]?.weight} × ${Object.values(prevWeekRaw[exIdx])[0]?.reps}`
+                ? `${(Object.values(prevWeekRaw[exIdx]) as SetData[])[0]?.weight} × ${(Object.values(prevWeekRaw[exIdx]) as SetData[])[0]?.reps}`
                 : '—'}
             </div>
           )}
@@ -548,7 +579,7 @@ function ExerciseCard({
                 marginBottom: 12,
                 padding: '8px',
                 background: 'var(--bg-inset)',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
               }}
             >
               {crossMesoNote}
@@ -600,7 +631,7 @@ function ExerciseCard({
                       style={{
                         background: 'var(--bg-inset)',
                         border: '1px solid var(--border)',
-                        borderRadius: 4,
+                        borderRadius: tokens.radius.sm,
                         padding: '6px 8px',
                         fontSize: 13,
                         color: 'var(--text-primary)',
@@ -618,7 +649,7 @@ function ExerciseCard({
                       style={{
                         background: 'var(--bg-inset)',
                         border: '1px solid var(--border)',
-                        borderRadius: 4,
+                        borderRadius: tokens.radius.sm,
                         padding: '6px 8px',
                         fontSize: 13,
                         color: 'var(--text-primary)',
@@ -635,7 +666,7 @@ function ExerciseCard({
                       style={{
                         background: 'var(--bg-inset)',
                         border: '1px solid var(--border)',
-                        borderRadius: 4,
+                        borderRadius: tokens.radius.sm,
                         padding: '6px 8px',
                         fontSize: 13,
                         color: 'var(--text-primary)',
@@ -651,7 +682,7 @@ function ExerciseCard({
                         width: 32,
                         height: 32,
                         border: isDone ? '2px solid var(--success)' : '1px solid var(--border)',
-                        borderRadius: 4,
+                        borderRadius: tokens.radius.sm,
                         background: isDone ? 'var(--success)' : 'var(--bg-inset)',
                         color: isDone ? 'white' : 'var(--text-primary)',
                         cursor: readOnly ? 'default' : 'pointer',
@@ -676,7 +707,7 @@ function ExerciseCard({
                 minWidth: 100,
                 fontSize: 12,
                 padding: '8px 12px',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
                 background: 'var(--bg-inset)',
                 border: '1px solid var(--border)',
                 color: 'var(--text-accent)',
@@ -692,7 +723,7 @@ function ExerciseCard({
                 minWidth: 100,
                 fontSize: 12,
                 padding: '8px 12px',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
                 background: 'var(--bg-inset)',
                 border: '1px solid var(--border)',
                 color: 'var(--text-accent)',
@@ -709,7 +740,7 @@ function ExerciseCard({
                   minWidth: 100,
                   fontSize: 12,
                   padding: '8px 12px',
-                  borderRadius: 4,
+                  borderRadius: tokens.radius.sm,
                   background: 'var(--bg-inset)',
                   border: '1px solid var(--border)',
                   color: 'var(--text-accent)',
@@ -739,7 +770,7 @@ function ExerciseCard({
                   width: '100%',
                   minHeight: 80,
                   padding: '8px',
-                  borderRadius: 4,
+                  borderRadius: tokens.radius.sm,
                   border: '1px solid var(--border)',
                   background: 'var(--bg-inset)',
                   color: 'var(--text-primary)',
@@ -772,7 +803,7 @@ function ExerciseCard({
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   padding: 20,
                   maxWidth: 400,
                   width: '90%',
@@ -792,7 +823,7 @@ function ExerciseCard({
                         style={{
                           padding: 10,
                           background: 'var(--bg-inset)',
-                          borderRadius: 4,
+                          borderRadius: tokens.radius.sm,
                           fontSize: 12,
                         }}
                       >
@@ -811,7 +842,7 @@ function ExerciseCard({
                     marginTop: 16,
                     width: '100%',
                     padding: '8px',
-                    borderRadius: 4,
+                    borderRadius: tokens.radius.sm,
                     background: 'var(--bg-inset)',
                     border: '1px solid var(--border)',
                     color: 'var(--text-primary)',
@@ -845,7 +876,7 @@ function ExerciseCard({
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   padding: 20,
                   maxWidth: 400,
                   width: '90%',
@@ -883,7 +914,7 @@ function ExerciseCard({
                   style={{
                     width: '100%',
                     padding: '8px',
-                    borderRadius: 4,
+                    borderRadius: tokens.radius.sm,
                     background: 'var(--bg-inset)',
                     border: '1px solid var(--border)',
                     color: 'var(--text-primary)',
@@ -917,7 +948,7 @@ function ExerciseCard({
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   padding: 20,
                   maxWidth: 400,
                   width: '90%',
@@ -935,7 +966,7 @@ function ExerciseCard({
                     marginBottom: 16,
                   }}
                 >
-                  {getWarmupDetail(exercise.warmup, exercise.name)?.detail}
+                  {(getWarmupDetail(exercise.warmup, exercise.name) as any)?.detail}
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Steps:</div>
                 <ol
@@ -946,9 +977,9 @@ function ExerciseCard({
                     paddingLeft: 20,
                   }}
                 >
-                  {generateWarmupSteps(exercise, workingWeight).map((step, idx) => (
+                  {generateWarmupSteps(exercise, workingWeight)?.map((step: any, idx: number) => (
                     <li key={idx} style={{ marginBottom: 6 }}>
-                      {step}
+                      <strong>{step.label}</strong> — {step.reps}{step.detail ? `: ${step.detail}` : ''}
                     </li>
                   ))}
                 </ol>
@@ -957,7 +988,7 @@ function ExerciseCard({
                   style={{
                     width: '100%',
                     padding: '8px',
-                    borderRadius: 4,
+                    borderRadius: tokens.radius.sm,
                     background: 'var(--bg-inset)',
                     border: '1px solid var(--border)',
                     color: 'var(--text-primary)',
@@ -975,7 +1006,7 @@ function ExerciseCard({
   );
 }
 
-function areExerciseCardsEqual(prev, next) {
+function areExerciseCardsEqual(prev: any, next: any) {
   // Cheap primitive checks first
   if (
     prev.exIdx !== next.exIdx ||

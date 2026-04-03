@@ -9,7 +9,7 @@ import {
   clearAllSkips,
   resetMeso,
   archiveCurrentMeso,
-} from '../archive.js';
+} from '../archive';
 
 // ============================================================================
 // loadArchive

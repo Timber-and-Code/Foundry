@@ -1,6 +1,8 @@
+import type { MesoConfig, SplitType } from '../types';
+
 // ─── PHASE COLORS ────────────────────────────────────────────────────────────
 // Maps training phases to their UI accent colors
-export const PHASE_COLOR = {
+export const PHASE_COLOR: Record<string, string> = {
   Accumulation: '#E8E4DC',
   Intensification: '#E8651A',
   Peak: '#D4983C',
@@ -9,7 +11,7 @@ export const PHASE_COLOR = {
 
 // ─── TAG ACCENT COLORS ───────────────────────────────────────────────────────
 // Maps movement tags to their UI accent colors
-export const TAG_ACCENT = {
+export const TAG_ACCENT: Record<string, string> = {
   PUSH: '#E8651A',
   PULL: '#C0592B',
   LEGS: '#D47830',
@@ -22,7 +24,14 @@ export const TAG_ACCENT = {
 // ─── VOLUME LANDMARKS ────────────────────────────────────────────────────────
 // Weekly working sets per muscle group: mev (minimum effective volume),
 // mavLow–mavHigh (sweet spot range), mrv (maximum recoverable volume)
-export const VOLUME_LANDMARKS = {
+interface VolumeLandmark {
+  mev: number;
+  mavLow: number;
+  mavHigh: number;
+  mrv: number;
+}
+
+export const VOLUME_LANDMARKS: Record<string, VolumeLandmark> = {
   Chest: { mev: 8, mavLow: 10, mavHigh: 20, mrv: 22 },
   Back: { mev: 10, mavLow: 14, mavHigh: 22, mrv: 25 },
   Shoulders: { mev: 6, mavLow: 8, mavHigh: 16, mrv: 20 },
@@ -38,11 +47,17 @@ export const VOLUME_LANDMARKS = {
 
 // ─── DAY COLORS ──────────────────────────────────────────────────────────────
 // Cycle of colors for different training days
-export const DAY_COLORS = ['#E8651A', '#C87D4A', '#D4983C', '#C0592B'];
+export const DAY_COLORS = ['#E8651A', '#C87D4A', '#D4983C', '#C0592B'] as const;
 
 // ─── STANDARD WARMUP PROTOCOL ────────────────────────────────────────────────
 // Progressive loading steps for any working set
-export const WARMUP = [
+interface WarmupStep {
+  load: string;
+  reps: string;
+  note: string;
+}
+
+export const WARMUP: readonly WarmupStep[] = [
   {
     load: 'Bar only',
     reps: '10',
@@ -56,7 +71,12 @@ export const WARMUP = [
 // ─── FOUNDRY MOBILITY DATA ───────────────────────────────────────────────────
 // Tag-based mobility moves for warmups and recovery.
 // Referenced by: HomeView recovery card · calendar rest-day sheet · DayView warmup/cooldown
-export const FOUNDRY_MOBILITY = {
+interface MobilityMove {
+  name: string;
+  cue: string;
+}
+
+export const FOUNDRY_MOBILITY: Record<string, readonly MobilityMove[]> = {
   PUSH: [
     {
       name: 'Arm Circles → Wall Slides',
@@ -103,7 +123,7 @@ export const FOUNDRY_MOBILITY = {
 
 // ─── DAILY MOBILITY ROUTINE ──────────────────────────────────────────────────
 // Neutral, tag-agnostic movements for daily mobility work
-export const DAILY_MOBILITY = [
+export const DAILY_MOBILITY: readonly MobilityMove[] = [
   {
     name: 'Cat-Cow',
     cue: 'On hands and knees, alternate between arching your back up (cat) and dropping your belly down (cow). 10 slow reps, breathing with each movement.',
@@ -128,7 +148,14 @@ export const DAILY_MOBILITY = [
 
 // ─── GOAL OPTIONS ────────────────────────────────────────────────────────────
 // User training goal profiles
-export const GOAL_OPTIONS = [
+interface GoalOption {
+  id: string;
+  label: string;
+  desc: string;
+  priority: string;
+}
+
+export const GOAL_OPTIONS: readonly GoalOption[] = [
   {
     id: 'build_muscle',
     label: 'Build Muscle',
@@ -163,7 +190,19 @@ export const GOAL_OPTIONS = [
 
 // ─── CARDIO WORKOUTS ─────────────────────────────────────────────────────────
 // Pre-built cardio session templates
-export const CARDIO_WORKOUTS = [
+interface CardioWorkout {
+  id: string;
+  label: string;
+  description: string;
+  category: string;
+  defaultType: string;
+  defaultDuration: number;
+  defaultIntensity: string;
+  recommendedFor: string[];
+  intervals?: { workSecs: number; restSecs: number; rounds: number };
+}
+
+export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
   {
     id: 'easy_walk',
     label: 'Easy Walk',
@@ -239,7 +278,20 @@ export const CARDIO_WORKOUTS = [
 
 // ─── MOBILITY PROTOCOLS ──────────────────────────────────────────────────────
 // Longer, structured mobility routines for deep work and injury prevention
-export const MOBILITY_PROTOCOLS = [
+interface MobilityProtocolMove {
+  name: string;
+  reps: string;
+  cue: string;
+}
+
+interface MobilityProtocol {
+  id: string;
+  name: string;
+  duration: string;
+  moves: MobilityProtocolMove[];
+}
+
+export const MOBILITY_PROTOCOLS: readonly MobilityProtocol[] = [
   {
     id: 'shoulder_rehab',
     name: 'Shoulder Rehab & Prevention',
@@ -359,8 +411,30 @@ export const MOBILITY_PROTOCOLS = [
 // ─── MESO CONFIG BUILDER ─────────────────────────────────────────────────────
 // Builds the mesocycle configuration object from user profile settings.
 // Returns { weeks, days, splitType, phases, rirs, mesoRows, progTargets }
-export function buildMesoConfig(mesoLen, daysPerWeek, splitType) {
-  const configs = {
+
+type MesoRow = [number | null, string, string, string];
+
+interface MesoLengthConfig {
+  rirs: string[];
+  mesoRows: MesoRow[];
+}
+
+export interface MesoConfigResult extends MesoConfig {
+  weeks: number;
+  days: number;
+  splitType: string;
+  phases: string[];
+  rirs: string[];
+  mesoRows: MesoRow[];
+  progTargets: { weight: string[]; reps: string[] };
+}
+
+export function buildMesoConfig(
+  mesoLen: number,
+  daysPerWeek: number,
+  splitType: SplitType | string
+): MesoConfigResult {
+  const configs: Record<number, MesoLengthConfig> = {
     4: {
       rirs: ['3 RIR', '2 RIR', '1 RIR', '0-1 RIR'],
       mesoRows: [
@@ -500,8 +574,8 @@ export function buildMesoConfig(mesoLen, daysPerWeek, splitType) {
 
 // ─── LAZY MESO SINGLETON ─────────────────────────────────────────────────────
 // Reads stored profile to compute MESO config. Components can import getMeso().
-let _mesoCache = null;
-export function getMeso() {
+let _mesoCache: MesoConfigResult | null = null;
+export function getMeso(): MesoConfigResult {
   if (_mesoCache) return _mesoCache;
   try {
     const raw = localStorage.getItem('foundry:profile');
@@ -514,29 +588,29 @@ export function getMeso() {
       );
       return _mesoCache;
     }
-  } catch {}
+  } catch (_) { /* fallback to defaults */ }
   return buildMesoConfig(6, 6, 'ppl');
 }
-export function resetMesoCache() {
+export function resetMesoCache(): void {
   _mesoCache = null;
 }
 
 // Convenience getters for commonly imported derived values
-export function getWeekPhase() {
+export function getWeekPhase(): string[] {
   return getMeso().phases;
 }
-export function getWeekRir() {
+export function getWeekRir(): string[] {
   return getMeso().rirs;
 }
-export function getProgTargets() {
+export function getProgTargets(): { weight: string[]; reps: string[] } {
   return getMeso().progTargets;
 }
-export function getMesoRows() {
+export function getMesoRows(): MesoRow[] {
   return getMeso().mesoRows;
 }
 
 // ─── COOLDOWN MOBILITY (post-workout, tag-specific) ─────────────────────────
-export const FOUNDRY_COOLDOWN = {
+export const FOUNDRY_COOLDOWN: Record<string, readonly MobilityMove[]> = {
   PUSH: [
     {
       name: 'Doorway Pec Stretch',
@@ -582,7 +656,7 @@ export const FOUNDRY_COOLDOWN = {
 };
 
 // ─── REST DAY QUOTES ────────────────────────────────────────────────────────
-export const REST_QUOTES = [
+export const REST_QUOTES: readonly string[] = [
   'Recovery is where growth happens. You broke it down — now let it build back stronger.',
   "The iron doesn't make you strong. Rest does. The iron just shows you where you're going.",
   'Sleep, eat, hydrate. The boring stuff is what separates good from great.',
@@ -598,7 +672,12 @@ export const REST_QUOTES = [
 ];
 
 // ─── RECOVERY TIPS ───────────────────────────────────────────────────────────
-export const RECOVERY_TIPS = [
+interface RecoveryTip {
+  label: string;
+  tip: string;
+}
+
+export const RECOVERY_TIPS: readonly RecoveryTip[] = [
   {
     label: 'Protein window',
     tip: 'Get 40–50g of protein within 90 minutes. Muscle protein synthesis peaks in this window and drops off sharply after 2 hours.',
@@ -658,7 +737,12 @@ export const RECOVERY_TIPS = [
 ];
 
 // ─── CONGRATS ────────────────────────────────────────────────────────────────
-export const CONGRATS = [
+interface CongratsEntry {
+  headline: string;
+  sub: string;
+}
+
+export const CONGRATS: readonly CongratsEntry[] = [
   {
     headline: 'SESSION LOGGED.',
     sub: 'Work done. Rest, recover, come back stronger.',
@@ -685,7 +769,12 @@ export const CONGRATS = [
 ];
 
 // ─── MOTIVATIONAL QUOTES ─────────────────────────────────────────────────────
-export const QUOTES = [
+interface Quote {
+  text: string;
+  author: string;
+}
+
+export const QUOTES: readonly Quote[] = [
   {
     text: 'We are what we repeatedly do. Excellence, then, is not an act, but a habit.',
     author: 'Aristotle',
@@ -799,7 +888,7 @@ export const QUOTES = [
   },
 ];
 
-export const QUOTES_FEMALE = [
+export const QUOTES_FEMALE: readonly Quote[] = [
   {
     text: "I'd rather regret the things I've done than regret the things I haven't done.",
     author: 'Lucille Ball',
@@ -868,7 +957,7 @@ export const QUOTES_FEMALE = [
   },
 ];
 
-export const QUOTES_MALE = [
+export const QUOTES_MALE: readonly Quote[] = [
   {
     text: "I hated every minute of training, but I said, don't quit. Suffer now and live the rest of your life as a champion.",
     author: 'Muhammad Ali',
@@ -940,8 +1029,8 @@ export const QUOTES_MALE = [
   },
 ];
 
-export function randomQuote(gender) {
-  let pool;
+export function randomQuote(gender?: string): Quote {
+  let pool: readonly Quote[];
   if (gender === 'f') {
     pool = [...QUOTES_FEMALE, ...QUOTES_FEMALE, ...QUOTES];
   } else if (gender === 'm') {
@@ -952,6 +1041,6 @@ export function randomQuote(gender) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-export function randomCongrats() {
+export function randomCongrats(): CongratsEntry {
   return CONGRATS[Math.floor(Math.random() * CONGRATS.length)];
 }

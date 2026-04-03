@@ -1,4 +1,5 @@
 import React from 'react';
+import { tokens } from '../../styles/tokens';
 import {
   store,
   loadBwLog,
@@ -15,12 +16,12 @@ import { TAG_ACCENT, getMeso } from '../../data/constants';
 import ExerciseCard from './ExerciseCard';
 
 // Stub modal components (to be fully built out later)
-const SwapModal = ({ exercise, dayTag, profile, onSwap, onClose }) => (
+const SwapModal = ({ exercise: _exercise, dayTag: _dayTag, profile: _profile, onSwap: _onSwap, onClose }: any) => (
   <div
     style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0,0,0,0.6)',
+      background: tokens.colors.overlayLight,
       zIndex: 100,
       display: 'flex',
       alignItems: 'center',
@@ -32,7 +33,7 @@ const SwapModal = ({ exercise, dayTag, profile, onSwap, onClose }) => (
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        borderRadius: 12,
+        borderRadius: tokens.radius.xl,
         padding: 24,
         maxWidth: 360,
         width: '90%',
@@ -57,7 +58,7 @@ const SwapModal = ({ exercise, dayTag, profile, onSwap, onClose }) => (
         onClick={onClose}
         style={{
           padding: '10px 24px',
-          borderRadius: 6,
+          borderRadius: tokens.radius.md,
           background: 'var(--bg-inset)',
           border: '1px solid var(--border)',
           color: 'var(--text-primary)',
@@ -72,12 +73,12 @@ const SwapModal = ({ exercise, dayTag, profile, onSwap, onClose }) => (
   </div>
 );
 
-const AddExerciseModal = ({ dayTag, profile, onAdd, onClose }) => (
+const AddExerciseModal = ({ dayTag: _dayTag, profile: _profile, currentExerciseIds: _currentExerciseIds, onAdd: _onAdd, onClose }: { dayTag: any; profile: any; currentExerciseIds?: any; onAdd: any; onClose: any }) => (
   <div
     style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0,0,0,0.6)',
+      background: tokens.colors.overlayLight,
       zIndex: 100,
       display: 'flex',
       alignItems: 'center',
@@ -89,7 +90,7 @@ const AddExerciseModal = ({ dayTag, profile, onAdd, onClose }) => (
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        borderRadius: 12,
+        borderRadius: tokens.radius.xl,
         padding: 24,
         maxWidth: 360,
         width: '90%',
@@ -114,7 +115,7 @@ const AddExerciseModal = ({ dayTag, profile, onAdd, onClose }) => (
         onClick={onClose}
         style={{
           padding: '10px 24px',
-          borderRadius: 6,
+          borderRadius: tokens.radius.md,
           background: 'var(--bg-inset)',
           border: '1px solid var(--border)',
           color: 'var(--text-primary)',
@@ -129,12 +130,12 @@ const AddExerciseModal = ({ dayTag, profile, onAdd, onClose }) => (
   </div>
 );
 
-const WorkoutCompleteModal = ({ dayLabel, dayTag, gender, stats, weekIdx, onDone, onClose }) => (
+const WorkoutCompleteModal = ({ dayLabel, dayTag: _dayTag, gender: _gender, stats, weekIdx: _weekIdx, onDone, onClose }: any) => (
   <div
     style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0,0,0,0.6)',
+      background: tokens.colors.overlayLight,
       zIndex: 100,
       display: 'flex',
       alignItems: 'center',
@@ -146,7 +147,7 @@ const WorkoutCompleteModal = ({ dayLabel, dayTag, gender, stats, weekIdx, onDone
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        borderRadius: 12,
+        borderRadius: tokens.radius.xl,
         padding: 24,
         maxWidth: 360,
         width: '90%',
@@ -184,7 +185,7 @@ const WorkoutCompleteModal = ({ dayLabel, dayTag, gender, stats, weekIdx, onDone
         style={{
           width: '100%',
           padding: '14px',
-          borderRadius: 8,
+          borderRadius: tokens.radius.lg,
           background: 'var(--btn-primary-bg)',
           border: '1px solid var(--btn-primary-border)',
           color: 'var(--btn-primary-text)',
@@ -222,7 +223,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       return [];
     }
   });
-  const [day, setDay] = React.useState(() => {
+  const [day, _setDay] = React.useState(() => {
     try {
       return JSON.parse(store.get(extraKey) || 'null');
     } catch {
@@ -238,13 +239,13 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     }
   });
   const [doneExercises, setDoneExercises] = React.useState(new Set());
-  const [expandedIdx, setExpandedIdx] = React.useState(null);
+  const [expandedIdx, setExpandedIdx] = React.useState<number | null>(null);
   const [editMode, setEditMode] = React.useState(false);
   const [showLeavePrompt, setShowLeavePrompt] = React.useState(false);
   const [showPostStrengthPrompt, setShowPostStrengthPrompt] = React.useState(false);
   const [showWorkoutModal, setShowWorkoutModal] = React.useState(false);
-  const [workoutStats, setWorkoutStats] = React.useState(null);
-  const [swapTarget, setSwapTarget] = React.useState(null);
+  const [workoutStats, setWorkoutStats] = React.useState<any>(null);
+  const [swapTarget, setSwapTarget] = React.useState<{ exIdx: number } | null>(null);
   const [showAddExercise, setShowAddExercise] = React.useState(false);
   const [workoutStarted, setWorkoutStarted] = React.useState(
     () => !!store.get(startKey) && !store.get(doneKey)
@@ -259,14 +260,14 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   const [notes, setNotes] = React.useState(() => store.get(`foundry:extra:notes:${dateStr}`) || '');
   const [showNoteReview, setShowNoteReview] = React.useState(false);
 
-  const handleNoteChange = (val) => {
+  const handleNoteChange = (val: any) => {
     setNotes(val);
     store.set(`foundry:extra:notes:${dateStr}`, val);
   };
 
   const compileSessionNote = () => {
-    const parts = [];
-    exercises.forEach((ex, i) => {
+    const parts: string[] = [];
+    exercises.forEach((ex: any, i: any) => {
       const n = (exNotes[i] || '').trim();
       if (n) parts.push(`${ex.name}: ${n}`);
     });
@@ -275,7 +276,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   };
 
   const hasAnySessionNotes = () =>
-    exercises.some((_, i) => (exNotes[i] || '').trim()) || !!notes.trim();
+    exercises.some((_: any, i: any) => (exNotes[i] || '').trim()) || !!notes.trim();
 
   const openNoteReview = () => {
     if (!hasAnySessionNotes()) {
@@ -287,9 +288,9 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     setShowNoteReview(true);
   };
 
-  const sessionStartRef = React.useRef(null);
-  const strengthEndRef = React.useRef(null);
-  const elapsedRef = React.useRef(null);
+  const sessionStartRef = React.useRef<number | null>(null);
+  const strengthEndRef = React.useRef<number | null>(null);
+  const elapsedRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Restore timestamps from localStorage ────────────────────────────────────
   React.useEffect(() => {
@@ -305,7 +306,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     const existing = JSON.parse(store.get(dataKey) || '{}');
     let changed = false;
     const next = { ...existing };
-    exercises.forEach((ex, i) => {
+    exercises.forEach((ex: any, i: any) => {
       if (!next[i]) {
         const cw = getCarryoverWeight(ex.id);
         if (cw) {
@@ -330,10 +331,10 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     };
     tick();
     elapsedRef.current = setInterval(tick, 1000);
-    return () => clearInterval(elapsedRef.current);
+    return () => { if (elapsedRef.current !== null) clearInterval(elapsedRef.current); };
   }, [workoutStarted, completedDone]);
 
-  const formatElapsed = (s) => {
+  const formatElapsed = (s: any) => {
     const h = Math.floor(s / 3600),
       m = Math.floor((s % 3600) / 60),
       sec = s % 60;
@@ -343,18 +344,18 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   };
 
   // ── Persist exercise list changes back to localStorage ──────────────────────
-  const persistExercises = (exList) => {
+  const persistExercises = (exList: any) => {
     const current = JSON.parse(store.get(extraKey) || '{}');
     store.set(extraKey, JSON.stringify({ ...current, exercises: exList }));
   };
 
   // ── Find last logged weight for an exercise by ID across all meso data ──────
-  const getCarryoverWeight = (exId) => {
+  const getCarryoverWeight = (exId: any) => {
     if (!activeDays) return '';
     const weeks = getMeso().weeks;
     for (let w = weeks; w >= 0; w--) {
       for (let d = 0; d < activeDays.length; d++) {
-        const idx = activeDays[d].exercises.findIndex((e) => e.id === exId);
+        const idx = activeDays[d].exercises.findIndex((e: any) => e.id === exId);
         if (idx < 0) continue;
         try {
           const raw = store.get(`foundry:day${d}:week${w}`);
@@ -378,8 +379,8 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   };
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
-  const handleUpdateSet = (exIdx, setIdx, field, value) => {
-    setWeekData((prev) => {
+  const handleUpdateSet = (exIdx: any, setIdx: any, field: any, value: any) => {
+    setWeekData((prev: any) => {
       const next = {
         ...prev,
         [exIdx]: {
@@ -401,11 +402,11 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     });
   };
 
-  const handleWeightAutoFill = (exIdx, weight) => {
+  const handleWeightAutoFill = (exIdx: any, weight: any) => {
     handleUpdateSet(exIdx, 0, 'weight', weight);
   };
 
-  const handleLastSetFilled = (exIdx) => {
+  const handleLastSetFilled = (exIdx: any) => {
     setDoneExercises((prev) => {
       const next = new Set([...prev, exIdx]);
       if (next.size === exercises.length) {
@@ -419,7 +420,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
 
   const handleSetLogged = () => {};
 
-  const handleSwap = (newDbEx) => {
+  const handleSwap = (newDbEx: any) => {
     if (swapTarget === null) return;
     const { exIdx } = swapTarget;
     const oldEx = exercises[exIdx];
@@ -440,13 +441,13 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       videoUrl: newDbEx.videoUrl || '',
       bw: !!newDbEx.bw,
     };
-    setExercises((prev) => {
-      const n = prev.map((ex, i) => (i === exIdx ? newEx : ex));
+    setExercises((prev: any) => {
+      const n = prev.map((ex: any, i: any) => (i === exIdx ? newEx : ex));
       persistExercises(n);
       return n;
     });
     // Clear previous exercise's data for this slot
-    setWeekData((prev) => {
+    setWeekData((prev: any) => {
       const next = { ...prev };
       delete next[exIdx];
       try {
@@ -462,7 +463,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     setSwapTarget(null);
   };
 
-  const handleAddExercise = (dbEx) => {
+  const handleAddExercise = (dbEx: any) => {
     const newEx = {
       id: dbEx.id,
       name: dbEx.name,
@@ -480,7 +481,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       videoUrl: dbEx.videoUrl || '',
       bw: !!dbEx.bw,
     };
-    setExercises((prev) => {
+    setExercises((prev: any) => {
       const n = [...prev, newEx];
       persistExercises(n);
       return n;
@@ -491,11 +492,11 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   // ── Complete ─────────────────────────────────────────────────────────────────
   const doComplete = () => {
     setShowPostStrengthPrompt(false);
-    clearInterval(elapsedRef.current);
+    if (elapsedRef.current !== null) clearInterval(elapsedRef.current);
     store.set(doneKey, '1');
     setCompletedDone(true);
 
-    let durationMins = null;
+    let durationMins: number | null = null;
     if (sessionStartRef.current) {
       const endTime = strengthEndRef.current || Date.now();
       durationMins = Math.round((endTime - sessionStartRef.current) / 60000);
@@ -507,8 +508,8 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     let totalSets = 0,
       totalReps = 0,
       totalVolume = 0;
-    exercises.forEach((ex, exIdx) => {
-      const exData = weekData[exIdx] || {};
+    exercises.forEach((ex: any, exIdx: any) => {
+      const exData = (weekData as Record<string, any>)[exIdx] || {};
       for (let s = 0; s < ex.sets; s++) {
         const sd = exData[s] || {};
         if (!sd.reps || sd.reps === '') continue;
@@ -559,7 +560,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       </div>
     );
 
-  const accent = TAG_ACCENT[day.tag] || 'var(--accent)';
+  const accent = (TAG_ACCENT as Record<string, any>)[day.tag] || 'var(--accent)';
   const readOnly = (completedDone && !editMode) || (!workoutStarted && !completedDone);
 
   return (
@@ -582,7 +583,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
         <AddExerciseModal
           dayTag={day.tag}
           profile={profile}
-          currentExerciseIds={exercises.map((e) => e.id)}
+          currentExerciseIds={exercises.map((e: any) => e.id)}
           onAdd={handleAddExercise}
           onClose={() => setShowAddExercise(false)}
         />
@@ -594,7 +595,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.75)',
+            background: tokens.colors.overlayMed,
             zIndex: 290,
             display: 'flex',
             alignItems: 'center',
@@ -606,7 +607,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-accent)',
-              borderRadius: 12,
+              borderRadius: tokens.radius.xl,
               padding: '28px 24px',
               maxWidth: 320,
               width: '100%',
@@ -656,7 +657,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 width: '100%',
                 background: 'var(--bg-inset)',
                 border: '1px solid var(--border-accent)',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 padding: '14px',
                 fontSize: 28,
                 fontWeight: 900,
@@ -681,7 +682,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 }}
                 style={{
                   padding: '14px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   background: 'transparent',
                   border: '1px solid var(--border)',
@@ -705,7 +706,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 className="btn-primary"
                 style={{
                   padding: '14px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   fontSize: 13,
                   fontWeight: 800,
@@ -727,7 +728,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.88)',
+            background: tokens.colors.overlayHeavy,
             zIndex: 300,
             backdropFilter: 'blur(6px)',
             display: 'flex',
@@ -740,7 +741,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: 12,
+              borderRadius: tokens.radius.xl,
               padding: '32px 24px',
               maxWidth: 340,
               width: '100%',
@@ -762,7 +763,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 onClick={() => setShowLeavePrompt(false)}
                 style={{
                   padding: '15px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   background: 'var(--btn-primary-bg)',
                   border: '1px solid var(--btn-primary-border)',
@@ -780,7 +781,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 }}
                 style={{
                   padding: '13px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   background: 'transparent',
                   border: '1px solid var(--border)',
@@ -801,7 +802,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.82)',
+            background: tokens.colors.overlay,
             zIndex: 210,
             display: 'flex',
             alignItems: 'center',
@@ -813,7 +814,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--phase-accum)',
-              borderRadius: 12,
+              borderRadius: tokens.radius.xl,
               padding: '32px 24px',
               maxWidth: 340,
               width: '100%',
@@ -848,7 +849,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 }}
                 style={{
                   padding: '16px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   background: 'var(--btn-primary-bg)',
                   border: '1px solid var(--btn-primary-border)',
@@ -863,7 +864,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 onClick={() => setShowPostStrengthPrompt(false)}
                 style={{
                   padding: '14px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   background: 'var(--bg-surface)',
                   border: '1px solid var(--border)',
@@ -885,7 +886,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             position: 'fixed',
             inset: 0,
             zIndex: 260,
-            background: 'rgba(0,0,0,0.88)',
+            background: tokens.colors.overlayHeavy,
             backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
@@ -898,7 +899,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             style={{
               background: 'var(--bg-card)',
               border: `1px solid ${accent}55`,
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               padding: '32px 24px',
               maxWidth: 340,
               width: '100%',
@@ -917,7 +918,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 color: accent,
                 background: accent + '18',
                 padding: '5px 12px',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
               }}
             >
               EXTRA SESSION
@@ -962,7 +963,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             <div
               style={{
                 background: 'var(--bg-inset)',
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 padding: '12px 14px',
                 marginBottom: 24,
                 textAlign: 'left',
@@ -979,7 +980,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
               >
                 {exercises.length} EXERCISES
               </div>
-              {exercises.slice(0, 4).map((ex, i) => (
+              {exercises.slice(0, 4).map((ex: any, i: any) => (
                 <div
                   key={i}
                   style={{
@@ -1014,7 +1015,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
               style={{
                 width: '100%',
                 padding: '16px',
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 cursor: 'pointer',
                 background: 'var(--btn-primary-bg)',
                 border: '1px solid var(--btn-primary-border)',
@@ -1032,7 +1033,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
               style={{
                 width: '100%',
                 padding: '12px',
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 cursor: 'pointer',
                 background: 'transparent',
                 border: 'none',
@@ -1054,14 +1055,18 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
           gender={profile?.gender}
           stats={workoutStats}
           weekIdx={(() => {
-            const cd = loadCompleted();
+            const cd = loadCompleted(getMeso());
             const ad = activeDays;
             for (let w = 0; w < getMeso().weeks; w++) {
               if (!ad.every((_, i) => cd.has(`${i}:${w}`))) return w;
             }
             return getMeso().weeks;
           })()}
-          onOk={() => {
+          onDone={() => {
+            setShowWorkoutModal(false);
+            onBack();
+          }}
+          onClose={() => {
             setShowWorkoutModal(false);
             onBack();
           }}
@@ -1090,7 +1095,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--phase-intens)44',
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
               color: 'var(--phase-intens)',
               fontSize: 13,
               fontWeight: 700,
@@ -1114,7 +1119,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                   gap: 5,
                   background: 'var(--bg-inset)',
                   border: '1px solid var(--border)',
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   padding: '5px 10px',
                   fontSize: 13,
                   fontWeight: 800,
@@ -1133,7 +1138,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 style={{
                   background: editMode ? 'var(--accent)22' : 'var(--bg-card)',
                   border: `1px solid ${editMode ? 'var(--accent)' : 'var(--border)'}`,
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   color: editMode ? 'var(--accent)' : 'var(--text-secondary)',
                   fontSize: 12,
                   fontWeight: 700,
@@ -1162,7 +1167,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
               fontWeight: 800,
               letterSpacing: '0.06em',
               padding: '3px 10px',
-              borderRadius: 4,
+              borderRadius: tokens.radius.sm,
               background: accent + '22',
               color: accent,
               border: `1px solid ${accent}55`,
@@ -1186,7 +1191,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 fontSize: 12,
                 fontWeight: 800,
                 padding: '3px 10px',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
                 background: 'var(--phase-accum)22',
                 color: 'var(--phase-accum)',
                 border: '1px solid var(--phase-accum)55',
@@ -1212,7 +1217,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
 
       {/* ── EXERCISE CARDS ── */}
       <div style={{ padding: '12px 0 0' }}>
-        {exercises.map((ex, i) => (
+        {exercises.map((ex: any, i: any) => (
           <div
             key={ex.id ? `${ex.id}-${i}` : i}
             style={{ borderBottom: '1px solid rgba(232,101,26,0.1)' }}
@@ -1230,7 +1235,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
               onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
               done={doneExercises.has(i)}
               readOnly={readOnly}
-              onSwapClick={!readOnly ? () => setSwapTarget({ exIdx: i }) : null}
+              onSwapClick={!readOnly ? () => setSwapTarget({ exIdx: i }) : () => {}}
               onSetLogged={handleSetLogged}
               bodyweight={parseFloat(profile?.weight || 0)}
               note={exNotes[i] || ''}
@@ -1252,7 +1257,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             style={{
               width: '100%',
               padding: '14px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               background: 'var(--bg-surface)',
               border: '1px dashed var(--border)',
@@ -1279,7 +1284,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             style={{
               width: '100%',
               padding: '16px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               fontSize: 14,
               fontWeight: 700,
@@ -1300,7 +1305,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.88)',
+            background: tokens.colors.overlayHeavy,
             zIndex: 220,
             display: 'flex',
             alignItems: 'flex-end',
@@ -1347,7 +1352,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
                 width: '100%',
                 background: 'var(--bg-inset)',
                 border: '1px solid var(--border-accent)',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 color: 'var(--text-primary)',
                 fontSize: 13,
                 padding: '12px 14px',
@@ -1368,7 +1373,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
               style={{
                 width: '100%',
                 padding: '16px',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 cursor: 'pointer',
                 fontSize: 14,
                 fontWeight: 700,

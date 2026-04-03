@@ -1,4 +1,5 @@
 import React from 'react';
+import { tokens } from '../../styles/tokens';
 import { FOUNDRY_ANVIL_IMG } from '../../data/images-core';
 
 interface FoundryBannerProps {
@@ -40,7 +41,7 @@ function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps)
             width: 40,
             height: 40,
             objectFit: 'cover',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             flexShrink: 0,
             boxShadow: '0 0 16px rgba(232,101,26,0.2)',
           }}
@@ -85,7 +86,7 @@ function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps)
             border: 'none',
             cursor: 'pointer',
             padding: '6px',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
@@ -93,7 +94,7 @@ function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps)
             color: '#C0885A',
             transition: 'color 0.15s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#F29A52')}
+          onMouseEnter={(e) => (e.currentTarget.style.color = tokens.colors.amber)}
           onMouseLeave={(e) => (e.currentTarget.style.color = '#C0885A')}
         >
           <svg

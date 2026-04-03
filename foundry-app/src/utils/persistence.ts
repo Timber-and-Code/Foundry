@@ -5,10 +5,11 @@ import {
   syncCardioSessionToSupabase,
   syncNotesToSupabase,
 } from './sync';
+import type { DayData, TrainingDay, Profile, CardioSession } from '../types';
 
 // ─── TRAINING DATA PERSISTENCE ────────────────────────────────────────────────
 
-export function loadDayWeek(dayIdx, weekIdx) {
+export function loadDayWeek(dayIdx: number, weekIdx: number): DayData {
   const raw = store.get(`foundry:day${dayIdx}:week${weekIdx}`);
   return raw ? validateDayData(JSON.parse(raw)) : {};
 }
@@ -20,9 +21,14 @@ export function loadDayWeek(dayIdx, weekIdx) {
  * Barbell min is always 5 lbs (2.5/side floor). DB increments respect real-world sizes.
  * Cable/machine advanced gets smaller jumps.
  */
-export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
+export function loadDayWeekWithCarryover(
+  dayIdx: number,
+  weekIdx: number,
+  day: TrainingDay,
+  profile: Profile | null | undefined,
+): DayData {
   const expRaw = profile?.experience || 'intermediate';
-  const expNorm = {
+  const expNorm: Record<string, string> = {
     new: 'beginner',
     beginner: 'beginner',
     intermediate: 'intermediate',
@@ -45,7 +51,7 @@ export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
     );
     if (!prevHasWeights) continue;
 
-    const carried = {};
+    const carried: DayData = {};
     day.exercises.forEach((ex, exIdx) => {
       const prevEx = prev[exIdx] || {};
       const repParts = String(ex.reps).split('-');
@@ -54,11 +60,12 @@ export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
 
       let allRepsHit = true;
       let hasAnyWorkingSet = false;
-      for (let s = 0; s < ex.sets; s++) {
+      const sets = typeof ex.sets === 'number' ? ex.sets : parseInt(String(ex.sets)) || 0;
+      for (let s = 0; s < sets; s++) {
         const prevSet = prevEx[s] || {};
         if (prevSet.warmup) continue;
         hasAnyWorkingSet = true;
-        const logged = parseInt(prevSet.reps || '0');
+        const logged = parseInt(String(prevSet.reps || '0'));
         if (!logged || logged < rangeMax) {
           allRepsHit = false;
           break;
@@ -74,9 +81,9 @@ export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
           nudge = 5;
         } else if (equip === 'dumbbell') {
           const currentWeight = (() => {
-            for (let s = 0; s < ex.sets; s++) {
-              const w = parseFloat((prevEx[s] || {}).weight || '0');
-              if (w > 0) return w;
+            for (let s = 0; s < sets; s++) {
+              const wVal = parseFloat(String((prevEx[s] || {}).weight || '0'));
+              if (wVal > 0) return wVal;
             }
             return 0;
           })();
@@ -87,15 +94,15 @@ export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
       }
 
       carried[exIdx] = {};
-      for (let s = 0; s < ex.sets; s++) {
+      for (let s = 0; s < sets; s++) {
         const prevSet = prevEx[s] || {};
-        let suggestedWeight = prevSet.weight || '';
+        let suggestedWeight = String(prevSet.weight ?? '');
         if (nudge > 0 && suggestedWeight !== '' && !isNaN(parseFloat(suggestedWeight))) {
           suggestedWeight = String(parseFloat(suggestedWeight) + nudge);
         }
 
-        const prevReps = parseInt(prevSet.reps || '0');
-        let suggestedReps;
+        const prevReps = parseInt(String(prevSet.reps || '0'));
+        let suggestedReps: string;
         if (nudge > 0) {
           suggestedReps = String(rangeMin);
         } else if (prevReps > 0) {
@@ -117,36 +124,36 @@ export function loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile) {
   return current;
 }
 
-export function saveDayWeek(dayIdx, weekIdx, data) {
+export function saveDayWeek(dayIdx: number, weekIdx: number, data: DayData): void {
   store.set(`foundry:day${dayIdx}:week${weekIdx}`, JSON.stringify(data));
   syncWorkoutToSupabase(dayIdx, weekIdx, data);
 }
 
-export function loadCardioLog(dayIdx, weekIdx) {
+export function loadCardioLog(dayIdx: number, weekIdx: number): unknown {
   const raw = store.get(`foundry:cardio:d${dayIdx}:w${weekIdx}`);
   return raw ? JSON.parse(raw) : null;
 }
 
-export function saveCardioLog(dayIdx, weekIdx, data) {
+export function saveCardioLog(dayIdx: number, weekIdx: number, data: unknown): void {
   store.set(`foundry:cardio:d${dayIdx}:w${weekIdx}`, JSON.stringify(data));
 }
 
-export function loadCardioSession(dateStr) {
+export function loadCardioSession(dateStr: string): CardioSession | null {
   try {
     const r = store.get(`foundry:cardio:session:${dateStr}`);
-    return r ? JSON.parse(r) : null;
+    return r ? (JSON.parse(r) as CardioSession) : null;
   } catch (e) {
     console.warn('[Foundry]', 'Failed to load cardio session', e);
     return null;
   }
 }
 
-export function saveCardioSession(dateStr, data) {
+export function saveCardioSession(dateStr: string, data: CardioSession): void {
   store.set(`foundry:cardio:session:${dateStr}`, JSON.stringify(data));
   syncCardioSessionToSupabase(dateStr, data);
 }
 
-export function loadMobilitySession(dateStr) {
+export function loadMobilitySession(dateStr: string): { protocolId?: string | null; completed?: boolean; completedAt?: string | null; [key: string]: unknown } | null {
   try {
     const r = store.get(`foundry:mobility:session:${dateStr}`);
     return r ? JSON.parse(r) : null;
@@ -156,58 +163,58 @@ export function loadMobilitySession(dateStr) {
   }
 }
 
-export function saveMobilitySession(dateStr, data) {
+export function saveMobilitySession(dateStr: string, data: unknown): void {
   store.set(`foundry:mobility:session:${dateStr}`, JSON.stringify(data));
 }
 
-export function loadNotes(dayIdx, weekIdx) {
+export function loadNotes(dayIdx: number, weekIdx: number): string {
   return store.get(`foundry:notes:d${dayIdx}:w${weekIdx}`) || '';
 }
 
-export function saveNotes(dayIdx, weekIdx, text) {
+export function saveNotes(dayIdx: number, weekIdx: number, text: string): void {
   store.set(`foundry:notes:d${dayIdx}:w${weekIdx}`, text);
   syncNotesToSupabase(dayIdx, weekIdx, text, loadExNotes(dayIdx, weekIdx));
 }
 
-export function loadExNotes(dayIdx, weekIdx) {
+export function loadExNotes(dayIdx: number, weekIdx: number): Record<string, string> {
   try {
-    return JSON.parse(store.get(`foundry:exnotes:d${dayIdx}:w${weekIdx}`) || '{}');
+    return JSON.parse(store.get(`foundry:exnotes:d${dayIdx}:w${weekIdx}`) || '{}') as Record<string, string>;
   } catch (e) {
     console.warn('[Foundry]', 'Failed to parse exercise notes', e);
     return {};
   }
 }
 
-export function saveExNotes(dayIdx, weekIdx, obj) {
+export function saveExNotes(dayIdx: number, weekIdx: number, obj: Record<string, string>): void {
   store.set(`foundry:exnotes:d${dayIdx}:w${weekIdx}`, JSON.stringify(obj));
   syncNotesToSupabase(dayIdx, weekIdx, loadNotes(dayIdx, weekIdx), obj);
 }
 
-export function loadExtraExNotes(dateStr) {
+export function loadExtraExNotes(dateStr: string): Record<string, string> {
   try {
-    return JSON.parse(store.get(`foundry:extra:exnotes:${dateStr}`) || '{}');
+    return JSON.parse(store.get(`foundry:extra:exnotes:${dateStr}`) || '{}') as Record<string, string>;
   } catch (e) {
     console.warn('[Foundry]', 'Failed to parse extra exercise notes', e);
     return {};
   }
 }
 
-export function saveExtraExNotes(dateStr, obj) {
+export function saveExtraExNotes(dateStr: string, obj: Record<string, string>): void {
   store.set(`foundry:extra:exnotes:${dateStr}`, JSON.stringify(obj));
 }
 
-export function hasAnyNotes(dayIdx, weekIdx) {
+export function hasAnyNotes(dayIdx: number, weekIdx: number): boolean {
   if (loadNotes(dayIdx, weekIdx).trim()) return true;
   return Object.values(loadExNotes(dayIdx, weekIdx)).some((v) => v && v.trim());
 }
 
-export function hasAnyExtraNotes(dateStr) {
+export function hasAnyExtraNotes(dateStr: string): boolean {
   const sn = store.get(`foundry:extra:notes:${dateStr}`) || '';
   if (sn.trim()) return true;
   return Object.values(loadExtraExNotes(dateStr)).some((v) => v && v.trim());
 }
 
-export function loadExOverride(dayIdx, weekIdx, exIdx) {
+export function loadExOverride(dayIdx: number, weekIdx: number, exIdx: number): string | null {
   return (
     store.get(`foundry:exov:d${dayIdx}:w${weekIdx}:ex${exIdx}`) ||
     store.get(`foundry:exov:d${dayIdx}:ex${exIdx}`) ||
@@ -215,7 +222,13 @@ export function loadExOverride(dayIdx, weekIdx, exIdx) {
   );
 }
 
-export function saveExOverride(dayIdx, weekIdx, exIdx, exId, scope) {
+export function saveExOverride(
+  dayIdx: number,
+  weekIdx: number,
+  exIdx: number,
+  exId: string,
+  scope: 'week' | 'meso',
+): void {
   if (scope === 'week') {
     store.set(`foundry:exov:d${dayIdx}:w${weekIdx}:ex${exIdx}`, exId);
   } else {
@@ -227,9 +240,9 @@ export function saveExOverride(dayIdx, weekIdx, exIdx, exId, scope) {
  * Snapshot all foundry: keys into localStorage rolling backup.
  * Keeps the last 3 snapshots automatically.
  */
-export function snapshotData() {
+export function snapshotData(): void {
   try {
-    const data = {};
+    const data: Record<string, string | null> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('foundry:') && !key.startsWith('foundry:backup:')) {
@@ -255,7 +268,7 @@ export function snapshotData() {
  * Export the most recent backup snapshot as a .json file.
  * User-initiated download only.
  */
-export function exportData() {
+export function exportData(): void {
   try {
     const raw = localStorage.getItem('foundry:backup:0');
     const payload =
@@ -264,7 +277,7 @@ export function exportData() {
         version: 1,
         snappedAt: new Date().toISOString(),
         data: (() => {
-          const d = {};
+          const d: Record<string, string | null> = {};
           for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
             if (k && k.startsWith('foundry:') && !k.startsWith('foundry:backup:'))
@@ -294,21 +307,21 @@ export function exportData() {
  * Import data from a backup .json file.
  * Accepts both old ppl: keys (auto-migrates to foundry:) and new foundry: keys.
  */
-export function importData(file, onDone) {
+export function importData(file: File, onDone: (success: boolean) => void): void {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const parsed = JSON.parse(e.target.result);
+      const parsed = JSON.parse((e.target as FileReader).result as string);
       const data = parsed.data || parsed;
       let imported = 0;
       Object.entries(data).forEach(([k, v]) => {
         if (k.startsWith('foundry:')) {
-          localStorage.setItem(k, v);
+          localStorage.setItem(k, v as string);
           imported++;
         } else if (k.startsWith('ppl:')) {
           // Migrate old ppl: keys to foundry: on import
           const newKey = 'foundry:' + k.slice(4);
-          localStorage.setItem(newKey, v);
+          localStorage.setItem(newKey, v as string);
           imported++;
         }
       });

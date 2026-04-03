@@ -1,5 +1,5 @@
 import React from 'react';
-import { store } from '../../utils/store';
+import { tokens } from '../../styles/tokens';
 
 const workerUrl = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 
@@ -158,7 +158,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
-            borderRadius: 12,
+            borderRadius: tokens.radius.xl,
             overflow: 'hidden',
           }}
         >
@@ -229,7 +229,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
           style={{
             background: 'linear-gradient(145deg, #1A1410 0%, #12100C 100%)',
             border: '1px solid var(--phase-peak)66',
-            borderRadius: 12,
+            borderRadius: tokens.radius.xl,
             overflow: 'hidden',
             boxShadow: `0 4px 32px rgba(212,152,60,0.12)`,
           }}
@@ -311,7 +311,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
                       color: 'var(--phase-peak)',
                       background: 'var(--phase-peak)22',
                       border: '1px solid var(--phase-peak)44',
-                      borderRadius: 4,
+                      borderRadius: tokens.radius.sm,
                       padding: '2px 6px',
                     }}
                   >
@@ -368,7 +368,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
               background: 'rgba(212,152,60,0.07)',
               border: '1px solid var(--phase-peak)44',
               borderLeft: '3px solid var(--phase-peak)',
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
             }}
           >
             <div
@@ -404,7 +404,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
                 style={{
                   background: 'var(--phase-peak)18',
                   border: '1px solid var(--phase-peak)44',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   padding: '14px 16px',
                   textAlign: 'center',
                 }}
@@ -450,7 +450,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
                       flex: 1,
                       background: 'rgba(255,255,255,0.06)',
                       border: `1px solid ${emailError ? '#e05252' : 'var(--phase-peak)44'}`,
-                      borderRadius: 8,
+                      borderRadius: tokens.radius.lg,
                       padding: '12px 14px',
                       fontSize: 14,
                       color: 'var(--text-primary)',
@@ -463,7 +463,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
                     disabled={submitting}
                     style={{
                       padding: '12px 18px',
-                      borderRadius: 8,
+                      borderRadius: tokens.radius.lg,
                       cursor: submitting ? 'default' : 'pointer',
                       background: 'var(--phase-peak)',
                       border: 'none',
@@ -491,7 +491,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
-            borderRadius: 12,
+            borderRadius: tokens.radius.xl,
             overflow: 'hidden',
             opacity: 0.65,
           }}
@@ -531,7 +531,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
                     color: 'var(--phase-deload)',
                     background: 'var(--phase-deload)22',
                     border: '1px solid var(--phase-deload)44',
-                    borderRadius: 4,
+                    borderRadius: tokens.radius.sm,
                     padding: '1px 6px',
                   }}
                 >
@@ -610,7 +610,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
-            borderRadius: 12,
+            borderRadius: tokens.radius.xl,
             padding: '24px 20px',
           }}
         >

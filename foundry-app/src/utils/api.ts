@@ -1,15 +1,130 @@
 import { store } from './store.js';
 import { supabase } from './supabase';
+import type { SplitType } from '../types';
+
+// ─── Input types ─────────────────────────────────────────────────────────────
+
+interface CallFoundryAIParams {
+  split: SplitType | string;
+  daysPerWeek: number;
+  mesoLength: number;
+  experience: string;
+  equipment: string[];
+  name?: string;
+  gender?: string;
+  goal?: string;
+  goalNote?: string;
+}
+
+interface ExperienceNorms {
+  anchorSets: number;
+  accSets: number;
+  repFloor: number;
+  repCeil: number;
+}
+
+// ─── AI response shape ───────────────────────────────────────────────────────
+
+interface AIExercise {
+  id: string;
+  name: string;
+  muscle?: string;
+  sets?: number;
+  reps?: string | number;
+  rest?: string;
+  anchor?: boolean;
+  progression?: string;
+  supersetWith?: number | null;
+}
+
+interface AIDay {
+  dayNum: number;
+  label: string;
+  tag: string;
+  muscles: string;
+  note: string;
+  exercises: AIExercise[];
+}
+
+interface AIResponse {
+  days: AIDay[];
+  coachNote?: string;
+}
+
+// ─── DB exercise (exercise list passed from caller) ──────────────────────────
+
+interface ExerciseDBEntry {
+  id: string;
+  name: string;
+  tag: string;
+  muscle: string;
+  anchor?: boolean;
+  sets: number | string;
+  reps: number | string;
+  rest?: string;
+  description?: string;
+  videoUrl?: string;
+  muscles?: string[];
+  equipment?: string;
+}
+
+// ─── Hydrated output ─────────────────────────────────────────────────────────
+
+interface HydratedExercise {
+  id: string;
+  name: string;
+  muscle: string;
+  muscles: string[];
+  equipment: string;
+  tag: string;
+  anchor: boolean;
+  sets: number;
+  reps: string;
+  rest: string;
+  warmup: string;
+  progression: string;
+  description: string;
+  videoUrl: string;
+  supersetWith?: number;
+}
+
+interface HydratedDay {
+  dayNum: number;
+  label: string;
+  tag: string;
+  muscles: string;
+  note: string;
+  cardio: null;
+  exercises: HydratedExercise[];
+}
+
+interface FoundryAIResult {
+  days: HydratedDay[];
+  coachNote: string;
+}
+
+// ─── Meso transition context (stored in localStorage) ────────────────────────
+
+interface MesoTransition {
+  anchorPeaks?: { name: string; peak: number }[];
+  accessoryIds?: string[];
+  readinessSummary?: {
+    totalLogged: number;
+    totalDays: number;
+    avgScore: number;
+    lowDays: number;
+  };
+}
 
 /**
  * Call the Foundry AI Worker to generate a personalized training program.
  * Uses Claude AI to create exercise selections and progression based on profile.
  */
 export async function callFoundryAI(
-  { split, daysPerWeek, mesoLength, experience, equipment, name, gender, goal, goalNote },
-  EXERCISE_DB = []
-) {
-  const splitLabels = {
+  { split, daysPerWeek, mesoLength, experience, equipment, name, gender: _gender, goal, goalNote }: CallFoundryAIParams,
+  EXERCISE_DB: ExerciseDBEntry[] = []
+): Promise<FoundryAIResult> {
+  const splitLabels: Record<string, string> = {
     ppl: 'Push/Pull/Legs',
     upper_lower: 'Upper/Lower',
     full_body: 'Full Body',
@@ -17,7 +132,7 @@ export async function callFoundryAI(
   };
 
   // Normalize experience values — unify all formats to canonical labels
-  const expNormalize = {
+  const expNormalize: Record<string, string> = {
     new: 'beginner',
     beginner: 'beginner',
     intermediate: 'intermediate',
@@ -25,14 +140,14 @@ export async function callFoundryAI(
     experienced: 'experienced',
   };
   const expKey = expNormalize[experience] || 'intermediate';
-  const expLabels = {
+  const expLabels: Record<string, string> = {
     beginner: 'beginner (under 1 year)',
     intermediate: 'intermediate (1–3 years)',
     experienced: 'experienced (3+ years)',
   };
 
   // Client-side intensity norms — enforced regardless of AI response
-  const EXPERIENCE_NORMS = {
+  const EXPERIENCE_NORMS: Record<string, ExperienceNorms> = {
     beginner: { anchorSets: 3, accSets: 2, repFloor: 8, repCeil: 15 },
     intermediate: { anchorSets: 4, accSets: 3, repFloor: 6, repCeil: 12 },
     experienced: { anchorSets: 5, accSets: 4, repFloor: 3, repCeil: 12 },
@@ -40,7 +155,7 @@ export async function callFoundryAI(
   const norms = EXPERIENCE_NORMS[expKey];
 
   // Experience-specific volume guidance
-  const expGuidance = {
+  const expGuidance: Record<string, string> = {
     beginner: `- Experience level: BEGINNER (under 1 year)
   • 3 working sets on anchor/compound lifts, 2–3 on accessories
   • Rep ranges: 8–15 across all exercises — no heavy loading
@@ -61,7 +176,7 @@ export async function callFoundryAI(
   • 5–6 exercises/day`,
   };
 
-  const goalGuidance = {
+  const goalGuidance: Record<string, string> = {
     build_muscle: `- Goal: BUILD MUSCLE (hypertrophy)
   • Rep ranges: 8–12 for compounds, 10–15 for isolations
   • Sets: lean toward higher end (4–5 working sets for anchors, 3–4 for accessories)
@@ -89,7 +204,7 @@ export async function callFoundryAI(
   • Progression: power and strength gains are the signal — prioritize quality of movement over volume`,
   };
   const goalBlock =
-    goalGuidance[goal] ||
+    goalGuidance[goal || ''] ||
     `- Goal: General fitness — balanced rep ranges (8–12), moderate volume, broad exercise selection`;
   const goalNoteBlock =
     goalNote && goalNote.trim()
@@ -104,7 +219,7 @@ export async function callFoundryAI(
   // Meso 2+ context injection — if this is a continuation
   let mesoTransitionBlock = '';
   try {
-    const t = JSON.parse(store.get('foundry:meso_transition') || 'null');
+    const t: MesoTransition | null = JSON.parse(store.get('foundry:meso_transition') || 'null');
     if (t && t.anchorPeaks && t.anchorPeaks.length > 0) {
       const anchorList = t.anchorPeaks.map((a) => `${a.name}: ${a.peak} lbs peak`).join(', ');
       const accList = (t.accessoryIds || []).slice(0, 20).join(', ');
@@ -177,7 +292,7 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
     import.meta.env.VITE_FOUNDRY_AI_WORKER_URL || 'https://foundry-ai.timberandcode3.workers.dev';
 
   // Prefer Supabase JWT; fall back to legacy shared key if not signed in
-  let authHeader;
+  let authHeader: Record<string, string> | undefined;
   try {
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token;
@@ -211,20 +326,20 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
 
     if (!response.ok) throw new Error(`AI API error: ${response.status}`);
     const data = await response.json();
-    const text = data.content?.find((b) => b.type === 'text')?.text || '';
+    const text: string = data.content?.find((b: { type: string; text?: string }) => b.type === 'text')?.text || '';
     const clean = text
       .replace(/```json\s*/g, '')
       .replace(/```\s*/g, '')
       .trim();
-    const parsed = JSON.parse(clean);
+    const parsed: AIResponse = JSON.parse(clean);
 
     // Clamp set counts and rep ranges to experience norms
-    const clampSets = (aiSets, isAnchor) => {
+    const clampSets = (aiSets: number, isAnchor: boolean): number => {
       const target = isAnchor ? norms.anchorSets : norms.accSets;
       return Math.min(aiSets || target, target);
     };
 
-    const clampReps = (repsStr) => {
+    const clampReps = (repsStr: string | number | undefined): string => {
       if (!repsStr) return `${norms.repFloor}-${norms.repCeil}`;
       const str = String(repsStr).replace('–', '-');
       const parts = str
@@ -243,7 +358,7 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
     };
 
     // Hydrate exercises by matching to EXERCISE_DB
-    const hydrated = parsed.days.map((day) => ({
+    const hydrated: HydratedDay[] = parsed.days.map((day) => ({
       ...day,
       cardio: null,
       exercises: day.exercises.map((ex) => {
@@ -258,7 +373,7 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
           tag: day.tag,
           anchor: isAnchor,
           sets: clampSets(
-            ex.sets || dbEx?.sets || (isAnchor ? norms.anchorSets : norms.accSets),
+            ex.sets || (dbEx?.sets ? Number(dbEx.sets) : 0) || (isAnchor ? norms.anchorSets : norms.accSets),
             isAnchor
           ),
           reps: clampReps(ex.reps || dbEx?.reps),

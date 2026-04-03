@@ -1,19 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 // Data
-import { TAG_ACCENT, PHASE_COLOR, getMeso, getWeekPhase, getWeekRir } from '../../data/constants';
+import { PHASE_COLOR, getMeso, getWeekPhase, getWeekRir } from '../../data/constants';
+import { tokens } from '../../styles/tokens';
 
 // Utils
 import {
   store,
-  loadDayWeek,
   getWorkoutDaysForWeek,
   getReadinessScore,
-  saveCurrentWeek,
   setSkipped,
   saveProfile,
-  exportData,
-  importData,
 } from '../../utils/store';
 import { syncReadinessToSupabase } from '../../utils/sync';
 
@@ -34,9 +31,9 @@ interface HomeViewProps {
   currentWeek: any;
   setCurrentWeek: (v: any) => void;
   onSelectDay: (v: any) => void;
-  onSelectDayWeek: (v: any) => void;
+  onSelectDayWeek: (dayIdx: any, weekIdx: any) => void;
   onOpenExtra: (v: any) => void;
-  onOpenCardio: (v: any) => void;
+  onOpenCardio: (dateStr: any, protocolId?: any) => void;
   onOpenMobility: (v: any) => void;
   completedDays: any;
   onReset: () => void;
@@ -66,7 +63,7 @@ function HomeView({
 }: HomeViewProps) {
   // ── Tab navigation ─────────────────────────────────────────────────────
   const [tab, setTab] = useState('landing');
-  const goTo = (key) => {
+  const goTo = (key: any) => {
     setTab(key);
     window.scrollTo(0, 0);
   };
@@ -91,12 +88,12 @@ function HomeView({
   // ── Overlay / modal state ───────────────────────────────────────────────
   const [showReset, setShowReset] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
-  const [showSkipConfirm, setShowSkipConfirm] = useState(null);
+  const [showSkipConfirm, setShowSkipConfirm] = useState<{ dayIdx: number; weekIdx: number } | null>(null);
   const [skipVersion, setSkipVersion] = useState(0);
-  const [addWorkoutModal, setAddWorkoutModal] = useState(null);
+  const [addWorkoutModal, setAddWorkoutModal] = useState<string | null>(null);
   const [addWorkoutStep, setAddWorkoutStep] = useState('type');
-  const [addWorkoutType, setAddWorkoutType] = useState(null);
-  const [addWorkoutDayType, setAddWorkoutDayType] = useState(null);
+  const [_addWorkoutType, setAddWorkoutType] = useState<string | null>(null);
+  const [_addWorkoutDayType, setAddWorkoutDayType] = useState<string | null>(null);
 
   // ── Schedule tab state ──────────────────────────────────────────────────
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -132,7 +129,7 @@ function HomeView({
     }
   });
 
-  const updateReadiness = (key, val) => {
+  const updateReadiness = (key: any, val: any) => {
     const next = { ...(readiness || {}), [key]: val };
     store.set(todayReadinessKey, JSON.stringify(next));
     setReadiness(next);
@@ -203,7 +200,7 @@ function HomeView({
   const displayWeek = Math.min(activeWeek, calendarWeek);
 
   const phase = getWeekPhase()[Math.min(displayWeek, getMeso().weeks - 1)] || 'Deload';
-  const pc = PHASE_COLOR[phase];
+  const pc = (PHASE_COLOR as Record<string, any>)[phase];
   const rir = getWeekRir()[Math.min(displayWeek, getMeso().weeks - 1)] || 'N/A';
 
   const weekDone = activeDays.filter((_, i) => completedDays.has(`${i}:${displayWeek}`)).length;
@@ -216,14 +213,14 @@ function HomeView({
 
   // ── Add Workout Modal ───────────────────────────────────────────────────
 
-  const generateExtraWorkout = (dayTypeId) => ({
+  const generateExtraWorkout = (dayTypeId: any) => ({
     label: dayTypeId,
     exercises: [],
   });
 
   const AddWorkoutModal = () => {
     if (!addWorkoutModal) return null;
-    const { dateStr } = addWorkoutModal;
+    const dateStr = addWorkoutModal;
     const splitType = profile?.splitType || 'ppl';
     const dateLabel = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
       weekday: 'long',
@@ -291,7 +288,7 @@ function HomeView({
       setAddWorkoutDayType(null);
     };
 
-    const handleFoundryBuild = (dayTypeId) => {
+    const handleFoundryBuild = (dayTypeId: any) => {
       const day = generateExtraWorkout(dayTypeId);
       store.set(`foundry:extra:${dateStr}`, JSON.stringify(day));
       closeModal();
@@ -342,7 +339,7 @@ function HomeView({
                 }}
                 style={{
                   padding: '16px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   textAlign: 'left',
                   background: 'var(--accent)11',
@@ -382,7 +379,7 @@ function HomeView({
                 }}
                 style={{
                   padding: '16px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   textAlign: 'left',
                   background: 'var(--bg-surface)',
@@ -421,7 +418,7 @@ function HomeView({
                   onClick={() => handleFoundryBuild(opt.id)}
                   style={{
                     padding: '13px 16px',
-                    borderRadius: 8,
+                    borderRadius: tokens.radius.lg,
                     cursor: 'pointer',
                     textAlign: 'left',
                     background: 'var(--bg-surface)',
@@ -510,7 +507,7 @@ function HomeView({
     {
       key: 'landing',
       label: 'Home',
-      icon: (active) => (
+      icon: (active: any) => (
         <svg
           width="22"
           height="22"
@@ -529,7 +526,7 @@ function HomeView({
     {
       key: 'progress',
       label: 'Progress',
-      icon: (active) => (
+      icon: (active: any) => (
         <svg
           width="22"
           height="22"
@@ -549,7 +546,7 @@ function HomeView({
     {
       key: 'schedule',
       label: 'Schedule',
-      icon: (active) => (
+      icon: (active: any) => (
         <svg
           width="22"
           height="22"
@@ -570,7 +567,7 @@ function HomeView({
     {
       key: 'explore',
       label: 'Explore',
-      icon: (active) => (
+      icon: (active: any) => (
         <svg
           width="22"
           height="22"
@@ -617,7 +614,7 @@ function HomeView({
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: 12,
+              borderRadius: tokens.radius.xl,
               padding: '24px',
               maxWidth: 320,
               width: '100%',
@@ -656,7 +653,7 @@ function HomeView({
                 style={{
                   flex: 1,
                   padding: '12px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   background: 'var(--danger)',
                   border: '1px solid var(--danger)',
@@ -672,7 +669,7 @@ function HomeView({
                 style={{
                   flex: 1,
                   padding: '12px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   background: 'transparent',
                   border: '1px solid var(--border)',

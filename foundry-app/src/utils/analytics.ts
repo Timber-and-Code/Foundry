@@ -1,18 +1,34 @@
 import { store } from './storage';
 import { validateDayData } from './validate';
+import type {
+  ReadinessEntry,
+  Exercise,
+  DayData,
+  Profile,
+  TrainingDay,
+  BodyWeightEntry,
+  WorkoutSet,
+} from '../types';
 
 // ─── READINESS SCORING ───────────────────────────────────────────────────────
 
-export function getReadinessScore(r) {
+interface ReadinessLabel {
+  label: string;
+  color: string;
+  advice: string;
+  banner: string | null;
+}
+
+export function getReadinessScore(r: ReadinessEntry | null | undefined): number | null {
   if (!r) return null;
-  const s = { poor: 0, ok: 1, good: 2 }[r.sleep] ?? null;
-  const o = { high: 0, moderate: 1, low: 2 }[r.soreness] ?? null;
-  const e = { low: 0, moderate: 1, high: 2 }[r.energy] ?? null;
+  const s = { poor: 0, ok: 1, good: 2 }[r.sleep!] ?? null;
+  const o = { high: 0, moderate: 1, low: 2 }[r.soreness!] ?? null;
+  const e = { low: 0, moderate: 1, high: 2 }[r.energy!] ?? null;
   if (s === null || o === null || e === null) return null;
   return s + o + e;
 }
 
-export function getReadinessLabel(score) {
+export function getReadinessLabel(score: number | null): ReadinessLabel | null {
   if (score === null) return null;
   if (score >= 5)
     return {
@@ -38,9 +54,14 @@ export function getReadinessLabel(score) {
 
 // ─── EXERCISE HISTORY ────────────────────────────────────────────────────────
 
-export function loadExerciseHistory(dayIdx, exIdx, mesoWeeks) {
+interface HistoryRow {
+  week: number;
+  sets: { setNum: number; weight: string; reps: string; rpe: string | number | null }[];
+}
+
+export function loadExerciseHistory(dayIdx: number, exIdx: number, mesoWeeks?: number): HistoryRow[] {
   const weeks = mesoWeeks || 6;
-  const rows = [];
+  const rows: HistoryRow[] = [];
   for (let w = 0; w <= weeks; w++) {
     if (store.get(`foundry:done:d${dayIdx}:w${w}`) !== '1') continue;
     const raw = store.get(`foundry:day${dayIdx}:week${w}`);
@@ -51,8 +72,8 @@ export function loadExerciseHistory(dayIdx, exIdx, mesoWeeks) {
     const sets = Object.entries(exData)
       .map(([si, s]) => ({
         setNum: parseInt(si) + 1,
-        weight: s?.weight || '',
-        reps: s?.reps || '',
+        weight: String(s?.weight || ''),
+        reps: String(s?.reps || ''),
         rpe: s?.rpe || null,
       }))
       .filter((s) => s.weight || s.reps);
@@ -63,22 +84,43 @@ export function loadExerciseHistory(dayIdx, exIdx, mesoWeeks) {
 
 // ─── SESSION PR DETECTION ────────────────────────────────────────────────────
 
-export function detectSessionPRs(exercises, weekData, mode, opts) {
-  const getBestWeight = (data) => {
+interface PREntry {
+  name: string;
+  newBest: number;
+  prevBest: number;
+}
+
+interface MesoPROpts {
+  dayIdx: number;
+  weekIdx: number;
+}
+
+interface ExtraPROpts {
+  activeDays?: TrainingDay[];
+  currentDateStr: string;
+}
+
+export function detectSessionPRs(
+  exercises: Exercise[],
+  weekData: DayData,
+  mode: 'meso' | 'extra',
+  opts: MesoPROpts | ExtraPROpts,
+): PREntry[] {
+  const getBestWeight = (data: Record<string, WorkoutSet> | undefined): number => {
     let best = 0;
     Object.values(data || {}).forEach((s) => {
-      const w = parseFloat(s?.weight);
+      const w = parseFloat(String(s?.weight));
       if (!isNaN(w) && w > best && (s?.reps || s?.reps === 0)) best = w;
     });
     return best;
   };
 
-  const prs = [];
+  const prs: PREntry[] = [];
 
   if (mode === 'meso') {
-    const { dayIdx, weekIdx } = opts;
+    const { dayIdx, weekIdx } = opts as MesoPROpts;
     exercises.forEach((ex, exIdx) => {
-      const todayBest = getBestWeight(weekData[exIdx] || {});
+      const todayBest = getBestWeight((weekData[exIdx] || {}) as Record<string, WorkoutSet>);
       if (todayBest <= 0) return;
       let priorBest = 0;
       for (let w = 0; w < weekIdx; w++) {
@@ -86,7 +128,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
           const raw = store.get(`foundry:day${dayIdx}:week${w}`);
           if (!raw) continue;
           const dd = validateDayData(JSON.parse(raw));
-          const b = getBestWeight(dd[exIdx] || {});
+          const b = getBestWeight((dd[exIdx] || {}) as Record<string, WorkoutSet>);
           if (b > priorBest) priorBest = b;
         } catch (e) {
           console.warn('[Foundry]', 'Failed to read prior week data for PR detection', e);
@@ -99,11 +141,11 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
   }
 
   if (mode === 'extra') {
-    const { activeDays, currentDateStr } = opts;
+    const { activeDays, currentDateStr } = opts as ExtraPROpts;
     const mesoWeeks = 6;
     exercises.forEach((ex, exIdx) => {
       if (!ex.id) return;
-      const todayBest = getBestWeight(weekData[exIdx] || {});
+      const todayBest = getBestWeight((weekData[exIdx] || {}) as Record<string, WorkoutSet>);
       if (todayBest <= 0) return;
       let priorBest = 0;
       if (activeDays) {
@@ -115,7 +157,7 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
               const raw = store.get(`foundry:day${d}:week${w}`);
               if (!raw) continue;
               const dd = validateDayData(JSON.parse(raw));
-              const b = getBestWeight(dd[slot] || {});
+              const b = getBestWeight((dd[slot] || {}) as Record<string, WorkoutSet>);
               if (b > priorBest) priorBest = b;
             } catch (e) {
               console.warn('[Foundry]', 'Failed to read meso data for PR detection', e);
@@ -130,14 +172,14 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
           if (dateStr === currentDateStr) return;
           const raw = store.get(key);
           if (!raw) return;
-          const ed = JSON.parse(raw);
+          const ed = JSON.parse(raw) as DayData;
           const sessionRaw = store.get(`foundry:extra:${dateStr}`);
           if (!sessionRaw) return;
-          const session = JSON.parse(sessionRaw);
+          const session = JSON.parse(sessionRaw) as { exercises?: Exercise[] };
           const exList = session.exercises || [];
           exList.forEach((se, si) => {
             if (se.id !== ex.id) return;
-            const b = getBestWeight(ed[si] || {});
+            const b = getBestWeight((ed[si] || {}) as Record<string, WorkoutSet>);
             if (b > priorBest) priorBest = b;
           });
         });
@@ -155,14 +197,39 @@ export function detectSessionPRs(exercises, weekData, mode, opts) {
 
 // ─── STALLING DETECTION ──────────────────────────────────────────────────────
 
-export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekIdx, profile, deps) {
+interface StallEntry {
+  name: string;
+  weight: number;
+  isProtecting?: boolean;
+  isFatigueSignal: boolean;
+}
+
+interface RegressionEntry {
+  name: string;
+  current: number;
+  previous: number;
+}
+
+interface StallDeps {
+  EXERCISE_DB?: Exercise[];
+  loadBwLog?: () => BodyWeightEntry[];
+}
+
+export function detectStallingLifts(
+  dayIdx: number,
+  day: TrainingDay,
+  resolvedExercises: Exercise[],
+  currentWeekIdx: number,
+  profile: Profile | null | undefined,
+  deps?: StallDeps,
+): { stalls: StallEntry[]; regressions: RegressionEntry[] } {
   const { EXERCISE_DB = [], loadBwLog: _loadBwLog } = deps || {};
-  const stalls = [];
-  const regressions = [];
+  const stalls: StallEntry[] = [];
+  const regressions: RegressionEntry[] = [];
 
   resolvedExercises.forEach((ex, exIdx) => {
     const baseExName = (day.exercises[exIdx] || {}).name || ex.name;
-    const window = [];
+    const window: { w: number; weight: number }[] = [];
 
     for (let w = 0; w < currentWeekIdx; w++) {
       if (store.get(`foundry:done:d${dayIdx}:w${w}`) !== '1') continue;
@@ -181,7 +248,7 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
         let heaviest = 0;
         Object.values(exData).forEach((s) => {
           if (!s || s.warmup || s.repsSuggested) return;
-          const wt = parseFloat(s.weight);
+          const wt = parseFloat(String(s.weight));
           if (!isNaN(wt) && wt > 0 && s.reps && s.reps !== '') {
             if (wt > heaviest) heaviest = wt;
           }
@@ -218,7 +285,7 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
             let curHeaviest = 0;
             Object.values(curExData).forEach((s) => {
               if (!s || s.warmup) return;
-              const wt = parseFloat(s.weight);
+              const wt = parseFloat(String(s.weight));
               if (!isNaN(wt) && wt > curHeaviest) curHeaviest = wt;
             });
             if (curHeaviest > last3[0].weight) return;
@@ -255,7 +322,7 @@ export function detectStallingLifts(dayIdx, day, resolvedExercises, currentWeekI
         if (profile?.goal === 'lose_fat' && _loadBwLog) {
           const sessionDates = last3
             .map((entry) => store.get(`foundry:completedDate:d${dayIdx}:w${entry.w}`) || null)
-            .filter(Boolean)
+            .filter((d): d is string => d !== null)
             .sort();
           if (sessionDates.length >= 2) {
             const earliest = sessionDates[0];

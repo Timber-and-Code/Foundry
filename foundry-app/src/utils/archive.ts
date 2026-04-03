@@ -1,10 +1,11 @@
 import { store } from './storage';
-import { getReadinessScore } from './analytics.js';
+import { getReadinessScore } from './analytics';
 import { validateArchive } from './validate';
+import type { Profile, ArchiveEntry, Exercise, TrainingDay } from '../types';
 
 // ─── ARCHIVE HELPERS ─────────────────────────────────────────────────────────
 
-export function loadArchive() {
+export function loadArchive(): ArchiveEntry[] {
   try {
     return validateArchive(JSON.parse(store.get('foundry:archive') || '[]'));
   } catch (e) {
@@ -13,14 +14,14 @@ export function loadArchive() {
   }
 }
 
-export function deleteArchiveEntry(id) {
+export function deleteArchiveEntry(id: number | string): void {
   const archive = loadArchive().filter((r) => r.id !== id);
   store.set('foundry:archive', JSON.stringify(archive));
 }
 
 // ─── CLEAR ALL SKIPS ─────────────────────────────────────────────────────────
 
-export function clearAllSkips(mesoWeeks, mesoDays) {
+export function clearAllSkips(mesoWeeks?: number, mesoDays?: number): void {
   const weeks = mesoWeeks || 12;
   const days = mesoDays || 6;
   for (let d = 0; d < days; d++)
@@ -34,7 +35,7 @@ export function clearAllSkips(mesoWeeks, mesoDays) {
 
 // ─── RESET MESO ──────────────────────────────────────────────────────────────
 
-export function resetMeso(mesoWeeks, mesoDays) {
+export function resetMeso(mesoWeeks?: number, mesoDays?: number): void {
   const weeks = mesoWeeks || 12;
   const days = mesoDays || 6;
   for (let d = 0; d < days; d++) {
@@ -102,13 +103,40 @@ export function resetMeso(mesoWeeks, mesoDays) {
 
 // ─── ARCHIVE CURRENT MESO ───────────────────────────────────────────────────
 
-export function archiveCurrentMeso(profile, deps) {
+interface ArchiveDeps {
+  generateProgram?: (profile: Profile) => TrainingDay[];
+  EXERCISE_DB?: Exercise[];
+}
+
+interface ArchiveSession {
+  d: number;
+  w: number;
+  data: unknown;
+  exOvs: Record<number, string>;
+  done: boolean;
+  cardioLog: unknown;
+}
+
+interface MesoTransition {
+  builtBy: 'ai' | 'manual';
+  anchorPeaks: { name: string; id?: string | number; peak: number }[];
+  accessoryIds: (string | number)[];
+  profile: Partial<Profile>;
+  readinessSummary?: {
+    avgScore: number;
+    lowDays: number;
+    totalLogged: number;
+    totalDays: number;
+  };
+}
+
+export function archiveCurrentMeso(profile: Profile | null | undefined, deps?: ArchiveDeps): void {
   const { generateProgram: _generateProgram, EXERCISE_DB: _EXERCISE_DB } = deps || {};
   if (!profile) return;
   const mesoWeeks = profile.mesoLength ? profile.mesoLength + 1 : 7;
   const mesoDays = profile.workoutDays?.length || profile.daysPerWeek || 6;
 
-  const sessions = [];
+  const sessions: ArchiveSession[] = [];
   let completedCount = 0;
   for (let d = 0; d < mesoDays; d++) {
     for (let w = 0; w <= mesoWeeks; w++) {
@@ -117,7 +145,7 @@ export function archiveCurrentMeso(profile, deps) {
       if (done) completedCount++;
       if (!raw) continue;
       const data = JSON.parse(raw);
-      const exOvs = {};
+      const exOvs: Record<number, string> = {};
       for (let ex = 0; ex < 8; ex++) {
         const ov =
           store.get(`foundry:exov:d${d}:w${w}:ex${ex}`) || store.get(`foundry:exov:d${d}:ex${ex}`);
@@ -140,13 +168,13 @@ export function archiveCurrentMeso(profile, deps) {
     sessions,
   };
 
-  let archive = [];
+  let archive: ArchiveEntry[] = [];
   try {
     archive = validateArchive(JSON.parse(store.get('foundry:archive') || '[]'));
   } catch (e) {
     console.warn('[Foundry]', 'Failed to load archive for meso archival', e);
   }
-  archive.unshift(record);
+  archive.unshift(record as unknown as ArchiveEntry);
   if (archive.length > 10) archive = archive.slice(0, 10);
   store.set('foundry:archive', JSON.stringify(archive));
 
@@ -154,7 +182,7 @@ export function archiveCurrentMeso(profile, deps) {
   try {
     if (_generateProgram) {
       const prog = _generateProgram(profile).slice(0, mesoDays);
-      const anchorPeaks = [];
+      const anchorPeaks: { name: string; id?: string | number; peak: number }[] = [];
       prog.forEach((day, d) => {
         day.exercises.forEach((ex, exIdx) => {
           if (!ex.anchor) return;
@@ -163,9 +191,9 @@ export function archiveCurrentMeso(profile, deps) {
             const raw = store.get(`foundry:day${d}:week${w}`);
             if (!raw) continue;
             try {
-              const wd = JSON.parse(raw);
+              const wd = JSON.parse(raw) as Record<string, Record<string, { weight?: string | number }>>;
               Object.values(wd[exIdx] || {}).forEach((s) => {
-                const wVal = parseFloat(s?.weight || 0);
+                const wVal = parseFloat(String(s?.weight || 0));
                 if (wVal > peakWeight) peakWeight = wVal;
               });
             } catch (e) {
@@ -176,14 +204,14 @@ export function archiveCurrentMeso(profile, deps) {
         });
       });
 
-      const accessoryIds = [];
+      const accessoryIds: (string | number)[] = [];
       prog.forEach((day) => {
         day.exercises.forEach((ex) => {
           if (!ex.anchor && ex.id && !accessoryIds.includes(ex.id)) accessoryIds.push(ex.id);
         });
       });
 
-      const transition = {
+      const transition: MesoTransition = {
         builtBy: profile.autoBuilt ? 'ai' : 'manual',
         anchorPeaks,
         accessoryIds,
@@ -234,7 +262,7 @@ export function archiveCurrentMeso(profile, deps) {
               avgScore: Math.round((totalScore / totalLogged) * 10) / 10,
               lowDays,
               totalLogged,
-              totalDays: Math.round((end - start) / 86400000) + 1,
+              totalDays: Math.round((end.getTime() - start.getTime()) / 86400000) + 1,
             };
           }
         }

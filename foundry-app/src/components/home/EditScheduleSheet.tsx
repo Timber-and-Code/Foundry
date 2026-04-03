@@ -1,5 +1,6 @@
 import React from 'react';
 import { getWorkoutDaysForWeek, ensureWorkoutDaysHistory, saveProfile } from '../../utils/store';
+import { tokens } from '../../styles/tokens';
 import Sheet from '../ui/Sheet';
 
 interface EditScheduleSheetProps {
@@ -26,10 +27,10 @@ function EditScheduleSheet({
   const Inner = () => {
     const [selected, setSelected] = React.useState([...currentDays]);
     const [confirmScope, setConfirmScope] = React.useState(false);
-    const [pendingDays, setPendingDays] = React.useState(null);
+    const [pendingDays, setPendingDays] = React.useState<number[] | null>(null);
     const countOk = selected.length === requiredCount;
 
-    const toggleDay = (dow) => {
+    const toggleDay = (dow: any) => {
       setSelected((prev) =>
         prev.includes(dow)
           ? prev.filter((d) => d !== dow).sort((a, b) => a - b)
@@ -37,22 +38,22 @@ function EditScheduleSheet({
       );
     };
 
-    const applyRemap = (scope) => {
+    const applyRemap = (scope: any) => {
       const p = ensureWorkoutDaysHistory(profile);
       const history = [...(p.workoutDaysHistory || [])];
       const priorDays = getWorkoutDaysForWeek(p, currentWeek);
       const pruned = history.filter((e) => e.fromWeek < currentWeek);
       if (scope === 'week') {
-        pruned.push({ fromWeek: currentWeek, days: pendingDays });
+        pruned.push({ fromWeek: currentWeek, days: pendingDays ?? [] });
         pruned.push({ fromWeek: currentWeek + 1, days: priorDays });
       } else {
-        pruned.push({ fromWeek: currentWeek, days: pendingDays });
+        pruned.push({ fromWeek: currentWeek, days: pendingDays ?? [] });
       }
       pruned.sort((a, b) => a.fromWeek - b.fromWeek);
       const updated = {
         ...p,
         workoutDaysHistory: pruned,
-        workoutDays: pendingDays,
+        workoutDays: pendingDays ?? [],
       };
       saveProfile(updated);
       if (onProfileUpdate)
@@ -126,7 +127,7 @@ function EditScheduleSheet({
           >
             You're moving training to{' '}
             <strong style={{ color: 'var(--text-primary)' }}>
-              {pendingDays.map((d) => DOW_FULL[d]).join(', ')}
+              {pendingDays!.map((d) => DOW_FULL[d]).join(', ')}
             </strong>
             . Should this apply to just this week, or to all remaining weeks?
           </div>
@@ -135,7 +136,7 @@ function EditScheduleSheet({
               onClick={() => applyRemap('week')}
               style={{
                 padding: '16px',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 cursor: 'pointer',
                 textAlign: 'left',
                 background: 'var(--accent)11',
@@ -160,7 +161,7 @@ function EditScheduleSheet({
               onClick={() => applyRemap('meso')}
               style={{
                 padding: '16px',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 cursor: 'pointer',
                 textAlign: 'left',
                 background: 'var(--bg-surface)',
@@ -188,7 +189,7 @@ function EditScheduleSheet({
               width: '100%',
               marginTop: 12,
               padding: '12px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               background: 'transparent',
               border: 'none',
               color: 'var(--text-muted)',
@@ -264,7 +265,7 @@ function EditScheduleSheet({
         >
           Select {requiredCount} day{requiredCount !== 1 ? 's' : ''} per week. Currently:{' '}
           <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-            {currentDays.map((d) => DOW_FULL[d]).join(', ')}
+            {currentDays.map((d: any) => DOW_FULL[d]).join(', ')}
           </span>
         </div>
         <div
@@ -283,7 +284,7 @@ function EditScheduleSheet({
                 onClick={() => toggleDay(dow)}
                 style={{
                   padding: '10px 4px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   background: isSel ? 'var(--accent)22' : 'var(--bg-deep)',
                   border: `1px solid ${isSel ? 'var(--accent)' : 'var(--border)'}`,
@@ -305,7 +306,7 @@ function EditScheduleSheet({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '10px 14px',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             marginBottom: 20,
             background: countOk ? 'var(--phase-accum)11' : 'var(--danger)11',
             border: `1px solid ${countOk ? 'var(--phase-accum)44' : 'var(--danger)44'}`,
@@ -342,7 +343,7 @@ function EditScheduleSheet({
           style={{
             width: '100%',
             padding: '14px',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             cursor: countOk ? 'pointer' : 'not-allowed',
             background: countOk ? 'var(--btn-primary-bg)' : 'var(--bg-deep)',
             border: `1px solid ${countOk ? 'var(--btn-primary-border)' : 'var(--border)'}`,

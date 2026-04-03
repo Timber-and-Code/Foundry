@@ -9,18 +9,15 @@ import {
 } from 'react-router-dom';
 import { RestTimerProvider, useRestTimer } from './contexts/RestTimerContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { PageSkeleton } from './components/ui/Skeleton';
 const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
 const UserMenu = React.lazy(() => import('./components/auth/UserMenu'));
 
 // Data
 import {
-  PHASE_COLOR,
   getMeso,
-  getWeekPhase,
-  buildMesoConfig,
   resetMesoCache,
 } from './data/constants';
-import { EXERCISE_DB } from './data/exercises';
 
 // Utils
 import { migrateKeys } from './utils/storage';
@@ -29,17 +26,12 @@ import {
   loadProfile,
   saveProfile,
   loadCompleted,
-  markComplete,
   loadCurrentWeek,
   saveCurrentWeek,
-  snapshotData,
-  resetMeso,
-  archiveCurrentMeso,
 } from './utils/store';
 
 // Run key migration before any reads (ppl: → foundry:)
 migrateKeys();
-import { generateProgram } from './utils/program';
 
 // Components
 import FoundryBanner from './components/shared/FoundryBanner';
@@ -60,13 +52,14 @@ const MobilitySessionView = React.lazy(() => import('./components/workout/Mobili
 const TourOverlay = React.lazy(() => import('./components/tour/TourOverlay'));
 const ProfileDrawer = React.lazy(() => import('./components/settings/SettingsView'));
 const SetupPage = React.lazy(() => import('./components/setup/SetupPage'));
+const NotFoundPage = React.lazy(() => import('./components/NotFoundPage'));
 
 // ─── ROUTE WRAPPERS ───────────────────────────────────────────────────────────
 
 interface DayViewRouteProps {
-  onComplete: (v: any) => void;
-  handleNextDay: (v: any) => void;
-  completedDays: any[];
+  onComplete: (...args: any[]) => void;
+  handleNextDay: (...args: any[]) => void;
+  completedDays: Set<string>;
   profile: any;
   activeDays: any[];
   onProfileUpdate: (p: any) => void;
@@ -77,8 +70,8 @@ function DayViewRoute({ onComplete, handleNextDay, completedDays, profile, activ
   const navigate = useNavigate();
   return (
     <DayView
-      dayIdx={parseInt(dayIdx, 10)}
-      weekIdx={parseInt(weekIdx, 10)}
+      dayIdx={parseInt(dayIdx!, 10)}
+      weekIdx={parseInt(weekIdx!, 10)}
       onBack={() => {
         window.scrollTo(0, 0);
         navigate('/');
@@ -98,7 +91,7 @@ function ExtraViewRoute({ profile, activeDays, onProfileUpdate }: { profile: any
   const navigate = useNavigate();
   return (
     <ExtraDayView
-      dateStr={dateStr}
+      dateStr={dateStr!}
       profile={profile}
       activeDays={activeDays}
       onBack={() => {
@@ -115,8 +108,8 @@ function CardioViewRoute({ profile }: { profile: any }) {
   const navigate = useNavigate();
   return (
     <CardioSessionView
-      dateStr={dateStr}
-      plannedProtocolId={protocolId === 'none' ? null : protocolId}
+      dateStr={dateStr!}
+      plannedProtocolId={protocolId === 'none' ? null : (protocolId ?? null)}
       profile={profile}
       onBack={() => {
         window.scrollTo(0, 0);
@@ -131,7 +124,7 @@ function MobilityViewRoute({ profile }: { profile: any }) {
   const navigate = useNavigate();
   return (
     <MobilitySessionView
-      dateStr={dateStr}
+      dateStr={dateStr!}
       profile={profile}
       onBack={() => {
         window.scrollTo(0, 0);
@@ -151,7 +144,7 @@ function App() {
   const [showSetup, setShowSetup] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
-  const homeTabRef = useRef(null);
+  const homeTabRef = useRef<((tab: string) => void) | null>(null);
 
   const {
     profile,
@@ -173,14 +166,14 @@ function App() {
     restTimer,
     restTimerMinimized,
     setRestTimerMinimized,
-    startRestTimer,
+    startRestTimer: _startRestTimer,
     dismissRestTimer,
     timerDayRef,
   } = useRestTimer();
 
   // Listen for cardio open requests from DayView
   useEffect(() => {
-    const handler = (e) => {
+    const handler = (e: any) => {
       const { dateStr, protocolId } = e.detail || {};
       if (dateStr) {
         navigate(`/cardio/${dateStr}/${protocolId || 'none'}`);
@@ -193,9 +186,7 @@ function App() {
   // Show tour once after first program generated
   useEffect(() => {
     if (store.get('foundry:show_tour') === '1' && !store.get('foundry:toured')) {
-      store.remove
-        ? store.remove('foundry:show_tour')
-        : localStorage.removeItem('foundry:show_tour');
+      localStorage.removeItem('foundry:show_tour');
       setTimeout(() => setShowTour(true), 800);
     }
   }, []);
@@ -203,16 +194,8 @@ function App() {
   // ── Onboarding gate ──
   // Early returns use React.lazy components — must wrap in Suspense
   const suspenseFallback = (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#141414',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <div style={{ color: '#e5e5e5', fontSize: 14 }}>Loading...</div>
+    <div style={{ minHeight: '100vh', background: '#141414' }}>
+      <PageSkeleton />
     </div>
   );
 
@@ -250,7 +233,7 @@ function App() {
     return (
       <React.Suspense fallback={suspenseFallback}>
         <SetupPage
-          onComplete={(p) => {
+          onComplete={(p: any) => {
             saveProfile(p);
             localStorage.removeItem('foundry:storedProgram');
             if (!store.get('foundry:toured')) store.set('foundry:show_tour', '1');
@@ -265,7 +248,7 @@ function App() {
     );
   }
 
-  const handleNextDay = (dayIdx, weekIdx) => {
+  const handleNextDay = (dayIdx: any, weekIdx: any) => {
     const nextDayIdx = dayIdx + 1;
     if (nextDayIdx <= getMeso().days - 1) {
       navigate(`/day/${nextDayIdx}/${weekIdx}`);
@@ -281,7 +264,7 @@ function App() {
     }
   };
 
-  const handleProfileUpdate = (updates) => {
+  const handleProfileUpdate = (updates: any) => {
     if ('split' in updates || 'days' in updates) {
       localStorage.removeItem('foundry:storedProgram');
     }
@@ -308,6 +291,7 @@ function App() {
         </div>
       }
     >
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <div
         style={{
           minHeight: '100vh',
@@ -363,7 +347,7 @@ function App() {
         )}
 
         {/* Views */}
-        <main>
+        <main id="main-content">
         <Routes>
           <Route
             path="/"
@@ -378,9 +362,9 @@ function App() {
                   navigate(`/day/${dayIdx}/${weekIdx}`);
                 }}
                 onOpenExtra={(dateStr) => navigate(`/extra/${dateStr}`)}
-                onOpenCardio={(dateStr, protocolId) =>
-                  navigate(`/cardio/${dateStr}/${protocolId || 'none'}`)
-                }
+                onOpenCardio={(dateStr, protocolId) => {
+                  void navigate(`/cardio/${dateStr}/${protocolId || 'none'}`);
+                }}
                 onOpenMobility={(dateStr) => navigate(`/mobility/${dateStr}`)}
                 completedDays={completedDays}
                 profile={profile}
@@ -423,6 +407,7 @@ function App() {
             path="/mobility/:dateStr"
             element={<MobilityViewRoute profile={profile} />}
           />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </main>
 
@@ -445,7 +430,7 @@ function App() {
               }
               const ref = timerDayRef.current;
               if (ref) {
-                setCurrentWeek(ref.weekIdx);
+                setCurrentWeek(ref.weekIdx ?? currentWeek);
                 navigate(`/day/${ref.dayIdx}/${ref.weekIdx}`);
               }
               setRestTimerMinimized(false);

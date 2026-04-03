@@ -8,7 +8,7 @@ import {
   getReadinessLabel,
   loadExerciseHistory,
   detectSessionPRs,
-} from '../analytics.js';
+} from '../analytics';
 
 // ============================================================================
 // getReadinessScore

@@ -1,4 +1,3 @@
-import React from 'react';
 import FoundryBanner from '../shared/FoundryBanner';
 import ExplorePage from '../explore/ExplorePage';
 import { FOUNDRY_EMPTY_IMG } from '../../data/images-home';

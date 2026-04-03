@@ -1,4 +1,6 @@
 import React from 'react';
+import * as Sentry from '@sentry/react';
+import { tokens } from '../styles/tokens';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -17,6 +19,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     this.setState({ info });
+    Sentry.captureException(error, { contexts: { react: { componentStack: info.componentStack } } });
   }
   render() {
     if (!this.state.hasError) return this.props.children;
@@ -64,7 +67,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             padding: '14px 16px',
           }}
         >
@@ -98,7 +101,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
                 style={{
                   background: 'var(--bg-inset)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   padding: '14px 16px',
                   maxHeight: 220,
                   overflowY: 'auto',
@@ -135,7 +138,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
                 style={{
                   background: 'var(--bg-inset)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   padding: '14px 16px',
                   maxHeight: 160,
                   overflowY: 'auto',
@@ -173,7 +176,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               padding: '14px 16px',
               fontSize: 13,
               color: 'var(--text-secondary)',
@@ -189,7 +192,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
             style={{
               flex: 1,
               padding: '13px',
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
               fontSize: 14,
               fontWeight: 700,
               background: 'var(--btn-primary-bg)',
@@ -204,7 +207,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
             style={{
               flex: 1,
               padding: '13px',
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
               fontSize: 14,
               fontWeight: 700,
               background: 'var(--bg-card)',

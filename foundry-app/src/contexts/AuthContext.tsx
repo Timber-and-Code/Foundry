@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
+import * as Sentry from '@sentry/react';
 import { supabase } from '../utils/supabase';
 import { pullFromSupabase, pushToSupabase } from '../utils/sync';
 
@@ -8,7 +9,7 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   authUnavailable: boolean;
-  signup: (email: string, password: string) => Promise<ReturnType<typeof supabase.auth.signUp>>;
+  signup: (email: string, password: string) => ReturnType<typeof supabase.auth.signUp>;
   login: (email: string, password: string) => ReturnType<typeof supabase.auth.signInWithPassword>;
   logout: () => ReturnType<typeof supabase.auth.signOut>;
 }
@@ -40,9 +41,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (event === 'SIGNED_IN') {
+          if (session?.user) Sentry.setUser({ email: session.user.email, id: session.user.id });
           pullFromSupabase();
         } else if (event === 'USER_UPDATED') {
           pullFromSupabase();
+        } else if (event === 'SIGNED_OUT') {
+          Sentry.setUser(null);
         }
       });
       subscription = data.subscription;

@@ -6,228 +6,16 @@ import {
   CARDIO_WORKOUTS,
   FOUNDRY_COOLDOWN,
 } from '../../data/constants';
+import { tokens } from '../../styles/tokens';
 import { EXERCISE_DB } from '../../data/exercises';
 import {
   store,
   loadCardioSession,
-  loadMobilitySession,
   getWorkoutDaysForWeek,
-  getReadinessScore,
-  getReadinessLabel,
   getTimeGreeting,
 } from '../../utils/store';
-
-// ── ReadinessCard ──────────────────────────────────────────────────────────
-
-function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadiness }) {
-  const score = getReadinessScore(readiness);
-  const rl = getReadinessLabel(score);
-  const SIGNALS = [
-    {
-      key: 'sleep',
-      label: 'Sleep',
-      opts: [
-        { val: 'poor', label: 'Poor' },
-        { val: 'ok', label: 'OK' },
-        { val: 'good', label: 'Good' },
-      ],
-    },
-    {
-      key: 'soreness',
-      label: 'Soreness',
-      opts: [
-        { val: 'high', label: 'High' },
-        { val: 'moderate', label: 'Moderate' },
-        { val: 'low', label: 'Low' },
-      ],
-    },
-    {
-      key: 'energy',
-      label: 'Energy',
-      opts: [
-        { val: 'low', label: 'Low' },
-        { val: 'moderate', label: 'Moderate' },
-        { val: 'high', label: 'High' },
-      ],
-    },
-  ];
-  const allFilled = readiness?.sleep && readiness?.soreness && readiness?.energy;
-  return (
-    <div
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow-sm)',
-      }}
-    >
-      <button
-        onClick={() => setReadinessOpen((o) => !o)}
-        aria-expanded={readinessOpen}
-        aria-controls="readiness-panel"
-        style={{
-          width: '100%',
-          background: 'var(--bg-inset)',
-          border: 'none',
-          borderBottom: readinessOpen ? '1px solid var(--border)' : 'none',
-          padding: '10px 16px',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          textAlign: 'left',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              color: 'var(--phase-accum)',
-            }}
-          >
-            READINESS
-          </span>
-          {allFilled && rl && (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: '0.06em',
-                color: rl.color,
-                background: rl.color + '22',
-                border: `1px solid ${rl.color}44`,
-                borderRadius: 4,
-                padding: '2px 7px',
-              }}
-            >
-              {rl.label}
-            </span>
-          )}
-        </div>
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--text-muted)"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{
-            transform: readinessOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s',
-            flexShrink: 0,
-          }}
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
-      {readinessOpen && (
-        <div
-          id="readiness-panel"
-          style={{
-            padding: '12px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-          }}
-        >
-          {SIGNALS.map((sig) => (
-            <div key={sig.key}>
-              <div
-                id={`readiness-label-${sig.key}`}
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  letterSpacing: '0.07em',
-                  color: '#F29A52',
-                  marginBottom: 6,
-                }}
-              >
-                {sig.label.toUpperCase()}
-              </div>
-              <div role="group" aria-labelledby={`readiness-label-${sig.key}`} style={{ display: 'flex', gap: 6 }}>
-                {sig.opts.map((opt) => {
-                  const sel = readiness?.[sig.key] === opt.val;
-                  return (
-                    <button
-                      key={opt.val}
-                      aria-pressed={sel}
-                      onClick={() => updateReadiness(sig.key, opt.val)}
-                      style={{
-                        flex: 1,
-                        padding: '9px 6px',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        letterSpacing: '0.02em',
-                        background: sel ? 'rgba(var(--accent-rgb),0.18)' : 'var(--bg-deep,#0e0c0a)',
-                        border: `1px solid ${sel ? 'var(--accent)' : 'var(--border-accent)'}`,
-                        color: sel ? 'var(--accent)' : 'var(--text-primary)',
-                        transition: 'all 0.12s',
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-          {allFilled && rl && (
-            <div
-              style={{
-                marginTop: 4,
-                padding: '10px 12px',
-                borderRadius: 6,
-                background: rl.color + '18',
-                border: `1px solid ${rl.color}44`,
-                borderLeft: `3px solid ${rl.color}`,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: rl.color,
-                  marginBottom: 2,
-                }}
-              >
-                {rl.label}
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.6,
-                }}
-              >
-                {rl.advice}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-      {!readinessOpen && allFilled && rl && (
-        <div style={{ padding: '8px 16px' }}>
-          <div
-            style={{
-              fontSize: 12,
-              color: 'var(--text-secondary)',
-              lineHeight: 1.5,
-            }}
-          >
-            {rl.advice}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+import ReadinessCard from './ReadinessCard';
+import MobilityCard from './MobilityCard';
 
 // ── RestStateCard ──────────────────────────────────────────────────────────
 
@@ -235,7 +23,7 @@ function RestStateCard({
   displayWeekAllDone,
   calendarSessionDone,
   nextDay,
-  nextDayIdx,
+  nextDayIdx: _nextDayIdx,
   nextDayForCollapse,
   nextDayIdxForCollapse,
   doneLabel,
@@ -252,6 +40,27 @@ function RestStateCard({
   goBack,
   setCurrentWeek,
   onSelectDay,
+}: {
+  displayWeekAllDone: any;
+  calendarSessionDone: any;
+  nextDay: any;
+  nextDayIdx: any;
+  nextDayForCollapse: any;
+  nextDayIdxForCollapse: any;
+  doneLabel: any;
+  activeDays: any;
+  displayWeek: any;
+  completedDays: any;
+  showRecoveryMorning: any;
+  setShowRecoveryMorning: any;
+  showRecoveryTag: any;
+  setShowRecoveryTag: any;
+  showNextSession: any;
+  setShowNextSession: any;
+  activeWeek: any;
+  goBack: any;
+  setCurrentWeek: any;
+  onSelectDay: any;
 }) {
   // Shared mobility tag
   let homeMobilityTag = null;
@@ -267,8 +76,8 @@ function RestStateCard({
       }
     }
   }
-  const homeMobilityMoves =
-    homeMobilityTag && FOUNDRY_COOLDOWN[homeMobilityTag] ? FOUNDRY_COOLDOWN[homeMobilityTag] : null;
+  const homeMobilityMoves: { name: string; cue: string }[] | null =
+    homeMobilityTag && (FOUNDRY_COOLDOWN as Record<string, any>)[homeMobilityTag] ? (FOUNDRY_COOLDOWN as Record<string, any>)[homeMobilityTag] : null;
 
   const recoveryItems = [
     {
@@ -294,7 +103,7 @@ function RestStateCard({
       return null;
     })();
     const weekCompleteMoves =
-      lastDayTag && FOUNDRY_COOLDOWN[lastDayTag] ? FOUNDRY_COOLDOWN[lastDayTag] : null;
+      lastDayTag && (FOUNDRY_COOLDOWN as Record<string, any>)[lastDayTag] ? (FOUNDRY_COOLDOWN as Record<string, any>)[lastDayTag] : null;
     const activeRecoveryItems = [
       {
         title: 'Sauna or Steam',
@@ -315,7 +124,7 @@ function RestStateCard({
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: 8,
+          borderRadius: tokens.radius.lg,
           overflow: 'hidden',
           boxShadow: 'var(--shadow-sm)',
         }}
@@ -358,7 +167,7 @@ function RestStateCard({
               key={i}
               style={{
                 padding: '10px 12px',
-                borderRadius: 7,
+                borderRadius: tokens.radius.md,
                 background: 'var(--bg-deep)',
                 marginBottom: 6,
                 border: '1px solid var(--border-subtle)',
@@ -387,7 +196,7 @@ function RestStateCard({
             </div>
           ))}
           <button
-            onClick={() => setShowRecoveryMorning((p) => !p)}
+            onClick={() => setShowRecoveryMorning((p: any) => !p)}
             style={{
               width: '100%',
               background: 'transparent',
@@ -436,7 +245,7 @@ function RestStateCard({
                 key={i}
                 style={{
                   padding: '10px 12px',
-                  borderRadius: 7,
+                  borderRadius: tokens.radius.md,
                   background: 'var(--bg-deep)',
                   marginBottom: 6,
                   border: '1px solid var(--border-subtle)',
@@ -466,7 +275,7 @@ function RestStateCard({
           {weekCompleteMoves && (
             <>
               <button
-                onClick={() => setShowRecoveryTag((p) => !p)}
+                onClick={() => setShowRecoveryTag((p: any) => !p)}
                 style={{
                   width: '100%',
                   background: 'transparent',
@@ -510,12 +319,12 @@ function RestStateCard({
                 </svg>
               </button>
               {showRecoveryTag &&
-                weekCompleteMoves.map((move, i) => (
+                weekCompleteMoves.map((move: any, i: any) => (
                   <div
                     key={i}
                     style={{
                       padding: '10px 12px',
-                      borderRadius: 7,
+                      borderRadius: tokens.radius.md,
                       background: 'var(--bg-deep)',
                       marginBottom: 6,
                       border: '1px solid var(--border-subtle)',
@@ -556,7 +365,7 @@ function RestStateCard({
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: 8,
+          borderRadius: tokens.radius.lg,
           overflow: 'hidden',
           boxShadow: 'var(--shadow-sm)',
         }}
@@ -632,7 +441,7 @@ function RestStateCard({
               key={i}
               style={{
                 padding: '10px 12px',
-                borderRadius: 7,
+                borderRadius: tokens.radius.md,
                 background: 'var(--bg-deep)',
                 marginBottom: 6,
                 border: '1px solid var(--border-subtle)',
@@ -661,7 +470,7 @@ function RestStateCard({
             </div>
           ))}
           <button
-            onClick={() => setShowRecoveryMorning((p) => !p)}
+            onClick={() => setShowRecoveryMorning((p: any) => !p)}
             style={{
               width: '100%',
               background: 'transparent',
@@ -710,7 +519,7 @@ function RestStateCard({
                 key={i}
                 style={{
                   padding: '10px 12px',
-                  borderRadius: 7,
+                  borderRadius: tokens.radius.md,
                   background: 'var(--bg-deep)',
                   marginBottom: 6,
                   border: '1px solid var(--border-subtle)',
@@ -740,7 +549,7 @@ function RestStateCard({
           {homeMobilityMoves && (
             <>
               <button
-                onClick={() => setShowRecoveryTag((p) => !p)}
+                onClick={() => setShowRecoveryTag((p: any) => !p)}
                 style={{
                   width: '100%',
                   background: 'transparent',
@@ -789,7 +598,7 @@ function RestStateCard({
                     key={i}
                     style={{
                       padding: '10px 12px',
-                      borderRadius: 7,
+                      borderRadius: tokens.radius.md,
                       background: 'var(--bg-deep)',
                       marginBottom: 6,
                       border: '1px solid var(--border-subtle)',
@@ -825,13 +634,13 @@ function RestStateCard({
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             overflow: 'hidden',
             boxShadow: 'var(--shadow-sm)',
           }}
         >
           <button
-            onClick={() => setShowNextSession((p) => !p)}
+            onClick={() => setShowNextSession((p: any) => !p)}
             style={{
               width: '100%',
               background: 'transparent',
@@ -900,7 +709,7 @@ function RestStateCard({
                   padding: '0',
                 }}
               >
-                {nextDayForCollapse.exercises.map((ex, ei) => {
+                {nextDayForCollapse.exercises.map((ex: any, ei: any) => {
                   const ovId = store.get(`foundry:exov:d${nextDayIdxForCollapse}:ex${ei}`) || null;
                   const dbEx = ovId ? EXERCISE_DB.find((e) => e.id === ovId) : null;
                   return (
@@ -959,7 +768,7 @@ function RestStateCard({
                   style={{
                     width: '100%',
                     padding: '10px',
-                    borderRadius: 6,
+                    borderRadius: tokens.radius.md,
                     cursor: 'pointer',
                     background: 'var(--btn-primary-bg)',
                     border: '1px solid var(--btn-primary-border)',
@@ -1000,7 +809,7 @@ interface HomeTabProps {
   readiness: any;
   readinessOpen: any;
   setReadinessOpen: (v: any) => void;
-  updateReadiness: (v: any) => void;
+  updateReadiness: (key: any, val: any) => void;
   showRecoveryMorning: any;
   setShowRecoveryMorning: (v: any) => void;
   showRecoveryTag: any;
@@ -1012,10 +821,10 @@ interface HomeTabProps {
   goTo: (v: any) => void;
   goBack: () => void;
   onSelectDay: (v: any) => void;
-  onSelectDayWeek: (v: any) => void;
+  onSelectDayWeek: (dayIdx: any, weekIdx: any) => void;
   setCurrentWeek: (v: any) => void;
   setShowSkipConfirm: (v: any) => void;
-  onOpenCardio: (v: any) => void;
+  onOpenCardio: (dateStr: any, protocol: any) => void;
   onOpenMobility: (v: any) => void;
   setShowPricing: (v: any) => void;
 }
@@ -1063,17 +872,17 @@ function HomeTab({
   })();
   const todayDow = new Date().getDay();
   const cardioSchedule = profile?.cardioSchedule || [];
-  const todayCardioSlot = cardioSchedule.find((s) => s.dayOfWeek === todayDow) || null;
+  const todayCardioSlot = cardioSchedule.find((s: any) => s.dayOfWeek === todayDow) || null;
   const todayCardioSession = loadCardioSession(todayCardioStr);
   const CARDIO_COLOR = TAG_ACCENT['CARDIO'];
 
   const nextDayIdx = activeDays.findIndex((_, i) => !completedDays.has(`${i}:${activeWeek}`));
   const nextDay = nextDayIdx >= 0 ? activeDays[nextDayIdx] : null;
-  const nextDayAccent = nextDay ? TAG_ACCENT[nextDay.tag] : 'var(--accent)';
+  const nextDayAccent = nextDay ? (TAG_ACCENT as Record<string, any>)[nextDay.tag] : 'var(--accent)';
 
   // Build sessionDateMap
   const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;
-  const sessionDateMap = {};
+  const sessionDateMap: Record<string, any> = {};
   if (startDate && activeDays.length > 0) {
     const total = (getMeso().weeks + 1) * activeDays.length;
     let sc = 0,
@@ -1101,7 +910,7 @@ function HomeTab({
   const showDayWeek = isCalendarWorkoutDay ? calWeekIdx : activeWeek;
   const showDay = !isRestState && todayMesoDay ? todayMesoDay : nextDay;
   const showDayIdx = !isRestState && todayMesoDay ? calDayIdx : nextDayIdx;
-  const showDayAccent = showDay ? TAG_ACCENT[showDay.tag] : nextDayAccent;
+  const showDayAccent = showDay ? (TAG_ACCENT as Record<string, any>)[showDay.tag] : nextDayAccent;
   const isToday = isCalendarWorkoutDay && !calendarSessionDone;
 
   // Detect if today is a workout day (for readiness display)
@@ -1124,7 +933,7 @@ function HomeTab({
   }
 
   const preview = showDay?.exercises || [];
-  const lastWeekData = (() => {
+  const lastWeekData: Record<string, any> = (() => {
     for (let w = (isToday ? calWeekIdx : activeWeek) - 1; w >= 0; w--) {
       const raw = store.get(`foundry:day${showDayIdx}:week${w}`);
       if (raw)
@@ -1174,7 +983,7 @@ function HomeTab({
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               padding: '14px 16px',
               display: 'flex',
               flexDirection: 'column',
@@ -1269,7 +1078,7 @@ function HomeTab({
               flex: 1,
               background: 'var(--bg-card)',
               border: `1px solid ${pc}55`,
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               padding: '14px 14px',
               boxShadow: `0 2px 10px ${pc}18`,
               display: 'flex',
@@ -1293,7 +1102,7 @@ function HomeTab({
                     color: pc,
                     background: pc + '18',
                     padding: '3px 7px',
-                    borderRadius: 4,
+                    borderRadius: tokens.radius.sm,
                   }}
                 >
                   {phase.toUpperCase()}
@@ -1327,7 +1136,7 @@ function HomeTab({
                 const isNext =
                   !done &&
                   activeDays.slice(0, i).every((_, j) => completedDays.has(`${j}:${displayWeek}`));
-                const tc = TAG_ACCENT[day.tag];
+                const tc = (TAG_ACCENT as Record<string, any>)[day.tag];
                 return (
                   <button
                     key={i}
@@ -1340,7 +1149,7 @@ function HomeTab({
                       flex: 1,
                       minWidth: 0,
                       padding: '6px 4px',
-                      borderRadius: 5,
+                      borderRadius: tokens.radius.sm,
                       border: '1px solid',
                       borderColor: done ? tc + '60' : isNext ? tc : pc + '55',
                       background: done ? tc + '1a' : isNext ? tc + '12' : pc + '08',
@@ -1359,14 +1168,14 @@ function HomeTab({
                         color: done ? tc : isNext ? tc : 'var(--text-muted)',
                       }}
                     >
-                      {{
+                      {({
                         PUSH: 'PU',
                         PULL: 'PL',
                         LEGS: 'LE',
                         UPPER: 'UP',
                         LOWER: 'LO',
                         FULL: 'FB',
-                      }[day.tag] || day.tag.slice(0, 2)}
+                      } as Record<string, any>)[day.tag] || day.tag.slice(0, 2)}
                     </div>
                     <div style={{ fontSize: 12, lineHeight: 1 }}>
                       {done ? (
@@ -1387,7 +1196,7 @@ function HomeTab({
                   flex: 1,
                   height: 5,
                   background: 'var(--border)',
-                  borderRadius: 3,
+                  borderRadius: tokens.radius.xs,
                   overflow: 'hidden',
                 }}
               >
@@ -1396,7 +1205,7 @@ function HomeTab({
                     height: '100%',
                     width: `${weekPct}%`,
                     background: pc,
-                    borderRadius: 3,
+                    borderRadius: tokens.radius.xs,
                     transition: 'width 0.5s ease',
                   }}
                 />
@@ -1455,7 +1264,7 @@ function HomeTab({
             style={{
               background: 'var(--bg-card)',
               border: `1px solid ${showDayAccent}30`,
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               overflow: 'hidden',
               boxShadow: 'var(--shadow-sm)',
             }}
@@ -1527,12 +1336,12 @@ function HomeTab({
               </div>
             </button>
             <div style={{ padding: '8px 0 4px' }}>
-              {preview.map((ex, ei) => {
+              {preview.map((ex: any, ei: any) => {
                 const prevData = lastWeekData[ei];
                 const prevSets = prevData
-                  ? Object.values(prevData).filter((s) => s && s.weight && parseFloat(s.weight) > 0)
+                  ? (Object.values(prevData) as any[]).filter((s: any) => s && s.weight && parseFloat(s.weight) > 0)
                   : [];
-                const prevWeight = prevSets.length > 0 ? prevSets[0].weight : null;
+                const prevWeight = prevSets.length > 0 ? (prevSets[0] as any).weight : null;
                 const ovId = store.get(`foundry:exov:d${showDayIdx}:ex${ei}`) || null;
                 const dbEx = ovId ? EXERCISE_DB.find((e) => e.id === ovId) : null;
                 return (
@@ -1621,7 +1430,7 @@ function HomeTab({
                     width: '100%',
                     background: 'transparent',
                     border: '1px solid var(--border)',
-                    borderRadius: 6,
+                    borderRadius: tokens.radius.md,
                     color: 'var(--text-muted)',
                     fontSize: 12,
                     fontWeight: 700,
@@ -1646,7 +1455,7 @@ function HomeTab({
               width: '100%',
               background: 'var(--bg-card)',
               border: `1px solid ${todayCardioSession?.completed ? '#D4983C44' : CARDIO_COLOR + '44'}`,
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               overflow: 'hidden',
               boxShadow: 'var(--shadow-sm)',
               cursor: 'pointer',
@@ -1669,7 +1478,7 @@ function HomeTab({
                   height="13"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke={todayCardioSession?.completed ? '#D4983C' : CARDIO_COLOR}
+                  stroke={todayCardioSession?.completed ? tokens.colors.gold : CARDIO_COLOR}
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -1681,7 +1490,7 @@ function HomeTab({
                     fontSize: 12,
                     fontWeight: 800,
                     letterSpacing: '0.08em',
-                    color: todayCardioSession?.completed ? '#D4983C' : CARDIO_COLOR,
+                    color: todayCardioSession?.completed ? tokens.colors.gold : CARDIO_COLOR,
                   }}
                 >
                   {todayCardioSession?.completed ? 'CARDIO DONE ✓' : 'CARDIO TODAY'}
@@ -1696,7 +1505,7 @@ function HomeTab({
                     color: CARDIO_COLOR,
                     background: `${CARDIO_COLOR}18`,
                     border: `1px solid ${CARDIO_COLOR}44`,
-                    borderRadius: 6,
+                    borderRadius: tokens.radius.md,
                     padding: '4px 10px',
                   }}
                 >
@@ -1745,12 +1554,12 @@ function HomeTab({
                         {
                           label: 'WORK',
                           val: `${proto.intervals.workSecs}s`,
-                          color: '#E75831',
+                          color: tokens.colors.cardioHard,
                         },
                         {
                           label: 'REST',
                           val: `${proto.intervals.restSecs}s`,
-                          color: '#D4983C',
+                          color: tokens.colors.gold,
                         },
                       ].map(({ label, val, color }) => (
                         <div
@@ -1762,7 +1571,7 @@ function HomeTab({
                             color,
                             background: `${color}18`,
                             border: `1px solid ${color}44`,
-                            borderRadius: 4,
+                            borderRadius: tokens.radius.sm,
                             padding: '2px 6px',
                             whiteSpace: 'nowrap',
                           }}
@@ -1784,7 +1593,7 @@ function HomeTab({
               width: '100%',
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               padding: '12px 16px',
               cursor: 'pointer',
               textAlign: 'left',
@@ -1835,13 +1644,13 @@ function HomeTab({
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               overflow: 'hidden',
               boxShadow: 'var(--shadow-sm)',
             }}
           >
             <button
-              onClick={() => setShowMorningMobility((p) => !p)}
+              onClick={() => setShowMorningMobility((p: any) => !p)}
               style={{
                 width: '100%',
                 background: 'var(--bg-inset)',
@@ -1889,7 +1698,7 @@ function HomeTab({
                       color: showDayAccent,
                       background: showDayAccent + '18',
                       border: `1px solid ${showDayAccent}33`,
-                      borderRadius: 4,
+                      borderRadius: tokens.radius.sm,
                       padding: '2px 8px',
                       letterSpacing: '0.06em',
                     }}
@@ -1934,7 +1743,7 @@ function HomeTab({
                     key={i}
                     style={{
                       padding: '9px 12px',
-                      borderRadius: 7,
+                      borderRadius: tokens.radius.md,
                       background: 'var(--bg-deep)',
                       marginBottom: 5,
                       border: '1px solid var(--border-subtle)',
@@ -1967,64 +1776,7 @@ function HomeTab({
         )}
 
         {/* Mobility soft CTA */}
-        {(() => {
-          const MOBILITY_COLOR = '#D4983C';
-          const todayMobilitySession = loadMobilitySession(todayCardioStr);
-          return (
-            <button
-              onClick={() => onOpenMobility(todayCardioStr)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                padding: '12px 16px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                boxShadow: 'var(--shadow-xs)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={MOBILITY_COLOR}
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2" />
-                  <path d="M12 8v4l3 3" />
-                </svg>
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  {todayMobilitySession?.completed
-                    ? 'Mobility done today ✓'
-                    : 'Add a mobility session'}
-                </span>
-              </div>
-              <span
-                style={{
-                  fontSize: 14,
-                  color: 'var(--text-muted)',
-                  fontWeight: 700,
-                }}
-              >
-                +
-              </span>
-            </button>
-          );
-        })()}
+        <MobilityCard todayCardioStr={todayCardioStr} onOpenMobility={onOpenMobility} />
 
         {/* Data management shortcut */}
         <button
@@ -2033,7 +1785,7 @@ function HomeTab({
             width: '100%',
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             padding: '12px 16px',
             cursor: 'pointer',
             textAlign: 'left',
@@ -2086,7 +1838,7 @@ function HomeTab({
             width: '100%',
             background: 'linear-gradient(135deg, #1A1410 0%, #221C14 50%, #2E2418 100%)',
             border: '1px solid var(--phase-peak)55',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             padding: '16px',
             display: 'flex',
             alignItems: 'center',
@@ -2109,7 +1861,7 @@ function HomeTab({
             style={{
               width: 42,
               height: 42,
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               flexShrink: 0,
               background: 'var(--phase-peak)22',
               border: '1px solid var(--phase-peak)44',
@@ -2158,7 +1910,7 @@ function HomeTab({
                   color: 'var(--phase-peak)',
                   background: 'var(--phase-peak)22',
                   border: '1px solid var(--phase-peak)44',
-                  borderRadius: 4,
+                  borderRadius: tokens.radius.sm,
                   padding: '1px 6px',
                 }}
               >

@@ -1,5 +1,14 @@
 // localStorage wrapper with error handling
 // Separated from store.js to break circular dependency with training.js
+
+// markDirty is imported lazily to avoid circular dependency: storage ← sync ← storage
+let _markDirty: ((key: string) => void) | null = null;
+export function _setMarkDirty(fn: (key: string) => void): void {
+  _markDirty = fn;
+}
+
+const SYNC_TRACKED = /^foundry:(profile|day\d+:week\d+|readiness:|cardio:session:|bwlog)/;
+
 export const store = {
   get: (key: string): string | null => {
     try {
@@ -12,6 +21,7 @@ export const store = {
   set: (key: string, val: string): void => {
     try {
       localStorage.setItem(key, val);
+      if (_markDirty && SYNC_TRACKED.test(key)) _markDirty(key);
     } catch (e) {
       console.warn('[Foundry]', 'Failed to write to localStorage', e);
     }

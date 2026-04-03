@@ -3,6 +3,7 @@ import { loadCardioSession, saveCardioSession } from '../../utils/store';
 import { haptic } from '../../utils/helpers';
 import { TAG_ACCENT, CARDIO_WORKOUTS } from '../../data/constants';
 import CardioIntervalTimer from './CardioIntervalTimer';
+import { tokens } from '../../styles/tokens';
 
 interface CardioSessionViewProps {
   dateStr: string;
@@ -15,10 +16,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   const CARDIO_COLOR = TAG_ACCENT['CARDIO'];
 
   // ── Derived helpers ─────────────────────────────────────────────────────────
-  const todayStr = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
+  // todayStr helper — reserved for date comparison
 
   const displayDate = (() => {
     try {
@@ -56,14 +54,14 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   const [started, setStarted] = React.useState(() => !!loadCardioSession(dateStr)?.startedAt);
   const [elapsedSecs, setElapsedSecs] = React.useState(0);
   const [showComplete, setShowComplete] = React.useState(false);
-  const [openCat, setOpenCat] = React.useState(null); // which category accordion is expanded
-  const startRef = React.useRef(null);
-  const elapsedRef = React.useRef(null);
+  const [openCat, setOpenCat] = React.useState<string | null>(null); // which category accordion is expanded
+  const startRef = React.useRef<number | null>(null);
+  const elapsedRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Restore start time ───────────────────────────────────────────────────────
   React.useEffect(() => {
     const saved = loadCardioSession(dateStr);
-    if (saved?.startedAt) startRef.current = saved.startedAt;
+    if (saved?.startedAt) startRef.current = Number(saved.startedAt);
   }, []);
 
   // ── Elapsed timer ────────────────────────────────────────────────────────────
@@ -74,24 +72,24 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     };
     tick();
     elapsedRef.current = setInterval(tick, 1000);
-    return () => clearInterval(elapsedRef.current);
+    return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
   }, [started, session.completed]);
 
-  const formatElapsed = (s) => {
+  const formatElapsed = (s: any) => {
     const m = Math.floor(s / 60),
       sec = s % 60;
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
   // ── Persist session ──────────────────────────────────────────────────────────
-  const save = (updates) => {
+  const save = (updates: any) => {
     const next = { ...session, ...updates };
     setSession(next);
     saveCardioSession(dateStr, next);
   };
 
   // ── Protocol selection ───────────────────────────────────────────────────────
-  const handleSelectProtocol = (proto) => {
+  const handleSelectProtocol = (proto: any) => {
     if (session.protocolId === proto.id) {
       save({ protocolId: null, type: '', duration: '', intensity: '' });
     } else {
@@ -108,7 +106,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   const handleStart = () => {
     const now = Date.now();
     startRef.current = now;
-    haptic('medium');
+    haptic('tap');
     save({ startedAt: now });
     setStarted(true);
   };
@@ -116,16 +114,16 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   // ── Timer complete ────────────────────────────────────────────────────────────
   const handleTimerComplete = () => {
     setShowTimer(false);
-    haptic('success');
+    haptic('tap');
     setShowComplete(true);
   };
 
   // ── Complete session ─────────────────────────────────────────────────────────
   const handleComplete = () => {
     const now = Date.now();
-    haptic('success');
+    haptic('tap');
     // Auto-fill duration from elapsed timer if user didn't manually set it
-    const updates = { completed: true, completedAt: now };
+    const updates: { completed: boolean; completedAt: number; duration?: string } = { completed: true, completedAt: now };
     if (startRef.current) {
       const elapsedMins = Math.round((now - startRef.current) / 60000);
       if (elapsedMins > 0 && elapsedMins < 300) {
@@ -141,7 +139,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   const selectedProto = session.protocolId
     ? CARDIO_WORKOUTS.find((w) => w.id === session.protocolId)
     : null;
-  const logged = session.type || session.duration || session.intensity;
+  // logged flag — reserved for completion detection
 
   const CATEGORIES = ['Quick & Intense', 'Endurance', 'Performance', 'Conditioning'];
   const TYPES = [
@@ -156,14 +154,14 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     'Other',
   ];
   const INTENSITIES = [
-    { label: 'Easy', color: '#E8E4DC', sub: 'Conversational' },
-    { label: 'Moderate', color: '#D4983C', sub: 'Challenging' },
-    { label: 'Hard', color: '#E75831', sub: 'Near max' },
+    { label: 'Easy', color: tokens.colors.textPrimary, sub: 'Conversational' },
+    { label: 'Moderate', color: tokens.colors.gold, sub: 'Challenging' },
+    { label: 'Hard', color: tokens.colors.cardioHard, sub: 'Near max' },
   ];
 
-  const chipStyle = (active, color) => ({
+  const chipStyle = (active: any, color: any) => ({
     padding: '5px 12px',
-    borderRadius: 20,
+    borderRadius: tokens.radius.round,
     fontSize: 12,
     fontWeight: 700,
     letterSpacing: '0.04em',
@@ -183,7 +181,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   ).slice(0, 3);
 
   // Protocol card renderer — shared between recommended and category sections
-  const ProtoCard = ({ proto, active, useCardioAccent }) => {
+  const ProtoCard = ({ proto, active, useCardioAccent }: { proto: any; active: any; useCardioAccent: any }) => {
     const leftColor = useCardioAccent ? CARDIO_COLOR : 'var(--accent)';
     return (
       <button
@@ -193,7 +191,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
           textAlign: 'left',
           cursor: 'pointer',
           padding: '12px 14px',
-          borderRadius: 8,
+          borderRadius: tokens.radius.lg,
           background: active ? `${CARDIO_COLOR}0d` : 'var(--bg-deep)',
           border: active ? `1px solid ${CARDIO_COLOR}` : '1px solid var(--border-subtle)',
           borderLeft: active ? `3px solid ${CARDIO_COLOR}` : `3px solid ${leftColor}`,
@@ -240,19 +238,19 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                 fontWeight: 800,
                 letterSpacing: '0.04em',
                 padding: '2px 7px',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
                 color:
                   proto.defaultIntensity === 'Hard'
-                    ? '#E75831'
+                    ? tokens.colors.cardioHard
                     : proto.defaultIntensity === 'Moderate'
-                      ? '#D4983C'
-                      : '#E8E4DC',
+                      ? tokens.colors.gold
+                      : tokens.colors.textPrimary,
                 background:
                   (proto.defaultIntensity === 'Hard'
-                    ? '#E75831'
+                    ? tokens.colors.cardioHard
                     : proto.defaultIntensity === 'Moderate'
-                      ? '#D4983C'
-                      : '#E8E4DC') + '18',
+                      ? tokens.colors.gold
+                      : tokens.colors.textPrimary) + '18',
               }}
             >
               {proto.defaultIntensity?.toUpperCase()}
@@ -276,12 +274,12 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
               {
                 label: 'WORK',
                 value: `${proto.intervals.workSecs}s`,
-                color: '#E75831',
+                color: tokens.colors.cardioHard,
               },
               {
                 label: 'REST',
                 value: `${proto.intervals.restSecs}s`,
-                color: '#D4983C',
+                color: tokens.colors.gold,
               },
               {
                 label: 'ROUNDS',
@@ -298,7 +296,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                   color,
                   background: `${color}18`,
                   border: `1px solid ${color}44`,
-                  borderRadius: 4,
+                  borderRadius: tokens.radius.sm,
                   padding: '2px 7px',
                 }}
               >
@@ -341,7 +339,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
           style={{
             background: 'none',
             border: '1px solid var(--accent)',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             padding: '6px 12px',
             cursor: 'pointer',
             fontSize: 13,
@@ -378,7 +376,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
               color: CARDIO_COLOR,
               background: `${CARDIO_COLOR}15`,
               border: `1px solid ${CARDIO_COLOR}44`,
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
               padding: '4px 10px',
             }}
           >
@@ -391,10 +389,10 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
               fontSize: 12,
               fontWeight: 800,
               letterSpacing: '0.06em',
-              color: '#D4983C',
-              background: '#D4983C20',
-              border: '1px solid #D4983C55',
-              borderRadius: 6,
+              color: tokens.colors.gold,
+              background: tokens.colors.goldDim,
+              border: `1px solid ${tokens.colors.goldBorder}`,
+              borderRadius: tokens.radius.md,
               padding: '4px 10px',
             }}
           >
@@ -419,7 +417,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
               style={{
                 background: `${CARDIO_COLOR}08`,
                 border: `1px solid ${CARDIO_COLOR}33`,
-                borderRadius: 10,
+                borderRadius: tokens.radius.xl,
                 padding: '14px 14px 16px',
                 overflow: 'hidden',
               }}
@@ -460,7 +458,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                   color: 'var(--text-secondary)',
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 20,
+                  borderRadius: tokens.radius.round,
                   padding: '5px 14px',
                 }}
               >
@@ -487,7 +485,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                       background: 'var(--bg-deep)',
                       border: '1px solid var(--border-subtle)',
                       borderLeft: '3px solid var(--accent)',
-                      borderRadius: 6,
+                      borderRadius: tokens.radius.md,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -544,6 +542,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                           key={proto.id}
                           proto={proto}
                           active={session.protocolId === proto.id}
+                          useCardioAccent={false}
                         />
                       ))}
                     </div>
@@ -559,8 +558,8 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
         <div
           style={{
             background: 'var(--bg-card)',
-            border: `1px solid ${session.completed ? '#D4983C44' : 'var(--border)'}`,
-            borderRadius: 10,
+            border: `1px solid ${session.completed ? tokens.colors.goldMedium : 'var(--border)'}`,
+            borderRadius: tokens.radius.xl,
             overflow: 'hidden',
           }}
         >
@@ -579,7 +578,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                 fontSize: 12,
                 fontWeight: 800,
                 letterSpacing: '0.08em',
-                color: session.completed ? '#D4983C' : 'var(--text-secondary)',
+                color: session.completed ? tokens.colors.gold : 'var(--text-secondary)',
               }}
             >
               {session.completed ? 'SESSION LOGGED' : 'LOG'}
@@ -648,7 +647,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                   style={{
                     width: 80,
                     padding: '8px 12px',
-                    borderRadius: 6,
+                    borderRadius: tokens.radius.md,
                     fontSize: 20,
                     fontWeight: 700,
                     textAlign: 'center',
@@ -700,7 +699,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                       style={{
                         flex: 1,
                         padding: '10px 6px',
-                        borderRadius: 7,
+                        borderRadius: tokens.radius.md,
                         cursor: session.completed ? 'default' : 'pointer',
                         textAlign: 'center',
                         border: 'none',
@@ -751,7 +750,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                 padding: '18px',
                 fontSize: 15,
                 fontWeight: 800,
-                borderRadius: 10,
+                borderRadius: tokens.radius.xl,
                 cursor: 'pointer',
                 letterSpacing: '0.04em',
               }}
@@ -769,7 +768,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                     padding: '16px',
                     fontSize: 14,
                     fontWeight: 800,
-                    borderRadius: 10,
+                    borderRadius: tokens.radius.xl,
                     cursor: 'pointer',
                     letterSpacing: '0.04em',
                     background: `${CARDIO_COLOR}18`,
@@ -788,12 +787,12 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                   padding: '16px',
                   fontSize: 14,
                   fontWeight: 800,
-                  borderRadius: 10,
+                  borderRadius: tokens.radius.xl,
                   cursor: 'pointer',
                   letterSpacing: '0.04em',
-                  background: '#D4983C22',
-                  border: '1px solid #D4983C55',
-                  color: '#D4983C',
+                  background: tokens.colors.goldDim,
+                  border: `1px solid ${tokens.colors.goldBorder}`,
+                  color: tokens.colors.gold,
                 }}
               >
                 Complete Session ✓
@@ -825,7 +824,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
             style={{
               background: 'var(--bg-card)',
               border: '1px solid #D4983C55',
-              borderRadius: 14,
+              borderRadius: tokens.radius.xxl,
               padding: '28px 24px',
               width: '100%',
               maxWidth: 340,
@@ -867,7 +866,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                   padding: '14px',
                   fontSize: 13,
                   fontWeight: 700,
-                  borderRadius: 10,
+                  borderRadius: tokens.radius.xl,
                   cursor: 'pointer',
                   background: 'var(--bg-inset)',
                   border: '1px solid var(--border)',
@@ -883,10 +882,10 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                   padding: '14px',
                   fontSize: 13,
                   fontWeight: 800,
-                  borderRadius: 10,
+                  borderRadius: tokens.radius.xl,
                   cursor: 'pointer',
-                  background: '#D4983C',
-                  border: '1px solid #D4983C',
+                  background: tokens.colors.gold,
+                  border: `1px solid ${tokens.colors.gold}`,
                   color: '#000',
                 }}
               >

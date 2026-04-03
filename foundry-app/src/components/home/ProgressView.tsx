@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { tokens } from '../../styles/tokens';
 import {
   TAG_ACCENT,
   PHASE_COLOR,
@@ -13,31 +14,31 @@ import {
   loadDayWeek,
   loadSparklineData,
 } from '../../utils/store';
-import { haptic } from '../../utils/helpers';
+// haptic import reserved for future UI feedback
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function sessionTagToCategory(sessionTag, exTag) {
+function sessionTagToCategory(sessionTag: any, exTag: any) {
   if (sessionTag === 'UPPER' || sessionTag === 'LOWER' || sessionTag === 'FULL') return exTag;
   return sessionTag;
 }
 
-function flattenMuscleSets(byTag) {
-  const result = {};
-  Object.values(byTag).forEach((muscleMap) => {
+function flattenMuscleSets(byTag: any) {
+  const result: Record<string, any> = {};
+  Object.values(byTag).forEach((muscleMap: any) => {
     Object.entries(muscleMap || {}).forEach(([muscle, sets]) => {
-      result[muscle] = (result[muscle] || 0) + sets;
+      result[muscle] = (result[muscle] || 0) + (sets as number);
     });
   });
   return result;
 }
 
-function getLandmarkStatus(sets, lm) {
+function getLandmarkStatus(sets: any, lm: any) {
   if (!lm) return null;
   if (sets < lm.mev)
     return {
       label: 'MV',
       fill: '#8A6030',
-      color: '#D4983C',
+      color: tokens.colors.gold,
       bg: 'rgba(138,96,48,0.12)',
       border: 'rgba(138,96,48,0.3)',
     };
@@ -74,16 +75,16 @@ function getLandmarkStatus(sets, lm) {
   };
 }
 
-function calcMuscleSetsByTag(activeDays, completedDays, weekFilter) {
-  const byTag = { PUSH: {}, PULL: {}, LEGS: {} };
-  activeDays.forEach((day, dayIdx) => {
+function calcMuscleSetsByTag(activeDays: any, completedDays: any, weekFilter: any) {
+  const byTag: Record<string, any> = { PUSH: {}, PULL: {}, LEGS: {} };
+  activeDays.forEach((day: any, dayIdx: any) => {
     for (let w = 0; w <= getMeso().weeks; w++) {
       if (weekFilter !== null && w !== weekFilter) continue;
       if (!completedDays.has(`${dayIdx}:${w}`)) continue;
       const wd = loadDayWeek(dayIdx, w);
-      day.exercises.forEach((ex, exIdx) => {
+      day.exercises.forEach((ex: any, exIdx: any) => {
         const exData = wd[exIdx] || {};
-        const filledSets = Object.values(exData).filter((s) => s && s.reps && s.reps !== '').length;
+        const filledSets = Object.values(exData).filter((s: any) => s && s.reps && s.reps !== '').length;
         if (filledSets === 0) return;
         const cat = sessionTagToCategory(day.tag, ex.tag);
         if (!byTag[cat]) byTag[cat] = {};
@@ -101,16 +102,16 @@ function calcMuscleSetsByTag(activeDays, completedDays, weekFilter) {
 }
 
 // ── Volume Landmarks Card ────────────────────────────────────────────────────
-function VolumeLandmarksCard({ byTag, title }) {
+function VolumeLandmarksCard({ byTag, title }: { byTag: any; title: any }) {
   const muscleSets = flattenMuscleSets(byTag);
   const entries = Object.entries(muscleSets)
-    .filter(([m, s]) => s > 0 && VOLUME_LANDMARKS[m])
+    .filter(([m, s]) => (s as number) > 0 && (VOLUME_LANDMARKS as Record<string, any>)[m])
     .sort((a, b) => {
-      const sa = getLandmarkStatus(a[1], VOLUME_LANDMARKS[a[0]]);
-      const sb = getLandmarkStatus(b[1], VOLUME_LANDMARKS[b[0]]);
-      const priority = (s) =>
+      const sa = getLandmarkStatus(a[1] as number, (VOLUME_LANDMARKS as Record<string, any>)[a[0]]);
+      const sb = getLandmarkStatus(b[1] as number, (VOLUME_LANDMARKS as Record<string, any>)[b[0]]);
+      const priority = (s: NonNullable<ReturnType<typeof getLandmarkStatus>>) =>
         s.label === 'Exceeded' ? 0 : s.label === 'MV' ? 1 : s.label === 'High' ? 2 : 3;
-      return priority(sa) - priority(sb) || b[1] - a[1];
+      return priority(sa!) - priority(sb!) || (b[1] as number) - (a[1] as number);
     });
   if (entries.length === 0) return null;
 
@@ -125,7 +126,7 @@ function VolumeLandmarksCard({ byTag, title }) {
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        borderRadius: 8,
+        borderRadius: tokens.radius.lg,
         overflow: 'hidden',
         boxShadow: 'var(--shadow-sm)',
       }}
@@ -159,7 +160,7 @@ function VolumeLandmarksCard({ byTag, title }) {
                 style={{
                   width: 10,
                   height: 10,
-                  borderRadius: 2,
+                  borderRadius: tokens.radius.xs,
                   background: c,
                   opacity: 0.75,
                   flexShrink: 0,
@@ -172,14 +173,14 @@ function VolumeLandmarksCard({ byTag, title }) {
       </div>
       <div style={{ padding: '0 16px 6px' }}>
         {entries.map(([muscle, sets], idx) => {
-          const lm = VOLUME_LANDMARKS[muscle];
-          const status = getLandmarkStatus(sets, lm);
+          const lm = (VOLUME_LANDMARKS as Record<string, any>)[muscle];
+          const status = getLandmarkStatus(sets as number, lm)!;
           const scale = lm.mrv + 5;
           const mevPct = (lm.mev / scale) * 100;
           const mavLPct = (lm.mavLow / scale) * 100;
           const mavHPct = (lm.mavHigh / scale) * 100;
           const mrvPct = (lm.mrv / scale) * 100;
-          const fillPct = Math.min((sets / scale) * 100, 99);
+          const fillPct = Math.min(((sets as number) / scale) * 100, 99);
           const isLast = idx === entries.length - 1;
           const optMid = (mavLPct + mavHPct) / 2;
           return (
@@ -219,7 +220,7 @@ function VolumeLandmarksCard({ byTag, title }) {
                     lineHeight: 1,
                   }}
                 >
-                  {sets}
+                  {sets as number}
                 </div>
                 <div
                   style={{
@@ -230,7 +231,7 @@ function VolumeLandmarksCard({ byTag, title }) {
                     background: status.bg,
                     border: `1px solid ${status.border}`,
                     padding: '3px 9px',
-                    borderRadius: 4,
+                    borderRadius: tokens.radius.sm,
                     minWidth: 64,
                     textAlign: 'center',
                     flexShrink: 0,
@@ -243,7 +244,7 @@ function VolumeLandmarksCard({ byTag, title }) {
                 style={{
                   position: 'relative',
                   height: 14,
-                  borderRadius: 4,
+                  borderRadius: tokens.radius.sm,
                   overflow: 'hidden',
                   background: 'var(--bg-inset)',
                 }}
@@ -378,14 +379,14 @@ function VolumeLandmarksCard({ byTag, title }) {
 // ── Main ProgressView ────────────────────────────────────────────────────────
 interface ProgressViewProps {
   currentWeek: number;
-  completedDays: any[];
+  completedDays: Set<string>;
   activeDays: any[];
   goBack: () => void;
-  goTo: (n: number) => void;
+  goTo: (n: number | string) => void;
 }
 
 export default function ProgressView({ currentWeek, completedDays, activeDays, goBack, goTo }: ProgressViewProps) {
-  const [expandedDay, setExpandedDay] = useState(null);
+  const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const weekByTag = calcMuscleSetsByTag(activeDays, completedDays, currentWeek);
 
   const workoutsThisWeek = activeDays.filter((_, i) =>
@@ -396,7 +397,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
   const bwLog = useMemo(() => loadBwLog().slice(0, 12).reverse(), []);
 
   const sessionDurations = useMemo(() => {
-    const all = [];
+    const all: { week: number; day: number; duration: number }[] = [];
     for (let w = 0; w <= (getMeso()?.weeks || 6); w++) {
       for (let d = 0; d < (getMeso()?.days || 6); d++) {
         const dur = loadSessionDuration(d, w);
@@ -411,15 +412,15 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
       : null;
 
   const phase = getWeekPhase()[currentWeek] || 'Accumulation';
-  const pc = PHASE_COLOR[phase];
+  const pc = (PHASE_COLOR as Record<string, any>)[phase];
 
-  const statBox = (label, value, color) => (
+  const statBox = (label: any, value: any, color: any) => (
     <div
       style={{
         flex: 1,
         background: 'var(--bg-card)',
         border: `1px solid ${color}33`,
-        borderRadius: 8,
+        borderRadius: tokens.radius.lg,
         padding: '16px 12px',
         textAlign: 'center',
       }}
@@ -444,8 +445,8 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
     const [showHistory, setShowHistory] = React.useState(false);
     const [editingGoal, setEditingGoal] = React.useState(false);
     const [goalInput, setGoalInput] = React.useState(() => store.get('foundry:bwGoal') || '');
-    const [goalWeight, setGoalWeight] = React.useState(() => {
-      const v = parseFloat(store.get('foundry:bwGoal'));
+    const [goalWeight, setGoalWeight] = React.useState<number | null>(() => {
+      const v = parseFloat(store.get('foundry:bwGoal') || '');
       return isNaN(v) ? null : v;
     });
 
@@ -462,15 +463,15 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
     let chartMin = 0,
       chartMax = 1;
     if (hasChart) {
-      const weights = bwLog.map((e) => e.weight);
+      const weights = bwLog.map((e: any) => e.weight);
       if (goalWeight !== null) weights.push(goalWeight);
       chartMin = Math.min(...weights);
       chartMax = Math.max(...weights);
     }
     const range = chartMax - chartMin || 1;
-    const toX = (i) => PX + (i / (bwLog.length - 1)) * (W - PX * 2);
-    const toY = (v) => H - PY - ((v - chartMin) / range) * (H - PY * 2);
-    const pts = hasChart ? bwLog.map((e, i) => `${toX(i)},${toY(e.weight)}`).join(' L ') : '';
+    const toX = (i: any) => PX + (i / (bwLog.length - 1)) * (W - PX * 2);
+    const toY = (v: any) => H - PY - ((v - chartMin) / range) * (H - PY * 2);
+    const pts = hasChart ? bwLog.map((e: any, i: any) => `${toX(i)},${toY(e.weight)}`).join(' L ') : '';
 
     const towardsGoal =
       goalWeight !== null &&
@@ -499,7 +500,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: 8,
+          borderRadius: tokens.radius.lg,
           marginBottom: 12,
           overflow: 'hidden',
         }}
@@ -675,7 +676,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                   width: 72,
                   background: 'var(--bg-inset)',
                   border: '1px solid var(--accent)',
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   padding: '5px 8px',
                   fontSize: 13,
                   fontWeight: 700,
@@ -728,7 +729,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                 color: 'var(--accent)',
                 background: 'none',
                 border: '1px solid var(--border)',
-                borderRadius: 5,
+                borderRadius: tokens.radius.sm,
                 cursor: 'pointer',
                 padding: '4px 10px',
               }}
@@ -854,7 +855,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: 8,
+          borderRadius: tokens.radius.lg,
           padding: '14px 16px',
           marginBottom: 12,
         }}
@@ -1004,7 +1005,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             color: 'var(--accent)',
             background: 'none',
             border: '1px solid var(--border)',
-            borderRadius: 5,
+            borderRadius: tokens.radius.sm,
             cursor: 'pointer',
             padding: '5px 10px',
           }}
@@ -1042,9 +1043,9 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
 
         {/* e1RM card */}
         {(() => {
-          const anchors = [];
-          activeDays.forEach((day, dayIdx) => {
-            day.exercises.forEach((ex, exIdx) => {
+          const anchors: { name: any; tag: any; e1rm: number; allTimeBest: number; isPR: boolean; load75: number; load85: number; isStalling: boolean }[] = [];
+          activeDays.forEach((day: any, dayIdx: any) => {
+            day.exercises.forEach((ex: any, exIdx: any) => {
               if (!ex.anchor) return;
               const pts = loadSparklineData(dayIdx, exIdx);
               if (!pts.length) return;
@@ -1087,12 +1088,12 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   overflow: 'hidden',
                 }}
               >
                 {anchors.map((a, i) => {
-                  const ac = TAG_ACCENT[a.tag] || 'var(--accent)';
+                  const ac = (TAG_ACCENT as Record<string, any>)[a.tag] || 'var(--accent)';
                   return (
                     <div
                       key={i}
@@ -1131,7 +1132,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                                 color: '#c9a227',
                                 background: '#c9a22722',
                                 border: '1px solid #c9a22744',
-                                borderRadius: 4,
+                                borderRadius: tokens.radius.sm,
                                 padding: '1px 5px',
                                 letterSpacing: '0.06em',
                               }}
@@ -1147,7 +1148,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                                 color: '#f87171',
                                 background: '#f8717122',
                                 border: '1px solid #f8717144',
-                                borderRadius: 4,
+                                borderRadius: tokens.radius.sm,
                                 padding: '1px 5px',
                                 letterSpacing: '0.06em',
                               }}
@@ -1246,15 +1247,15 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           CURRENT WEIGHTS
         </div>
         {activeDays.map((day, dayIdx) => {
-          const accent = TAG_ACCENT[day.tag];
-          const dayLifts = day.exercises.map((ex, exIdx) => {
-            let weight = '';
+          const accent = (TAG_ACCENT as Record<string, any>)[day.tag];
+          const dayLifts = day.exercises.map((ex: any, exIdx: any) => {
+            let weight: string | number = '';
             for (let w = currentWeek; w >= 0; w--) {
               const wd = loadDayWeek(dayIdx, w);
               const exData = wd[exIdx] || {};
-              const sw = Object.values(exData).find((sv) => sv && sv.weight && sv.weight !== '');
+              const sw = Object.values(exData).find((sv: any) => sv && sv.weight && sv.weight !== '');
               if (sw) {
-                weight = sw.weight;
+                weight = (sw as any).weight;
                 break;
               }
             }
@@ -1267,7 +1268,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               reps: ex.reps,
             };
           });
-          const anyLogged = dayLifts.some((l) => l.weight);
+          const anyLogged = dayLifts.some((l: any) => l.weight);
           const isDayExpanded = expandedDay === dayIdx;
           return (
             <div
@@ -1275,7 +1276,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               style={{
                 background: 'var(--bg-card)',
                 border: `1px solid ${anyLogged ? accent + '44' : 'var(--border)'}`,
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 marginBottom: 8,
                 overflow: 'hidden',
               }}
@@ -1302,7 +1303,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                     fontSize: 12,
                     fontWeight: 700,
                     padding: '4px 8px',
-                    borderRadius: 6,
+                    borderRadius: tokens.radius.md,
                     letterSpacing: '0.04em',
                     flexShrink: 0,
                   }}
@@ -1344,7 +1345,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               </button>
               {isDayExpanded && (
                 <div>
-                  {dayLifts.map((lift, i) => (
+                  {dayLifts.map((lift: any, i: any) => (
                     <div
                       key={i}
                       style={{
@@ -1423,7 +1424,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             style={{
               flex: 1,
               padding: '14px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { tokens } from '../../styles/tokens';
 
 interface SheetProps {
@@ -9,14 +9,49 @@ interface SheetProps {
   zIndex?: number;
 }
 
+const FOCUSABLE = 'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
 /**
  * Sheet — bottom sheet that slides up from the bottom of the screen.
  */
 export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex = 300 }: SheetProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    previousFocus.current = document.activeElement as HTMLElement;
+    const el = contentRef.current;
+    if (!el) return;
+    const first = el.querySelector<HTMLElement>(FOCUSABLE);
+    first?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose?.(); return; }
+      if (e.key !== 'Tab') return;
+      const focusable = el.querySelectorAll<HTMLElement>(FOCUSABLE);
+      if (!focusable.length) return;
+      const firstEl = focusable[0];
+      const lastEl = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault(); lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault(); firstEl.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocus.current?.focus();
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
     <div
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,
@@ -28,6 +63,7 @@ export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex 
       }}
     >
       <div
+        ref={contentRef}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'var(--bg-card)',
@@ -53,7 +89,7 @@ export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex 
             style={{
               width: 36,
               height: 4,
-              borderRadius: 2,
+              borderRadius: tokens.radius.xs,
               background: 'var(--border)',
             }}
           />

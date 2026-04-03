@@ -1,5 +1,5 @@
-import React from 'react';
 import { getMeso } from '../data/constants';
+import { tokens } from '../styles/tokens';
 
 interface WeekCompleteModalProps {
   modal: { isFinal?: boolean; week?: number; [key: string]: any };
@@ -30,7 +30,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
           style={{
             background: 'var(--bg-card)',
             border: '1px solid rgba(212,152,60,0.33)',
-            borderRadius: 12,
+            borderRadius: tokens.radius.xl,
             padding: '28px 24px 24px',
             width: '100%',
             maxWidth: 400,
@@ -77,7 +77,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
             <div
               style={{
                 background: 'var(--bg-deep)',
-                borderRadius: 10,
+                borderRadius: tokens.radius.xl,
                 border: '1px solid var(--border)',
                 marginBottom: 10,
                 overflow: 'hidden',
@@ -102,7 +102,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
                 </div>
               </div>
               <div style={{ padding: '6px 0' }}>
-                {modal.anchorGains.map((g, i) => (
+                {modal.anchorGains.map((g: any, i: any) => (
                   <div
                     key={i}
                     style={{
@@ -183,7 +183,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
                 key={label}
                 style={{
                   background: 'var(--bg-deep)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   border: '1px solid var(--border)',
                   padding: '10px 6px',
                   textAlign: 'center',
@@ -229,7 +229,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
             <div
               style={{
                 padding: '12px 14px',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 background: 'var(--bg-deep)',
                 border: '1px solid var(--border)',
                 marginBottom: 4,
@@ -266,7 +266,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
                 padding: '15px',
                 fontSize: 14,
                 fontWeight: 800,
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 letterSpacing: '0.04em',
                 background: 'var(--phase-peak)',
                 border: '1px solid var(--phase-peak)',
@@ -282,7 +282,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
                 padding: '12px',
                 fontSize: 13,
                 fontWeight: 600,
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 cursor: 'pointer',
                 border: '1px solid var(--border)',
                 background: 'transparent',
@@ -317,7 +317,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: 12,
+          borderRadius: tokens.radius.xl,
           padding: '28px 24px',
           width: '100%',
           maxWidth: 380,
@@ -368,7 +368,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
               key={label}
               style={{
                 background: 'var(--bg-inset)',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 padding: '12px 8px',
                 textAlign: 'center',
               }}
@@ -417,7 +417,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
               padding: '14px',
               fontSize: 14,
               fontWeight: 700,
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               background: 'var(--btn-primary-bg)',
               border: '1px solid var(--btn-primary-border)',
               color: 'var(--btn-primary-text)',
@@ -432,7 +432,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
               padding: '12px',
               fontSize: 13,
               fontWeight: 600,
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               border: '1px solid var(--border)',
               background: 'transparent',

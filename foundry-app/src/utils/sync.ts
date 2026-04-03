@@ -1,6 +1,8 @@
+import * as Sentry from '@sentry/react';
 import { supabase } from './supabase.js';
 import { store } from './storage.js';
 import type { Profile, ReadinessEntry, DayData } from '../types';
+import { validateProfile, validateDayData } from './schemas';
 
 async function getUser() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -15,6 +17,107 @@ function syncStart() {
 function syncEnd() {
   _inflight = Math.max(0, _inflight - 1);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('foundry:sync', { detail: { inflight: _inflight } }));
+}
+
+// ─── DIRTY KEY QUEUE ────────────────────────────────────────────────────────
+const DIRTY_KEY = 'foundry:sync:dirty';
+
+function readDirtySet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DIRTY_KEY);
+    if (raw) return new Set(JSON.parse(raw) as string[]);
+  } catch {}
+  return new Set();
+}
+
+function writeDirtySet(s: Set<string>): void {
+  try {
+    localStorage.setItem(DIRTY_KEY, JSON.stringify([...s]));
+  } catch {}
+}
+
+// ─── DEBOUNCED SYNC ─────────────────────────────────────────────────────────
+const _debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+export function debouncedSync(key: string, fn: () => void, delay = 1500): void {
+  const existing = _debounceTimers.get(key);
+  if (existing) clearTimeout(existing);
+  _debounceTimers.set(key, setTimeout(() => {
+    _debounceTimers.delete(key);
+    fn();
+  }, delay));
+}
+
+export function markDirty(key: string): void {
+  const s = readDirtySet();
+  s.add(key);
+  writeDirtySet(s);
+}
+
+export function clearDirty(key: string): void {
+  const s = readDirtySet();
+  s.delete(key);
+  writeDirtySet(s);
+}
+
+let _flushInProgress = false;
+
+export async function flushDirty(): Promise<void> {
+  if (_flushInProgress) return;
+  const dirty = readDirtySet();
+  if (dirty.size === 0) return;
+
+  _flushInProgress = true;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+
+    for (const key of dirty) {
+      const raw = store.get(key);
+      if (!raw) { clearDirty(key); continue; }
+
+      let succeeded = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const dayWeekMatch = key.match(/^foundry:day(\d+):week(\d+)$/);
+          if (dayWeekMatch) {
+            const data = JSON.parse(raw);
+            const [, d, w] = dayWeekMatch;
+            await supabase.from('workout_sessions').upsert({ user_id: user.id, day_idx: parseInt(d), week_idx: parseInt(w), data, updated_at: new Date().toISOString() }, { onConflict: 'user_id,day_idx,week_idx' });
+            succeeded = true; break;
+          }
+          if (key === 'foundry:profile') {
+            await supabase.from('user_profiles').upsert({ id: user.id, data: JSON.parse(raw), updated_at: new Date().toISOString() }, { onConflict: 'id' });
+            succeeded = true; break;
+          }
+          const readinessMatch = key.match(/^foundry:readiness:(\d{4}-\d{2}-\d{2})$/);
+          if (readinessMatch) {
+            const r = JSON.parse(raw) as ReadinessEntry;
+            const [, date] = readinessMatch;
+            await supabase.from('readiness_checkins').upsert({ user_id: user.id, date, sleep: r.sleep ?? null, soreness: r.soreness ?? null, energy: r.energy ?? null, score: readinessScore(r), updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
+            succeeded = true; break;
+          }
+          const cardioMatch = key.match(/^foundry:cardio:session:(\d{4}-\d{2}-\d{2})$/);
+          if (cardioMatch) {
+            const [, date] = cardioMatch;
+            await supabase.from('cardio_sessions').upsert({ user_id: user.id, date, data: JSON.parse(raw), updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
+            succeeded = true; break;
+          }
+          // Unknown key pattern — nothing to do
+          succeeded = true; break;
+        } catch {
+          if (attempt < 2) await new Promise(res => setTimeout(res, 500 * (attempt + 1)));
+        }
+      }
+      if (succeeded) clearDirty(key);
+    }
+  } catch (e) {
+    Sentry.captureException(e, { tags: { context: 'sync', operation: 'flushDirty' } });
+  } finally {
+    _flushInProgress = false;
+    syncEnd();
+  }
 }
 
 function readinessScore(r: ReadinessEntry | null | undefined): number | null {
@@ -32,7 +135,7 @@ export async function syncProfileToSupabase(profile: Profile): Promise<void> {
     const user = await getUser();
     if (!user) return;
     await supabase.from('user_profiles').upsert({ id: user.id, data: profile, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-  } catch (e) { console.warn('[Foundry Sync] Profile sync failed', e); } finally { syncEnd(); }
+  } catch (e) { console.warn('[Foundry Sync] Profile sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'profile' } }); } finally { syncEnd(); }
 }
 
 export async function syncWorkoutToSupabase(dayIdx: number, weekIdx: number, data: DayData): Promise<void> {
@@ -44,7 +147,7 @@ export async function syncWorkoutToSupabase(dayIdx: number, weekIdx: number, dat
       { user_id: user.id, day_idx: dayIdx, week_idx: weekIdx, data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,day_idx,week_idx' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Workout sync failed', e); } finally { syncEnd(); }
+  } catch (e) { console.warn('[Foundry Sync] Workout sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'workout' } }); } finally { syncEnd(); }
 }
 
 export async function syncReadinessToSupabase(date: string, readinessData: ReadinessEntry): Promise<void> {
@@ -56,7 +159,7 @@ export async function syncReadinessToSupabase(date: string, readinessData: Readi
       { user_id: user.id, date, sleep: readinessData.sleep ?? null, soreness: readinessData.soreness ?? null, energy: readinessData.energy ?? null, score: readinessScore(readinessData), updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Readiness sync failed', e); } finally { syncEnd(); }
+  } catch (e) { console.warn('[Foundry Sync] Readiness sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'readiness' } }); } finally { syncEnd(); }
 }
 
 export async function syncBodyWeightToSupabase(date: string, weightLbs: number): Promise<void> {
@@ -68,7 +171,7 @@ export async function syncBodyWeightToSupabase(date: string, weightLbs: number):
       { user_id: user.id, date, weight_lbs: weightLbs, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Body weight sync failed', e); } finally { syncEnd(); }
+  } catch (e) { console.warn('[Foundry Sync] Body weight sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'bodyweight' } }); } finally { syncEnd(); }
 }
 
 export async function syncCardioSessionToSupabase(date: string, data: unknown): Promise<void> {
@@ -80,7 +183,7 @@ export async function syncCardioSessionToSupabase(date: string, data: unknown): 
       { user_id: user.id, date, data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Cardio session sync failed', e); } finally { syncEnd(); }
+  } catch (e) { console.warn('[Foundry Sync] Cardio session sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'cardio' } }); } finally { syncEnd(); }
 }
 
 export async function syncNotesToSupabase(dayIdx: number, weekIdx: number, sessionNotes: string | null, exerciseNotes: unknown): Promise<void> {
@@ -92,7 +195,7 @@ export async function syncNotesToSupabase(dayIdx: number, weekIdx: number, sessi
       { user_id: user.id, day_idx: dayIdx, week_idx: weekIdx, session_notes: sessionNotes ?? null, exercise_notes: exerciseNotes ?? null, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,day_idx,week_idx' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Notes sync failed', e); } finally { syncEnd(); }
+  } catch (e) { console.warn('[Foundry Sync] Notes sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'notes' } }); } finally { syncEnd(); }
 }
 
 export async function pullFromSupabase(): Promise<void> {
@@ -111,11 +214,22 @@ export async function pullFromSupabase(): Promise<void> {
     ]);
 
     if (profileRes.status === 'fulfilled' && (profileRes.value.data as { data?: unknown })?.data) {
-      store.set('foundry:profile', JSON.stringify((profileRes.value.data as { data: unknown }).data));
+      const profileData = (profileRes.value.data as { data: unknown }).data;
+      const parsed = validateProfile(profileData);
+      if (parsed.success) {
+        store.set('foundry:profile', JSON.stringify(parsed.data));
+      } else {
+        console.warn('[Foundry Sync] Invalid profile from Supabase:', parsed.error.issues);
+        Sentry.captureMessage('Invalid profile data from Supabase', { extra: { issues: parsed.error.issues } });
+      }
     }
     if (workoutsRes.status === 'fulfilled' && workoutsRes.value.data) {
       for (const row of workoutsRes.value.data as { day_idx: number; week_idx: number; data: unknown }[]) {
-        if (row.data != null) store.set('foundry:day' + row.day_idx + ':week' + row.week_idx, JSON.stringify(row.data));
+        if (row.data == null) continue;
+        const parsed = validateDayData(row.data);
+        if (parsed.success) {
+          store.set('foundry:day' + row.day_idx + ':week' + row.week_idx, JSON.stringify(parsed.data));
+        }
       }
     }
     if (readinessRes.status === 'fulfilled' && readinessRes.value.data) {
@@ -144,7 +258,7 @@ export async function pullFromSupabase(): Promise<void> {
       }
     }
     console.log('[Foundry Sync] Pull from Supabase complete');
-  } catch (e) { console.warn('[Foundry Sync] Pull from Supabase failed', e); } finally { syncEnd(); }
+  } catch (e) { console.warn('[Foundry Sync] Pull from Supabase failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'pull' } }); } finally { syncEnd(); }
 }
 
 export async function pushToSupabase(): Promise<void> {
@@ -152,7 +266,7 @@ export async function pushToSupabase(): Promise<void> {
   try {
     const user = await getUser();
     if (!user) return;
-    const ops: Promise<unknown>[] = [];
+    const ops: PromiseLike<unknown>[] = [];
 
     const rawProfile = store.get('foundry:profile');
     if (rawProfile) {
@@ -229,5 +343,5 @@ export async function pushToSupabase(): Promise<void> {
       await Promise.allSettled(ops.slice(i, i + BATCH));
     }
     console.log('[Foundry Sync] Pushed ' + ops.length + ' records to Supabase');
-  } catch (e) { console.warn('[Foundry Sync] Push to Supabase failed', e); } finally { syncEnd(); }
+  } catch (e) { console.warn('[Foundry Sync] Push to Supabase failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'push' } }); } finally { syncEnd(); }
 }

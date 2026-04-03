@@ -95,7 +95,38 @@ textarea { font-family: inherit; }
   100% { transform: scale(1); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer {
+  0%   { opacity: 0.5; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.5; }
+}
 @keyframes livePulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.45; transform: scale(0.75); }
+}
+
+/* ── Skip link (a11y) ── */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: 9999;
+}
+.skip-link:focus {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  width: auto;
+  height: auto;
+  padding: 8px 16px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 2px solid var(--accent, #E8651A);
+  border-radius: 8px;
+  font-size: 14px;
+  text-decoration: none;
+  z-index: 9999;
 }

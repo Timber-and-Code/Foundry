@@ -1,6 +1,36 @@
 import { store } from './storage';
 import { validateProfile } from './validate';
 import { syncProfileToSupabase, syncBodyWeightToSupabase } from './sync';
+import type {
+  Profile,
+  Exercise,
+  MesoConfig,
+  BodyWeightEntry,
+  WorkoutDaysHistoryEntry,
+} from '../types';
+
+// ─── WARMUP TYPES ────────────────────────────────────────────────────────────
+
+export interface WarmupStep {
+  label: string;
+  reps: string;
+  detail: string;
+}
+
+export interface WarmupDetail {
+  title: string;
+  rationale: string;
+  steps: { label: string; detail: string }[];
+}
+
+export interface SparklinePoint {
+  week: number;
+  bestWeight: number;
+  bestReps: number;
+  e1rm: number;
+}
+
+// ─── FUNCTIONS ───────────────────────────────────────────────────────────────
 
 /**
  * Adjust base sets according to training phase.
@@ -8,7 +38,7 @@ import { syncProfileToSupabase, syncBodyWeightToSupabase } from './sync';
  * Early weeks (MEV phase) get reduced sets.
  * Peak weeks (MRV approach) get extra sets.
  */
-export function getWeekSets(baseSets, weekIdx, mesoLength) {
+export function getWeekSets(baseSets: number, weekIdx: number, mesoLength: number): number {
   if (weekIdx >= mesoLength - 1) return 2; // deload — always 2
   const workingWeeks = mesoLength - 1;
   const third = Math.floor(workingWeeks / 3);
@@ -21,8 +51,11 @@ export function getWeekSets(baseSets, weekIdx, mesoLength) {
  * Generate warmup steps for an exercise based on equipment and protocol.
  * Returns array of { label, reps, detail } objects describing each warmup set.
  */
-export function generateWarmupSteps(exercise, workingWeight) {
-  const w = parseFloat(workingWeight);
+export function generateWarmupSteps(
+  exercise: Exercise,
+  workingWeight: number | string,
+): WarmupStep[] | null {
+  const w = parseFloat(String(workingWeight));
   const hasWeight = !isNaN(w) && w > 0;
   const equip = exercise.equipment || '';
   const isBarbell = equip === 'barbell';
@@ -33,10 +66,10 @@ export function generateWarmupSteps(exercise, workingWeight) {
   const isLightFeeler = warmupStr === '1 light feeler set';
   const isFullProtocol = warmupStr === 'Full protocol' || warmupStr === 'Full Protocol';
 
-  function round(lbs, increment) {
+  function round(lbs: number, increment: number): number {
     return Math.round(lbs / increment) * increment;
   }
-  function lbl(pct, increment) {
+  function lbl(pct: number, increment: number): string {
     if (!hasWeight) return `${pct}% of working weight`;
     const rounded = round(w * (pct / 100), increment);
     return `${rounded} lbs  (${pct}%)`;
@@ -132,7 +165,7 @@ export function generateWarmupSteps(exercise, workingWeight) {
  * Return warmup protocol details with rationale and step-by-step breakdown.
  * Used by the Warm-up modal in ExerciseCard.
  */
-export function getWarmupDetail(warmupStr, exerciseName) {
+export function getWarmupDetail(warmupStr: string | undefined, _exerciseName: string): WarmupDetail {
   const str = (warmupStr || '').trim();
 
   if (str === 'Full protocol' || str === 'Full Protocol') {
@@ -212,7 +245,7 @@ export function getWarmupDetail(warmupStr, exerciseName) {
 /**
  * Fisher-Yates shuffle for array randomization.
  */
-export function shuffle(arr) {
+export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -221,30 +254,30 @@ export function shuffle(arr) {
   return a;
 }
 
-export function loadBwLog() {
+export function loadBwLog(): BodyWeightEntry[] {
   try {
-    return JSON.parse(store.get('foundry:bwlog') || '[]');
+    return JSON.parse(store.get('foundry:bwlog') || '[]') as BodyWeightEntry[];
   } catch (e) {
     console.warn('[Foundry]', 'Failed to load body weight log', e);
     return [];
   }
 }
 
-export function saveBwLog(entries) {
+export function saveBwLog(entries: BodyWeightEntry[]): void {
   store.set('foundry:bwlog', JSON.stringify(entries));
 }
 
-export function addBwEntry(weight) {
+export function addBwEntry(weight: number | string): BodyWeightEntry[] {
   const date = new Date().toISOString().slice(0, 10);
   const entries = loadBwLog().filter((e) => e.date !== date);
-  entries.unshift({ date, weight: parseFloat(weight) });
+  entries.unshift({ date, weight: parseFloat(String(weight)) });
   if (entries.length > 52) entries.length = 52;
   saveBwLog(entries);
-  syncBodyWeightToSupabase(date, parseFloat(weight));
+  syncBodyWeightToSupabase(date, parseFloat(String(weight)));
   return entries;
 }
 
-export function bwLoggedThisWeek() {
+export function bwLoggedThisWeek(): boolean {
   const entries = loadBwLog();
   if (!entries.length) return false;
   const now = new Date();
@@ -254,7 +287,7 @@ export function bwLoggedThisWeek() {
   return entries.some((e) => new Date(e.date) >= sunday);
 }
 
-export function currentWeekSundayStr() {
+export function currentWeekSundayStr(): string {
   const now = new Date();
   const s = new Date(now);
   s.setDate(now.getDate() - now.getDay());
@@ -262,37 +295,41 @@ export function currentWeekSundayStr() {
   return s.toISOString().slice(0, 10);
 }
 
-export function markBwPromptShown() {
+export function markBwPromptShown(): void {
   store.set('foundry:bwPromptSunday', currentWeekSundayStr());
 }
 
-export function bwPromptShownThisWeek() {
+export function bwPromptShownThisWeek(): boolean {
   return store.get('foundry:bwPromptSunday') === currentWeekSundayStr();
 }
 
-export function saveSessionDuration(dayIdx, weekIdx, minutes) {
+export function saveSessionDuration(dayIdx: number, weekIdx: number, minutes: number): void {
   store.set(`foundry:sess:lift:d${dayIdx}:w${weekIdx}`, String(Math.round(minutes)));
 }
 
-export function loadSessionDuration(dayIdx, weekIdx) {
+export function loadSessionDuration(dayIdx: number, weekIdx: number): number | null {
   const v = store.get(`foundry:sess:lift:d${dayIdx}:w${weekIdx}`);
   return v !== null ? parseInt(v) : null;
 }
 
-export function loadSparklineData(dayIdx, exIdx, mesoWeeks = 7) {
+export function loadSparklineData(
+  dayIdx: number,
+  exIdx: number,
+  mesoWeeks: number = 7,
+): SparklinePoint[] {
   const weeks = mesoWeeks;
-  const pts = [];
+  const pts: SparklinePoint[] = [];
   for (let w = 0; w < weeks; w++) {
     const raw = store.get(`foundry:day${dayIdx}:week${w}`);
     if (!raw) continue;
     try {
-      const exData = JSON.parse(raw)[exIdx] || {};
+      const exData = (JSON.parse(raw) as Record<string, Record<string, { warmup?: boolean; weight?: string; reps?: string }>>)[exIdx] || {};
       let bestWeight = 0,
         bestReps = 0;
       Object.values(exData).forEach((s) => {
         if (!s || s.warmup) return;
-        const wt = parseFloat(s.weight) || 0;
-        const rp = parseInt(s.reps) || 0;
+        const wt = parseFloat(s.weight || '0') || 0;
+        const rp = parseInt(s.reps || '0') || 0;
         if (wt > bestWeight) {
           bestWeight = wt;
           bestReps = rp;
@@ -312,17 +349,17 @@ export function loadSparklineData(dayIdx, exIdx, mesoWeeks = 7) {
   return pts;
 }
 
-export function loadCurrentWeek() {
+export function loadCurrentWeek(): number {
   const v = store.get('foundry:currentWeek');
   return v !== null ? parseInt(v) : 0;
 }
 
-export function saveCurrentWeek(w) {
+export function saveCurrentWeek(w: number): void {
   store.set('foundry:currentWeek', String(w));
 }
 
-export function loadCompleted(mesoConfig) {
-  const done = new Set();
+export function loadCompleted(mesoConfig: MesoConfig | null | undefined): Set<string> {
+  const done = new Set<string>();
   const days = mesoConfig?.days || 6;
   const weeks = mesoConfig?.weeks || 6;
   for (let d = 0; d < days; d++)
@@ -331,28 +368,28 @@ export function loadCompleted(mesoConfig) {
   return done;
 }
 
-export function markComplete(dayIdx, weekIdx) {
+export function markComplete(dayIdx: number, weekIdx: number): void {
   store.set(`foundry:done:d${dayIdx}:w${weekIdx}`, '1');
   const today = new Date();
   const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   store.set(`foundry:completedDate:d${dayIdx}:w${weekIdx}`, dateStr);
 }
 
-export function loadProfile() {
+export function loadProfile(): Profile | null {
   const raw = store.get('foundry:profile');
   return raw ? validateProfile(JSON.parse(raw)) : null;
 }
 
-export function saveProfile(profile) {
+export function saveProfile(profile: Profile): void {
   store.set('foundry:profile', JSON.stringify(profile));
   syncProfileToSupabase(profile);
 }
 
-export function isSkipped(dayIdx, weekIdx) {
+export function isSkipped(dayIdx: number, weekIdx: number): boolean {
   return store.get(`foundry:skip:d${dayIdx}:w${weekIdx}`) === '1';
 }
 
-export function setSkipped(dayIdx, weekIdx, val) {
+export function setSkipped(dayIdx: number, weekIdx: number, val: boolean): void {
   if (val) store.set(`foundry:skip:d${dayIdx}:w${weekIdx}`, '1');
   else {
     try {
@@ -363,10 +400,13 @@ export function setSkipped(dayIdx, weekIdx, val) {
   }
 }
 
-export function getWorkoutDaysForWeek(profile, weekIdx) {
+export function getWorkoutDaysForWeek(
+  profile: Profile | null | undefined,
+  weekIdx: number,
+): number[] {
   const history = profile?.workoutDaysHistory;
   if (!history || history.length === 0) return profile?.workoutDays || [];
-  let best = null;
+  let best: WorkoutDaysHistoryEntry | null = null;
   for (const entry of history) {
     if (entry.fromWeek <= weekIdx) {
       if (!best || entry.fromWeek >= best.fromWeek) best = entry;
@@ -375,17 +415,23 @@ export function getWorkoutDaysForWeek(profile, weekIdx) {
   return best ? best.days : profile?.workoutDays || [];
 }
 
-export function ensureWorkoutDaysHistory(profile) {
-  if (profile?.workoutDaysHistory?.length > 0) return profile;
+export function ensureWorkoutDaysHistory(profile: Profile): Profile {
+  if (profile?.workoutDaysHistory?.length && profile.workoutDaysHistory.length > 0) return profile;
   const days = profile?.workoutDays || [];
   return { ...profile, workoutDaysHistory: [{ fromWeek: 0, days }] };
 }
 
-export function ageFromDob(dob) {
+interface Dob {
+  month?: string | number;
+  day?: string | number;
+  year?: string | number;
+}
+
+export function ageFromDob(dob: Dob | null | undefined): number | null {
   if (!dob || !dob.month || !dob.day || !dob.year) return null;
-  const m = parseInt(dob.month, 10);
-  const d = parseInt(dob.day, 10);
-  const y = parseInt(dob.year, 10);
+  const m = parseInt(String(dob.month), 10);
+  const d = parseInt(String(dob.day), 10);
+  const y = parseInt(String(dob.year), 10);
   if (isNaN(m) || isNaN(d) || isNaN(y) || y < 1900 || y > new Date().getFullYear()) return null;
   const today = new Date();
   let age = today.getFullYear() - y;
@@ -394,7 +440,7 @@ export function ageFromDob(dob) {
   return age >= 0 ? age : null;
 }
 
-export function getTimeGreeting() {
+export function getTimeGreeting(): string {
   const h = new Date().getHours();
   if (h >= 5 && h < 12) return 'Good morning';
   if (h >= 12 && h < 17) return 'Good afternoon';

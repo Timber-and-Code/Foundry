@@ -1,4 +1,5 @@
 import React from 'react';
+import { tokens } from '../../styles/tokens';
 import { TAG_ACCENT, PHASE_COLOR, getMeso, getWeekPhase } from '../../data/constants';
 import Sheet from '../ui/Sheet';
 import {
@@ -17,7 +18,7 @@ import EditScheduleSheet from './EditScheduleSheet';
 
 // ── Inline icon helpers ────────────────────────────────────────────────────
 
-const scheduleIcon = (color) => (
+const scheduleIcon = (color: any) => (
   <svg
     width="16"
     height="16"
@@ -35,7 +36,7 @@ const scheduleIcon = (color) => (
   </svg>
 );
 
-const overviewIcon = (color) => (
+const overviewIcon = (color: any) => (
   <svg
     width="16"
     height="16"
@@ -53,7 +54,7 @@ const overviewIcon = (color) => (
 
 // ── WeekSection ────────────────────────────────────────────────────────────
 
-function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays, onSelectDay }) {
+function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays, onSelectDay, currentWeek: _currentWeek }: { weekIdx: any; isExpanded: any; onToggle: any; activeDays: any; completedDays: any; onSelectDay: (dayIdx: any, weekIdx: any) => void; currentWeek?: any }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <button
@@ -66,7 +67,7 @@ function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays,
           padding: '12px 16px',
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: 8,
+          borderRadius: tokens.radius.lg,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -93,7 +94,7 @@ function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays,
             gap: 4,
           }}
         >
-          {activeDays.map((day, i) => {
+          {activeDays.map((day: any, i: any) => {
             const done = completedDays.has(`${i}:${weekIdx}`);
             return (
               <button
@@ -110,7 +111,7 @@ function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays,
                   cursor: done ? 'default' : 'pointer',
                   background: done ? 'var(--bg-inset)' : 'transparent',
                   border: 'none',
-                  borderRadius: 4,
+                  borderRadius: tokens.radius.sm,
                 }}
               >
                 <span aria-hidden="true">{done ? '✓ ' : ''}</span>
@@ -131,7 +132,7 @@ function DeloadSection() {
         padding: '12px 16px',
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        borderRadius: 8,
+        borderRadius: tokens.radius.lg,
         marginBottom: 8,
       }}
     >
@@ -144,7 +145,7 @@ function DeloadSection() {
 
 // ── NoteViewer ─────────────────────────────────────────────────────────────
 
-function NoteViewer({ noteViewer, setNoteViewer }) {
+function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: any; setNoteViewer: any }) {
   if (!noteViewer) return null;
   return (
     <Sheet open={!!noteViewer} onClose={() => setNoteViewer(null)} zIndex={300}>
@@ -199,7 +200,7 @@ function NoteViewer({ noteViewer, setNoteViewer }) {
             ✕
           </button>
         </div>
-        {noteViewer.exercises.map((ex, i) => {
+        {noteViewer.exercises.map((ex: any, i: any) => {
           const n = (noteViewer.exNotes || {})[i] || '';
           if (!n.trim()) return null;
           return (
@@ -221,7 +222,7 @@ function NoteViewer({ noteViewer, setNoteViewer }) {
                   color: 'var(--text-primary)',
                   lineHeight: 1.6,
                   background: 'var(--bg-inset)',
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   padding: '10px 12px',
                 }}
               >
@@ -249,7 +250,7 @@ function NoteViewer({ noteViewer, setNoteViewer }) {
                 color: 'var(--text-primary)',
                 lineHeight: 1.6,
                 background: 'var(--bg-inset)',
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 padding: '10px 12px',
               }}
             >
@@ -285,9 +286,9 @@ interface ScheduleTabProps {
   goBack: () => void;
   goTo: (v: any) => void;
   onSelectDay: (v: any) => void;
-  onSelectDayWeek: (v: any) => void;
+  onSelectDayWeek: (dayIdx: any, weekIdx: any) => void;
   onOpenExtra: (v: any) => void;
-  onOpenCardio: (v: any) => void;
+  onOpenCardio: (dateStr: any, protocolId: any) => void;
   setCurrentWeek: (v: any) => void;
   onProfileUpdate: (v: any) => void;
   setAddWorkoutModal: (v: any) => void;
@@ -312,8 +313,8 @@ function ScheduleTab({
   setShowEditSchedule,
   noteViewer,
   setNoteViewer,
-  skipVersion,
-  setSkipVersion,
+  skipVersion: _skipVersion,
+  setSkipVersion: _setSkipVersion,
   goBack,
   goTo,
   onSelectDay,
@@ -340,7 +341,7 @@ function ScheduleTab({
 
   // Build sessionDateMap
   const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;
-  const sessionDateMap = {};
+  const sessionDateMap: Record<string, any> = {};
   if (startDate && activeDays.length > 0) {
     const totalSessions = (getMeso().weeks + 1) * activeDays.length;
     let sessionCount = 0;
@@ -359,7 +360,7 @@ function ScheduleTab({
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const todayStr = today.toISOString().slice(0, 10);
 
-  const cells = [];
+  const cells: (number | null)[] = [];
   for (let b = 0; b < firstDay; b++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
@@ -425,7 +426,7 @@ function ScheduleTab({
           onClick={() => setShowEditSchedule(true)}
           style={{
             padding: '6px 12px',
-            borderRadius: 6,
+            borderRadius: tokens.radius.md,
             cursor: 'pointer',
             background: 'var(--accent)11',
             border: '1px solid var(--accent)44',
@@ -465,7 +466,7 @@ function ScheduleTab({
                 style={{
                   width: 26,
                   height: 26,
-                  borderRadius: 5,
+                  borderRadius: tokens.radius.sm,
                   background: 'var(--phase-intens)15',
                   display: 'flex',
                   alignItems: 'center',
@@ -499,11 +500,11 @@ function ScheduleTab({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <button
-                onClick={() => canGoBack && setCalendarOffset((o) => o - 1)}
+                onClick={() => canGoBack && setCalendarOffset((o: any) => o - 1)}
                 style={{
                   width: 32,
                   height: 32,
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   border: '1px solid var(--border)',
                   background: 'var(--bg-inset)',
                   cursor: canGoBack ? 'pointer' : 'default',
@@ -523,7 +524,7 @@ function ScheduleTab({
                   onClick={() => setCalendarOffset(0)}
                   style={{
                     padding: '4px 8px',
-                    borderRadius: 6,
+                    borderRadius: tokens.radius.md,
                     border: '1px solid var(--phase-intens)55',
                     background: 'var(--phase-intens)11',
                     cursor: 'pointer',
@@ -537,11 +538,11 @@ function ScheduleTab({
                 </button>
               )}
               <button
-                onClick={() => canGoForward && setCalendarOffset((o) => o + 1)}
+                onClick={() => canGoForward && setCalendarOffset((o: any) => o + 1)}
                 style={{
                   width: 32,
                   height: 32,
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   border: '1px solid var(--border)',
                   background: 'var(--bg-inset)',
                   cursor: canGoForward ? 'pointer' : 'default',
@@ -606,7 +607,7 @@ function ScheduleTab({
               const cardioDone = cardioSession?.completed === true;
 
               let hasNotes = false,
-                notesMeta = null;
+                notesMeta: { type: string; dayIdx?: number; weekIdx?: number; dateStr?: string } | null = null;
               if (isDone && sessionKey) {
                 const [dIdx, wIdx] = sessionKey.split(':').map(Number);
                 hasNotes = hasAnyNotes(dIdx, wIdx);
@@ -623,7 +624,7 @@ function ScheduleTab({
                   : 'Accumulation';
               const sessionPc =
                 sessionWeekIdx !== null
-                  ? PHASE_COLOR[sessionPhase] || 'var(--phase-intens)'
+                  ? (PHASE_COLOR as Record<string, any>)[sessionPhase] || 'var(--phase-intens)'
                   : 'var(--phase-intens)';
 
               let bg = 'transparent',
@@ -660,7 +661,7 @@ function ScheduleTab({
                   }}
                   style={{
                     aspectRatio: '1',
-                    borderRadius: 5,
+                    borderRadius: tokens.radius.sm,
                     background: bg,
                     border: isToday
                       ? `2px solid ${isDone ? sessionPc : sessionKey ? sessionPc : 'var(--phase-intens)'}`
@@ -710,7 +711,7 @@ function ScheduleTab({
                         width: 5,
                         height: 5,
                         borderRadius: '50%',
-                        background: cardioDone ? '#D4983C' : TAG_ACCENT['CARDIO'],
+                        background: cardioDone ? tokens.colors.gold : TAG_ACCENT['CARDIO'],
                         opacity: 0.9,
                         position: 'absolute',
                         bottom: 2,
@@ -718,12 +719,13 @@ function ScheduleTab({
                       }}
                     />
                   )}
-                  {hasNotes && (
+                  {hasNotes && notesMeta && (
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
                         if (notesMeta.type === 'meso') {
-                          const { dayIdx: dIdx, weekIdx: wIdx } = notesMeta;
+                          const dIdx = notesMeta.dayIdx!;
+                          const wIdx = notesMeta.weekIdx!;
                           const d = activeDays[dIdx];
                           setNoteViewer({
                             type: 'meso',
@@ -735,10 +737,11 @@ function ScheduleTab({
                             exNotes: loadExNotes(dIdx, wIdx),
                           });
                         } else {
+                          const extraDateStr = notesMeta.dateStr!;
                           const extra = (() => {
                             try {
                               return JSON.parse(
-                                store.get(`foundry:extra:${notesMeta.dateStr}`) || 'null'
+                                store.get(`foundry:extra:${extraDateStr}`) || 'null'
                               );
                             } catch {
                               return null;
@@ -746,12 +749,12 @@ function ScheduleTab({
                           })();
                           setNoteViewer({
                             type: 'extra',
-                            dateStr: notesMeta.dateStr,
+                            dateStr: extraDateStr,
                             label: extra ? extra.label : 'Extra Session',
                             exercises: extra ? extra.exercises : [],
                             sessionNote:
-                              store.get(`foundry:extra:notes:${notesMeta.dateStr}`) || '',
-                            exNotes: loadExtraExNotes(notesMeta.dateStr),
+                              store.get(`foundry:extra:notes:${extraDateStr}`) || '',
+                            exNotes: loadExtraExNotes(extraDateStr),
                           });
                         }
                       }}
@@ -797,7 +800,7 @@ function ScheduleTab({
                     style={{
                       width: 10,
                       height: 10,
-                      borderRadius: 3,
+                      borderRadius: tokens.radius.xs,
                       background: color,
                     }}
                   />
@@ -831,7 +834,7 @@ function ScheduleTab({
                     width: 5,
                     height: 5,
                     borderRadius: '50%',
-                    background: '#D4983C',
+                    background: tokens.colors.gold,
                   }}
                 />
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Cardio</div>
@@ -849,7 +852,7 @@ function ScheduleTab({
             width: '100%',
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             padding: '14px 16px',
             cursor: 'pointer',
             textAlign: 'left',
@@ -875,7 +878,7 @@ function ScheduleTab({
               style={{
                 width: 26,
                 height: 26,
-                borderRadius: 5,
+                borderRadius: tokens.radius.sm,
                 background: 'var(--phase-deload)18',
                 display: 'flex',
                 alignItems: 'center',
@@ -915,7 +918,7 @@ function ScheduleTab({
             }}
           >
             {Array.from({ length: getMeso().weeks }, (_, w) => {
-              const wColor = PHASE_COLOR[getWeekPhase()[w]] || 'var(--accent)';
+              const wColor = (PHASE_COLOR as Record<string, any>)[getWeekPhase()[w]] || 'var(--accent)';
               const isActive = w === activeWeek;
               return (
                 <div
@@ -923,7 +926,7 @@ function ScheduleTab({
                   style={{
                     width: isActive ? 10 : 6,
                     height: 6,
-                    borderRadius: 2,
+                    borderRadius: tokens.radius.xs,
                     background: wColor,
                     opacity: isActive ? 1 : 0.45,
                     transition: 'width 0.2s',

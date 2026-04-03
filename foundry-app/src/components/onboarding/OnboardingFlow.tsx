@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
+import { tokens } from '../../styles/tokens';
 import { GOAL_OPTIONS } from '../../data/constants';
 import { store, importData } from '../../utils/store';
 import {
@@ -40,7 +41,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
   const [goal, setGoal] = React.useState('');
   const [nameFocused, setNameFocused] = React.useState(false);
 
-  const goTo = (idx, dir = 1) => {
+  const goTo = (idx: any, dir = 1) => {
     if (animating) return;
     setError('');
     setAnimDir(dir);
@@ -84,10 +85,10 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
   };
 
   const touchStart = React.useRef(null);
-  const handleTouchStart = (e) => {
+  const handleTouchStart = (e: any) => {
     touchStart.current = e.touches[0].clientX;
   };
-  const handleTouchEnd = (e) => {
+  const handleTouchEnd = (e: any) => {
     if (touchStart.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStart.current;
     touchStart.current = null;
@@ -108,7 +109,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
     padding: '16px',
     fontSize: 'clamp(15px, 4vw, 18px)',
     fontWeight: 600,
-    borderRadius: 12,
+    borderRadius: tokens.radius.xl,
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
     background: 'var(--btn-primary-bg)',
@@ -137,7 +138,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
             style={{
               width: i === screen ? 28 : 12,
               height: 12,
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
               background:
                 i === screen
                   ? '#E8651A'
@@ -238,7 +239,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                 fontSize: 'clamp(13px, 3.5vw, 17px)',
                 letterSpacing: '0.2em',
                 textTransform: 'uppercase',
-                color: '#F29A52',
+                color: tokens.colors.amber,
                 fontWeight: 500,
                 textShadow: '0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)',
               }}
@@ -358,7 +359,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                 style={{
                   width: '100%',
                   padding: '14px 16px',
-                  borderRadius: 10,
+                  borderRadius: tokens.radius.xl,
                   fontSize: 'clamp(16px, 4.2vw, 20px)',
                   background: 'rgba(26,24,20,0.08)',
                   border: nameFocused ? '1px solid #E8651A' : '1px solid rgba(232,101,26,0.15)',
@@ -416,7 +417,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    importData(file, (ok) => {
+                    importData(file, (ok: any) => {
                       if (ok) {
                         store.set('foundry:onboarded', '1');
                         window.location.reload();
@@ -544,7 +545,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                       onClick={() => setExperience(opt.id)}
                       style={{
                         padding: '14px 16px',
-                        borderRadius: 10,
+                        borderRadius: tokens.radius.xl,
                         cursor: 'pointer',
                         textAlign: 'left',
                         background: sel ? 'rgba(232,101,26,0.15)' : 'transparent',
@@ -715,7 +716,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                       onClick={() => setGoal(opt.id)}
                       style={{
                         padding: '13px 16px',
-                        borderRadius: 10,
+                        borderRadius: tokens.radius.xl,
                         cursor: 'pointer',
                         textAlign: 'left',
                         background: sel ? 'rgba(232,101,26,0.15)' : 'transparent',

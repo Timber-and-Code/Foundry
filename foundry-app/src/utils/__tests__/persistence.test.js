@@ -18,7 +18,7 @@ import {
   loadExtraExNotes,
   saveExtraExNotes,
   snapshotData,
-} from '../persistence.js';
+} from '../persistence';
 import {
   loadProfile,
   saveProfile,
@@ -26,7 +26,7 @@ import {
   markComplete,
   loadBwLog,
   saveBwLog,
-} from '../training.js';
+} from '../training';
 
 // ============================================================================
 // loadDayWeek / saveDayWeek

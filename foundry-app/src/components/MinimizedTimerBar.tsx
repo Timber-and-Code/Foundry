@@ -1,4 +1,4 @@
-import React from 'react';
+import { tokens } from '../styles/tokens';
 
 interface RestTimer {
   remaining: number;
@@ -79,13 +79,13 @@ export default function MinimizedTimerBar({ restTimer, onTap }: MinimizedTimerBa
               style={{
                 fontSize: 13,
                 fontWeight: 700,
-                color: 'rgba(0,0,0,0.75)',
+                color: tokens.colors.overlayMed,
                 lineHeight: 1,
               }}
             >
               {done ? 'Rest complete' : 'Resting'}
             </div>
-            <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)', lineHeight: 1 }}>{exName}</div>
+            <div style={{ fontSize: 12, color: tokens.colors.overlayLight, lineHeight: 1 }}>{exName}</div>
           </div>
         </div>
         <div
@@ -96,7 +96,7 @@ export default function MinimizedTimerBar({ restTimer, onTap }: MinimizedTimerBa
             color: 'rgba(0,0,0,0.7)',
             background: 'rgba(0,0,0,0.15)',
             border: '1px solid rgba(0,0,0,0.2)',
-            borderRadius: 6,
+            borderRadius: tokens.radius.md,
             padding: '7px 12px',
             whiteSpace: 'nowrap',
           }}

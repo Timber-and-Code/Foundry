@@ -3,7 +3,6 @@
  * Supabase is mocked so no network calls are made.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import { AuthProvider, useAuth } from '../AuthContext';
@@ -46,7 +45,7 @@ vi.mock('../../utils/supabase', () => ({
 
 // ─── Render helper ──────────────────────────────────────────────────────────
 
-let capturedCtx = null;
+let capturedCtx: ReturnType<typeof useAuth> | null = null;
 
 function ContextCapture() {
   capturedCtx = useAuth();
@@ -56,7 +55,7 @@ function ContextCapture() {
 async function mountProvider() {
   const container = document.createElement('div');
   document.body.appendChild(container);
-  let root;
+  let root: any;
   await act(async () => {
     root = createRoot(container);
     root.render(
@@ -111,25 +110,25 @@ describe('AuthProvider — null session', () => {
 
   it('provides user=null when session is null', async () => {
     const { cleanup } = await mountProvider();
-    expect(capturedCtx.user).toBeNull();
+    expect(capturedCtx!.user).toBeNull();
     await cleanup();
   });
 
   it('provides session=null when getSession returns null', async () => {
     const { cleanup } = await mountProvider();
-    expect(capturedCtx.session).toBeNull();
+    expect(capturedCtx!.session).toBeNull();
     await cleanup();
   });
 
   it('sets loading=false after getSession resolves', async () => {
     const { cleanup } = await mountProvider();
-    expect(capturedCtx.loading).toBe(false);
+    expect(capturedCtx!.loading).toBe(false);
     await cleanup();
   });
 
   it('provides authUnavailable=false when supabase is reachable', async () => {
     const { cleanup } = await mountProvider();
-    expect(capturedCtx.authUnavailable).toBe(false);
+    expect(capturedCtx!.authUnavailable).toBe(false);
     await cleanup();
   });
 });
@@ -153,13 +152,13 @@ describe('AuthProvider — with session', () => {
 
   it('provides the user from the session', async () => {
     const { cleanup } = await mountProvider();
-    expect(capturedCtx.user).toEqual(mockUser);
+    expect(capturedCtx!.user).toEqual(mockUser);
     await cleanup();
   });
 
   it('provides the full session object', async () => {
     const { cleanup } = await mountProvider();
-    expect(capturedCtx.session).toEqual(mockSession);
+    expect(capturedCtx!.session).toEqual(mockSession);
     await cleanup();
   });
 });
@@ -180,13 +179,13 @@ describe('AuthProvider — supabase unavailable', () => {
 
   it('sets authUnavailable=true when getSession throws', async () => {
     const { cleanup } = await mountProvider();
-    expect(capturedCtx.authUnavailable).toBe(true);
+    expect(capturedCtx!.authUnavailable).toBe(true);
     await cleanup();
   });
 
   it('sets loading=false even when getSession throws', async () => {
     const { cleanup } = await mountProvider();
-    expect(capturedCtx.loading).toBe(false);
+    expect(capturedCtx!.loading).toBe(false);
     await cleanup();
   });
 });
@@ -210,7 +209,7 @@ describe('AuthProvider — action delegates to supabase', () => {
 
   it('login calls supabase.auth.signInWithPassword with correct args', async () => {
     const { cleanup } = await mountProvider();
-    await capturedCtx.login('user@test.com', 'password123');
+    await capturedCtx!.login('user@test.com', 'password123');
     expect(mockSignInWithPassword).toHaveBeenCalledWith({
       email: 'user@test.com',
       password: 'password123',
@@ -220,14 +219,14 @@ describe('AuthProvider — action delegates to supabase', () => {
 
   it('signup calls supabase.auth.signUp with correct args', async () => {
     const { cleanup } = await mountProvider();
-    await capturedCtx.signup('new@test.com', 'secret');
+    await capturedCtx!.signup('new@test.com', 'secret');
     expect(mockSignUp).toHaveBeenCalledWith({ email: 'new@test.com', password: 'secret' });
     await cleanup();
   });
 
   it('logout calls supabase.auth.signOut', async () => {
     const { cleanup } = await mountProvider();
-    await capturedCtx.logout();
+    await capturedCtx!.logout();
     expect(mockSignOut).toHaveBeenCalled();
     await cleanup();
   });

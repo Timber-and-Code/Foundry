@@ -124,7 +124,7 @@ export default function AuthPage() {
           style={{
             display: 'flex',
             background: 'var(--bg-root, #141414)',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             padding: 3,
             marginBottom: 24,
           }}

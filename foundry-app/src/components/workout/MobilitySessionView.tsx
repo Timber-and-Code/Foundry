@@ -2,6 +2,7 @@ import React from 'react';
 import { loadMobilitySession, saveMobilitySession } from '../../utils/store';
 import { MOBILITY_PROTOCOLS } from '../../data/constants';
 import { haptic } from '../../utils/helpers';
+import { tokens } from '../../styles/tokens';
 
 interface MobilitySessionViewProps {
   dateStr: string;
@@ -9,8 +10,8 @@ interface MobilitySessionViewProps {
   profile: any;
 }
 
-function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewProps) {
-  const MOBILITY_COLOR = '#D4983C'; // warm gold — forge palette
+function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySessionViewProps) {
+  const MOBILITY_COLOR = tokens.colors.gold; // warm gold — forge palette
 
   const displayDate = (() => {
     try {
@@ -35,7 +36,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
       }
   );
 
-  const save = (updates) => {
+  const save = (updates: Record<string, unknown>) => {
     const next = { ...session, ...updates };
     setSession(next);
     saveMobilitySession(dateStr, next);
@@ -46,28 +47,28 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
   // sidePhase: "left" | "right" | "both" (for sides: true exercises)
   // holdPhase: "intro" = ready-up screen | "holding" = countdown running
   // timerActive = countdown running
-  const [exerciseIdx, setExerciseIdx] = React.useState(null);
+  const [exerciseIdx, setExerciseIdx] = React.useState<number | null>(null);
   const [sidePhase, setSidePhase] = React.useState('left');
   const [holdPhase, setHoldPhase] = React.useState('intro');
   const [remaining, setRemaining] = React.useState(0);
   const [timerActive, setTimerActive] = React.useState(false);
   const [showComplete, setShowComplete] = React.useState(false);
-  const intervalRef = React.useRef(null);
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const proto = session.protocolId
-    ? MOBILITY_PROTOCOLS.find((p) => p.id === session.protocolId)
+  const proto: any = session.protocolId
+    ? MOBILITY_PROTOCOLS.find((p: any) => p.id === session.protocolId)
     : null;
 
   // ── Timer tick ────────────────────────────────────────────────────────────
   React.useEffect(() => {
     if (!timerActive) {
-      clearInterval(intervalRef.current);
+      if (intervalRef.current !== null) clearInterval(intervalRef.current);
       return;
     }
     intervalRef.current = setInterval(() => {
       setRemaining((r) => {
         if (r <= 1) {
-          clearInterval(intervalRef.current);
+          if (intervalRef.current !== null) clearInterval(intervalRef.current);
           setTimerActive(false);
           haptic('done');
           return 0;
@@ -75,12 +76,12 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
         return r - 1;
       });
     }, 1000);
-    return () => clearInterval(intervalRef.current);
+    return () => { if (intervalRef.current !== null) clearInterval(intervalRef.current); };
   }, [timerActive]);
 
   // ── Start a hold (user tapped "I'm Ready") ────────────────────────────────
-  const startHold = (ex) => {
-    clearInterval(intervalRef.current);
+  const startHold = (ex: { hold: number }) => {
+    if (intervalRef.current !== null) clearInterval(intervalRef.current);
     setRemaining(ex.hold);
     setTimerActive(true);
     setHoldPhase('holding');
@@ -88,10 +89,10 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
   };
 
   // ── Navigate to exercise — always lands on intro first ───────────────────
-  const goToExercise = (idx) => {
+  const goToExercise = (idx: number) => {
     if (!proto || idx >= proto.exercises.length) return;
     const ex = proto.exercises[idx];
-    clearInterval(intervalRef.current);
+    if (intervalRef.current !== null) clearInterval(intervalRef.current);
     setTimerActive(false);
     setRemaining(0);
     setExerciseIdx(idx);
@@ -101,11 +102,11 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
 
   // ── Advance: next side or next exercise ──────────────────────────────────
   const handleNext = () => {
-    if (!proto) return;
+    if (!proto || exerciseIdx === null) return;
     const ex = proto.exercises[exerciseIdx];
     // If sides exercise and we just did the left side, go to right side intro
     if (ex.sides && sidePhase === 'left') {
-      clearInterval(intervalRef.current);
+      if (intervalRef.current !== null) clearInterval(intervalRef.current);
       setTimerActive(false);
       setRemaining(0);
       setSidePhase('right');
@@ -223,7 +224,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
             style={{
               marginTop: 8,
               padding: '14px 36px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               fontSize: 14,
               fontWeight: 700,
               cursor: 'pointer',
@@ -244,9 +245,9 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
     const ex = proto.exercises[exerciseIdx];
     const sideLabel = ex.sides ? (sidePhase === 'left' ? 'LEFT SIDE' : 'RIGHT SIDE') : null;
     // Progress dots
-    const totalSteps = proto.exercises.reduce((acc, e) => acc + (e.sides ? 2 : 1), 0);
+    const totalSteps = proto.exercises.reduce((acc: any, e: any) => acc + (e.sides ? 2 : 1), 0);
     const doneSteps =
-      proto.exercises.slice(0, exerciseIdx).reduce((acc, e) => acc + (e.sides ? 2 : 1), 0) +
+      proto.exercises.slice(0, exerciseIdx).reduce((acc: any, e: any) => acc + (e.sides ? 2 : 1), 0) +
       (ex.sides && sidePhase === 'right' ? 1 : 0);
     const progressLabel = `${exerciseIdx + 1} of ${proto.exercises.length}`;
 
@@ -274,7 +275,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
           >
             <button
               onClick={() => {
-                clearInterval(intervalRef.current);
+                if (intervalRef.current !== null) clearInterval(intervalRef.current);
                 setTimerActive(false);
                 setExerciseIdx(null);
               }}
@@ -378,7 +379,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
               style={{
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border)',
-                borderRadius: 10,
+                borderRadius: tokens.radius.xl,
                 padding: '16px 18px',
               }}
             >
@@ -408,7 +409,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
             <div
               style={{
                 background: 'var(--bg-inset)',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 padding: '12px 16px',
                 borderLeft: `3px solid ${MOBILITY_COLOR}`,
               }}
@@ -446,7 +447,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
                   justifyContent: 'center',
                   gap: 8,
                   padding: '11px 16px',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   background: '#ff000018',
                   border: '1px solid #ff000044',
                   color: '#ff4444',
@@ -482,7 +483,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
               style={{
                 width: '100%',
                 padding: '18px',
-                borderRadius: 10,
+                borderRadius: tokens.radius.xl,
                 cursor: 'pointer',
                 background: MOBILITY_COLOR,
                 border: 'none',
@@ -524,7 +525,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
         >
           <button
             onClick={() => {
-              clearInterval(intervalRef.current);
+              if (intervalRef.current !== null) clearInterval(intervalRef.current);
               setTimerActive(false);
               setHoldPhase('intro');
             }}
@@ -683,7 +684,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: 10,
+              borderRadius: tokens.radius.xl,
               padding: '14px 16px',
               marginBottom: 16,
               width: '100%',
@@ -736,7 +737,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
               width: '100%',
               maxWidth: 360,
               padding: '16px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               fontSize: 14,
               fontWeight: 800,
@@ -833,7 +834,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
         >
           CHOOSE A PROTOCOL
         </div>
-        {MOBILITY_PROTOCOLS.map((p) => (
+        {MOBILITY_PROTOCOLS.map((p: any) => (
           <button
             key={p.id}
             onClick={() => {
@@ -843,7 +844,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
             style={{
               background: 'var(--bg-card)',
               border: `1px solid var(--border)`,
-              borderRadius: 10,
+              borderRadius: tokens.radius.xl,
               padding: '16px',
               cursor: 'pointer',
               textAlign: 'left',

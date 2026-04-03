@@ -1,12 +1,11 @@
-import React from 'react';
 import ProgressView from './ProgressView';
 
 interface ProgressTabProps {
   displayWeek: number;
-  completedDays: number[];
-  activeDays: number[];
+  completedDays: Set<string>;
+  activeDays: any[];
   goBack: () => void;
-  goTo: (week: number) => void;
+  goTo: (week: number | string) => void;
 }
 
 function ProgressTab({ displayWeek, completedDays, activeDays, goBack, goTo }: ProgressTabProps) {

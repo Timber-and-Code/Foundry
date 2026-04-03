@@ -35,6 +35,24 @@
   --timer-mini-bg: #2A2A30;
   --timer-mini-text: #E8E4DC;
 
+  /* Warm gold / mobility / cardio-rest */
+  --gold:          #D4983C;
+  --gold-dim:      #D4983C20;
+  --gold-border:   #D4983C55;
+  --gold-subtle:   #D4983C10;
+
+  /* Amber / hover accent */
+  --amber:         #F29A52;
+
+  /* Cardio intensity */
+  --cardio-hard:   #E75831;
+
+  /* Overlays */
+  --overlay:       rgba(0,0,0,0.82);
+  --overlay-light: rgba(0,0,0,0.6);
+  --overlay-heavy: rgba(0,0,0,0.88);
+  --overlay-med:   rgba(0,0,0,0.75);
+
   /* Shadow scale */
   --shadow-xs:  0 1px 3px rgba(0,0,0,0.3);
   --shadow-sm:  0 2px 8px rgba(0,0,0,0.35);

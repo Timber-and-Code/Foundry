@@ -1,5 +1,6 @@
 import React from 'react';
 import { loadArchive, importData, exportData } from '../../utils/store';
+import { tokens } from '../../styles/tokens';
 
 interface MesoOverviewProps {
   tab: string;
@@ -17,7 +18,7 @@ function MesoOverviewContent() {
   return <div style={{ padding: 16, fontSize: 12, color: 'var(--text-muted)' }}>Meso overview</div>;
 }
 
-function MesoHistory({ goBack }) {
+function MesoHistory({ goBack }: { goBack: () => void; goTo?: (tab: string) => void }) {
   const archive = loadArchive?.() || [];
   return (
     <div>
@@ -83,7 +84,7 @@ function MesoHistory({ goBack }) {
                 padding: 16,
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border)',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
               }}
             >
               <div
@@ -93,7 +94,7 @@ function MesoHistory({ goBack }) {
                   color: 'var(--text-primary)',
                 }}
               >
-                {entry.profile?.split || 'Program'} — {entry.profile?.weeks || '?'} weeks
+                {String(entry.profile?.split || 'Program')} — {String(entry.profile?.weeks || '?')} weeks
               </div>
               <div
                 style={{
@@ -102,7 +103,7 @@ function MesoHistory({ goBack }) {
                   marginTop: 4,
                 }}
               >
-                Archived {entry.date || 'unknown date'}
+                Archived {String(entry.date || 'unknown date')}
               </div>
             </div>
           ))}
@@ -112,7 +113,7 @@ function MesoHistory({ goBack }) {
   );
 }
 
-function WeeklySummary({ activeDays, completedDays, goBack, profile }) {
+function WeeklySummary({ activeDays: _activeDays, completedDays: _completedDays, goBack, profile: _profile }: { activeDays: any; completedDays: any; goBack: any; profile: any }) {
   return (
     <div>
       <div
@@ -166,7 +167,7 @@ function WeeklySummary({ activeDays, completedDays, goBack, profile }) {
 
 // ── SubHeader used by overview tab ────────────────────────────────────────
 
-function SubHeader({ label, goBack }) {
+function SubHeader({ label, goBack }: { label: any; goBack: any }) {
   return (
     <div
       style={{
@@ -214,7 +215,7 @@ function SubHeader({ label, goBack }) {
 
 // ── Data Management tab content ────────────────────────────────────────────
 
-function DataManagement({ goBack, setShowReset }) {
+function DataManagement({ goBack, setShowReset }: { goBack: any; setShowReset: any }) {
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
       <SubHeader label="DATA MANAGEMENT" goBack={goBack} />
@@ -230,7 +231,7 @@ function DataManagement({ goBack, setShowReset }) {
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             overflow: 'hidden',
           }}
         >
@@ -254,7 +255,7 @@ function DataManagement({ goBack, setShowReset }) {
               style={{
                 width: 38,
                 height: 38,
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 background: 'rgba(var(--accent-rgb),0.1)',
                 display: 'flex',
                 alignItems: 'center',
@@ -305,7 +306,7 @@ function DataManagement({ goBack, setShowReset }) {
               style={{
                 width: 38,
                 height: 38,
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 background: 'rgba(var(--accent-rgb),0.1)',
                 display: 'flex',
                 alignItems: 'center',
@@ -345,7 +346,7 @@ function DataManagement({ goBack, setShowReset }) {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                importData(file, (ok) => {
+                importData(file, (ok: any) => {
                   if (ok) {
                     alert('Data restored! Reloading...');
                     window.location.reload();
@@ -375,7 +376,7 @@ function DataManagement({ goBack, setShowReset }) {
               style={{
                 width: 38,
                 height: 38,
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 background: 'rgba(var(--accent-rgb),0.08)',
                 display: 'flex',
                 alignItems: 'center',

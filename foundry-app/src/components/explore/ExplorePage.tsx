@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
+import { tokens } from '../../styles/tokens';
 import { EXERCISE_DB, SAMPLE_PROGRAMS } from '../../data/exercises';
-import { GOAL_OPTIONS } from '../../data/constants';
+import { saveProfile } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
 
 // Build AI days array from a sample program's day definitions
-const buildAiDaysFromSample = (prog) => {
+const buildAiDaysFromSample = (prog: any) => {
   if (!prog || !prog.days) return [];
-  return prog.days.map((day) => ({
+  return prog.days.map((day: any) => ({
     label: day.label || day.name || 'Day',
     tag: day.tag || 'PUSH',
-    exercises: (day.exercises || []).map((ex) => ({
+    exercises: (day.exercises || []).map((ex: any) => ({
       name: ex.name || ex,
       sets: ex.sets || 3,
       repRange: ex.repRange || '8-12',
@@ -20,14 +21,14 @@ const buildAiDaysFromSample = (prog) => {
 };
 
 // Modal for starting a sample program
-const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }) => {
+const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }: { prog: any; hasActiveMeso: any; onConfirm: any; onCancel: any }) => {
   const [startDate, setStartDate] = React.useState(() => new Date().toISOString().slice(0, 10));
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.6)',
+        background: tokens.colors.overlayLight,
         zIndex: 100,
         display: 'flex',
         alignItems: 'center',
@@ -39,7 +40,7 @@ const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }) =
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: 12,
+          borderRadius: tokens.radius.xl,
           padding: 24,
           maxWidth: 400,
           width: '90%',
@@ -66,7 +67,7 @@ const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }) =
               color: 'var(--danger)',
               background: 'rgba(255,0,0,0.08)',
               border: '1px solid var(--danger)',
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
               padding: 10,
               marginBottom: 16,
               lineHeight: 1.5,
@@ -94,7 +95,7 @@ const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }) =
             style={{
               width: '100%',
               padding: '10px',
-              borderRadius: 6,
+              borderRadius: tokens.radius.md,
               border: '1px solid var(--border)',
               background: 'var(--bg-inset)',
               color: 'var(--text-primary)',
@@ -108,7 +109,7 @@ const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }) =
             style={{
               flex: 1,
               padding: '12px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               background: 'var(--bg-inset)',
               border: '1px solid var(--border)',
               color: 'var(--text-primary)',
@@ -124,7 +125,7 @@ const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }) =
             style={{
               flex: 1,
               padding: '12px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               background: 'var(--btn-primary-bg)',
               border: '1px solid var(--btn-primary-border)',
               color: 'var(--btn-primary-text)',
@@ -143,13 +144,13 @@ const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }) =
 
 interface ExplorePageProps {
   profile: any;
-  onStartProgram: (program: any) => void;
+  onStartProgram?: (program: any) => void;
 }
 
 function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
   const [section, setSection] = useState('home'); // home | library | programs | learn
-  const [learnOpen, setLearnOpen] = useState(null); // which learn card is expanded
-  const [glossaryOpen, setGlossaryOpen] = useState(null); // which glossary term is expanded
+  const [learnOpen, setLearnOpen] = useState<string | null>(null); // which learn card is expanded
+  const [glossaryOpen, setGlossaryOpen] = useState<string | null>(null); // which glossary term is expanded
   const [libFilter, setLibFilter] = useState({
     tag: 'ALL',
     equip: 'ALL',
@@ -158,9 +159,9 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
     search: '',
   });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [showHowTo, setShowHowTo] = useState(null); // exercise object
-  const [expandedProgram, setExpandedProgram] = useState(null);
-  const [startModalProg, setStartModalProg] = useState(null); // program to launch
+  const [showHowTo, setShowHowTo] = useState<(typeof EXERCISE_DB)[number] | null>(null); // exercise object
+  const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
+  const [startModalProg, setStartModalProg] = useState<(typeof SAMPLE_PROGRAMS)[number] | null>(null); // program to launch
 
   // SAMPLE_PROGRAMS — defined in plain <script> above
 
@@ -198,7 +199,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
     },
   ];
 
-  const TAG_COLORS = {
+  const TAG_COLORS: Record<string, string> = {
     PUSH: 'var(--push-accent,#5C1615)',
     PULL: 'var(--pull-accent,#4A3020)',
     LEGS: 'var(--legs-accent,#3D2A1A)',
@@ -233,7 +234,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
     'Calves',
     'LowerBack',
   ];
-  const PATTERN_MAP = {
+  const PATTERN_MAP: Record<string, string> = {
     ALL: 'All',
     push: 'Press',
     pull: 'Row/Pull',
@@ -269,12 +270,12 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
   }, [libFilter]);
 
   // ── How To Modal (reuses ExerciseCard's modal design) ───────────────────
-  const HowToModal = ({ ex, onClose }) => (
+  const HowToModal = ({ ex, onClose }: { ex: any; onClose: any }) => (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.82)',
+        background: tokens.colors.overlay,
         zIndex: 300,
         display: 'flex',
         alignItems: 'flex-end',
@@ -372,7 +373,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                   background: 'rgba(var(--accent-rgb),0.15)',
                   color: 'var(--accent)',
                   padding: '3px 8px',
-                  borderRadius: 4,
+                  borderRadius: tokens.radius.sm,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
@@ -389,7 +390,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 background: 'var(--bg-inset)',
                 color: 'var(--text-secondary)',
                 padding: '3px 8px',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
               }}
             >
               {ex.equipment?.toUpperCase()}
@@ -402,7 +403,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 background: 'var(--bg-inset)',
                 color: 'var(--text-secondary)',
                 padding: '3px 8px',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
               }}
             >
               {ex.sets} × {ex.reps}
@@ -415,7 +416,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 background: 'var(--bg-inset)',
                 color: 'var(--text-secondary)',
                 padding: '3px 8px',
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
               }}
             >
               ⏱ {ex.rest}
@@ -464,7 +465,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 gap: 8,
                 width: '100%',
                 padding: '11px 16px',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 background: '#ff000018',
                 border: '1px solid #ff000044',
                 color: '#ff4444',
@@ -488,7 +489,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (section === 'library') {
-    const equipLabels = {
+    const equipLabels: Record<string, string> = {
       ALL: 'All',
       barbell: 'Barbell',
       dumbbell: 'Dumbbell',
@@ -498,7 +499,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
       kettlebell: 'Kettlebell',
       band: 'Band',
     };
-    const muscleLabels = {
+    const muscleLabels: Record<string, string> = {
       ALL: 'All Muscles',
       Chest: 'Chest',
       Back: 'Back',
@@ -517,8 +518,8 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
       Calves: 'Calves',
       LowerBack: 'Lower Back',
     };
-    const tagLabels = { ALL: 'All', PUSH: 'Push', PULL: 'Pull', LEGS: 'Legs' };
-    const FilterRow = ({ label, options, value, labelMap, onChange }) => (
+    const tagLabels: Record<string, string> = { ALL: 'All', PUSH: 'Push', PULL: 'Pull', LEGS: 'Legs' };
+    const FilterRow = ({ label, options, value, labelMap, onChange }: { label: any; options: any; value: any; labelMap: any; onChange: any }) => (
       <div style={{ marginBottom: 14 }}>
         <div
           style={{
@@ -532,7 +533,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
           {label}
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {options.map((opt) => {
+          {options.map((opt: any) => {
             const active = value === opt;
             return (
               <button
@@ -540,7 +541,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 onClick={() => onChange(opt)}
                 style={{
                   padding: '5px 12px',
-                  borderRadius: 20,
+                  borderRadius: tokens.radius.round,
                   border: '1px solid',
                   borderColor: active ? 'var(--phase-intens)' : 'var(--border)',
                   background: active ? 'rgba(232,101,26,0.15)' : 'transparent',
@@ -635,7 +636,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             style={{
               flex: 1,
               padding: '10px 14px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               border: '1px solid var(--border)',
               background: 'var(--bg-card)',
               color: 'var(--text-primary)',
@@ -649,7 +650,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             style={{
               flexShrink: 0,
               padding: '10px 14px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               border: `1px solid ${showFilterPanel || activeFilterCount > 0 ? 'var(--phase-intens)' : 'var(--border)'}`,
               background:
@@ -688,7 +689,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 style={{
                   minWidth: 16,
                   height: 16,
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   background: 'var(--phase-intens)',
                   color: '#000',
                   fontSize: 10,
@@ -723,7 +724,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                   alignItems: 'center',
                   gap: 4,
                   padding: '3px 8px 3px 10px',
-                  borderRadius: 20,
+                  borderRadius: tokens.radius.round,
                   background: 'rgba(232,101,26,0.15)',
                   border: '1px solid var(--phase-intens)44',
                   fontSize: 11,
@@ -761,7 +762,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                   alignItems: 'center',
                   gap: 4,
                   padding: '3px 8px 3px 10px',
-                  borderRadius: 20,
+                  borderRadius: tokens.radius.round,
                   background: 'rgba(232,101,26,0.15)',
                   border: '1px solid var(--phase-intens)44',
                   fontSize: 11,
@@ -799,7 +800,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                   alignItems: 'center',
                   gap: 4,
                   padding: '3px 8px 3px 10px',
-                  borderRadius: 20,
+                  borderRadius: tokens.radius.round,
                   background: 'rgba(232,101,26,0.15)',
                   border: '1px solid var(--phase-intens)44',
                   fontSize: 11,
@@ -837,7 +838,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                   alignItems: 'center',
                   gap: 4,
                   padding: '3px 8px 3px 10px',
-                  borderRadius: 20,
+                  borderRadius: tokens.radius.round,
                   background: 'rgba(232,101,26,0.15)',
                   border: '1px solid var(--phase-intens)44',
                   fontSize: 11,
@@ -880,7 +881,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
               }
               style={{
                 padding: '3px 10px',
-                borderRadius: 20,
+                borderRadius: tokens.radius.round,
                 background: 'transparent',
                 border: '1px solid var(--border)',
                 color: 'var(--text-muted)',
@@ -901,7 +902,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
               margin: '10px 16px 0',
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: 10,
+              borderRadius: tokens.radius.xl,
               padding: '16px 16px 8px',
             }}
           >
@@ -910,28 +911,28 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
               options={ALL_MUSCLES}
               value={libFilter.muscle}
               labelMap={muscleLabels}
-              onChange={(v) => setLibFilter((f) => ({ ...f, muscle: v }))}
+              onChange={(v: any) => setLibFilter((f) => ({ ...f, muscle: v }))}
             />
             <FilterRow
               label="EQUIPMENT"
               options={ALL_EQUIPS}
               value={libFilter.equip}
               labelMap={equipLabels}
-              onChange={(v) => setLibFilter((f) => ({ ...f, equip: v }))}
+              onChange={(v: any) => setLibFilter((f) => ({ ...f, equip: v }))}
             />
             <FilterRow
               label="MOVEMENT"
               options={ALL_PATTERNS}
               value={libFilter.pattern}
               labelMap={PATTERN_MAP}
-              onChange={(v) => setLibFilter((f) => ({ ...f, pattern: v }))}
+              onChange={(v: any) => setLibFilter((f) => ({ ...f, pattern: v }))}
             />
             <FilterRow
               label="SPLIT TAG"
               options={ALL_TAGS}
               value={libFilter.tag}
               labelMap={tagLabels}
-              onChange={(v) => setLibFilter((f) => ({ ...f, tag: v }))}
+              onChange={(v: any) => setLibFilter((f) => ({ ...f, tag: v }))}
             />
             <div style={{ display: 'flex', gap: 8, marginTop: 4, marginBottom: 6 }}>
               {activeFilterCount > 0 && (
@@ -948,7 +949,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                   style={{
                     flex: 1,
                     padding: '9px',
-                    borderRadius: 6,
+                    borderRadius: tokens.radius.md,
                     cursor: 'pointer',
                     background: 'transparent',
                     border: '1px solid var(--border)',
@@ -965,7 +966,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 style={{
                   flex: 2,
                   padding: '9px',
-                  borderRadius: 6,
+                  borderRadius: tokens.radius.md,
                   cursor: 'pointer',
                   background: 'var(--btn-primary-bg)',
                   border: '1px solid var(--btn-primary-border)',
@@ -1012,7 +1013,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                   textAlign: 'left',
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   padding: '12px 14px',
                   cursor: 'pointer',
                   display: 'flex',
@@ -1025,7 +1026,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                   style={{
                     width: 36,
                     height: 36,
-                    borderRadius: 6,
+                    borderRadius: tokens.radius.md,
                     background: tc + '1a',
                     display: 'flex',
                     alignItems: 'center',
@@ -1158,7 +1159,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   overflow: 'hidden',
                 }}
               >
@@ -1196,7 +1197,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                           color: 'var(--text-secondary)',
                           background: 'var(--bg-inset)',
                           padding: '2px 8px',
-                          borderRadius: 4,
+                          borderRadius: tokens.radius.sm,
                         }}
                       >
                         {prog.weeks} WEEKS
@@ -1209,7 +1210,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                           color: 'var(--text-secondary)',
                           background: 'var(--bg-inset)',
                           padding: '2px 8px',
-                          borderRadius: 4,
+                          borderRadius: tokens.radius.sm,
                         }}
                       >
                         {prog.daysPerWeek} DAYS/WK
@@ -1222,7 +1223,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                           color: 'var(--text-secondary)',
                           background: 'var(--bg-inset)',
                           padding: '2px 8px',
-                          borderRadius: 4,
+                          borderRadius: tokens.radius.sm,
                         }}
                       >
                         {prog.split.toUpperCase()}
@@ -1289,7 +1290,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                                 color: tc,
                                 background: tc + '1a',
                                 padding: '2px 8px',
-                                borderRadius: 4,
+                                borderRadius: tokens.radius.sm,
                               }}
                             >
                               {day.tag}
@@ -1362,7 +1363,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                             padding: '12px',
                             fontSize: 13,
                             fontWeight: 700,
-                            borderRadius: 6,
+                            borderRadius: tokens.radius.md,
                             letterSpacing: '0.02em',
                             background: 'var(--btn-primary-bg)',
                             border: '1px solid var(--btn-primary-border)',
@@ -1383,8 +1384,8 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
           <StartSampleProgramModal
             prog={startModalProg}
             hasActiveMeso={!!profile}
-            onConfirm={(startDate) => {
-              const experienceMap = {
+            onConfirm={(startDate: any) => {
+              const experienceMap: Record<string, string> = {
                 Beginner: 'beginner',
                 Intermediate: 'intermediate',
                 Advanced: 'experienced',
@@ -1422,7 +1423,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
               saveProfile(newProfile);
               window.location.reload();
             }}
-            onClose={() => setStartModalProg(null)}
+            onCancel={() => setStartModalProg(null)}
           />
         )}
       </div>
@@ -1583,8 +1584,8 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
       },
     ];
 
-    const toggleLearn = (id) => setLearnOpen(learnOpen === id ? null : id);
-    const toggleGloss = (t) => setGlossaryOpen(glossaryOpen === t ? null : t);
+    const toggleLearn = (id: any) => setLearnOpen(learnOpen === id ? null : id);
+    const toggleGloss = (t: any) => setGlossaryOpen(glossaryOpen === t ? null : t);
 
     return (
       <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
@@ -1650,7 +1651,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   overflow: 'hidden',
                 }}
               >
@@ -1672,7 +1673,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                     style={{
                       width: 42,
                       height: 42,
-                      borderRadius: 8,
+                      borderRadius: tokens.radius.lg,
                       flexShrink: 0,
                       background: 'rgba(var(--accent-rgb),0.18)',
                       border: '1px solid rgba(var(--accent-rgb),0.35)',
@@ -1771,7 +1772,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: tokens.radius.lg,
                   overflow: 'hidden',
                 }}
               >
@@ -1902,7 +1903,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
           padding: '16px 18px',
           background: 'rgba(var(--accent-rgb),0.07)',
           border: '1px solid rgba(var(--accent-rgb),0.2)',
-          borderRadius: 8,
+          borderRadius: tokens.radius.lg,
         }}
       >
         <div
@@ -1934,7 +1935,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
           style={{
             background: 'transparent',
             border: '1px solid rgba(var(--accent-rgb),0.35)',
-            borderRadius: 5,
+            borderRadius: tokens.radius.sm,
             padding: '7px 14px',
             fontSize: 12,
             fontWeight: 700,
@@ -1954,7 +1955,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             onClick={() => setSection('library')}
             style={{
               padding: '18px 16px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               textAlign: 'left',
               background: 'var(--bg-card)',
@@ -2008,7 +2009,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             onClick={() => setSection('programs')}
             style={{
               padding: '18px 16px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               textAlign: 'left',
               background: 'var(--bg-card)',
@@ -2077,7 +2078,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border)',
                 borderLeft: '3px solid var(--accent)',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
               }}
             >
               <div

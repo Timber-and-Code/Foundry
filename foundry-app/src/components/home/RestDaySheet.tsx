@@ -1,6 +1,6 @@
-import React from 'react';
 import { REST_QUOTES, FOUNDRY_MOBILITY, FOUNDRY_COOLDOWN, getMeso } from '../../data/constants';
 import { getWorkoutDaysForWeek } from '../../utils/store';
+import { tokens } from '../../styles/tokens';
 import Sheet from '../ui/Sheet';
 
 interface RestDaySheetProps {
@@ -27,14 +27,14 @@ function RestDaySheet({
   if (!showRestDay) return null;
 
   const dateHash = showRestDay.dateStr.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const restQuote = REST_QUOTES[dateHash % REST_QUOTES.length];
+  const restQuote = REST_QUOTES[dateHash % REST_QUOTES.length] as unknown as { text: string; author: string };
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const isToday = showRestDay.dateStr === todayStr;
   const displayLabel = isToday ? 'Today · Rest Day' : showRestDay.dateStr;
 
-  let mobilityTag = null;
-  let mobilityMoves = [];
+  let mobilityTag: string | null = null;
+  let mobilityMoves: { name: string; cue: string }[] = [];
   if (profile?.startDate && activeDays.length > 0) {
     const yesterday = new Date(showRestDay.dateStr + 'T00:00:00');
     yesterday.setDate(yesterday.getDate() - 1);
@@ -55,13 +55,13 @@ function RestDaySheet({
       cursor.setDate(cursor.getDate() + 1);
     }
   }
-  if (mobilityTag && FOUNDRY_COOLDOWN[mobilityTag]) {
-    mobilityMoves = FOUNDRY_COOLDOWN[mobilityTag];
+  if (mobilityTag && (FOUNDRY_COOLDOWN as Record<string, any>)[mobilityTag]) {
+    mobilityMoves = (FOUNDRY_COOLDOWN as Record<string, any>)[mobilityTag];
   } else {
     mobilityMoves = [FOUNDRY_MOBILITY.PUSH[0], FOUNDRY_MOBILITY.PULL[0], FOUNDRY_MOBILITY.LEGS[0]];
   }
 
-  let nextSessionLabel = null;
+  let nextSessionLabel: string | null = null;
   if (profile?.startDate && activeDays.length > 0) {
     const startDate3 = new Date(profile.startDate + 'T00:00:00');
     let sc3 = 0;
@@ -157,7 +157,7 @@ function RestDaySheet({
         <div
           style={{
             background: 'var(--bg-inset)',
-            borderRadius: 8,
+            borderRadius: tokens.radius.lg,
             padding: '14px 16px',
             marginBottom: 16,
             border: '1px solid var(--border)',
@@ -202,7 +202,7 @@ function RestDaySheet({
             key={i}
             style={{
               padding: '12px 14px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               background: 'var(--bg-deep)',
               marginBottom: 8,
               border: '1px solid var(--border-subtle)',
@@ -248,7 +248,7 @@ function RestDaySheet({
             key={i}
             style={{
               padding: '12px 14px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               background: 'var(--bg-deep)',
               marginBottom: 8,
               border: '1px solid var(--border-subtle)',
@@ -281,7 +281,7 @@ function RestDaySheet({
             style={{
               marginTop: 16,
               padding: '12px 14px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               background: 'var(--accent)0d',
               border: '1px solid var(--accent)33',
             }}
@@ -322,7 +322,7 @@ function RestDaySheet({
               width: '100%',
               marginTop: 20,
               padding: '14px',
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               background: 'transparent',
               border: '1px solid var(--border)',
               color: 'var(--text-secondary)',
