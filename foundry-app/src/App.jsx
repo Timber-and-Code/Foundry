@@ -1,4 +1,12 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useNavigate,
+  useParams,
+  useLocation,
+} from 'react-router-dom';
 import { RestTimerProvider, useRestTimer } from './contexts/RestTimerContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
@@ -53,17 +61,85 @@ const TourOverlay = React.lazy(() => import('./components/tour/TourOverlay'));
 const ProfileDrawer = React.lazy(() => import('./components/settings/SettingsView'));
 const SetupPage = React.lazy(() => import('./components/setup/SetupPage'));
 
+// ─── ROUTE WRAPPERS ───────────────────────────────────────────────────────────
+
+function DayViewRoute({ onComplete, handleNextDay, completedDays, profile, activeDays, onProfileUpdate }) {
+  const { dayIdx, weekIdx } = useParams();
+  const navigate = useNavigate();
+  return (
+    <DayView
+      dayIdx={parseInt(dayIdx, 10)}
+      weekIdx={parseInt(weekIdx, 10)}
+      onBack={() => {
+        window.scrollTo(0, 0);
+        navigate('/');
+      }}
+      onComplete={onComplete}
+      onNextDay={handleNextDay}
+      completedDays={completedDays}
+      profile={profile}
+      activeDays={activeDays}
+      onProfileUpdate={onProfileUpdate}
+    />
+  );
+}
+
+function ExtraViewRoute({ profile, activeDays, onProfileUpdate }) {
+  const { dateStr } = useParams();
+  const navigate = useNavigate();
+  return (
+    <ExtraDayView
+      dateStr={dateStr}
+      profile={profile}
+      activeDays={activeDays}
+      onBack={() => {
+        window.scrollTo(0, 0);
+        navigate('/');
+      }}
+      onProfileUpdate={onProfileUpdate}
+    />
+  );
+}
+
+function CardioViewRoute({ profile }) {
+  const { dateStr, protocolId } = useParams();
+  const navigate = useNavigate();
+  return (
+    <CardioSessionView
+      dateStr={dateStr}
+      plannedProtocolId={protocolId === 'none' ? null : protocolId}
+      profile={profile}
+      onBack={() => {
+        window.scrollTo(0, 0);
+        navigate('/');
+      }}
+    />
+  );
+}
+
+function MobilityViewRoute({ profile }) {
+  const { dateStr } = useParams();
+  const navigate = useNavigate();
+  return (
+    <MobilitySessionView
+      dateStr={dateStr}
+      profile={profile}
+      onBack={() => {
+        window.scrollTo(0, 0);
+        navigate('/');
+      }}
+    />
+  );
+}
+
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 function App() {
-  const [view, setView] = useState('home');
-  const [selectedDay, setSelectedDay] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [onboarded, setOnboarded] = useState(() => !!store.get('foundry:onboarded'));
   const [openWeekly, setOpenWeekly] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
-  const [selectedExtraDate, setSelectedExtraDate] = useState(null);
-  const [selectedCardioDate, setSelectedCardioDate] = useState(null);
-  const [selectedCardioProtocol, setSelectedCardioProtocol] = useState(null);
-  const [selectedMobilityDate, setSelectedMobilityDate] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
   const homeTabRef = useRef(null);
@@ -81,7 +157,7 @@ function App() {
     activeWeek,
     handleComplete,
     handleReset,
-  } = useMesoState({ setView, setOnboarded });
+  } = useMesoState({ setView: () => navigate('/'), setOnboarded });
 
   // ── Global rest timer ──
   const {
@@ -98,14 +174,12 @@ function App() {
     const handler = (e) => {
       const { dateStr, protocolId } = e.detail || {};
       if (dateStr) {
-        setSelectedCardioDate(dateStr);
-        setSelectedCardioProtocol(protocolId || null);
-        setView('cardio');
+        navigate(`/cardio/${dateStr}/${protocolId || 'none'}`);
       }
     };
     window.addEventListener('foundry:openCardio', handler);
     return () => window.removeEventListener('foundry:openCardio', handler);
-  }, []);
+  }, [navigate]);
 
   // Show tour once after first program generated
   useEffect(() => {
@@ -185,15 +259,15 @@ function App() {
   const handleNextDay = (dayIdx, weekIdx) => {
     const nextDayIdx = dayIdx + 1;
     if (nextDayIdx <= getMeso().days - 1) {
-      setSelectedDay(nextDayIdx);
+      navigate(`/day/${nextDayIdx}/${weekIdx}`);
     } else {
       const nextWeek = weekIdx + 1;
       if (nextWeek <= getMeso().weeks - 1) {
         setCurrentWeek(nextWeek);
         saveCurrentWeek(nextWeek);
-        setSelectedDay(0);
+        navigate(`/day/0/${nextWeek}`);
       } else {
-        setView('home');
+        navigate('/');
       }
     }
   };
@@ -206,6 +280,8 @@ function App() {
     setProfile(updated);
     saveProfile(updated);
   };
+
+  const isHome = location.pathname === '/';
 
   return (
     <React.Suspense
@@ -237,7 +313,7 @@ function App() {
         <div style={{ position: 'sticky', top: 0, zIndex: 50 }}>
           <FoundryBanner
             subtitle={`${profile.name ? profile.name.toUpperCase() + ' · ' : ''}${getMeso().weeks}WK ${(getMeso().splitType || 'ppl').toUpperCase().replace(/_/g, ' ')} · WEEK ${activeWeek + 1}`}
-            onProfileTap={view === 'home' ? () => setShowProfileDrawer(true) : undefined}
+            onProfileTap={isHome ? () => setShowProfileDrawer(true) : undefined}
             userMenu={<Suspense fallback={null}><UserMenu /></Suspense>}
           />
         </div>
@@ -268,7 +344,7 @@ function App() {
             onViewSummary={() => {
               setWeekCompleteModal(null);
               setOpenWeekly(true);
-              setView('home');
+              navigate('/');
             }}
             onReset={() => {
               setWeekCompleteModal(null);
@@ -278,104 +354,71 @@ function App() {
         )}
 
         {/* Views */}
-        {view === 'home' && (
-          <HomeView
-            tabRef={homeTabRef}
-            currentWeek={currentWeek}
-            setCurrentWeek={setCurrentWeek}
-            onSelectDay={(i) => {
-              setSelectedDay(i);
-              setView('day');
-            }}
-            onSelectDayWeek={(dayIdx, weekIdx) => {
-              setCurrentWeek(weekIdx);
-              setSelectedDay(dayIdx);
-              setView('day');
-            }}
-            onOpenExtra={(dateStr) => {
-              setSelectedExtraDate(dateStr);
-              setView('extra');
-            }}
-            onOpenCardio={(dateStr, protocolId) => {
-              setSelectedCardioDate(dateStr);
-              setSelectedCardioProtocol(protocolId || null);
-              setView('cardio');
-            }}
-            onOpenMobility={(dateStr) => {
-              setSelectedMobilityDate(dateStr);
-              setView('mobility');
-            }}
-            completedDays={completedDays}
-            profile={profile}
-            activeDays={activeDays}
-            onReset={handleReset}
-            openWeekly={openWeekly}
-            onOpenWeeklyHandled={() => setOpenWeekly(false)}
-            onProfileUpdate={handleProfileUpdate}
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <HomeView
+                tabRef={homeTabRef}
+                currentWeek={currentWeek}
+                setCurrentWeek={setCurrentWeek}
+                onSelectDay={(i) => navigate(`/day/${i}/${currentWeek}`)}
+                onSelectDayWeek={(dayIdx, weekIdx) => {
+                  setCurrentWeek(weekIdx);
+                  navigate(`/day/${dayIdx}/${weekIdx}`);
+                }}
+                onOpenExtra={(dateStr) => navigate(`/extra/${dateStr}`)}
+                onOpenCardio={(dateStr, protocolId) =>
+                  navigate(`/cardio/${dateStr}/${protocolId || 'none'}`)
+                }
+                onOpenMobility={(dateStr) => navigate(`/mobility/${dateStr}`)}
+                completedDays={completedDays}
+                profile={profile}
+                activeDays={activeDays}
+                onReset={handleReset}
+                openWeekly={openWeekly}
+                onOpenWeeklyHandled={() => setOpenWeekly(false)}
+                onProfileUpdate={handleProfileUpdate}
+              />
+            }
           />
-        )}
-
-        {view === 'day' && selectedDay !== null && (
-          <DayView
-            dayIdx={selectedDay}
-            weekIdx={currentWeek}
-            onBack={() => {
-              window.scrollTo(0, 0);
-              setView('home');
-            }}
-            onComplete={handleComplete}
-            onNextDay={handleNextDay}
-            completedDays={completedDays}
-            profile={profile}
-            activeDays={activeDays}
-            onProfileUpdate={handleProfileUpdate}
+          <Route
+            path="/day/:dayIdx/:weekIdx"
+            element={
+              <DayViewRoute
+                onComplete={handleComplete}
+                handleNextDay={handleNextDay}
+                completedDays={completedDays}
+                profile={profile}
+                activeDays={activeDays}
+                onProfileUpdate={handleProfileUpdate}
+              />
+            }
           />
-        )}
-
-        {view === 'extra' && selectedExtraDate && (
-          <ExtraDayView
-            dateStr={selectedExtraDate}
-            profile={profile}
-            activeDays={activeDays}
-            onBack={() => {
-              window.scrollTo(0, 0);
-              setView('home');
-              setSelectedExtraDate(null);
-            }}
-            onProfileUpdate={handleProfileUpdate}
+          <Route
+            path="/extra/:dateStr"
+            element={
+              <ExtraViewRoute
+                profile={profile}
+                activeDays={activeDays}
+                onProfileUpdate={handleProfileUpdate}
+              />
+            }
           />
-        )}
-
-        {view === 'cardio' && selectedCardioDate && (
-          <CardioSessionView
-            dateStr={selectedCardioDate}
-            plannedProtocolId={selectedCardioProtocol}
-            profile={profile}
-            onBack={() => {
-              window.scrollTo(0, 0);
-              setView('home');
-              setSelectedCardioDate(null);
-              setSelectedCardioProtocol(null);
-            }}
+          <Route
+            path="/cardio/:dateStr/:protocolId"
+            element={<CardioViewRoute profile={profile} />}
           />
-        )}
-
-        {view === 'mobility' && selectedMobilityDate && (
-          <MobilitySessionView
-            dateStr={selectedMobilityDate}
-            profile={profile}
-            onBack={() => {
-              window.scrollTo(0, 0);
-              setView('home');
-              setSelectedMobilityDate(null);
-            }}
+          <Route
+            path="/mobility/:dateStr"
+            element={<MobilityViewRoute profile={profile} />}
           />
-        )}
+        </Routes>
 
         {showTour && (
           <TourOverlay
             onDone={() => setShowTour(false)}
-            onNavigate={setView}
+            onNavigate={() => navigate('/')}
             onTabChange={(tab) => homeTabRef.current && homeTabRef.current(tab)}
           />
         )}
@@ -392,8 +435,7 @@ function App() {
               const ref = timerDayRef.current;
               if (ref) {
                 setCurrentWeek(ref.weekIdx);
-                setSelectedDay(ref.dayIdx);
-                setView('day');
+                navigate(`/day/${ref.dayIdx}/${ref.weekIdx}`);
               }
               setRestTimerMinimized(false);
             }}
@@ -442,11 +484,13 @@ function AuthGate() {
 export default function WrappedApp() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <RestTimerProvider>
-          <AuthGate />
-        </RestTimerProvider>
-      </AuthProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <RestTimerProvider>
+            <AuthGate />
+          </RestTimerProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </ErrorBoundary>
   );
 }
