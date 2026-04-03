@@ -162,6 +162,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
         >
           <button
             onClick={onBack}
+            aria-label="Go back"
             style={{
               background: 'none',
               border: 'none',
@@ -172,7 +173,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
               lineHeight: 1,
             }}
           >
-            ←
+            <span aria-hidden="true">←</span>
           </button>
           <span
             style={{
@@ -277,6 +278,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
                 setTimerActive(false);
                 setExerciseIdx(null);
               }}
+              aria-label="Back to protocols"
               style={{
                 background: 'none',
                 border: 'none',
@@ -287,7 +289,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
                 padding: 0,
               }}
             >
-              ← Protocols
+              <span aria-hidden="true">←</span> Protocols
             </button>
             <span
               style={{
@@ -302,7 +304,14 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
           </div>
 
           {/* Progress bar */}
-          <div style={{ height: 3, background: 'var(--bg-inset)' }}>
+          <div
+            role="progressbar"
+            aria-valuenow={Math.round((doneSteps / totalSteps) * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Exercise ${exerciseIdx + 1} of ${proto.exercises.length}`}
+            style={{ height: 3, background: 'var(--bg-inset)' }}
+          >
             <div
               style={{
                 height: '100%',
@@ -519,6 +528,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
               setTimerActive(false);
               setHoldPhase('intro');
             }}
+            aria-label="Go back"
             style={{
               background: 'none',
               border: 'none',
@@ -529,7 +539,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
               padding: 0,
             }}
           >
-            ← Back
+            <span aria-hidden="true">←</span> Back
           </button>
           <span
             style={{
@@ -618,6 +628,8 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
               />
             </svg>
             <div
+              aria-live="polite"
+              aria-atomic="true"
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -772,6 +784,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
       >
         <button
           onClick={onBack}
+          aria-label="Go back"
           style={{
             background: 'none',
             border: 'none',
@@ -782,7 +795,7 @@ function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewPr
             lineHeight: 1,
           }}
         >
-          ←
+          <span aria-hidden="true">←</span>
         </button>
         <div>
           <div

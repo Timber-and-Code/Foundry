@@ -337,6 +337,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
       >
         <button
           onClick={onBack}
+          aria-label="Go back"
           style={{
             background: 'none',
             border: '1px solid var(--accent)',
@@ -348,7 +349,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
             color: 'var(--accent)',
           }}
         >
-          ← Back
+          <span aria-hidden="true">←</span> Back
         </button>
         <div style={{ flex: 1 }}>
           <div
@@ -368,6 +369,8 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
         {/* Elapsed timer — visible once started */}
         {started && !session.completed && (
           <div
+            aria-live="polite"
+            aria-label={`Elapsed time: ${formatElapsed(elapsedSecs)}`}
             style={{
               fontSize: 13,
               fontWeight: 800,
@@ -477,6 +480,8 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                 <div key={cat}>
                   <button
                     onClick={() => setOpenCat(openCat === cat ? null : cat)}
+                    aria-expanded={isOpen}
+                    aria-label={`${cat} — ${isOpen ? 'collapse' : 'expand'}`}
                     style={{
                       width: '100%',
                       background: 'var(--bg-deep)',
@@ -591,6 +596,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
             {/* Type */}
             <div>
               <div
+                id="type-label"
                 style={{
                   fontSize: 12,
                   fontWeight: 700,
@@ -601,11 +607,12 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
               >
                 TYPE
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div role="group" aria-labelledby="type-label" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {TYPES.map((t) => (
                   <button
                     key={t}
                     disabled={session.completed}
+                    aria-pressed={session.type === t}
                     onClick={() => save({ type: session.type === t ? '' : t })}
                     style={chipStyle(session.type === t, CARDIO_COLOR)}
                   >
@@ -617,6 +624,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
             {/* Duration */}
             <div>
               <div
+                id="duration-label"
                 style={{
                   fontSize: 12,
                   fontWeight: 700,
@@ -636,6 +644,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                   disabled={session.completed}
                   onChange={(e) => save({ duration: e.target.value })}
                   placeholder="—"
+                  aria-labelledby="duration-label"
                   style={{
                     width: 80,
                     padding: '8px 12px',
@@ -664,6 +673,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
             {/* Intensity */}
             <div>
               <div
+                id="intensity-label"
                 style={{
                   fontSize: 12,
                   fontWeight: 700,
@@ -674,13 +684,14 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
               >
                 INTENSITY
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div role="group" aria-labelledby="intensity-label" style={{ display: 'flex', gap: 8 }}>
                 {INTENSITIES.map(({ label, color, sub }) => {
                   const sel = session.intensity === label;
                   return (
                     <button
                       key={label}
                       disabled={session.completed}
+                      aria-pressed={sel}
                       onClick={() =>
                         save({
                           intensity: session.intensity === label ? '' : label,
@@ -808,6 +819,9 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
           }}
         >
           <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="complete-dialog-title"
             style={{
               background: 'var(--bg-card)',
               border: '1px solid #D4983C55',
@@ -818,6 +832,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
             }}
           >
             <div
+              id="complete-dialog-title"
               style={{
                 fontSize: 17,
                 fontWeight: 800,

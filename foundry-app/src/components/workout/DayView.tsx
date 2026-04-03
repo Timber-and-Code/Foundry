@@ -740,6 +740,7 @@ function DayView({
         >
           <button
             onClick={onBack}
+            aria-label="Go back"
             style={{
               fontSize: 18,
               background: 'transparent',
@@ -748,7 +749,7 @@ function DayView({
               color: 'var(--text-accent)',
             }}
           >
-            ← Back
+            <span aria-hidden="true">←</span> Back
           </button>
           <h1
             style={{
@@ -891,6 +892,7 @@ function DayView({
       >
         <button
           onClick={onBack}
+          aria-label="Go back"
           style={{
             fontSize: 18,
             background: 'transparent',
@@ -899,9 +901,13 @@ function DayView({
             color: 'var(--text-accent)',
           }}
         >
-          ← Back
+          <span aria-hidden="true">←</span> Back
         </button>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-accent)' }}>
+        <div
+          aria-live="polite"
+          aria-label={`Elapsed time: ${formatElapsed(elapsedSecs)}`}
+          style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-accent)' }}
+        >
           {formatElapsed(elapsedSecs)}
         </div>
         <div
@@ -957,6 +963,9 @@ function DayView({
           onClick={() => setBwModal(null)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bw-dialog-title"
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
@@ -966,12 +975,13 @@ function DayView({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Bodyweight Check</div>
+            <div id="bw-dialog-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Bodyweight Check</div>
             <input
               type="number"
               value={bwInput}
               onChange={(e) => setBwInput(e.target.value)}
               placeholder="Enter weight (lbs)"
+              aria-label="Your bodyweight in pounds"
               autoFocus
               style={{
                 width: '100%',
@@ -1018,6 +1028,9 @@ function DayView({
         >
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Rest time</div>
           <div
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label={`Rest time remaining: ${restTimer}`}
             style={{
               fontSize: 24,
               fontWeight: 700,
@@ -1057,6 +1070,9 @@ function DayView({
           }}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="note-review-title"
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
@@ -1078,6 +1094,7 @@ function DayView({
               SESSION NOTES
             </div>
             <div
+              id="note-review-title"
               style={{
                 fontSize: 16,
                 fontWeight: 800,
@@ -1090,6 +1107,7 @@ function DayView({
             <textarea
               value={sessionNote}
               onChange={(e) => setSessionNote(e.target.value)}
+              aria-label="Session notes"
               autoFocus
               rows={5}
               style={{
