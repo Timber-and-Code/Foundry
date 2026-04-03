@@ -7,6 +7,16 @@ async function getUser() {
   return user;
 }
 
+let _inflight = 0;
+function syncStart() {
+  _inflight++;
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('foundry:sync', { detail: { inflight: _inflight } }));
+}
+function syncEnd() {
+  _inflight = Math.max(0, _inflight - 1);
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('foundry:sync', { detail: { inflight: _inflight } }));
+}
+
 function readinessScore(r: ReadinessEntry | null | undefined): number | null {
   if (!r) return null;
   const s = ({ poor: 0, ok: 1, good: 2 } as Record<string, number>)[r.sleep ?? ''] ?? null;
@@ -17,14 +27,16 @@ function readinessScore(r: ReadinessEntry | null | undefined): number | null {
 }
 
 export async function syncProfileToSupabase(profile: Profile): Promise<void> {
+  syncStart();
   try {
     const user = await getUser();
     if (!user) return;
     await supabase.from('user_profiles').upsert({ id: user.id, data: profile, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-  } catch (e) { console.warn('[Foundry Sync] Profile sync failed', e); }
+  } catch (e) { console.warn('[Foundry Sync] Profile sync failed', e); } finally { syncEnd(); }
 }
 
 export async function syncWorkoutToSupabase(dayIdx: number, weekIdx: number, data: DayData): Promise<void> {
+  syncStart();
   try {
     const user = await getUser();
     if (!user) return;
@@ -32,10 +44,11 @@ export async function syncWorkoutToSupabase(dayIdx: number, weekIdx: number, dat
       { user_id: user.id, day_idx: dayIdx, week_idx: weekIdx, data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,day_idx,week_idx' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Workout sync failed', e); }
+  } catch (e) { console.warn('[Foundry Sync] Workout sync failed', e); } finally { syncEnd(); }
 }
 
 export async function syncReadinessToSupabase(date: string, readinessData: ReadinessEntry): Promise<void> {
+  syncStart();
   try {
     const user = await getUser();
     if (!user) return;
@@ -43,10 +56,11 @@ export async function syncReadinessToSupabase(date: string, readinessData: Readi
       { user_id: user.id, date, sleep: readinessData.sleep ?? null, soreness: readinessData.soreness ?? null, energy: readinessData.energy ?? null, score: readinessScore(readinessData), updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Readiness sync failed', e); }
+  } catch (e) { console.warn('[Foundry Sync] Readiness sync failed', e); } finally { syncEnd(); }
 }
 
 export async function syncBodyWeightToSupabase(date: string, weightLbs: number): Promise<void> {
+  syncStart();
   try {
     const user = await getUser();
     if (!user) return;
@@ -54,10 +68,11 @@ export async function syncBodyWeightToSupabase(date: string, weightLbs: number):
       { user_id: user.id, date, weight_lbs: weightLbs, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Body weight sync failed', e); }
+  } catch (e) { console.warn('[Foundry Sync] Body weight sync failed', e); } finally { syncEnd(); }
 }
 
 export async function syncCardioSessionToSupabase(date: string, data: unknown): Promise<void> {
+  syncStart();
   try {
     const user = await getUser();
     if (!user) return;
@@ -65,10 +80,11 @@ export async function syncCardioSessionToSupabase(date: string, data: unknown): 
       { user_id: user.id, date, data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Cardio session sync failed', e); }
+  } catch (e) { console.warn('[Foundry Sync] Cardio session sync failed', e); } finally { syncEnd(); }
 }
 
 export async function syncNotesToSupabase(dayIdx: number, weekIdx: number, sessionNotes: string | null, exerciseNotes: unknown): Promise<void> {
+  syncStart();
   try {
     const user = await getUser();
     if (!user) return;
@@ -76,10 +92,11 @@ export async function syncNotesToSupabase(dayIdx: number, weekIdx: number, sessi
       { user_id: user.id, day_idx: dayIdx, week_idx: weekIdx, session_notes: sessionNotes ?? null, exercise_notes: exerciseNotes ?? null, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,day_idx,week_idx' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Notes sync failed', e); }
+  } catch (e) { console.warn('[Foundry Sync] Notes sync failed', e); } finally { syncEnd(); }
 }
 
 export async function pullFromSupabase(): Promise<void> {
+  syncStart();
   try {
     const user = await getUser();
     if (!user) return;
@@ -127,10 +144,11 @@ export async function pullFromSupabase(): Promise<void> {
       }
     }
     console.log('[Foundry Sync] Pull from Supabase complete');
-  } catch (e) { console.warn('[Foundry Sync] Pull from Supabase failed', e); }
+  } catch (e) { console.warn('[Foundry Sync] Pull from Supabase failed', e); } finally { syncEnd(); }
 }
 
 export async function pushToSupabase(): Promise<void> {
+  syncStart();
   try {
     const user = await getUser();
     if (!user) return;
@@ -211,5 +229,5 @@ export async function pushToSupabase(): Promise<void> {
       await Promise.allSettled(ops.slice(i, i + BATCH));
     }
     console.log('[Foundry Sync] Pushed ' + ops.length + ' records to Supabase');
-  } catch (e) { console.warn('[Foundry Sync] Push to Supabase failed', e); }
+  } catch (e) { console.warn('[Foundry Sync] Push to Supabase failed', e); } finally { syncEnd(); }
 }
