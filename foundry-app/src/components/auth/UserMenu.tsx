@@ -1,8 +1,46 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { tokens } from '../../styles/tokens';
 
+function useSyncState() {
+  const [state, setState] = useState(() => (typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'idle'));
+
+  useEffect(() => {
+    const onSync = (e) => {
+      if (!navigator.onLine) return;
+      setState(e.detail.inflight > 0 ? 'syncing' : 'synced');
+    };
+    const onOnline = () => setState('idle');
+    const onOffline = () => setState('offline');
+    window.addEventListener('foundry:sync', onSync);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('foundry:sync', onSync);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (state !== 'synced') return;
+    const t = setTimeout(() => setState('idle'), 3000);
+    return () => clearTimeout(t);
+  }, [state]);
+
+  return state;
+}
+
+const SYNC_DOT = {
+  idle:    { color: 'rgba(255,255,255,0.15)', title: 'Cloud sync active' },
+  syncing: { color: '#60a5fa',                title: 'Syncing…' },
+  synced:  { color: '#4ade80',                title: 'Synced' },
+  offline: { color: '#f87171',                title: 'Offline — changes saved locally' },
+};
+
 export default function UserMenu() {
   const { user, logout } = useAuth();
+  const syncState = useSyncState();
   if (!user) return null;
 
   const label = user.email ? user.email.split('@')[0] : 'account';
@@ -19,6 +57,18 @@ export default function UserMenu() {
         background: 'rgba(0,0,0,0.2)',
       }}
     >
+      <span
+        title={SYNC_DOT[syncState].title}
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: SYNC_DOT[syncState].color,
+          flexShrink: 0,
+          transition: 'background 0.4s',
+          boxShadow: syncState === 'syncing' ? `0 0 4px ${SYNC_DOT.syncing.color}` : 'none',
+        }}
+      />
       <span
         style={{
           fontSize: tokens.fontSize.xs,
