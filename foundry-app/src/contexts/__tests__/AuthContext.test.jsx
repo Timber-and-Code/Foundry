@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { AuthProvider, useAuth } from '../AuthContext.jsx';
+import { AuthProvider, useAuth } from '../AuthContext';
 
 // ─── Mock supabase ──────────────────────────────────────────────────────────
 // vi.mock is hoisted to top of file, so mock fns must be defined via vi.hoisted()

@@ -1,6 +1,6 @@
-import { store } from './storage.js';
+import { store } from './storage';
 import { getReadinessScore } from './analytics.js';
-import { validateArchive } from './validate.js';
+import { validateArchive } from './validate';
 
 // ─── ARCHIVE HELPERS ─────────────────────────────────────────────────────────
 

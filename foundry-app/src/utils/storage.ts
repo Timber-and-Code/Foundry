@@ -1,7 +1,7 @@
 // localStorage wrapper with error handling
 // Separated from store.js to break circular dependency with training.js
 export const store = {
-  get: (key) => {
+  get: (key: string): string | null => {
     try {
       return localStorage.getItem(key);
     } catch (e) {
@@ -9,7 +9,7 @@ export const store = {
       return null;
     }
   },
-  set: (key, val) => {
+  set: (key: string, val: string): void => {
     try {
       localStorage.setItem(key, val);
     } catch (e) {
@@ -22,16 +22,16 @@ export const store = {
  * One-time migration: rename all "ppl:" localStorage keys to "foundry:".
  * Safe to call multiple times — skips if already migrated.
  */
-export function migrateKeys() {
+export function migrateKeys(): void {
   try {
     if (localStorage.getItem('foundry:migrated_from_ppl') === '1') return;
-    const toMigrate = [];
+    const toMigrate: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (k && k.startsWith('ppl:')) toMigrate.push(k);
     }
     for (const oldKey of toMigrate) {
-      const newKey = 'foundry:' + oldKey.slice(4); // strip "ppl:" prefix, add "foundry:"
+      const newKey = 'foundry:' + oldKey.slice(4);
       const val = localStorage.getItem(oldKey);
       if (val !== null) localStorage.setItem(newKey, val);
       localStorage.removeItem(oldKey);

@@ -1,10 +1,10 @@
-import { store } from './storage.js';
-import { validateDayData } from './validate.js';
+import { store } from './storage';
+import { validateDayData } from './validate';
 import {
   syncWorkoutToSupabase,
   syncCardioSessionToSupabase,
   syncNotesToSupabase,
-} from './sync.js';
+} from './sync';
 
 // ─── TRAINING DATA PERSISTENCE ────────────────────────────────────────────────
 

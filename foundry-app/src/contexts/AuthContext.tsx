@@ -1,18 +1,28 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabase';
 import { pullFromSupabase, pushToSupabase } from '../utils/sync';
 
-const AuthContext = createContext(null);
+interface AuthContextValue {
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  authUnavailable: boolean;
+  signup: (email: string, password: string) => Promise<ReturnType<typeof supabase.auth.signUp>>;
+  login: (email: string, password: string) => ReturnType<typeof supabase.auth.signInWithPassword>;
+  logout: () => ReturnType<typeof supabase.auth.signOut>;
+}
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [session, setSession] = useState(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  // true when Supabase was unreachable on startup — app runs in offline/localStorage mode
   const [authUnavailable, setAuthUnavailable] = useState(false);
 
   useEffect(() => {
-    let subscription = null;
+    let subscription: { unsubscribe: () => void } | null = null;
 
     supabase.auth
       .getSession()
@@ -43,7 +53,7 @@ export function AuthProvider({ children }) {
     return () => subscription?.unsubscribe();
   }, []);
 
-  const signup = async (email, password) => {
+  const signup = async (email: string, password: string) => {
     const result = await supabase.auth.signUp({ email, password });
     if (result.data?.user) {
       pushToSupabase();
@@ -51,8 +61,7 @@ export function AuthProvider({ children }) {
     return result;
   };
 
-  const login = (email, password) => supabase.auth.signInWithPassword({ email, password });
-
+  const login = (email: string, password: string) => supabase.auth.signInWithPassword({ email, password });
   const logout = () => supabase.auth.signOut();
 
   return (
@@ -62,7 +71,7 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
   return ctx;

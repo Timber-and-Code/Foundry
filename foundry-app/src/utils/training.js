@@ -1,6 +1,6 @@
-import { store } from './storage.js';
-import { validateProfile } from './validate.js';
-import { syncProfileToSupabase, syncBodyWeightToSupabase } from './sync.js';
+import { store } from './storage';
+import { validateProfile } from './validate';
+import { syncProfileToSupabase, syncBodyWeightToSupabase } from './sync';
 
 /**
  * Adjust base sets according to training phase.

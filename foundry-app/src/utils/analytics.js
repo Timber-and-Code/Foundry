@@ -1,5 +1,5 @@
-import { store } from './storage.js';
-import { validateDayData } from './validate.js';
+import { store } from './storage';
+import { validateDayData } from './validate';
 
 // ─── READINESS SCORING ───────────────────────────────────────────────────────
 

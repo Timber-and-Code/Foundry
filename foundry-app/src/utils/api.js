@@ -1,5 +1,5 @@
 import { store } from './store.js';
-import { supabase } from './supabase.js';
+import { supabase } from './supabase';
 
 /**
  * Call the Foundry AI Worker to generate a personalized training program.

@@ -1,5 +1,5 @@
 // Import store locally for use in this file's functions, and re-export for consumers
-import { store } from './storage.js';
+import { store } from './storage';
 export { store };
 
 // Re-export training utilities so components can import from a single location
