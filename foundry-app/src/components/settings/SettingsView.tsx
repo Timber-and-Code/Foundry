@@ -236,13 +236,14 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           </span>
           <button
             onClick={onClose}
+            aria-label="Close profile drawer"
             style={{
               background: 'var(--bg-inset)',
               border: '1px solid var(--border)',
               borderRadius: '50%',
               cursor: 'pointer',
-              width: 28,
-              height: 28,
+              width: 44,
+              height: 44,
               color: 'var(--text-muted)',
               fontSize: 14,
               lineHeight: 1,
@@ -251,7 +252,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               justifyContent: 'center',
             }}
           >
-            ×
+            <span aria-hidden="true">×</span>
           </button>
         </div>
 
@@ -379,6 +380,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           {/* Edit profile toggle */}
           <button
             onClick={() => setShowEditFields(!showEditFields)}
+            aria-expanded={showEditFields}
             style={{
               padding: '8px 12px',
               borderRadius: 8,
@@ -395,7 +397,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             }}
           >
             <span>Edit Profile</span>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+            <span aria-hidden="true" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               {showEditFields ? '▲' : '▼'}
             </span>
           </button>
@@ -410,8 +412,9 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               }}
             >
               <div>
-                <div style={labelStyle}>NAME</div>
+                <label htmlFor="settings-name" style={labelStyle}>NAME</label>
                 <input
+                  id="settings-name"
                   type="text"
                   placeholder="First name"
                   value={form.name}
@@ -420,10 +423,11 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 />
               </div>
               <div>
-                <div style={labelStyle}>DATE OF BIRTH</div>
+                <div id="dob-label" style={labelStyle}>DATE OF BIRTH</div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <select
                     value={birthMonth}
+                    aria-label="Birth month"
                     onChange={(e) => setBirthMonth(e.target.value)}
                     style={{ ...selectStyle, flex: 2, minWidth: 0 }}
                   >
@@ -436,6 +440,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                   </select>
                   <select
                     value={birthDay}
+                    aria-label="Birth day"
                     onChange={(e) => setBirthDay(e.target.value)}
                     style={{ ...selectStyle, flex: 1, minWidth: 0 }}
                   >
@@ -448,6 +453,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                   </select>
                   <select
                     value={birthYear}
+                    aria-label="Birth year"
                     onChange={(e) => setBirthYear(e.target.value)}
                     style={{ ...selectStyle, flex: 1.5, minWidth: 0 }}
                   >
@@ -461,8 +467,9 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 </div>
               </div>
               <div>
-                <div style={labelStyle}>BODY WEIGHT (LBS)</div>
+                <label htmlFor="settings-weight" style={labelStyle}>BODY WEIGHT (LBS)</label>
                 <input
+                  id="settings-weight"
                   type="number"
                   inputMode="decimal"
                   placeholder="e.g. 185"
@@ -472,8 +479,8 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 />
               </div>
               <div>
-                <div style={labelStyle}>GENDER</div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div id="gender-label" style={labelStyle}>GENDER</div>
+                <div style={{ display: 'flex', gap: 8 }} role="group" aria-labelledby="gender-label">
                   {[
                     ['m', 'Male'],
                     ['f', 'Female'],
@@ -481,6 +488,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                     <button
                       key={val}
                       onClick={() => setForm((f) => ({ ...f, gender: val }))}
+                      aria-pressed={form.gender === val}
                       style={{
                         flex: 1,
                         padding: '9px 6px',
@@ -616,6 +624,9 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           {/* Feedback Modal */}
           {showFeedback && (
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="feedback-dialog-title"
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -644,6 +655,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 }}
               >
                 <div
+                  id="feedback-dialog-title"
                   style={{
                     fontSize: 14,
                     fontWeight: 700,
@@ -666,6 +678,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 <textarea
                   value={feedbackMsg}
                   onChange={(e) => setFeedbackMsg(e.target.value)}
+                  aria-label="Feedback message"
                   placeholder="What's on your mind?"
                   rows={5}
                   disabled={feedbackStatus === 'sending' || feedbackStatus === 'sent'}

@@ -56,9 +56,12 @@ const overviewIcon = (color) => (
 function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays, onSelectDay }) {
   return (
     <div style={{ marginBottom: 8 }}>
-      <div
+      <button
         onClick={onToggle}
+        aria-expanded={isExpanded}
+        aria-label={`Week ${weekIdx + 1} — ${isExpanded ? 'collapse' : 'expand'}`}
         style={{
+          width: '100%',
           cursor: 'pointer',
           padding: '12px 16px',
           background: 'var(--bg-card)',
@@ -67,6 +70,7 @@ function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          textAlign: 'left',
         }}
       >
         <span
@@ -78,8 +82,8 @@ function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays,
         >
           Week {weekIdx + 1}
         </span>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{isExpanded ? '▼' : '▶'}</span>
-      </div>
+        <span aria-hidden="true" style={{ fontSize: 12, color: 'var(--text-muted)' }}>{isExpanded ? '▼' : '▶'}</span>
+      </button>
       {isExpanded && (
         <div
           style={{
@@ -92,21 +96,26 @@ function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays,
           {activeDays.map((day, i) => {
             const done = completedDays.has(`${i}:${weekIdx}`);
             return (
-              <div
+              <button
                 key={i}
                 onClick={() => !done && onSelectDay(i, weekIdx)}
+                disabled={done}
+                aria-label={`${day.label}${done ? ' — completed' : ''}`}
                 style={{
+                  width: '100%',
+                  textAlign: 'left',
                   padding: '10px 16px',
                   fontSize: 12,
                   color: done ? 'var(--text-muted)' : 'var(--text-primary)',
                   cursor: done ? 'default' : 'pointer',
                   background: done ? 'var(--bg-inset)' : 'transparent',
+                  border: 'none',
                   borderRadius: 4,
                 }}
               >
-                {done ? '✓ ' : ''}
+                <span aria-hidden="true">{done ? '✓ ' : ''}</span>
                 {day.label}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -382,6 +391,7 @@ function ScheduleTab({
       >
         <button
           onClick={goBack}
+          aria-label="Go back"
           className="btn-ghost"
           style={{
             background: 'transparent',
@@ -398,7 +408,7 @@ function ScheduleTab({
             justifyContent: 'center',
           }}
         >
-          ‹
+          <span aria-hidden="true">‹</span>
         </button>
         <span
           style={{

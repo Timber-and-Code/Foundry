@@ -346,6 +346,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
               <input
                 type="text"
                 placeholder="Your name"
+                aria-label="Your name"
                 value={name}
                 autoFocus
                 onChange={(e) => setName(e.target.value)}
@@ -508,6 +509,8 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                 </div>
               </div>
               <div
+                role="radiogroup"
+                aria-label="Training experience level"
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -536,6 +539,8 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                   return (
                     <button
                       key={opt.id}
+                      role="radio"
+                      aria-checked={sel}
                       onClick={() => setExperience(opt.id)}
                       style={{
                         padding: '14px 16px',
@@ -699,12 +704,14 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                   Your program is built around this choice
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div role="radiogroup" aria-label="Primary training goal" style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 {GOAL_OPTIONS.map((opt) => {
                   const sel = goal === opt.id;
                   return (
                     <button
                       key={opt.id}
+                      role="radio"
+                      aria-checked={sel}
                       onClick={() => setGoal(opt.id)}
                       style={{
                         padding: '13px 16px',

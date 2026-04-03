@@ -281,15 +281,20 @@ function ExerciseCard({
       }}
     >
       {/* ── HEADER (clickable to expand) ── */}
-      <div
+      <button
         onClick={() => onToggle()}
+        aria-expanded={expanded}
+        aria-label={`${exercise.name} — ${expanded ? 'collapse' : 'expand'}`}
         style={{
+          width: '100%',
           padding: '14px 16px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           background: 'var(--bg-card-hover)',
+          border: 'none',
+          textAlign: 'left',
         }}
       >
         <div
@@ -363,11 +368,11 @@ function ExerciseCard({
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 600, color: goalColor }}>{goal}</div>
-          <span style={{ fontSize: 16, color: 'var(--text-secondary)' }}>
+          <span aria-hidden="true" style={{ fontSize: 16, color: 'var(--text-secondary)' }}>
             {expanded ? '▼' : '▶'}
           </span>
         </div>
-      </div>
+      </button>
 
       {/* ── EXPANDED CONTENT ── */}
       {expanded && (
@@ -563,6 +568,7 @@ function ExerciseCard({
                   color: 'var(--text-muted)',
                   fontWeight: 600,
                 }}
+                aria-hidden="true"
               >
                 <div>Weight (lbs)</div>
                 <div>Reps</div>
@@ -587,6 +593,7 @@ function ExerciseCard({
                       type="number"
                       placeholder="—"
                       value={sd.weight || ''}
+                      aria-label={`Set ${s + 1} weight in pounds`}
                       onChange={(e) => onUpdateSet(exIdx, s, 'weight', e.target.value)}
                       onBlur={(e) => handleWeightBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
@@ -604,6 +611,7 @@ function ExerciseCard({
                       type="number"
                       placeholder="—"
                       value={sd.reps || ''}
+                      aria-label={`Set ${s + 1} reps`}
                       onChange={(e) => handleRepsChange(s, e.target.value)}
                       onBlur={(e) => handleRepsBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
@@ -621,6 +629,7 @@ function ExerciseCard({
                       type="number"
                       placeholder="—"
                       value={sd.rpe || ''}
+                      aria-label={`Set ${s + 1} RPE`}
                       onChange={(e) => onUpdateSet(exIdx, s, 'rpe', e.target.value)}
                       disabled={isDone || readOnly}
                       style={{
@@ -636,6 +645,8 @@ function ExerciseCard({
                     <button
                       onClick={() => handleSetCheckmark(s)}
                       disabled={readOnly}
+                      aria-pressed={isDone}
+                      aria-label={isDone ? `Set ${s + 1} complete — tap to undo` : `Mark set ${s + 1} complete`}
                       style={{
                         width: 32,
                         height: 32,
@@ -648,7 +659,7 @@ function ExerciseCard({
                         fontWeight: 700,
                       }}
                     >
-                      {isDone ? '✓' : ''}
+                      <span aria-hidden="true">{isDone ? '✓' : ''}</span>
                     </button>
                   </div>
                 );
@@ -721,6 +732,7 @@ function ExerciseCard({
             >
               <textarea
                 placeholder="Add notes..."
+                aria-label="Exercise notes"
                 value={note || ''}
                 onChange={(e) => onNoteChange(exIdx, e.target.value)}
                 style={{
@@ -742,6 +754,9 @@ function ExerciseCard({
           {/* History Modal */}
           {showHistory && (
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="history-modal-title"
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -766,7 +781,7 @@ function ExerciseCard({
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
+                <div id="history-modal-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
                   {exercise.name} - History
                 </div>
                 {historyRows.length > 0 ? (
@@ -812,6 +827,9 @@ function ExerciseCard({
           {/* How-To Modal */}
           {showHowTo && (
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="howto-modal-title"
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -836,7 +854,7 @@ function ExerciseCard({
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                <div id="howto-modal-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
                   {exercise.name}
                 </div>
                 <div
@@ -881,6 +899,9 @@ function ExerciseCard({
           {/* Warmup Modal */}
           {showWarmupModal && (
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="warmup-modal-title"
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -905,7 +926,7 @@ function ExerciseCard({
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Warmup Guide</div>
+                <div id="warmup-modal-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Warmup Guide</div>
                 <div
                   style={{
                     fontSize: 12,

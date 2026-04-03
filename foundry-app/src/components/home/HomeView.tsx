@@ -599,6 +599,9 @@ function HomeView({
       {/* Skip confirm modal */}
       {showSkipConfirm && (
         <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="skip-dialog-title"
           style={{
             position: 'fixed',
             inset: 0,
@@ -622,6 +625,7 @@ function HomeView({
             }}
           >
             <div
+              id="skip-dialog-title"
               style={{
                 fontSize: 16,
                 fontWeight: 800,
@@ -794,6 +798,7 @@ function HomeView({
       {/* ── Bottom tab bar ── */}
       {['landing', 'progress', 'schedule', 'explore'].includes(tab) && (
         <nav
+          role="tablist"
           aria-label="Main navigation"
           style={{
             position: 'fixed',
@@ -817,6 +822,9 @@ function HomeView({
             return (
               <button
                 key={key}
+                role="tab"
+                aria-selected={active}
+                aria-label={label}
                 onClick={() => goTo(key)}
                 style={{
                   flex: 1,

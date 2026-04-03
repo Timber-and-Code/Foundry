@@ -64,6 +64,8 @@ function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadi
     >
       <button
         onClick={() => setReadinessOpen((o) => !o)}
+        aria-expanded={readinessOpen}
+        aria-controls="readiness-panel"
         style={{
           width: '100%',
           background: 'var(--bg-inset)',
@@ -125,6 +127,7 @@ function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadi
       </button>
       {readinessOpen && (
         <div
+          id="readiness-panel"
           style={{
             padding: '12px 16px',
             display: 'flex',
@@ -135,6 +138,7 @@ function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadi
           {SIGNALS.map((sig) => (
             <div key={sig.key}>
               <div
+                id={`readiness-label-${sig.key}`}
                 style={{
                   fontSize: 11,
                   fontWeight: 800,
@@ -145,12 +149,13 @@ function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadi
               >
                 {sig.label.toUpperCase()}
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div role="group" aria-labelledby={`readiness-label-${sig.key}`} style={{ display: 'flex', gap: 6 }}>
                 {sig.opts.map((opt) => {
                   const sel = readiness?.[sig.key] === opt.val;
                   return (
                     <button
                       key={opt.val}
+                      aria-pressed={sel}
                       onClick={() => updateReadiness(sig.key, opt.val)}
                       style={{
                         flex: 1,
