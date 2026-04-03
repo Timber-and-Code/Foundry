@@ -255,6 +255,38 @@ function NoteViewer({ noteViewer, setNoteViewer }) {
 
 // ── Main ScheduleTab ───────────────────────────────────────────────────────
 
+interface ScheduleTabProps {
+  profile: any;
+  activeDays: any[];
+  completedDays: any;
+  activeWeek: any;
+  currentWeek: any;
+  calendarOffset: any;
+  setCalendarOffset: (v: any) => void;
+  expandedWeek: any;
+  setExpandedWeek: (v: any) => void;
+  showRestDay: any;
+  setShowRestDay: (v: any) => void;
+  showEditSchedule: any;
+  setShowEditSchedule: (v: any) => void;
+  noteViewer: any;
+  setNoteViewer: (v: any) => void;
+  skipVersion: any;
+  setSkipVersion: (v: any) => void;
+  goBack: () => void;
+  goTo: (v: any) => void;
+  onSelectDay: (v: any) => void;
+  onSelectDayWeek: (v: any) => void;
+  onOpenExtra: (v: any) => void;
+  onOpenCardio: (v: any) => void;
+  setCurrentWeek: (v: any) => void;
+  onProfileUpdate: (v: any) => void;
+  setAddWorkoutModal: (v: any) => void;
+  setAddWorkoutStep: (v: any) => void;
+  setAddWorkoutType: (v: any) => void;
+  setAddWorkoutDayType: (v: any) => void;
+}
+
 function ScheduleTab({
   profile,
   activeDays,
@@ -285,7 +317,7 @@ function ScheduleTab({
   setAddWorkoutStep,
   setAddWorkoutType,
   setAddWorkoutDayType,
-}) {
+}: ScheduleTabProps) {
   const today = new Date();
   const displayDate = new Date(today.getFullYear(), today.getMonth() + calendarOffset, 1);
   const year = displayDate.getFullYear();

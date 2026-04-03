@@ -1,6 +1,11 @@
 import React from 'react';
 
-function HammerIcon({ size = 22, style = {} }) {
+interface HammerIconProps {
+  size?: number;
+  style?: React.CSSProperties;
+}
+
+function HammerIcon({ size = 22, style = {} }: HammerIconProps) {
   return (
     <svg
       width={size}

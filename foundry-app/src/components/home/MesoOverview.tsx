@@ -1,6 +1,16 @@
 import React from 'react';
 import { loadArchive, importData, exportData } from '../../utils/store';
 
+interface MesoOverviewProps {
+  tab: string;
+  goBack: () => void;
+  goTo: (tab: string) => void;
+  setShowReset: (v: any) => void;
+  activeDays: any[];
+  completedDays: any[];
+  profile: any;
+}
+
 // ── Sub-views ──────────────────────────────────────────────────────────────
 
 function MesoOverviewContent() {
@@ -415,7 +425,7 @@ function DataManagement({ goBack, setShowReset }) {
 
 // ── Main export: renders the correct sub-view based on tab ─────────────────
 
-function MesoOverview({ tab, goBack, goTo, setShowReset, activeDays, completedDays, profile }) {
+function MesoOverview({ tab, goBack, goTo, setShowReset, activeDays, completedDays, profile }: MesoOverviewProps) {
   if (tab === 'overview') {
     return (
       <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>

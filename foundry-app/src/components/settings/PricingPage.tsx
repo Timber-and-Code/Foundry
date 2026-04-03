@@ -3,7 +3,11 @@ import { store } from '../../utils/store';
 
 const workerUrl = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 
-export function PricingPage({ onClose }) {
+interface PricingPageProps {
+  onClose: () => void;
+}
+
+export function PricingPage({ onClose }: PricingPageProps) {
   const [email, setEmail] = React.useState('');
   const [submitted, setSubmitted] = React.useState(false);
   const [emailError, setEmailError] = React.useState(false);

@@ -1,4 +1,9 @@
 import { useState, useMemo } from 'react';
+
+interface UseMesoStateParams {
+  setView: (view: string) => void;
+  setOnboarded: (v: boolean) => void;
+}
 import { getMeso, resetMesoCache } from '../data/constants';
 import { EXERCISE_DB } from '../data/exercises';
 import {
@@ -14,7 +19,7 @@ import {
 } from '../utils/store';
 import { generateProgram } from '../utils/program';
 
-export function useMesoState({ setView, setOnboarded }) {
+export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
   const [profile, setProfile] = useState(loadProfile);
   const [completedDays, setCompletedDays] = useState(() => loadCompleted(getMeso()));
   const [currentWeek, setCurrentWeek] = useState(loadCurrentWeek);

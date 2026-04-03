@@ -1,7 +1,13 @@
 import React from 'react';
 import { FOUNDRY_ANVIL_IMG } from '../../data/images-core';
 
-function FoundryBanner({ subtitle, onProfileTap, userMenu }) {
+interface FoundryBannerProps {
+  subtitle?: string;
+  onProfileTap?: () => void;
+  userMenu?: React.ReactNode;
+}
+
+function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps) {
   return (
     <div
       style={{

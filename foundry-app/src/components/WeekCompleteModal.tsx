@@ -1,7 +1,15 @@
 import React from 'react';
 import { getMeso } from '../data/constants';
 
-export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSummary, onReset }) {
+interface WeekCompleteModalProps {
+  modal: { isFinal?: boolean; week?: number; [key: string]: any };
+  profile: any;
+  onDismiss: () => void;
+  onViewSummary?: () => void;
+  onReset?: () => void;
+}
+
+export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSummary, onReset }: WeekCompleteModalProps) {
   if (modal.isFinal) {
     return (
       <div

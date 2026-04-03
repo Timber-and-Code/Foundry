@@ -13,6 +13,26 @@ import {
 } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
 
+interface ExerciseCardProps {
+  exercise: any;
+  exIdx: number;
+  dayIdx: number;
+  weekIdx: number;
+  weekData: any;
+  onUpdateSet: (args: any) => void;
+  onWeightAutoFill: (args: any) => void;
+  onLastSetFilled: (args: any) => void;
+  expanded: boolean;
+  onToggle: () => void;
+  done: boolean;
+  readOnly: boolean;
+  onSwapClick: () => void;
+  onSetLogged: (args: any) => void;
+  bodyweight: any;
+  note: string;
+  onNoteChange: (note: string) => void;
+}
+
 function ExerciseCard({
   exercise,
   exIdx,
@@ -31,7 +51,7 @@ function ExerciseCard({
   bodyweight,
   note,
   onNoteChange,
-}) {
+}: ExerciseCardProps) {
   const goal = getProgTargets()[exercise.progression]?.[weekIdx];
   const goalColor =
     weekIdx < 2

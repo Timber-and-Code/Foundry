@@ -1,7 +1,13 @@
 import React from 'react';
 import { store } from '../../utils/store';
 
-export function TourOverlay({ onDone, onNavigate, onTabChange }) {
+interface TourOverlayProps {
+  onDone: () => void;
+  onNavigate: (path: string) => void;
+  onTabChange: (tab: string) => void;
+}
+
+export function TourOverlay({ onDone, onNavigate, onTabChange }: TourOverlayProps) {
   const [step, setStep] = React.useState(0);
 
   const STEPS = [

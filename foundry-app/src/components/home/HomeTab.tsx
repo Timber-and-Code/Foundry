@@ -977,6 +977,44 @@ function RestStateCard({
 
 // ── HomeTab ────────────────────────────────────────────────────────────────
 
+interface HomeTabProps {
+  profile: any;
+  activeDays: any[];
+  completedDays: any;
+  activeWeek: any;
+  displayWeek: any;
+  phase: any;
+  pc: any;
+  rir: any;
+  weekDone: any;
+  weekTotal: any;
+  weekPct: any;
+  mesoPct: any;
+  doneSessions: any;
+  totalSessions: any;
+  readiness: any;
+  readinessOpen: any;
+  setReadinessOpen: (v: any) => void;
+  updateReadiness: (v: any) => void;
+  showRecoveryMorning: any;
+  setShowRecoveryMorning: (v: any) => void;
+  showRecoveryTag: any;
+  setShowRecoveryTag: (v: any) => void;
+  showNextSession: any;
+  setShowNextSession: (v: any) => void;
+  showMorningMobility: any;
+  setShowMorningMobility: (v: any) => void;
+  goTo: (v: any) => void;
+  goBack: () => void;
+  onSelectDay: (v: any) => void;
+  onSelectDayWeek: (v: any) => void;
+  setCurrentWeek: (v: any) => void;
+  setShowSkipConfirm: (v: any) => void;
+  onOpenCardio: (v: any) => void;
+  onOpenMobility: (v: any) => void;
+  setShowPricing: (v: any) => void;
+}
+
 function HomeTab({
   profile,
   activeDays,
@@ -1013,7 +1051,7 @@ function HomeTab({
   onOpenCardio,
   onOpenMobility,
   setShowPricing,
-}) {
+}: HomeTabProps) {
   const todayCardioStr = (() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

@@ -6,7 +6,13 @@ const FOUNDRY_AI_WORKER_URL = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 const FOUNDRY_APP_KEY = import.meta.env.VITE_FOUNDRY_APP_KEY;
 const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 
-export function ProfileDrawer({ saved, onClose, onSave }) {
+interface ProfileDrawerProps {
+  saved: any;
+  onClose: () => void;
+  onSave: (data: any) => void;
+}
+
+export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const savedBd = saved.birthdate ? saved.birthdate.split('-') : [];
   const [form, setForm] = useState({
     name: saved.name || '',

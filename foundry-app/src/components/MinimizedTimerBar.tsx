@@ -1,6 +1,17 @@
 import React from 'react';
 
-export default function MinimizedTimerBar({ restTimer, onTap }) {
+interface RestTimer {
+  remaining: number;
+  total: number;
+  exName: string;
+}
+
+interface MinimizedTimerBarProps {
+  restTimer: RestTimer;
+  onTap: (done: boolean) => void;
+}
+
+export default function MinimizedTimerBar({ restTimer, onTap }: MinimizedTimerBarProps) {
   const { remaining, total, exName } = restTimer;
   const pct = total > 0 ? remaining / total : 0;
   const done = remaining === 0;

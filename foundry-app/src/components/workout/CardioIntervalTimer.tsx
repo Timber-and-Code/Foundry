@@ -1,7 +1,13 @@
 import React from 'react';
 import { haptic } from '../../utils/helpers';
 
-function CardioIntervalTimer({ protocol, onComplete, onDismiss }) {
+interface CardioIntervalTimerProps {
+  protocol: any;
+  onComplete: () => void;
+  onDismiss: () => void;
+}
+
+function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioIntervalTimerProps) {
   const { intervals, label } = protocol;
   const { workSecs, restSecs, rounds } = intervals;
 

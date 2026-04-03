@@ -376,7 +376,15 @@ function VolumeLandmarksCard({ byTag, title }) {
 }
 
 // ── Main ProgressView ────────────────────────────────────────────────────────
-export default function ProgressView({ currentWeek, completedDays, activeDays, goBack, goTo }) {
+interface ProgressViewProps {
+  currentWeek: number;
+  completedDays: any[];
+  activeDays: any[];
+  goBack: () => void;
+  goTo: (n: number) => void;
+}
+
+export default function ProgressView({ currentWeek, completedDays, activeDays, goBack, goTo }: ProgressViewProps) {
   const [expandedDay, setExpandedDay] = useState(null);
   const weekByTag = calcMuscleSetsByTag(activeDays, completedDays, currentWeek);
 

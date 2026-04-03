@@ -199,7 +199,15 @@ const WorkoutCompleteModal = ({ dayLabel, dayTag, gender, stats, weekIdx, onDone
   </div>
 );
 
-function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }) {
+interface ExtraDayViewProps {
+  dateStr: string;
+  onBack: () => void;
+  profile: any;
+  onProfileUpdate: (profile: any) => void;
+  activeDays: any[];
+}
+
+function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }: ExtraDayViewProps) {
   const extraKey = `foundry:extra:${dateStr}`;
   const doneKey = `foundry:extra:done:${dateStr}`;
   const startKey = `foundry:extra:start:${dateStr}`;

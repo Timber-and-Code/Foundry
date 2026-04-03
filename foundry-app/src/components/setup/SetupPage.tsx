@@ -6,7 +6,11 @@ import { GOAL_OPTIONS, TAG_ACCENT, CARDIO_WORKOUTS } from '../../data/constants'
 import FoundryBanner from '../shared/FoundryBanner';
 import HammerIcon from '../shared/HammerIcon';
 
-export function SetupPage({ onComplete }) {
+interface SetupPageProps {
+  onComplete: (profile: any) => void;
+}
+
+export function SetupPage({ onComplete }: SetupPageProps) {
   const ALL_EQUIPMENT = [
     'barbell',
     'dumbbell',

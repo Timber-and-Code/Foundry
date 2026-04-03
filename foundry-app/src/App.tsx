@@ -63,7 +63,16 @@ const SetupPage = React.lazy(() => import('./components/setup/SetupPage'));
 
 // ─── ROUTE WRAPPERS ───────────────────────────────────────────────────────────
 
-function DayViewRoute({ onComplete, handleNextDay, completedDays, profile, activeDays, onProfileUpdate }) {
+interface DayViewRouteProps {
+  onComplete: (v: any) => void;
+  handleNextDay: (v: any) => void;
+  completedDays: any[];
+  profile: any;
+  activeDays: any[];
+  onProfileUpdate: (p: any) => void;
+}
+
+function DayViewRoute({ onComplete, handleNextDay, completedDays, profile, activeDays, onProfileUpdate }: DayViewRouteProps) {
   const { dayIdx, weekIdx } = useParams();
   const navigate = useNavigate();
   return (
@@ -84,7 +93,7 @@ function DayViewRoute({ onComplete, handleNextDay, completedDays, profile, activ
   );
 }
 
-function ExtraViewRoute({ profile, activeDays, onProfileUpdate }) {
+function ExtraViewRoute({ profile, activeDays, onProfileUpdate }: { profile: any; activeDays: any[]; onProfileUpdate: (p: any) => void }) {
   const { dateStr } = useParams();
   const navigate = useNavigate();
   return (
@@ -101,7 +110,7 @@ function ExtraViewRoute({ profile, activeDays, onProfileUpdate }) {
   );
 }
 
-function CardioViewRoute({ profile }) {
+function CardioViewRoute({ profile }: { profile: any }) {
   const { dateStr, protocolId } = useParams();
   const navigate = useNavigate();
   return (
@@ -117,7 +126,7 @@ function CardioViewRoute({ profile }) {
   );
 }
 
-function MobilityViewRoute({ profile }) {
+function MobilityViewRoute({ profile }: { profile: any }) {
   const { dateStr } = useParams();
   const navigate = useNavigate();
   return (

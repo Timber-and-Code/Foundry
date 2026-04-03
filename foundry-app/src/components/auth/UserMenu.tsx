@@ -1,4 +1,5 @@
 import { useAuth } from '../../contexts/AuthContext';
+import { tokens } from '../../styles/tokens';
 
 export default function UserMenu() {
   const { user, logout } = useAuth();
@@ -11,16 +12,16 @@ export default function UserMenu() {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
-        padding: '4px 8px',
-        borderRadius: 8,
+        gap: tokens.spacing.sm,
+        padding: `${tokens.spacing.xs}px ${tokens.spacing.sm}px`,
+        borderRadius: tokens.radius.lg,
         border: '1px solid var(--border, rgba(255,255,255,0.08))',
         background: 'rgba(0,0,0,0.2)',
       }}
     >
       <span
         style={{
-          fontSize: 11,
+          fontSize: tokens.fontSize.xs,
           color: 'var(--text-muted, #666)',
           letterSpacing: '0.04em',
           maxWidth: 90,
@@ -40,7 +41,7 @@ export default function UserMenu() {
           border: 'none',
           cursor: 'pointer',
           padding: '2px',
-          borderRadius: 4,
+          borderRadius: tokens.radius.sm,
           color: 'var(--text-muted, #666)',
           display: 'flex',
           alignItems: 'center',

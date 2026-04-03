@@ -1,13 +1,18 @@
+import React from 'react';
+import { tokens } from '../../styles/tokens';
+
+interface SheetProps {
+  open: boolean;
+  onClose?: () => void;
+  children: React.ReactNode;
+  maxWidth?: number;
+  zIndex?: number;
+}
+
 /**
  * Sheet — bottom sheet that slides up from the bottom of the screen.
- * Props:
- *   open      {boolean}   Whether the sheet is visible.
- *   onClose   {function}  Called when the backdrop is clicked.
- *   children  {node}      Sheet content (rendered below the drag handle).
- *   maxWidth  {number}    Max width of the inner panel (default 480).
- *   zIndex    {number}    Stack order (default 300).
  */
-export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex = 300 }) {
+export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex = 300 }: SheetProps) {
   if (!open) return null;
   return (
     <div
@@ -16,7 +21,7 @@ export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex 
         position: 'fixed',
         inset: 0,
         zIndex,
-        background: 'rgba(0,0,0,0.82)',
+        background: tokens.colors.overlay,
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
@@ -27,7 +32,7 @@ export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex 
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: '14px 14px 0 0',
+          borderRadius: `${tokens.radius.xxl}px ${tokens.radius.xxl}px 0 0`,
           width: '100%',
           maxWidth,
           maxHeight: '85vh',

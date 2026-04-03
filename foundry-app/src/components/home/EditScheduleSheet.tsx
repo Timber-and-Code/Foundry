@@ -2,13 +2,21 @@ import React from 'react';
 import { getWorkoutDaysForWeek, ensureWorkoutDaysHistory, saveProfile } from '../../utils/store';
 import Sheet from '../ui/Sheet';
 
+interface EditScheduleSheetProps {
+  showEditSchedule: boolean;
+  setShowEditSchedule: (v: boolean) => void;
+  profile: any;
+  currentWeek: number;
+  onProfileUpdate: (profile: any) => void;
+}
+
 function EditScheduleSheet({
   showEditSchedule,
   setShowEditSchedule,
   profile,
   currentWeek,
   onProfileUpdate,
-}) {
+}: EditScheduleSheetProps) {
   if (!showEditSchedule) return null;
 
   const DOW_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

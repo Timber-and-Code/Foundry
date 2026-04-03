@@ -25,7 +25,11 @@ import {
  *  - Touch swipe navigation
  *  - localStorage persistence via store utility
  */
-export default function OnboardingFlow({ onDone }) {
+interface OnboardingFlowProps {
+  onDone: () => void;
+}
+
+export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
   const TOTAL = 5;
   const [screen, setScreen] = React.useState(0);
   const [animDir, setAnimDir] = React.useState(1);

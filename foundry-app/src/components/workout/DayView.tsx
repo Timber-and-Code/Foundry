@@ -41,6 +41,18 @@ import { useRestTimer } from '../../contexts/RestTimerContext';
 import ExerciseCard from './ExerciseCard';
 import HammerIcon from '../shared/HammerIcon';
 
+interface DayViewProps {
+  dayIdx: number;
+  weekIdx: number;
+  onBack: () => void;
+  onComplete: () => void;
+  onNextDay: () => void;
+  completedDays: any;
+  profile: any;
+  activeDays: any[];
+  onProfileUpdate: (profile: any) => void;
+}
+
 function DayView({
   dayIdx,
   weekIdx,
@@ -51,7 +63,7 @@ function DayView({
   profile,
   activeDays,
   onProfileUpdate,
-}) {
+}: DayViewProps) {
   const { restTimer, restTimerMinimized, setRestTimerMinimized, startRestTimer, dismissRestTimer } =
     useRestTimer();
   const day = activeDays[dayIdx];

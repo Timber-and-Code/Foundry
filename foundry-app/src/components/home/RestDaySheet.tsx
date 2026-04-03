@@ -3,6 +3,17 @@ import { REST_QUOTES, FOUNDRY_MOBILITY, FOUNDRY_COOLDOWN, getMeso } from '../../
 import { getWorkoutDaysForWeek } from '../../utils/store';
 import Sheet from '../ui/Sheet';
 
+interface RestDaySheetProps {
+  showRestDay: { dateStr: string; isPast?: boolean } | null;
+  setShowRestDay: (v: null) => void;
+  profile: any;
+  activeDays: any[];
+  setAddWorkoutModal: (v: any) => void;
+  setAddWorkoutStep: (v: string) => void;
+  setAddWorkoutType: (v: any) => void;
+  setAddWorkoutDayType: (v: any) => void;
+}
+
 function RestDaySheet({
   showRestDay,
   setShowRestDay,
@@ -12,7 +23,7 @@ function RestDaySheet({
   setAddWorkoutStep,
   setAddWorkoutType,
   setAddWorkoutDayType,
-}) {
+}: RestDaySheetProps) {
   if (!showRestDay) return null;
 
   const dateHash = showRestDay.dateStr.split('').reduce((a, c) => a + c.charCodeAt(0), 0);

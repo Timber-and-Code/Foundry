@@ -1,15 +1,21 @@
 import React from 'react';
 
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  info: React.ErrorInfo | null;
+}
+
 // ─── ERROR BOUNDARY ─────────────────────────────────────────────────────────
-export default class ErrorBoundary extends React.Component {
-  constructor(props) {
+export default class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null, info: null };
   }
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
-  componentDidCatch(error, info) {
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
     this.setState({ info });
   }
   render() {

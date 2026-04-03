@@ -3,7 +3,13 @@ import { loadMobilitySession, saveMobilitySession } from '../../utils/store';
 import { MOBILITY_PROTOCOLS } from '../../data/constants';
 import { haptic } from '../../utils/helpers';
 
-function MobilitySessionView({ dateStr, onBack, profile }) {
+interface MobilitySessionViewProps {
+  dateStr: string;
+  onBack: () => void;
+  profile: any;
+}
+
+function MobilitySessionView({ dateStr, onBack, profile }: MobilitySessionViewProps) {
   const MOBILITY_COLOR = '#D4983C'; // warm gold — forge palette
 
   const displayDate = (() => {

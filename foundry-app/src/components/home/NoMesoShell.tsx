@@ -3,7 +3,12 @@ import FoundryBanner from '../shared/FoundryBanner';
 import ExplorePage from '../explore/ExplorePage';
 import { FOUNDRY_EMPTY_IMG } from '../../data/images-home';
 
-function NoMesoShell({ onSetup, onStartProgram }) {
+interface NoMesoShellProps {
+  onSetup: () => void;
+  onStartProgram: (programId: any) => void;
+}
+
+function NoMesoShell({ onSetup, onStartProgram }: NoMesoShellProps) {
   return (
     <div
       style={{

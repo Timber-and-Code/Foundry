@@ -1,7 +1,15 @@
 import React from 'react';
 import ProgressView from './ProgressView';
 
-function ProgressTab({ displayWeek, completedDays, activeDays, goBack, goTo }) {
+interface ProgressTabProps {
+  displayWeek: number;
+  completedDays: number[];
+  activeDays: number[];
+  goBack: () => void;
+  goTo: (week: number) => void;
+}
+
+function ProgressTab({ displayWeek, completedDays, activeDays, goBack, goTo }: ProgressTabProps) {
   return (
     <ProgressView
       currentWeek={displayWeek}

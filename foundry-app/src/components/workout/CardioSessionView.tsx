@@ -4,7 +4,14 @@ import { haptic } from '../../utils/helpers';
 import { TAG_ACCENT, CARDIO_WORKOUTS } from '../../data/constants';
 import CardioIntervalTimer from './CardioIntervalTimer';
 
-function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }) {
+interface CardioSessionViewProps {
+  dateStr: string;
+  plannedProtocolId: any;
+  onBack: () => void;
+  profile: any;
+}
+
+function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: CardioSessionViewProps) {
   const CARDIO_COLOR = TAG_ACCENT['CARDIO'];
 
   // ── Derived helpers ─────────────────────────────────────────────────────────

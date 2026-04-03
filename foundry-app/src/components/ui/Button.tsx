@@ -1,14 +1,17 @@
-/**
- * Button — standard app button.
- * Props:
- *   children   {node}      Button label / content.
- *   onClick    {function}  Click handler.
- *   variant    {string}    "primary" | "secondary" | "danger" | "ghost" (default "primary").
- *   disabled   {boolean}   Disabled state.
- *   fullWidth  {boolean}   Stretch to 100% width.
- *   style      {object}    Extra inline style overrides.
- */
-const VARIANTS = {
+import React from 'react';
+import { tokens } from '../../styles/tokens';
+
+interface ButtonProps {
+  children: React.ReactNode;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  type?: 'button' | 'submit' | 'reset';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  disabled?: boolean;
+  fullWidth?: boolean;
+  style?: React.CSSProperties;
+}
+
+const VARIANTS: Record<string, React.CSSProperties> = {
   primary: {
     background: 'var(--btn-primary-bg)',
     border: '1px solid var(--btn-primary-border)',
@@ -39,7 +42,7 @@ export default function Button({
   disabled = false,
   fullWidth = false,
   style,
-}) {
+}: ButtonProps) {
   const base = VARIANTS[variant] || VARIANTS.primary;
   return (
     <button
@@ -49,10 +52,10 @@ export default function Button({
       style={{
         ...base,
         width: fullWidth ? '100%' : undefined,
-        padding: '12px 16px',
-        borderRadius: 8,
-        fontSize: 13,
-        fontWeight: 700,
+        padding: `${tokens.spacing.md}px ${tokens.spacing.lg}px`,
+        borderRadius: tokens.radius.lg,
+        fontSize: tokens.fontSize.md,
+        fontWeight: tokens.fontWeight.bold,
         letterSpacing: '0.04em',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,

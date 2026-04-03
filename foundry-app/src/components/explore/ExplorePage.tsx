@@ -141,7 +141,12 @@ const StartSampleProgramModal = ({ prog, hasActiveMeso, onConfirm, onCancel }) =
   );
 };
 
-function ExplorePage({ profile, onStartProgram }) {
+interface ExplorePageProps {
+  profile: any;
+  onStartProgram: (program: any) => void;
+}
+
+function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
   const [section, setSection] = useState('home'); // home | library | programs | learn
   const [learnOpen, setLearnOpen] = useState(null); // which learn card is expanded
   const [glossaryOpen, setGlossaryOpen] = useState(null); // which glossary term is expanded

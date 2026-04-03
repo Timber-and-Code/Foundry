@@ -1,12 +1,17 @@
+import React from 'react';
+import { tokens } from '../../styles/tokens';
+
+interface ModalProps {
+  open: boolean;
+  onClose?: () => void;
+  children: React.ReactNode;
+  maxWidth?: number;
+  zIndex?: number;
+  blur?: boolean;
+}
+
 /**
  * Modal — centered full-screen overlay dialog.
- * Props:
- *   open      {boolean}   Whether the modal is visible.
- *   onClose   {function}  Called when the backdrop is clicked.
- *   children  {node}      Dialog content.
- *   maxWidth  {number}    Max width of the inner card (default 380).
- *   zIndex    {number}    Stack order (default 300).
- *   blur      {boolean}   Apply backdrop blur (default false).
  */
 export default function Modal({
   open,
@@ -15,7 +20,7 @@ export default function Modal({
   maxWidth = 380,
   zIndex = 300,
   blur = false,
-}) {
+}: ModalProps) {
   if (!open) return null;
   return (
     <div
@@ -24,12 +29,12 @@ export default function Modal({
         position: 'fixed',
         inset: 0,
         zIndex,
-        background: 'rgba(0,0,0,0.82)',
+        background: tokens.colors.overlay,
         backdropFilter: blur ? 'blur(6px)' : undefined,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
+        padding: tokens.spacing.xl,
       }}
     >
       <div
@@ -37,8 +42,8 @@ export default function Modal({
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: 12,
-          padding: '28px 24px',
+          borderRadius: tokens.radius.xl,
+          padding: `28px ${tokens.spacing.xl}px`,
           maxWidth,
           width: '100%',
           boxShadow: 'var(--shadow-xl)',

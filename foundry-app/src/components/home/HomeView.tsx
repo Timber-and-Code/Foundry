@@ -29,6 +29,24 @@ import MesoOverview from './MesoOverview';
 import ExplorePage from '../explore/ExplorePage';
 import { PricingPage } from '../settings/PricingPage';
 
+interface HomeViewProps {
+  tabRef: any;
+  currentWeek: any;
+  setCurrentWeek: (v: any) => void;
+  onSelectDay: (v: any) => void;
+  onSelectDayWeek: (v: any) => void;
+  onOpenExtra: (v: any) => void;
+  onOpenCardio: (v: any) => void;
+  onOpenMobility: (v: any) => void;
+  completedDays: any;
+  onReset: () => void;
+  activeDays: any[];
+  profile: any;
+  openWeekly: any;
+  onOpenWeeklyHandled: () => void;
+  onProfileUpdate: (v: any) => void;
+}
+
 function HomeView({
   tabRef,
   currentWeek,
@@ -45,7 +63,7 @@ function HomeView({
   openWeekly,
   onOpenWeeklyHandled,
   onProfileUpdate,
-}) {
+}: HomeViewProps) {
   // ── Tab navigation ─────────────────────────────────────────────────────
   const [tab, setTab] = useState('landing');
   const goTo = (key) => {

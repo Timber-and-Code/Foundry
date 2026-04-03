@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabase';
 import Button from '../ui/Button';
 import { FOUNDRY_ANVIL_IMG } from '../../data/images-core';
+import { tokens } from '../../styles/tokens';
 
 export default function AuthPage() {
   const { login, signup } = useAuth();
@@ -13,7 +14,7 @@ export default function AuthPage() {
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setInfo('');
@@ -26,7 +27,7 @@ export default function AuthPage() {
       } else if (mode === 'signup') {
         setInfo('Check your email for a confirmation link.');
       }
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Something went wrong.');
     } finally {
       setLoading(false);
@@ -47,7 +48,7 @@ export default function AuthPage() {
       } else {
         setInfo('Password reset email sent.');
       }
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Something went wrong.');
     } finally {
       setLoading(false);
@@ -63,7 +64,7 @@ export default function AuthPage() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px 16px',
+        padding: `${tokens.spacing.xl}px ${tokens.spacing.lg}px`,
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
@@ -76,14 +77,14 @@ export default function AuthPage() {
             width: 64,
             height: 64,
             objectFit: 'cover',
-            borderRadius: 12,
+            borderRadius: tokens.radius.xl,
             boxShadow: '0 0 32px rgba(232,101,26,0.3)',
           }}
         />
         <div
           style={{
-            fontSize: 28,
-            fontWeight: 400,
+            fontSize: tokens.fontSize.xxl,
+            fontWeight: tokens.fontWeight.normal,
             letterSpacing: '0.25em',
             color: 'var(--text-primary, #e5e5e5)',
             fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
@@ -110,8 +111,8 @@ export default function AuthPage() {
           maxWidth: 400,
           background: 'var(--bg-card, #1a1a1a)',
           border: '1px solid var(--border, rgba(255,255,255,0.08))',
-          borderRadius: 12,
-          padding: '28px 24px',
+          borderRadius: tokens.radius.xl,
+          padding: `28px ${tokens.spacing.xl}px`,
           boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
         }}
       >
@@ -131,17 +132,17 @@ export default function AuthPage() {
               onClick={() => { setMode(m); setError(''); setInfo(''); }}
               style={{
                 flex: 1,
-                padding: '8px',
-                borderRadius: 6,
+                padding: `${tokens.spacing.sm}px`,
+                borderRadius: tokens.radius.md,
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 700,
+                fontSize: tokens.fontSize.sm,
+                fontWeight: tokens.fontWeight.bold,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 transition: 'background 0.15s, color 0.15s',
-                background: mode === m ? 'rgba(232,101,26,0.15)' : 'transparent',
-                color: mode === m ? 'rgba(232,101,26,0.9)' : 'var(--text-muted, #666)',
+                background: mode === m ? tokens.colors.accentMuted : 'transparent',
+                color: mode === m ? tokens.colors.accentDim : 'var(--text-muted, #666)',
               }}
             >
               {m === 'login' ? 'Sign In' : 'Create Account'}
@@ -154,8 +155,8 @@ export default function AuthPage() {
             <label
               style={{
                 display: 'block',
-                fontSize: 11,
-                fontWeight: 600,
+                fontSize: tokens.fontSize.xs,
+                fontWeight: tokens.fontWeight.semibold,
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',
                 color: 'var(--text-muted, #666)',
@@ -176,9 +177,9 @@ export default function AuthPage() {
                 padding: '11px 12px',
                 background: 'var(--bg-root, #141414)',
                 border: '1px solid var(--border, rgba(255,255,255,0.1))',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 color: 'var(--text-primary, #e5e5e5)',
-                fontSize: 14,
+                fontSize: tokens.fontSize.base,
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
@@ -189,8 +190,8 @@ export default function AuthPage() {
             <label
               style={{
                 display: 'block',
-                fontSize: 11,
-                fontWeight: 600,
+                fontSize: tokens.fontSize.xs,
+                fontWeight: tokens.fontWeight.semibold,
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',
                 color: 'var(--text-muted, #666)',
@@ -211,9 +212,9 @@ export default function AuthPage() {
                 padding: '11px 12px',
                 background: 'var(--bg-root, #141414)',
                 border: '1px solid var(--border, rgba(255,255,255,0.1))',
-                borderRadius: 8,
+                borderRadius: tokens.radius.lg,
                 color: 'var(--text-primary, #e5e5e5)',
-                fontSize: 14,
+                fontSize: tokens.fontSize.base,
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
@@ -223,12 +224,12 @@ export default function AuthPage() {
           {error && (
             <div
               style={{
-                padding: '10px 12px',
-                background: 'rgba(220,38,38,0.1)',
-                border: '1px solid rgba(220,38,38,0.3)',
-                borderRadius: 6,
-                color: '#f87171',
-                fontSize: 13,
+                padding: `10px ${tokens.spacing.md}px`,
+                background: tokens.colors.dangerBg,
+                border: `1px solid ${tokens.colors.dangerBorder}`,
+                borderRadius: tokens.radius.md,
+                color: tokens.colors.dangerText,
+                fontSize: tokens.fontSize.md,
               }}
             >
               {error}
@@ -238,12 +239,12 @@ export default function AuthPage() {
           {info && (
             <div
               style={{
-                padding: '10px 12px',
-                background: 'rgba(232,101,26,0.1)',
-                border: '1px solid rgba(232,101,26,0.3)',
-                borderRadius: 6,
-                color: 'rgba(232,101,26,0.9)',
-                fontSize: 13,
+                padding: `10px ${tokens.spacing.md}px`,
+                background: tokens.colors.accentSubtle,
+                border: `1px solid ${tokens.colors.accentBorder}`,
+                borderRadius: tokens.radius.md,
+                color: tokens.colors.accentDim,
+                fontSize: tokens.fontSize.md,
               }}
             >
               {info}
