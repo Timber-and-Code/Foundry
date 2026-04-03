@@ -9,7 +9,8 @@ interface FoundryBannerProps {
 
 function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps) {
   return (
-    <div
+    <header
+      role="banner"
       style={{
         background: '#0f0f0f',
         padding: '10px 16px',
@@ -111,7 +112,7 @@ function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps)
         </button>
         )}
       </div>
-    </div>
+    </header>
   );
 }
 

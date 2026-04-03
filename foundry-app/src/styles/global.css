@@ -46,6 +46,12 @@ body { background: var(--bg-root); color: var(--text-primary); font-family: 'Int
 .btn-toggle:hover  { border-color: var(--border-accent) !important; }
 .btn-toggle:active { transform: scale(0.95); }
 
+/* ── Focus indicators (WCAG 2.1 AA) ── */
+:focus-visible {
+  outline: 2px solid #e8651a;
+  outline-offset: 2px;
+}
+
 /* ── Input styles ── */
 input:focus, textarea:focus, select:focus {
   outline: none;
