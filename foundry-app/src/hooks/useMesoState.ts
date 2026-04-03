@@ -31,7 +31,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
     const base = stored
       ? JSON.parse(stored)
       : (() => {
-          const result = generateProgram(profile);
+          const result = generateProgram(profile, EXERCISE_DB);
           store.set('foundry:storedProgram', JSON.stringify(result));
           return result;
         })();
