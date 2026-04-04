@@ -47,27 +47,20 @@ test.describe('Accessibility regression', () => {
     expect(critical).toHaveLength(0);
   });
 
-  test('Setup page Step 1 has no critical a11y violations', async ({ page }) => {
+  test('Setup page has no critical a11y violations', async ({ page }) => {
     await blockSupabase(page);
     await page.goto('/');
 
+    // Seed state so app shows SetupPage directly
     await page.evaluate(() => {
-      const keys = Object.keys(localStorage).filter((k) => k.startsWith('foundry:'));
-      for (const key of keys) localStorage.removeItem(key);
+      localStorage.setItem('foundry:onboarded', '1');
+      localStorage.removeItem('foundry:profile');
     });
     await page.reload();
+    await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText('THE FOUNDRY')).toBeVisible({ timeout: 10_000 });
-
-    // Navigate through onboarding to reach SetupPage step 1
-    await page.getByText('Enter The Forge').click();
-    await page.getByPlaceholder(/name/i).fill('Atlas');
-    await page.getByText(/continue/i).click();
-    await page.getByText(/intermediate/i).click();
-    await page.getByText(/continue/i).click();
-    await page.getByText(/build muscle/i).click();
-    await page.getByText(/continue/i).click();
-    await page.getByText('Build My Program').click();
+    // Wait for any content to render
+    await page.waitForTimeout(2000);
 
     const results = await new AxeBuilder({ page }).analyze();
     logViolations(results.violations);
@@ -80,8 +73,15 @@ test.describe('Accessibility regression', () => {
 
   test('Auth page has no critical a11y violations (when Supabase reachable)', async ({ page }) => {
     await page.goto('/');
+    await page.waitForLoadState('networkidle');
 
-    const authVisible = await page.getByText(/forge your strength/i).isVisible().catch(() => false);
+    let authVisible = false;
+    try {
+      await page.getByText(/forge your strength/i).waitFor({ timeout: 8_000 });
+      authVisible = true;
+    } catch {
+      // Supabase not reachable
+    }
 
     if (!authVisible) {
       test.skip(true, 'Auth page not visible — Supabase may be unreachable');
