@@ -4,7 +4,7 @@
  * equipment filtering, goal-based rep ranges, and session duration.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { generateProgram } from '../program.js';
+import { generateProgram } from '../program';
 
 // ─── Shared exercise DB fixture (same as core.test.js) ───────────────────────
 

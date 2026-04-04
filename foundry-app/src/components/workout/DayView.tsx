@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { tokens } from '../../styles/tokens';
 
 // Data
@@ -7,6 +7,10 @@ import {
   getMeso,
 } from '../../data/constants';
 import { EXERCISE_DB } from '../../data/exercises';
+
+// UI
+import Sheet from '../ui/Sheet';
+import ExercisePicker from '../ui/ExercisePicker';
 
 // Utils
 import {
@@ -17,6 +21,7 @@ import {
   loadNotes,
   loadExNotes,
   loadExOverride,
+  saveExOverride,
   bwPromptShownThisWeek,
   getWeekSets,
 } from '../../utils/store';
@@ -305,8 +310,41 @@ function DayView({
   // stallingData + stallCardDismissed — reserved for stall detection UI
 
   // showUnfinishedPrompt — reserved for unfinished workout prompt
-  const [, setSwapTarget] = useState<{ exIdx: number } | null>(null);
+  const [swapTarget, setSwapTarget] = useState<{ exIdx: number } | null>(null);
   const [, setShowAddExercise] = useState(false);
+
+  /* ── Swap: build exercise groups for picker ─────────────────────────────── */
+  const swapExGroups = useMemo(() => {
+    const tag = day?.tag || 'FULL';
+    let tagFilter: string[];
+    if (tag === 'PUSH') tagFilter = ['PUSH'];
+    else if (tag === 'PULL') tagFilter = ['PULL'];
+    else if (tag === 'LEGS') tagFilter = ['LEGS'];
+    else if (tag === 'UPPER') tagFilter = ['PUSH', 'PULL'];
+    else if (tag === 'LOWER') tagFilter = ['LEGS'];
+    else tagFilter = ['PUSH', 'PULL', 'LEGS'];
+    const exs = EXERCISE_DB.filter((e: any) => tagFilter.includes(e.tag));
+    const groups: Record<string, any[]> = {};
+    exs.forEach((e: any) => {
+      if (!groups[e.muscle]) groups[e.muscle] = [];
+      groups[e.muscle].push(e);
+    });
+    return groups;
+  }, [day?.tag]);
+
+  const swapMuscle = swapTarget !== null ? exercises[swapTarget.exIdx]?.muscle : undefined;
+
+  const handleSwap = useCallback(
+    (newExId: string) => {
+      if (swapTarget === null) return;
+      // Save override for rest of the meso
+      saveExOverride(dayIdx, weekIdx, swapTarget.exIdx, newExId, 'meso');
+      setSwapTarget(null);
+      // Reload to pick up the override
+      window.location.reload();
+    },
+    [swapTarget, dayIdx, weekIdx],
+  );
   const dialogShownRef = React.useRef(new Set());
 
   // ── Rest timer (state lives in App, received as props) ──────────────────────
@@ -914,6 +952,26 @@ function DayView({
           </div>
         </div>
       )}
+
+      {/* ── Exercise Swap Sheet ──────────────────────────────────────────── */}
+      <Sheet open={swapTarget !== null} onClose={() => setSwapTarget(null)}>
+        <div style={{ padding: '8px 16px 4px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+          Swap Exercise
+        </div>
+        <div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--text-muted)' }}>
+          {swapTarget !== null && exercises[swapTarget.exIdx]
+            ? `Replacing: ${exercises[swapTarget.exIdx].name}`
+            : 'Select a replacement'}
+        </div>
+        <ExercisePicker
+          exercises={swapExGroups}
+          selected={[]}
+          onToggle={handleSwap}
+          onReorder={() => {}}
+          userEquipment={profile?.equipment}
+          autoExpandMuscle={swapMuscle}
+        />
+      </Sheet>
     </div>
   );
 }

@@ -1,11 +1,30 @@
 import { shuffle } from './training';
+import type { Exercise, Profile, TrainingDay } from '../types';
+
+// Internal shape of EXERCISE_DB entries — extends public Exercise with DB-only fields
+interface DbExercise extends Exercise {
+  diff?: number;
+  pattern?: string;
+  muscles: string[];
+  tag?: string;
+}
+
+interface DayBuild {
+  anchor: DbExercise | undefined;
+  accessories: DbExercise[];
+}
+
+interface DayMuscleConfigEntry {
+  primary: string[];
+  accessory: string[];
+}
 
 /**
  * Generate a complete training program from a user profile.
  * Supports PPL, Upper/Lower, Full Body, and Push/Pull splits.
  * Returns array of day objects with exercises, sets, reps, and progressions.
  */
-export function generateProgram(profile, EXERCISE_DB = []) {
+export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []): TrainingDay[] {
   // AI-built or custom days take priority
   if (profile?.aiDays && profile.aiDays.length > 0) return profile.aiDays;
 
@@ -21,7 +40,8 @@ export function generateProgram(profile, EXERCISE_DB = []) {
   const duration = profile?.sessionDuration || 60;
   const splitType = profile?.splitType || 'ppl';
   const numDays = profile?.workoutDays?.length || profile?.daysPerWeek || 6;
-  const dayMuscleConfig = profile?.dayMuscleConfig || {};
+  const dayMuscleConfig: Record<number, DayMuscleConfigEntry> =
+    (profile as any).dayMuscleConfig || {};
   const shortWarmup = duration <= 30;
   const exCount =
     duration <= 30 ? 3 : duration <= 45 ? 4 : duration <= 60 ? 5 : duration <= 75 ? 6 : 7;
@@ -29,7 +49,9 @@ export function generateProgram(profile, EXERCISE_DB = []) {
   const experience = profile?.experience || 'intermediate';
   const maxDiff = experience === 'beginner' ? 1 : experience === 'intermediate' ? 2 : 3;
 
-  const available = EXERCISE_DB.filter((e) => equipment.includes(e.equipment) && e.diff <= maxDiff);
+  const available = EXERCISE_DB.filter(
+    (e) => equipment.includes(e.equipment as string) && (e.diff ?? 0) <= maxDiff
+  );
 
   // Goal-based rep range suggestions
   // Compounds: strength=3-6, hypertrophy=6-10, conditioning=8-15
@@ -37,15 +59,15 @@ export function generateProgram(profile, EXERCISE_DB = []) {
   const goalId = profile?.goal || '';
   const isStrength = goalId === 'build_strength';
   const isConditioning = goalId === 'sport_conditioning' || goalId === 'improve_fitness';
-  function goalReps(e) {
-    const isCompound = ['push', 'pull', 'squat', 'hinge'].includes(e.pattern);
+  function goalReps(e: DbExercise): string {
+    const isCompound = ['push', 'pull', 'squat', 'hinge'].includes(e.pattern ?? '');
     if (isStrength) return isCompound ? '3-6' : '6-10';
     if (isConditioning) return isCompound ? '8-15' : '12-20';
     // build_muscle, lose_fat — hypertrophy ranges
     return isCompound ? '6-10' : '10-15';
   }
 
-  function toEx(e, isAnchor) {
+  function toEx(e: DbExercise, isAnchor: boolean): Exercise {
     const wu = isAnchor
       ? shortWarmup
         ? '2 ramp sets — time is tight, be thorough'
@@ -70,7 +92,12 @@ export function generateProgram(profile, EXERCISE_DB = []) {
     };
   }
 
-  function buildDay(pool, anchorPriority, musclePriority, usedAnchorIds) {
+  function buildDay(
+    pool: DbExercise[],
+    anchorPriority: string[],
+    musclePriority: string[],
+    usedAnchorIds: Set<string | number | undefined>
+  ): DayBuild {
     const compoundPatterns = ['push', 'pull', 'squat', 'hinge'];
     const anchorEligible = pool.filter((e) => e.anchor);
     const anchorCandidates =
@@ -78,19 +105,19 @@ export function generateProgram(profile, EXERCISE_DB = []) {
         ? anchorEligible
         : shuffle(pool).sort(
             (a, b) =>
-              (compoundPatterns.includes(a.pattern) ? 0 : 1) -
-              (compoundPatterns.includes(b.pattern) ? 0 : 1)
+              (compoundPatterns.includes(a.pattern ?? '') ? 0 : 1) -
+              (compoundPatterns.includes(b.pattern ?? '') ? 0 : 1)
           );
 
     const anchorPool = shuffle(anchorCandidates.filter((e) => !usedAnchorIds.has(e.id)));
     const anchor =
-      anchorPool.find((e) => anchorPriority.includes(e.pattern)) ||
+      anchorPool.find((e) => anchorPriority.includes(e.pattern ?? '')) ||
       anchorPool[0] ||
       shuffle(anchorCandidates)[0];
 
-    const usedIds = new Set([anchor?.id]);
-    const usedMuscles = new Set(anchor?.muscles || []);
-    const accessories = [];
+    const usedIds = new Set<string | number | undefined>([anchor?.id]);
+    const usedMuscles = new Set<string>(anchor?.muscles || []);
+    const accessories: DbExercise[] = [];
 
     for (const muscleTarget of musclePriority) {
       if (accessories.length >= exCount - 1) break;
@@ -122,14 +149,22 @@ export function generateProgram(profile, EXERCISE_DB = []) {
     return { anchor, accessories };
   }
 
-  function makeDay(num, label, tag, muscles, note, anchor, accessories) {
+  function makeDay(
+    num: number,
+    label: string,
+    tag: string,
+    muscles: string,
+    note: string,
+    anchor: DbExercise | undefined,
+    accessories: DbExercise[]
+  ): TrainingDay {
     const exercises = anchor
       ? [toEx(anchor, true), ...accessories.map((a) => toEx(a, false))]
       : accessories.map((a) => toEx(a, false));
-    return { dayNum: num, label, tag, muscles, note, cardio: null, exercises };
+    return { dayNum: num, label, tag, muscles, note, cardio: null, exercises } as any;
   }
 
-  const anchorNotes = {
+  const anchorNotes: Record<string, Record<string, string>> = {
     push: {
       push: 'Anchor is your main press — controlled negative, explode up.',
       hinge: 'Hip-hinge focus today — load the stretch, finish tall.',
@@ -170,12 +205,14 @@ export function generateProgram(profile, EXERCISE_DB = []) {
     },
   };
 
-  function dayNote(side, ex) {
+  function dayNote(side: string, ex: DbExercise | undefined): string {
     if (!ex) return 'Train hard and stay focused.';
-    return anchorNotes[side]?.[ex.pattern] || `${ex.name} anchors today — give it everything.`;
+    return (
+      anchorNotes[side]?.[ex.pattern ?? ''] || `${ex.name} anchors today — give it everything.`
+    );
   }
 
-  function dayMusclePriority(dayIdx, defaultPrimary) {
+  function dayMusclePriority(dayIdx: number, defaultPrimary: string[]): string[] {
     const dm = dayMuscleConfig[dayIdx];
     if (!dm || (dm.primary.length === 0 && dm.accessory.length === 0)) return defaultPrimary;
     return [...dm.primary, ...dm.accessory];
@@ -184,8 +221,8 @@ export function generateProgram(profile, EXERCISE_DB = []) {
   // Manual builder short-circuit
   if (profile?.manualDayExercises && Object.keys(profile.manualDayExercises).length > 0) {
     const manExs = profile.manualDayExercises;
-    const manPairs = profile.manualDayPairs || {};
-    const manDayTemplates = {
+    const manPairs: Record<string, [number, number][]> = profile.manualDayPairs || {};
+    const manDayTemplates: Record<string, Record<number, [string, string][]>> = {
       ppl: {
         3: [
           ['Push Day', 'PUSH'],
@@ -232,11 +269,11 @@ export function generateProgram(profile, EXERCISE_DB = []) {
         ],
       },
     };
-    const templates =
+    const templates: [string, string][] =
       manDayTemplates[splitType]?.[numDays] ||
-      Array.from({ length: numDays }, (_, i) => [`Day ${i + 1}`, 'FULL']);
+      Array.from({ length: numDays }, (_, i): [string, string] => [`Day ${i + 1}`, 'FULL']);
 
-    const manCardioDays = profile.manualCardioDays || [];
+    const manCardioDays: number[] = profile.manualCardioDays || [];
 
     const days = templates
       .map(([label, tag], i) => {
@@ -249,28 +286,27 @@ export function generateProgram(profile, EXERCISE_DB = []) {
             note: 'Log your cardio session below — type, duration, and intensity.',
             cardio: null,
             exercises: [],
-          };
+          } as any;
         }
-        const exIds = manExs[i] || [];
-        const exObjs = exIds.map((id) => EXERCISE_DB.find((e) => e.id === id)).filter(Boolean);
+        const exIds: (string | number)[] = (manExs[i] as any) || [];
+        const exObjs = exIds
+          .map((id) => EXERCISE_DB.find((e) => e.id === id))
+          .filter(Boolean) as DbExercise[];
         if (exObjs.length === 0) return null;
         const anchorEx = exObjs[0];
         const accs = exObjs.slice(1);
-        const side =
-          tag === 'UPPER' || tag === 'LOWER' || tag === 'FULL'
-            ? tag.toLowerCase()
-            : tag.toLowerCase();
+        const side = tag.toLowerCase();
         const note = dayNote(side, anchorEx);
-        const day = makeDay(i + 1, label, tag, [], note, anchorEx, accs);
+        const day = makeDay(i + 1, label, tag, '', note, anchorEx, accs) as any;
         const pairs = manPairs[i] || [];
         pairs.forEach(([a, b]) => {
           if (a < day.exercises.length && b < day.exercises.length) {
             day.exercises[a] = { ...day.exercises[a], supersetWith: b };
           }
         });
-        return day;
+        return day as TrainingDay;
       })
-      .filter(Boolean);
+      .filter(Boolean) as TrainingDay[];
 
     return days;
   }
@@ -281,9 +317,9 @@ export function generateProgram(profile, EXERCISE_DB = []) {
     const pullPool = available.filter((e) => e.tag === 'PULL');
     const legsPool = available.filter((e) => e.tag === 'LEGS');
 
-    const usedPA = new Set(),
-      usedRA = new Set(),
-      usedLA = new Set();
+    const usedPA = new Set<string | number | undefined>(),
+      usedRA = new Set<string | number | undefined>(),
+      usedLA = new Set<string | number | undefined>();
     const p1 = buildDay(
       pushPool,
       ['push'],
@@ -460,11 +496,9 @@ export function generateProgram(profile, EXERCISE_DB = []) {
   if (splitType === 'upper_lower') {
     const upperPool = available.filter((e) => e.tag === 'PUSH' || e.tag === 'PULL');
     const lowerPool = available.filter((e) => e.tag === 'LEGS');
-    const pushPool = available.filter((e) => e.tag === 'PUSH');
-    const pullPool = available.filter((e) => e.tag === 'PULL');
 
-    const usedUA = new Set(),
-      usedLA = new Set();
+    const usedUA = new Set<string | number | undefined>(),
+      usedLA = new Set<string | number | undefined>();
     const u1 = buildDay(
       upperPool,
       ['push'],
@@ -560,11 +594,16 @@ export function generateProgram(profile, EXERCISE_DB = []) {
     const pullPool = available.filter((e) => e.tag === 'PULL');
     const legsPool = available.filter((e) => e.tag === 'LEGS');
 
-    const usedPA = new Set(),
-      usedRA = new Set(),
-      usedLA = new Set();
+    const usedPA = new Set<string | number | undefined>(),
+      usedRA = new Set<string | number | undefined>(),
+      usedLA = new Set<string | number | undefined>();
 
-    function buildFullBodyDay(pushPriority, pullPriority, legsPriority, dayNum) {
+    function buildFullBodyDay(
+      pushPriority: string[],
+      pullPriority: string[],
+      legsPriority: string[],
+      dayNum: number
+    ): TrainingDay {
       const pDay = buildDay(pushPool, pushPriority, ['Chest', 'Shoulders', 'Triceps'], usedPA);
       if (pDay.anchor) usedPA.add(pDay.anchor.id);
       const rDay = buildDay(
@@ -586,10 +625,10 @@ export function generateProgram(profile, EXERCISE_DB = []) {
       const pullEx = rDay.anchor ? [toEx(rDay.anchor, true)] : [];
       const legsEx = lDay.anchor ? [toEx(lDay.anchor, true)] : [];
 
-      const allAccessories = [];
       const pAcc = pDay.accessories.slice(0, Math.ceil((exCount - 3) / 3));
       const rAcc = rDay.accessories.slice(0, Math.ceil((exCount - 3) / 3));
       const lAcc = lDay.accessories.slice(0, Math.ceil((exCount - 3) / 3));
+      const allAccessories: Exercise[] = [];
       const maxAcc = exCount - 3;
       for (let i = 0; i < maxAcc; i++) {
         const pool = [pAcc, rAcc, lAcc];
@@ -607,7 +646,7 @@ export function generateProgram(profile, EXERCISE_DB = []) {
         note: 'Full body session — compound anchors for push, pull, and legs.',
         cardio: null,
         exercises,
-      };
+      } as any;
     }
 
     const fb1 = buildFullBodyDay(['push'], ['pull'], ['squat'], 1);
@@ -622,9 +661,6 @@ export function generateProgram(profile, EXERCISE_DB = []) {
 
   // PUSH / PULL 4-DAY
   if (splitType === 'push_pull') {
-    const pushPool = available.filter((e) => e.tag === 'PUSH');
-    const pullPool = available.filter((e) => e.tag === 'PULL');
-    const legsPool = available.filter((e) => e.tag === 'LEGS');
     const pushPlusLegs = available.filter(
       (e) => e.tag === 'PUSH' || (e.tag === 'LEGS' && e.pattern === 'squat')
     );
@@ -632,8 +668,8 @@ export function generateProgram(profile, EXERCISE_DB = []) {
       (e) => e.tag === 'PULL' || (e.tag === 'LEGS' && e.pattern === 'hinge')
     );
 
-    const usedPA = new Set(),
-      usedRA = new Set();
+    const usedPA = new Set<string | number | undefined>(),
+      usedRA = new Set<string | number | undefined>();
     const p1 = buildDay(pushPlusLegs, ['push'], ['Chest', 'Shoulders', 'Quads', 'Triceps'], usedPA);
     if (p1.anchor) usedPA.add(p1.anchor.id);
     const r1 = buildDay(

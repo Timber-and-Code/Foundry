@@ -3,6 +3,7 @@ import { EXERCISE_DB } from '../../data/exercises';
 import { GOAL_OPTIONS, TAG_ACCENT } from '../../data/constants';
 import { tokens } from '../../styles/tokens';
 import HammerIcon from '../shared/HammerIcon';
+import ExercisePicker from '../ui/ExercisePicker';
 
 interface SplitConfigEntry {
   label: string;
@@ -1103,9 +1104,9 @@ export default function ManualBuilderFlow({
                     borderRadius: tokens.radius.sm,
                     background:
                       count < 3
-                        ? 'rgba(var(--danger-rgb,220,38,38),0.1)'
+                        ? 'rgba(220,38,38,0.25)'
                         : 'rgba(var(--accent-rgb),0.12)',
-                    color: countColor,
+                    color: count < 3 ? '#fca5a5' : countColor,
                   }}
                 >
                   {count} selected
@@ -1149,128 +1150,16 @@ export default function ManualBuilderFlow({
                 </span>
               </div>
             ) : (
-              <>
-                {/* Selected order strip */}
-                {selected.length > 0 && (
-                  <div
-                    style={{
-                      padding: '10px 16px',
-                      borderBottom: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-inset)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: 'var(--text-muted)',
-                        letterSpacing: '0.05em',
-                        marginBottom: 6,
-                      }}
-                    >
-                      ORDER
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 4,
-                      }}
-                    >
-                      {selected.map((id, i) => {
-                        const ex = EXERCISE_DB.find((e) => e.id === id);
-                        if (!ex) return null;
-                        return (
-                          <span
-                            key={id}
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 700,
-                              padding: '3px 8px',
-                              borderRadius: tokens.radius.pill,
-                              background: i === 0 ? accent + '33' : 'var(--bg-surface)',
-                              border: `1px solid ${i === 0 ? accent : 'var(--border)'}`,
-                              color: i === 0 ? accent : 'var(--text-secondary)',
-                            }}
-                          >
-                            {i === 0 ? (
-                              <>
-                                <HammerIcon size={13} style={{ marginRight: 3 }} />
-                              </>
-                            ) : (
-                              `${i + 1}. `
-                            )}
-                            {ex.name}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Exercise groups */}
-                <div style={{ padding: '12px 16px' }}>
-                  {Object.entries(exGroups).map(([muscle, exs]) => (
-                    <div key={muscle} style={{ marginBottom: 12 }}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 700,
-                          letterSpacing: '0.05em',
-                          color: 'var(--text-muted)',
-                          marginBottom: 6,
-                        }}
-                      >
-                        {muscle.toUpperCase()}
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: 6,
-                        }}
-                      >
-                        {exs.map((ex) => {
-                          const isSel = selected.includes(ex.id);
-                          const isAnchor = selected[0] === ex.id;
-                          return (
-                            <button
-                              key={ex.id}
-                              onClick={() => toggleExercise(dayIdx, ex.id)}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: tokens.radius.md,
-                                cursor: 'pointer',
-                                fontSize: 12,
-                                fontWeight: isSel ? 700 : 500,
-                                background: isAnchor
-                                  ? accent + '33'
-                                  : isSel
-                                    ? 'rgba(var(--accent-rgb),0.1)'
-                                    : 'var(--bg-surface)',
-                                border: `1px solid ${isAnchor ? accent : isSel ? 'rgba(var(--accent-rgb),0.4)' : 'var(--border)'}`,
-                                color: isAnchor
-                                  ? accent
-                                  : isSel
-                                    ? 'var(--text-primary)'
-                                    : 'var(--text-muted)',
-                                transition: 'all 0.12s',
-                              }}
-                            >
-                              {isAnchor ? (
-                                <HammerIcon size={13} style={{ marginRight: 3 }} />
-                              ) : (
-                                ''
-                              )}
-                              {ex.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
+              <ExercisePicker
+                exercises={exGroups}
+                selected={selected}
+                onToggle={(exId) => toggleExercise(dayIdx, exId)}
+                onReorder={(newOrder) =>
+                  setDayExercises((prev) => ({ ...prev, [dayIdx]: newOrder }))
+                }
+                userEquipment={form.equipment}
+                accent={accent}
+              />
             )}
           </div>
         );

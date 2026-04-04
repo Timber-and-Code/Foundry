@@ -4,7 +4,7 @@
  *        loadDayWeekWithCarryover, archiveCurrentMeso
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { generateProgram } from '../program.js';
+import { generateProgram } from '../program';
 import {
   detectStallingLifts,
   detectSessionPRs,
