@@ -65,7 +65,7 @@ interface ExerciseCardProps {
   done: boolean;
   readOnly: boolean;
   onSwapClick: (exIdx: number) => void;
-  onSetLogged: (exIdx: number, setIdx: number) => void;
+  onSetLogged: (restStr: string, exName: string, setIdx: number, isLastSet?: boolean) => void;
   bodyweight: number | string | undefined;
   note: string;
   onNoteChange: (exIdx: number, value: string) => void;
@@ -85,7 +85,7 @@ function ExerciseCard({
   done,
   readOnly,
   onSwapClick,
-  onSetLogged: _onSetLogged,
+  onSetLogged,
   bodyweight: _bodyweight,
   note,
   onNoteChange,
@@ -213,6 +213,10 @@ function ExerciseCard({
     onUpdateSet(exIdx, s, 'confirmed', true);
     setDoneSets((prev) => new Set([...prev, s]));
     onLastSetFilled(exIdx, s);
+    // Kick off rest timer for this set
+    const totalSets = Number(exercise.sets) || 0;
+    const isLastSet = s === totalSets - 1;
+    onSetLogged(exercise.rest || '2 min', exercise.name, s, isLastSet);
     setRpePrompt(null);
   };
 
@@ -534,7 +538,7 @@ function ExerciseCard({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr auto',
+                  gridTemplateColumns: '1fr 1fr 1fr',
                   gap: 8,
                   marginBottom: 8,
                   fontSize: 11,
@@ -555,7 +559,7 @@ function ExerciseCard({
                     key={s}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr auto',
+                      gridTemplateColumns: '1fr 1fr 1fr',
                       gap: 8,
                       marginBottom: 6,
                       opacity: isDone ? 0.6 : 1,
@@ -603,18 +607,21 @@ function ExerciseCard({
                       aria-pressed={isDone}
                       aria-label={isDone ? `Set ${s + 1} complete — tap to undo` : `Mark set ${s + 1} complete`}
                       style={{
-                        width: 32,
-                        height: 32,
+                        width: '100%',
                         border: isDone ? '2px solid var(--success)' : '1px solid var(--border)',
                         borderRadius: tokens.radius.sm,
+                        padding: '6px 8px',
                         background: isDone ? 'var(--success)' : 'var(--bg-inset)',
-                        color: isDone ? 'white' : 'var(--text-primary)',
+                        color: isDone ? 'white' : 'var(--text-muted)',
                         cursor: readOnly ? 'default' : 'pointer',
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
-                      <span aria-hidden="true">{isDone ? '✓' : ''}</span>
+                      <span aria-hidden="true">{isDone ? '✓' : '✓'}</span>
                     </button>
                   </div>
                 );
