@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { FOUNDRY_PROFILE_IMG } from '../../data/images-profile';
+
+const AccountSection = React.lazy(() => import('../auth/UserMenu'));
 
 const FOUNDRY_AI_WORKER_URL = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 const FOUNDRY_APP_KEY = import.meta.env.VITE_FOUNDRY_APP_KEY;
@@ -527,6 +529,19 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               </button>
             </div>
           )}
+
+          {/* Account section */}
+          <div
+            style={{
+              height: 1,
+              background: 'linear-gradient(90deg, transparent, rgba(232,101,26,0.2), transparent)',
+              margin: '4px 0',
+            }}
+          />
+          <div style={{ ...labelStyle, marginTop: 4 }}>ACCOUNT</div>
+          <Suspense fallback={null}>
+            <AccountSection />
+          </Suspense>
 
           {/* Data section */}
           <div

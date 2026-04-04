@@ -1778,58 +1778,6 @@ function HomeTab({
         {/* Mobility soft CTA */}
         <MobilityCard todayCardioStr={todayCardioStr} onOpenMobility={onOpenMobility} />
 
-        {/* Data management shortcut */}
-        <button
-          onClick={() => goTo('datamgmt')}
-          style={{
-            width: '100%',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg,
-            padding: '12px 16px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--text-muted)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-              }}
-            >
-              Import / Export Data
-            </span>
-          </div>
-          <span
-            style={{
-              fontSize: 14,
-              color: 'var(--text-muted)',
-              fontWeight: 700,
-            }}
-          >
-            ›
-          </span>
-        </button>
 
         {/* Go Pro banner */}
         <button

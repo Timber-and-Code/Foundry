@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -11,7 +11,6 @@ import { RestTimerProvider, useRestTimer } from './contexts/RestTimerContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PageSkeleton } from './components/ui/Skeleton';
 const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
-const UserMenu = React.lazy(() => import('./components/auth/UserMenu'));
 
 // Data
 import {
@@ -35,6 +34,7 @@ migrateKeys();
 
 // Components
 import FoundryBanner from './components/shared/FoundryBanner';
+import { useSyncState } from './hooks/useSyncState';
 import ErrorBoundary from './components/ErrorBoundary';
 import MinimizedTimerBar from './components/MinimizedTimerBar';
 import WeekCompleteModal from './components/WeekCompleteModal';
@@ -144,6 +144,7 @@ function App() {
   const [showSetup, setShowSetup] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const syncState = useSyncState();
   const homeTabRef = useRef<((tab: string) => void) | null>(null);
 
   const {
@@ -183,13 +184,13 @@ function App() {
     return () => window.removeEventListener('foundry:openCardio', handler);
   }, [navigate]);
 
-  // Show tour once after first program generated
+  // Show tour if flagged (e.g. on reload after setup, or first visit)
   useEffect(() => {
     if (store.get('foundry:show_tour') === '1' && !store.get('foundry:toured')) {
       localStorage.removeItem('foundry:show_tour');
       setTimeout(() => setShowTour(true), 800);
     }
-  }, []);
+  }, [profile]);
 
   // ── Onboarding gate ──
   // Early returns use React.lazy components — must wrap in Suspense
@@ -307,7 +308,7 @@ function App() {
           <FoundryBanner
             subtitle={`${profile.name ? profile.name.toUpperCase() + ' · ' : ''}${getMeso().weeks}WK ${(getMeso().splitType || 'ppl').toUpperCase().replace(/_/g, ' ')} · WEEK ${activeWeek + 1}`}
             onProfileTap={isHome ? () => setShowProfileDrawer(true) : undefined}
-            userMenu={<Suspense fallback={null}><UserMenu /></Suspense>}
+            syncState={syncState}
           />
         </div>
 

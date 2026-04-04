@@ -338,16 +338,18 @@ function ExerciseCard({
           }}
         >
           {/* Icon / Status */}
-          <div
-            style={{
-              fontSize: 18,
-              width: 24,
-              textAlign: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {done ? '✓' : exercise.cardio ? '♪' : '💪'}
-          </div>
+          {(done || exercise.cardio) && (
+            <div
+              style={{
+                fontSize: 18,
+                width: 24,
+                textAlign: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {done ? '✓' : '♪'}
+            </div>
+          )}
 
           {/* Title + Badge */}
           <div

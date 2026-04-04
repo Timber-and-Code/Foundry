@@ -11,7 +11,6 @@ import {
   hasAnyNotes,
   hasAnyExtraNotes,
   getWorkoutDaysForWeek,
-  saveCurrentWeek,
 } from '../../utils/store';
 import RestDaySheet from './RestDaySheet';
 import EditScheduleSheet from './EditScheduleSheet';
@@ -51,97 +50,6 @@ const overviewIcon = (color: any) => (
     <polyline points="12 6 12 12 16 14" />
   </svg>
 );
-
-// ── WeekSection ────────────────────────────────────────────────────────────
-
-function WeekSection({ weekIdx, isExpanded, onToggle, activeDays, completedDays, onSelectDay, currentWeek: _currentWeek }: { weekIdx: any; isExpanded: any; onToggle: any; activeDays: any; completedDays: any; onSelectDay: (dayIdx: any, weekIdx: any) => void; currentWeek?: any }) {
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <button
-        onClick={onToggle}
-        aria-expanded={isExpanded}
-        aria-label={`Week ${weekIdx + 1} — ${isExpanded ? 'collapse' : 'expand'}`}
-        style={{
-          width: '100%',
-          cursor: 'pointer',
-          padding: '12px 16px',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: tokens.radius.lg,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          textAlign: 'left',
-        }}
-      >
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-          }}
-        >
-          Week {weekIdx + 1}
-        </span>
-        <span aria-hidden="true" style={{ fontSize: 12, color: 'var(--text-muted)' }}>{isExpanded ? '▼' : '▶'}</span>
-      </button>
-      {isExpanded && (
-        <div
-          style={{
-            padding: '8px 0',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-          }}
-        >
-          {activeDays.map((day: any, i: any) => {
-            const done = completedDays.has(`${i}:${weekIdx}`);
-            return (
-              <button
-                key={i}
-                onClick={() => !done && onSelectDay(i, weekIdx)}
-                disabled={done}
-                aria-label={`${day.label}${done ? ' — completed' : ''}`}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '10px 16px',
-                  fontSize: 12,
-                  color: done ? 'var(--text-muted)' : 'var(--text-primary)',
-                  cursor: done ? 'default' : 'pointer',
-                  background: done ? 'var(--bg-inset)' : 'transparent',
-                  border: 'none',
-                  borderRadius: tokens.radius.sm,
-                }}
-              >
-                <span aria-hidden="true">{done ? '✓ ' : ''}</span>
-                {day.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DeloadSection() {
-  return (
-    <div
-      style={{
-        padding: '12px 16px',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: tokens.radius.lg,
-        marginBottom: 8,
-      }}
-    >
-      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-accent)' }}>
-        Deload Week
-      </span>
-    </div>
-  );
-}
 
 // ── NoteViewer ─────────────────────────────────────────────────────────────
 
@@ -273,8 +181,8 @@ interface ScheduleTabProps {
   currentWeek: any;
   calendarOffset: any;
   setCalendarOffset: (v: any) => void;
-  expandedWeek: any;
-  setExpandedWeek: (v: any) => void;
+  expandedWeek?: any;
+  setExpandedWeek?: (v: any) => void;
   showRestDay: any;
   setShowRestDay: (v: any) => void;
   showEditSchedule: any;
@@ -285,7 +193,7 @@ interface ScheduleTabProps {
   setSkipVersion: (v: any) => void;
   goBack: () => void;
   goTo: (v: any) => void;
-  onSelectDay: (v: any) => void;
+  onSelectDay?: (v: any) => void;
   onSelectDayWeek: (dayIdx: any, weekIdx: any) => void;
   onOpenExtra: (v: any) => void;
   onOpenCardio: (dateStr: any, protocolId: any) => void;
@@ -305,8 +213,8 @@ function ScheduleTab({
   currentWeek,
   calendarOffset,
   setCalendarOffset,
-  expandedWeek,
-  setExpandedWeek,
+  expandedWeek: _expandedWeek,
+  setExpandedWeek: _setExpandedWeek,
   showRestDay,
   setShowRestDay,
   showEditSchedule,
@@ -317,11 +225,11 @@ function ScheduleTab({
   setSkipVersion: _setSkipVersion,
   goBack,
   goTo,
-  onSelectDay,
+  onSelectDay: _onSelectDay,
   onSelectDayWeek,
   onOpenExtra,
   onOpenCardio,
-  setCurrentWeek,
+  setCurrentWeek: _setCurrentWeek,
   onProfileUpdate,
   setAddWorkoutModal,
   setAddWorkoutStep,
@@ -936,40 +844,6 @@ function ScheduleTab({
             })}
           </div>
         </button>
-      </div>
-
-      {/* Weekly sessions */}
-      <div style={{ padding: '8px 16px 0' }}>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            color: 'var(--text-muted)',
-            padding: '8px 0 10px',
-          }}
-        >
-          SESSIONS BY WEEK
-        </div>
-      </div>
-      <div style={{ padding: '0 16px' }}>
-        {Array.from({ length: getMeso().weeks }, (_, w) => (
-          <WeekSection
-            key={w}
-            weekIdx={w}
-            currentWeek={activeWeek}
-            onSelectDay={(dayIdx, weekIdx) => {
-              setCurrentWeek(weekIdx);
-              saveCurrentWeek(weekIdx);
-              onSelectDay(dayIdx);
-            }}
-            completedDays={completedDays}
-            isExpanded={expandedWeek === w}
-            onToggle={() => setExpandedWeek(expandedWeek === w ? null : w)}
-            activeDays={activeDays}
-          />
-        ))}
-        <DeloadSection />
       </div>
 
       {/* Sheet overlays */}

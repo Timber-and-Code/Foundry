@@ -1,173 +1,20 @@
 import React from 'react';
-import { loadArchive, importData, exportData } from '../../utils/store';
+import { loadArchive } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
+import { getMeso, getWeekPhase, getMesoRows, getProgTargets, PHASE_COLOR } from '../../data/constants';
 
 interface MesoOverviewProps {
   tab: string;
   goBack: () => void;
   goTo: (tab: string) => void;
-  setShowReset: (v: any) => void;
   activeDays: any[];
   completedDays: any[];
   profile: any;
 }
 
-// ── Sub-views ──────────────────────────────────────────────────────────────
+// ── SubHeader ─────────────────────────────────────────────────────────────
 
-function MesoOverviewContent() {
-  return <div style={{ padding: 16, fontSize: 12, color: 'var(--text-muted)' }}>Meso overview</div>;
-}
-
-function MesoHistory({ goBack }: { goBack: () => void; goTo?: (tab: string) => void }) {
-  const archive = loadArchive?.() || [];
-  return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '16px',
-        }}
-      >
-        <button
-          onClick={goBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-accent)',
-            fontSize: 18,
-            cursor: 'pointer',
-            minWidth: 44,
-            minHeight: 44,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          ←
-        </button>
-        <span
-          style={{
-            fontSize: 16,
-            fontWeight: 800,
-            color: 'var(--text-primary)',
-          }}
-        >
-          Meso History
-        </span>
-      </div>
-      {archive.length === 0 ? (
-        <div
-          style={{
-            padding: 20,
-            textAlign: 'center',
-            color: 'var(--text-muted)',
-            fontSize: 13,
-          }}
-        >
-          No archived mesocycles yet
-        </div>
-      ) : (
-        <div
-          style={{
-            padding: '0 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-          }}
-        >
-          {archive.map((entry, idx) => (
-            <div
-              key={idx}
-              style={{
-                padding: 16,
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: tokens.radius.lg,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                }}
-              >
-                {String(entry.profile?.split || 'Program')} — {String(entry.profile?.weeks || '?')} weeks
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: 'var(--text-muted)',
-                  marginTop: 4,
-                }}
-              >
-                Archived {String(entry.date || 'unknown date')}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function WeeklySummary({ activeDays: _activeDays, completedDays: _completedDays, goBack, profile: _profile }: { activeDays: any; completedDays: any; goBack: any; profile: any }) {
-  return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '16px',
-        }}
-      >
-        <button
-          onClick={goBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-accent)',
-            fontSize: 18,
-            cursor: 'pointer',
-            minWidth: 44,
-            minHeight: 44,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          ←
-        </button>
-        <span
-          style={{
-            fontSize: 16,
-            fontWeight: 800,
-            color: 'var(--text-primary)',
-          }}
-        >
-          Weekly Summary
-        </span>
-      </div>
-      <div
-        style={{
-          padding: 20,
-          textAlign: 'center',
-          color: 'var(--text-muted)',
-          fontSize: 13,
-        }}
-      >
-        Weekly summary view coming soon
-      </div>
-    </div>
-  );
-}
-
-// ── SubHeader used by overview tab ────────────────────────────────────────
-
-function SubHeader({ label, goBack }: { label: any; goBack: any }) {
+function SubHeader({ label, goBack }: { label: string; goBack: () => void }) {
   return (
     <div
       style={{
@@ -197,7 +44,7 @@ function SubHeader({ label, goBack }: { label: any; goBack: any }) {
           justifyContent: 'center',
         }}
       >
-        ‹
+        <span aria-hidden="true">‹</span>
       </button>
       <span
         style={{
@@ -213,220 +60,393 @@ function SubHeader({ label, goBack }: { label: any; goBack: any }) {
   );
 }
 
-// ── Data Management tab content ────────────────────────────────────────────
+// ── Meso Overview Content ─────────────────────────────────────────────────
 
-function DataManagement({ goBack, setShowReset }: { goBack: any; setShowReset: any }) {
+function MesoOverviewContent() {
+  const meso = getMeso();
+  const phases = getWeekPhase();
+  const mesoRows = getMesoRows();
+  const progTargets = getProgTargets();
+  const currentWeek = parseInt(localStorage.getItem('foundry:currentWeek') || '0');
+
+  const splitLabels: Record<string, string> = {
+    ppl: 'Push / Pull / Legs',
+    upper_lower: 'Upper / Lower',
+    full_body: 'Full Body',
+  };
+
+  // Group weeks by phase for the phase summary
+  const phaseGroups: { phase: string; weeks: number[]; color: string }[] = [];
+  phases.forEach((phase, idx) => {
+    const last = phaseGroups[phaseGroups.length - 1];
+    if (last && last.phase === phase) {
+      last.weeks.push(idx);
+    } else {
+      phaseGroups.push({
+        phase,
+        weeks: [idx],
+        color: (PHASE_COLOR as Record<string, string>)[phase] || 'var(--accent)',
+      });
+    }
+  });
+
   return (
-    <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
-      <SubHeader label="DATA MANAGEMENT" goBack={goBack} />
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Program summary card */}
       <div
         style={{
-          padding: '20px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: tokens.radius.lg,
+          padding: '16px',
         }}
       >
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg,
-            overflow: 'hidden',
-          }}
-        >
-          <button
-            onClick={exportData}
-            className="btn-row"
-            style={{
-              width: '100%',
-              padding: '16px',
-              cursor: 'pointer',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-              textAlign: 'left',
-            }}
-          >
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: tokens.radius.md,
-                background: 'rgba(var(--accent-rgb),0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20,
-                flexShrink: 0,
-              }}
-            >
-              ⬇
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 10 }}>
+          PROGRAM
+        </div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 2 }}>Split</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+              {splitLabels[meso.splitType] || meso.splitType}
             </div>
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  letterSpacing: '0.02em',
-                  color: 'var(--accent)',
-                }}
-              >
-                Export backup
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: 'var(--text-muted)',
-                  marginTop: 2,
-                }}
-              >
-                Download all your workout data as JSON
-              </div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 2 }}>Duration</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+              {meso.weeks} weeks + deload
             </div>
-            <div style={{ color: 'var(--text-dim)', fontSize: 18 }}>›</div>
-          </button>
-          <label
-            style={{
-              width: '100%',
-              padding: '16px',
-              cursor: 'pointer',
-              background: 'transparent',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-              boxSizing: 'border-box',
-            }}
-          >
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: tokens.radius.md,
-                background: 'rgba(var(--accent-rgb),0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20,
-                flexShrink: 0,
-              }}
-            >
-              ⬆
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 2 }}>Sessions/wk</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+              {meso.days}
             </div>
-            <div style={{ flex: 1 }}>
+          </div>
+        </div>
+      </div>
+
+      {/* Phase progression bar */}
+      <div
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: tokens.radius.lg,
+          padding: '16px',
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 12 }}>
+          PHASE PROGRESSION
+        </div>
+        <div style={{ display: 'flex', gap: 2, marginBottom: 12 }}>
+          {phases.map((phase, w) => {
+            const color = (PHASE_COLOR as Record<string, string>)[phase] || 'var(--accent)';
+            const isCurrent = w === currentWeek;
+            return (
               <div
+                key={w}
                 style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  letterSpacing: '0.02em',
-                  color: 'var(--accent)',
+                  flex: 1,
+                  height: isCurrent ? 8 : 6,
+                  borderRadius: 3,
+                  background: color,
+                  opacity: w <= currentWeek ? 1 : 0.3,
+                  transition: 'all 0.2s',
+                  border: isCurrent ? `1px solid ${color}` : 'none',
+                  boxShadow: isCurrent ? `0 0 6px ${color}55` : 'none',
                 }}
-              >
-                Import backup
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: 'var(--text-muted)',
-                  marginTop: 2,
-                }}
-              >
-                Restore from a previously exported file
-              </div>
-            </div>
-            <div style={{ color: 'var(--text-dim)', fontSize: 18 }}>›</div>
-            <input
-              type="file"
-              accept=".json"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                importData(file, (ok: any) => {
-                  if (ok) {
-                    alert('Data restored! Reloading...');
-                    window.location.reload();
-                  } else {
-                    alert('Import failed — invalid backup file.');
-                  }
-                });
-              }}
-            />
-          </label>
-          <button
-            onClick={() => setShowReset(true)}
-            className="btn-danger"
-            style={{
-              width: '100%',
-              padding: '16px',
-              cursor: 'pointer',
-              background: 'transparent',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-              textAlign: 'left',
-            }}
-          >
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: tokens.radius.md,
-                background: 'rgba(var(--accent-rgb),0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
-                  color: 'var(--danger)',
-                }}
-              >
-                RST
+                title={`Week ${w + 1} — ${phase}`}
+              />
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {phaseGroups.map(({ phase, weeks, color }) => (
+            <div key={phase} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                {phase} <span style={{ color: 'var(--text-dim)' }}>W{weeks[0] + 1}–{weeks[weeks.length - 1] + 1}</span>
               </span>
             </div>
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  letterSpacing: '0.02em',
-                  color: 'var(--danger)',
-                }}
-              >
-                Reset meso cycle
+          ))}
+        </div>
+      </div>
+
+      {/* Week-by-week breakdown */}
+      <div
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: tokens.radius.lg,
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ padding: '16px 16px 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
+          WEEK-BY-WEEK BREAKDOWN
+        </div>
+        {mesoRows.map((row, i) => {
+          const [weekIdx, rir, phase, guidance] = row;
+          const isDeload = weekIdx === null;
+          const weekNum = isDeload ? 'D' : weekIdx + 1;
+          const color = (PHASE_COLOR as Record<string, string>)[phase] || 'var(--phase-deload)';
+          const isCurrent = weekIdx === currentWeek;
+          const weightProg = !isDeload && progTargets.weight[weekIdx] ? progTargets.weight[weekIdx] : null;
+          const repsProg = !isDeload && progTargets.reps[weekIdx] ? progTargets.reps[weekIdx] : null;
+
+          return (
+            <div
+              key={i}
+              style={{
+                padding: '12px 16px',
+                borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.04))',
+                background: isCurrent ? `${color}0a` : 'transparent',
+                borderLeft: isCurrent ? `3px solid ${color}` : '3px solid transparent',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: tokens.radius.sm,
+                    background: `${color}20`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: color,
+                    flexShrink: 0,
+                  }}
+                >
+                  {weekNum}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {isDeload ? 'Deload' : phase}
+                    </span>
+                    {isCurrent && (
+                      <span
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 800,
+                          letterSpacing: '0.08em',
+                          color: color,
+                          background: `${color}18`,
+                          border: `1px solid ${color}33`,
+                          borderRadius: tokens.radius.sm,
+                          padding: '1px 5px',
+                        }}
+                      >
+                        CURRENT
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: color,
+                    background: `${color}12`,
+                    padding: '3px 8px',
+                    borderRadius: tokens.radius.sm,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {rir}
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: 'var(--text-muted)',
-                  marginTop: 2,
-                }}
-              >
-                Erase all progress and start fresh
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginLeft: 38 }}>
+                {guidance}
               </div>
+              {(weightProg || repsProg) && (
+                <div style={{ display: 'flex', gap: 8, marginLeft: 38, marginTop: 6 }}>
+                  {weightProg && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: 'var(--text-muted)',
+                        background: 'rgba(255,255,255,0.04)',
+                        padding: '2px 6px',
+                        borderRadius: tokens.radius.xs,
+                      }}
+                    >
+                      Load: {weightProg}
+                    </span>
+                  )}
+                  {repsProg && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: 'var(--text-muted)',
+                        background: 'rgba(255,255,255,0.04)',
+                        padding: '2px 6px',
+                        borderRadius: tokens.radius.xs,
+                      }}
+                    >
+                      Reps: {repsProg}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
-            <div style={{ color: 'var(--text-dim)', fontSize: 18 }}>›</div>
-          </button>
+          );
+        })}
+      </div>
+
+      {/* Volume philosophy card */}
+      <div
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: tokens.radius.lg,
+          padding: '16px',
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 10 }}>
+          VOLUME STRATEGY
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[
+            { label: 'MEV', desc: 'Minimum Effective Volume — early weeks build baseline with fewer sets', color: 'var(--phase-accum)' },
+            { label: 'MAV', desc: 'Maximum Adaptive Volume — mid-meso sweet spot for growth stimulus', color: 'var(--phase-intens)' },
+            { label: 'MRV', desc: 'Maximum Recoverable Volume — peak weeks push volume to the limit', color: 'var(--phase-peak)' },
+          ].map(({ label, desc, color }) => (
+            <div key={label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <div
+                style={{
+                  width: 36,
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  color: color,
+                  background: `${color}15`,
+                  padding: '3px 0',
+                  borderRadius: tokens.radius.xs,
+                  textAlign: 'center',
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}
+              >
+                {label}
+              </div>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                {desc}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Main export: renders the correct sub-view based on tab ─────────────────
+// ── Meso History ──────────────────────────────────────────────────────────
 
-function MesoOverview({ tab, goBack, goTo, setShowReset, activeDays, completedDays, profile }: MesoOverviewProps) {
+function MesoHistory({ goBack }: { goBack: () => void }) {
+  const archive = loadArchive?.() || [];
+  return (
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '16px',
+        }}
+      >
+        <button
+          onClick={goBack}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-accent)',
+            fontSize: 18,
+            cursor: 'pointer',
+            minWidth: 44,
+            minHeight: 44,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <span aria-hidden="true">←</span>
+        </button>
+        <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+          Meso History
+        </span>
+      </div>
+      {archive.length === 0 ? (
+        <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          No archived mesocycles yet
+        </div>
+      ) : (
+        <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {archive.map((entry, idx) => (
+            <div
+              key={idx}
+              style={{
+                padding: 16,
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: tokens.radius.lg,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {String(entry.profile?.split || 'Program')} — {String(entry.profile?.weeks || '?')} weeks
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                Archived {String(entry.date || 'unknown date')}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Weekly Summary ────────────────────────────────────────────────────────
+
+function WeeklySummary({ goBack }: { activeDays: any; completedDays: any; goBack: any; profile: any }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px' }}>
+        <button
+          onClick={goBack}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-accent)',
+            fontSize: 18,
+            cursor: 'pointer',
+            minWidth: 44,
+            minHeight: 44,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <span aria-hidden="true">←</span>
+        </button>
+        <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+          Weekly Summary
+        </span>
+      </div>
+      <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+        Weekly summary view coming soon
+      </div>
+    </div>
+  );
+}
+
+// ── Main export ───────────────────────────────────────────────────────────
+
+function MesoOverview({ tab, goBack, goTo: _goTo, activeDays, completedDays, profile }: MesoOverviewProps) {
   if (tab === 'overview') {
     return (
       <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
@@ -436,12 +456,8 @@ function MesoOverview({ tab, goBack, goTo, setShowReset, activeDays, completedDa
     );
   }
 
-  if (tab === 'datamgmt') {
-    return <DataManagement goBack={goBack} setShowReset={setShowReset} />;
-  }
-
   if (tab === 'history') {
-    return <MesoHistory goBack={goBack} goTo={goTo} />;
+    return <MesoHistory goBack={goBack} />;
   }
 
   if (tab === 'weekly') {

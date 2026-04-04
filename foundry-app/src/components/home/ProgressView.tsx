@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { tokens } from '../../styles/tokens';
+import HammerIcon from '../shared/HammerIcon';
 import {
   TAG_ACCENT,
   PHASE_COLOR,
@@ -997,21 +998,6 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         >
           PROGRESS
         </span>
-        <button
-          onClick={() => goTo('datamgmt')}
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'var(--accent)',
-            background: 'none',
-            border: '1px solid var(--border)',
-            borderRadius: tokens.radius.sm,
-            cursor: 'pointer',
-            padding: '5px 10px',
-          }}
-        >
-          Import / Export
-        </button>
       </div>
 
       <div style={{ padding: '0 16px 24px' }}>
@@ -1122,7 +1108,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                               color: 'var(--text-primary)',
                             }}
                           >
-                            ⭐ {a.name}
+                            <HammerIcon size={14} style={{ marginRight: 4 }} />{a.name}
                           </span>
                           {a.isPR && (
                             <span
@@ -1373,7 +1359,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                               fontWeight: 600,
                             }}
                           >
-                            {lift.anchor && '⭐ '}
+                            {lift.anchor && <HammerIcon size={13} style={{ marginRight: 4 }} />}
                             {lift.name}
                           </span>
                           {lift.muscle && (

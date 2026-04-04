@@ -1,14 +1,37 @@
-import React from 'react';
 import { tokens } from '../../styles/tokens';
 import { FOUNDRY_ANVIL_IMG } from '../../data/images-core';
+import type { SyncState } from '../../hooks/useSyncState';
+
+const SYNC_ICON_COLOR: Record<SyncState, string> = {
+  idle:    '#C0885A',
+  syncing: '#60a5fa',
+  synced:  '#4ade80',
+  offline: '#f87171',
+};
+
+const SYNC_ICON_GLOW: Record<SyncState, string> = {
+  idle:    'none',
+  syncing: '0 0 8px rgba(96,165,250,0.5)',
+  synced:  '0 0 8px rgba(74,222,128,0.4)',
+  offline: '0 0 8px rgba(248,113,113,0.4)',
+};
+
+const SYNC_ICON_TITLE: Record<SyncState, string> = {
+  idle:    'Cloud sync active',
+  syncing: 'Syncing…',
+  synced:  'Synced',
+  offline: 'Offline — changes saved locally',
+};
 
 interface FoundryBannerProps {
   subtitle?: string;
   onProfileTap?: () => void;
-  userMenu?: React.ReactNode;
+  syncState?: SyncState;
 }
 
-function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps) {
+function FoundryBanner({ subtitle, onProfileTap, syncState = 'idle' }: FoundryBannerProps) {
+  const iconColor = SYNC_ICON_COLOR[syncState];
+  const iconGlow = SYNC_ICON_GLOW[syncState];
   return (
     <header
       role="banner"
@@ -76,11 +99,10 @@ function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps)
           )}
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {userMenu}
-        {onProfileTap && (
+      {onProfileTap && (
         <button
           onClick={onProfileTap}
+          title={SYNC_ICON_TITLE[syncState]}
           style={{
             background: 'none',
             border: 'none',
@@ -91,15 +113,14 @@ function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps)
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#C0885A',
-            transition: 'color 0.15s',
+            color: iconColor,
+            transition: 'color 0.4s, filter 0.4s',
+            filter: iconGlow !== 'none' ? `drop-shadow(${iconGlow})` : 'none',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = tokens.colors.amber)}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#C0885A')}
         >
           <svg
-            width="20"
-            height="20"
+            width="22"
+            height="22"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -111,8 +132,7 @@ function FoundryBanner({ subtitle, onProfileTap, userMenu }: FoundryBannerProps)
             <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
           </svg>
         </button>
-        )}
-      </div>
+      )}
     </header>
   );
 }

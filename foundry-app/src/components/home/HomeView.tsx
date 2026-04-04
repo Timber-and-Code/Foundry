@@ -770,12 +770,11 @@ function HomeView({
         />
       )}
 
-      {['overview', 'datamgmt', 'history', 'weekly'].includes(tab) && (
+      {['overview', 'history', 'weekly'].includes(tab) && (
         <MesoOverview
           tab={tab}
           goBack={goBack}
           goTo={goTo}
-          setShowReset={setShowReset}
           activeDays={activeDays}
           completedDays={completedDays}
           profile={profile}
