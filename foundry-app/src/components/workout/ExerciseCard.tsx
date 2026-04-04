@@ -103,6 +103,7 @@ function ExerciseCard({
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
   const [showHowTo, setShowHowTo] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
+  const [rpePrompt, setRpePrompt] = useState<number | null>(null);
   const [noteOpen, _setNoteOpen] = useState(!!(note && note.trim()));
 
   // Load prev week raw data for "Last session" context hints
@@ -203,12 +204,16 @@ function ExerciseCard({
     const setData = (weekData[exIdx] || {})[s] || { weight: '', reps: '' };
     // Only allow check if reps are entered
     if (!setData.reps || setData.reps === '') return;
-    // Write confirmed flag so doneSets restores correctly on remount
-    // Also clear repsSuggested so stall detection counts this as real data
+    // Open RPE prompt — user picks Easy/Good/Hard, then set is confirmed
+    setRpePrompt(s);
+  };
+
+  const handleRpeSelect = (s: number, rpeLabel: string) => {
+    onUpdateSet(exIdx, s, 'rpe', rpeLabel);
     onUpdateSet(exIdx, s, 'confirmed', true);
     setDoneSets((prev) => new Set([...prev, s]));
-    // Track that user confirmed at least one set — used for "Last set filled" tracking
     onLastSetFilled(exIdx, s);
+    setRpePrompt(null);
   };
 
   // Compute stall detection based on previous week's set data and this week's input
@@ -529,7 +534,7 @@ function ExerciseCard({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr auto',
+                  gridTemplateColumns: '1fr 1fr auto',
                   gap: 8,
                   marginBottom: 8,
                   fontSize: 11,
@@ -540,7 +545,6 @@ function ExerciseCard({
               >
                 <div>Weight (lbs)</div>
                 <div>Reps</div>
-                <div>RPE</div>
                 <div>✓</div>
               </div>
               {Array.from({ length: exercise.sets }).map((_, s) => {
@@ -551,7 +555,7 @@ function ExerciseCard({
                     key={s}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr 1fr auto',
+                      gridTemplateColumns: '1fr 1fr auto',
                       gap: 8,
                       marginBottom: 6,
                       opacity: isDone ? 0.6 : 1,
@@ -582,23 +586,6 @@ function ExerciseCard({
                       aria-label={`Set ${s + 1} reps`}
                       onChange={(e) => handleRepsChange(s, e.target.value)}
                       onBlur={(e) => handleRepsBlur(s, e.target.value)}
-                      disabled={isDone || readOnly}
-                      style={{
-                        background: 'var(--bg-inset)',
-                        border: '1px solid var(--border)',
-                        borderRadius: tokens.radius.sm,
-                        padding: '6px 8px',
-                        fontSize: 13,
-                        color: 'var(--text-primary)',
-                        outline: 'none',
-                      }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="—"
-                      value={sd.rpe || ''}
-                      aria-label={`Set ${s + 1} RPE`}
-                      onChange={(e) => onUpdateSet(exIdx, s, 'rpe', e.target.value)}
                       disabled={isDone || readOnly}
                       style={{
                         background: 'var(--bg-inset)',
@@ -700,6 +687,96 @@ function ExerciseCard({
                   outline: 'none',
                 }}
               />
+            </div>
+          )}
+
+          {/* RPE Prompt */}
+          {rpePrompt !== null && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="rpe-prompt-title"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.5)',
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onClick={() => setRpePrompt(null)}
+            >
+              <div
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.lg,
+                  padding: 20,
+                  maxWidth: 320,
+                  width: '90%',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  id="rpe-prompt-title"
+                  style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, color: 'var(--text-primary)' }}
+                >
+                  How did that feel?
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--text-muted)',
+                    letterSpacing: '0.08em',
+                    marginBottom: 16,
+                  }}
+                >
+                  SET {rpePrompt + 1} — RPE
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    { label: 'Easy', hint: 'Could do 3+ more reps', color: 'var(--success)' },
+                    { label: 'Good', hint: '1–2 reps in reserve', color: 'var(--text-accent)' },
+                    { label: 'Hard', hint: 'At or near failure', color: 'var(--danger)' },
+                  ].map(({ label, hint, color }) => (
+                    <button
+                      key={label}
+                      onClick={() => handleRpeSelect(rpePrompt, label)}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: tokens.radius.md,
+                        background: 'var(--bg-inset)',
+                        border: `1px solid ${color}`,
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <div style={{ fontSize: 14, fontWeight: 700, color }}>{label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{hint}</div>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setRpePrompt(null)}
+                  style={{
+                    marginTop: 12,
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 

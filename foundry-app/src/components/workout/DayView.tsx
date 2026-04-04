@@ -675,6 +675,26 @@ function DayView({
             </button>
           </div>
         )}
+
+        {/* ── Exercise Swap Sheet (pre-workout-start) ──────────────────── */}
+        <Sheet open={swapTarget !== null} onClose={() => setSwapTarget(null)}>
+          <div style={{ padding: '8px 16px 4px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+            Swap Exercise
+          </div>
+          <div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--text-muted)' }}>
+            {swapTarget !== null && exercises[swapTarget.exIdx]
+              ? `Replacing: ${exercises[swapTarget.exIdx].name}`
+              : 'Select a replacement'}
+          </div>
+          <ExercisePicker
+            exercises={swapExGroups}
+            selected={[]}
+            onToggle={handleSwap}
+            onReorder={() => {}}
+            userEquipment={profile?.equipment}
+            autoExpandMuscle={swapMuscle}
+          />
+        </Sheet>
       </div>
     );
   }
