@@ -30,7 +30,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: foundry-app
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Build
         working-directory: foundry-app
