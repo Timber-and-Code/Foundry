@@ -21,9 +21,28 @@ export const store = {
   set: (key: string, val: string): void => {
     try {
       localStorage.setItem(key, val);
-      if (_markDirty && SYNC_TRACKED.test(key)) _markDirty(key);
+      if (SYNC_TRACKED.test(key)) {
+        localStorage.setItem('foundry:ts:' + key, new Date().toISOString());
+        if (_markDirty) _markDirty(key);
+      }
     } catch (e) {
       console.warn('[Foundry]', 'Failed to write to localStorage', e);
+    }
+  },
+  /** Write from remote sync — sets the value and timestamp without marking dirty */
+  setFromRemote: (key: string, val: string, remoteTs: string): void => {
+    try {
+      localStorage.setItem(key, val);
+      localStorage.setItem('foundry:ts:' + key, remoteTs);
+    } catch (e) {
+      console.warn('[Foundry]', 'Failed to write from remote', e);
+    }
+  },
+  getTimestamp: (key: string): string | null => {
+    try {
+      return localStorage.getItem('foundry:ts:' + key);
+    } catch {
+      return null;
     }
   },
 };

@@ -14,9 +14,36 @@ import {
 import { haptic } from '../../utils/helpers';
 import { TAG_ACCENT, getMeso } from '../../data/constants';
 import ExerciseCard from './ExerciseCard';
+import type { Profile, TrainingDay, Exercise } from '../../types';
+
+interface SwapModalProps {
+  exercise: Exercise;
+  dayTag: string;
+  profile: Profile;
+  onSwap: (ex: Exercise) => void;
+  onClose: () => void;
+}
+
+interface AddExerciseModalProps {
+  dayTag: string;
+  profile: Profile;
+  currentExerciseIds?: (string | number | undefined)[];
+  onAdd: (ex: Exercise) => void;
+  onClose: () => void;
+}
+
+interface WorkoutCompleteModalProps {
+  dayLabel: string;
+  dayTag: string;
+  gender: string;
+  stats: { totalSets: number; duration?: string | null } | null;
+  weekIdx: number;
+  onDone: () => void;
+  onClose: () => void;
+}
 
 // Stub modal components (to be fully built out later)
-const SwapModal = ({ exercise: _exercise, dayTag: _dayTag, profile: _profile, onSwap: _onSwap, onClose }: any) => (
+const SwapModal = ({ exercise: _exercise, dayTag: _dayTag, profile: _profile, onSwap: _onSwap, onClose }: SwapModalProps) => (
   <div
     style={{
       position: 'fixed',
@@ -73,7 +100,7 @@ const SwapModal = ({ exercise: _exercise, dayTag: _dayTag, profile: _profile, on
   </div>
 );
 
-const AddExerciseModal = ({ dayTag: _dayTag, profile: _profile, currentExerciseIds: _currentExerciseIds, onAdd: _onAdd, onClose }: { dayTag: any; profile: any; currentExerciseIds?: any; onAdd: any; onClose: any }) => (
+const AddExerciseModal = ({ dayTag: _dayTag, profile: _profile, currentExerciseIds: _currentExerciseIds, onAdd: _onAdd, onClose }: AddExerciseModalProps) => (
   <div
     style={{
       position: 'fixed',
@@ -130,7 +157,7 @@ const AddExerciseModal = ({ dayTag: _dayTag, profile: _profile, currentExerciseI
   </div>
 );
 
-const WorkoutCompleteModal = ({ dayLabel, dayTag: _dayTag, gender: _gender, stats, weekIdx: _weekIdx, onDone, onClose }: any) => (
+const WorkoutCompleteModal = ({ dayLabel, dayTag: _dayTag, gender: _gender, stats, weekIdx: _weekIdx, onDone, onClose }: WorkoutCompleteModalProps) => (
   <div
     style={{
       position: 'fixed',
@@ -203,9 +230,9 @@ const WorkoutCompleteModal = ({ dayLabel, dayTag: _dayTag, gender: _gender, stat
 interface ExtraDayViewProps {
   dateStr: string;
   onBack: () => void;
-  profile: any;
-  onProfileUpdate: (profile: any) => void;
-  activeDays: any[];
+  profile: Profile;
+  onProfileUpdate: (profile: Partial<Profile>) => void;
+  activeDays: TrainingDay[];
 }
 
 function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }: ExtraDayViewProps) {
@@ -244,7 +271,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   const [showLeavePrompt, setShowLeavePrompt] = React.useState(false);
   const [showPostStrengthPrompt, setShowPostStrengthPrompt] = React.useState(false);
   const [showWorkoutModal, setShowWorkoutModal] = React.useState(false);
-  const [workoutStats, setWorkoutStats] = React.useState<any>(null);
+  const [workoutStats, setWorkoutStats] = React.useState<{ totalSets: number; totalReps: number; totalVolume: number; duration: string | null; prs: { name: string; weight: number; reps: number }[] } | null>(null);
   const [swapTarget, setSwapTarget] = React.useState<{ exIdx: number } | null>(null);
   const [showAddExercise, setShowAddExercise] = React.useState(false);
   const [workoutStarted, setWorkoutStarted] = React.useState(
@@ -260,14 +287,14 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   const [notes, setNotes] = React.useState(() => store.get(`foundry:extra:notes:${dateStr}`) || '');
   const [showNoteReview, setShowNoteReview] = React.useState(false);
 
-  const handleNoteChange = (val: any) => {
+  const handleNoteChange = (val: string) => {
     setNotes(val);
     store.set(`foundry:extra:notes:${dateStr}`, val);
   };
 
   const compileSessionNote = () => {
     const parts: string[] = [];
-    exercises.forEach((ex: any, i: any) => {
+    exercises.forEach((ex: Exercise, i: number) => {
       const n = (exNotes[i] || '').trim();
       if (n) parts.push(`${ex.name}: ${n}`);
     });
@@ -276,7 +303,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   };
 
   const hasAnySessionNotes = () =>
-    exercises.some((_: any, i: any) => (exNotes[i] || '').trim()) || !!notes.trim();
+    exercises.some((_: Exercise, i: number) => (exNotes[i] || '').trim()) || !!notes.trim();
 
   const openNoteReview = () => {
     if (!hasAnySessionNotes()) {
@@ -306,7 +333,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     const existing = JSON.parse(store.get(dataKey) || '{}');
     let changed = false;
     const next = { ...existing };
-    exercises.forEach((ex: any, i: any) => {
+    exercises.forEach((ex: Exercise, i: number) => {
       if (!next[i]) {
         const cw = getCarryoverWeight(ex.id);
         if (cw) {
@@ -334,7 +361,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     return () => { if (elapsedRef.current !== null) clearInterval(elapsedRef.current); };
   }, [workoutStarted, completedDone]);
 
-  const formatElapsed = (s: any) => {
+  const formatElapsed = (s: number) => {
     const h = Math.floor(s / 3600),
       m = Math.floor((s % 3600) / 60),
       sec = s % 60;
@@ -344,18 +371,18 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   };
 
   // ── Persist exercise list changes back to localStorage ──────────────────────
-  const persistExercises = (exList: any) => {
+  const persistExercises = (exList: Exercise[]) => {
     const current = JSON.parse(store.get(extraKey) || '{}');
     store.set(extraKey, JSON.stringify({ ...current, exercises: exList }));
   };
 
   // ── Find last logged weight for an exercise by ID across all meso data ──────
-  const getCarryoverWeight = (exId: any) => {
+  const getCarryoverWeight = (exId: string | number | undefined) => {
     if (!activeDays) return '';
     const weeks = getMeso().weeks;
     for (let w = weeks; w >= 0; w--) {
       for (let d = 0; d < activeDays.length; d++) {
-        const idx = activeDays[d].exercises.findIndex((e: any) => e.id === exId);
+        const idx = activeDays[d].exercises.findIndex((e) => e.id === exId);
         if (idx < 0) continue;
         try {
           const raw = store.get(`foundry:day${d}:week${w}`);
@@ -379,8 +406,8 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   };
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
-  const handleUpdateSet = (exIdx: any, setIdx: any, field: any, value: any) => {
-    setWeekData((prev: any) => {
+  const handleUpdateSet = (exIdx: number, setIdx: number, field: string, value: string | number | boolean) => {
+    setWeekData((prev: Record<string, Record<string, Record<string, string | number | boolean>>>) => {
       const next = {
         ...prev,
         [exIdx]: {
@@ -402,11 +429,11 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     });
   };
 
-  const handleWeightAutoFill = (exIdx: any, weight: any) => {
+  const handleWeightAutoFill = (exIdx: number, weight: string) => {
     handleUpdateSet(exIdx, 0, 'weight', weight);
   };
 
-  const handleLastSetFilled = (exIdx: any) => {
+  const handleLastSetFilled = (exIdx: number) => {
     setDoneExercises((prev) => {
       const next = new Set([...prev, exIdx]);
       if (next.size === exercises.length) {
@@ -420,7 +447,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
 
   const handleSetLogged = () => {};
 
-  const handleSwap = (newDbEx: any) => {
+  const handleSwap = (newDbEx: Record<string, unknown>) => {
     if (swapTarget === null) return;
     const { exIdx } = swapTarget;
     const oldEx = exercises[exIdx];
@@ -441,13 +468,13 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       videoUrl: newDbEx.videoUrl || '',
       bw: !!newDbEx.bw,
     };
-    setExercises((prev: any) => {
-      const n = prev.map((ex: any, i: any) => (i === exIdx ? newEx : ex));
+    setExercises((prev: Exercise[]) => {
+      const n = prev.map((ex: Exercise, i: number) => (i === exIdx ? newEx : ex));
       persistExercises(n);
       return n;
     });
     // Clear previous exercise's data for this slot
-    setWeekData((prev: any) => {
+    setWeekData((prev: Record<string, Record<string, Record<string, string | number | boolean>>>) => {
       const next = { ...prev };
       delete next[exIdx];
       try {
@@ -463,7 +490,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     setSwapTarget(null);
   };
 
-  const handleAddExercise = (dbEx: any) => {
+  const handleAddExercise = (dbEx: Record<string, unknown>) => {
     const newEx = {
       id: dbEx.id,
       name: dbEx.name,
@@ -481,9 +508,9 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       videoUrl: dbEx.videoUrl || '',
       bw: !!dbEx.bw,
     };
-    setExercises((prev: any) => {
+    setExercises((prev: Exercise[]) => {
       const n = [...prev, newEx];
-      persistExercises(n);
+      persistExercises(n as Exercise[]);
       return n;
     });
     setShowAddExercise(false);
@@ -508,8 +535,8 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     let totalSets = 0,
       totalReps = 0,
       totalVolume = 0;
-    exercises.forEach((ex: any, exIdx: any) => {
-      const exData = (weekData as Record<string, any>)[exIdx] || {};
+    exercises.forEach((ex: Exercise, exIdx: number) => {
+      const exData = (weekData as Record<string, Record<string, Record<string, string | number | boolean>>>)[exIdx] || {};
       for (let s = 0; s < ex.sets; s++) {
         const sd = exData[s] || {};
         if (!sd.reps || sd.reps === '') continue;
@@ -560,7 +587,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       </div>
     );
 
-  const accent = (TAG_ACCENT as Record<string, any>)[day.tag] || 'var(--accent)';
+  const accent = (TAG_ACCENT as Record<string, string>)[day.tag] || 'var(--accent)';
   const readOnly = (completedDone && !editMode) || (!workoutStarted && !completedDone);
 
   return (
@@ -583,7 +610,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
         <AddExerciseModal
           dayTag={day.tag}
           profile={profile}
-          currentExerciseIds={exercises.map((e: any) => e.id)}
+          currentExerciseIds={exercises.map((e: Exercise) => e.id)}
           onAdd={handleAddExercise}
           onClose={() => setShowAddExercise(false)}
         />
@@ -980,7 +1007,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
               >
                 {exercises.length} EXERCISES
               </div>
-              {exercises.slice(0, 4).map((ex: any, i: any) => (
+              {exercises.slice(0, 4).map((ex: Exercise, i: number) => (
                 <div
                   key={i}
                   style={{
@@ -1217,7 +1244,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
 
       {/* ── EXERCISE CARDS ── */}
       <div style={{ padding: '12px 0 0' }}>
-        {exercises.map((ex: any, i: any) => (
+        {exercises.map((ex: Exercise, i: number) => (
           <div
             key={ex.id ? `${ex.id}-${i}` : i}
             style={{ borderBottom: '1px solid rgba(232,101,26,0.1)' }}
@@ -1316,7 +1343,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: '14px 14px 0 0',
+              borderRadius: `${tokens.radius.xxl}px ${tokens.radius.xxl}px 0 0`,
               width: '100%',
               maxWidth: 480,
               padding: '24px 20px 36px',

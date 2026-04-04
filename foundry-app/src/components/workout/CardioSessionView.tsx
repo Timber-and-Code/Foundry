@@ -4,12 +4,35 @@ import { haptic } from '../../utils/helpers';
 import { TAG_ACCENT, CARDIO_WORKOUTS } from '../../data/constants';
 import CardioIntervalTimer from './CardioIntervalTimer';
 import { tokens } from '../../styles/tokens';
+import type { Profile } from '../../types';
+
+interface CardioWorkout {
+  id: string;
+  label: string;
+  description: string;
+  category: string;
+  defaultType: string;
+  defaultDuration: number;
+  defaultIntensity: string;
+  recommendedFor: string[];
+  intervals?: { workSecs: number; restSecs: number; rounds: number };
+}
+
+interface CardioSessionState {
+  protocolId: string | null;
+  type: string;
+  duration: string;
+  intensity: string;
+  completed: boolean;
+  startedAt: number | null;
+  completedAt: number | null;
+}
 
 interface CardioSessionViewProps {
   dateStr: string;
-  plannedProtocolId: any;
+  plannedProtocolId: string | null;
   onBack: () => void;
-  profile: any;
+  profile: Profile;
 }
 
 function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: CardioSessionViewProps) {
@@ -75,21 +98,21 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
   }, [started, session.completed]);
 
-  const formatElapsed = (s: any) => {
+  const formatElapsed = (s: number) => {
     const m = Math.floor(s / 60),
       sec = s % 60;
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
   // ── Persist session ──────────────────────────────────────────────────────────
-  const save = (updates: any) => {
+  const save = (updates: Partial<CardioSessionState>) => {
     const next = { ...session, ...updates };
     setSession(next);
     saveCardioSession(dateStr, next);
   };
 
   // ── Protocol selection ───────────────────────────────────────────────────────
-  const handleSelectProtocol = (proto: any) => {
+  const handleSelectProtocol = (proto: CardioWorkout) => {
     if (session.protocolId === proto.id) {
       save({ protocolId: null, type: '', duration: '', intensity: '' });
     } else {
@@ -159,7 +182,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     { label: 'Hard', color: tokens.colors.cardioHard, sub: 'Near max' },
   ];
 
-  const chipStyle = (active: any, color: any) => ({
+  const chipStyle = (active: boolean, color: string): React.CSSProperties => ({
     padding: '5px 12px',
     borderRadius: tokens.radius.round,
     fontSize: 12,
@@ -171,7 +194,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     color: active ? color : 'var(--text-muted)',
     outline: active ? `1px solid ${color}55` : '1px solid transparent',
     transition: 'all 0.14s',
-    whiteSpace: 'nowrap',
+    whiteSpace: 'nowrap' as const,
   });
 
   // Recommended protocols based on user goal
@@ -181,7 +204,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   ).slice(0, 3);
 
   // Protocol card renderer — shared between recommended and category sections
-  const ProtoCard = ({ proto, active, useCardioAccent }: { proto: any; active: any; useCardioAccent: any }) => {
+  const ProtoCard = ({ proto, active, useCardioAccent }: { proto: CardioWorkout; active: boolean; useCardioAccent: boolean }) => {
     const leftColor = useCardioAccent ? CARDIO_COLOR : 'var(--accent)';
     return (
       <button

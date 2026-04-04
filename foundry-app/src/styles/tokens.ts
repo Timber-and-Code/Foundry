@@ -34,7 +34,7 @@ export const tokens = {
     textPrimary:   '#E8E4DC',
     textSecondary: '#A8A4A0',
     textMuted:     '#9A8A78',
-    textDim:       '#5A5A65',
+    textDim:       '#8A8580',
 
     // Phase colours
     phaseAccum:   '#E8E4DC',

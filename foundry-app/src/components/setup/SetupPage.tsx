@@ -6,9 +6,10 @@ import FoundryBanner from '../shared/FoundryBanner';
 import AutoBuilderFlow from './AutoBuilderFlow';
 import ManualBuilderFlow from './ManualBuilderFlow';
 import CardioSetupFlow from './CardioSetupFlow';
+import type { Profile } from '../../types';
 
 interface SetupPageProps {
-  onComplete: (profile: any) => void;
+  onComplete: (profile: Profile) => void;
 }
 
 export default function SetupPage({ onComplete }: SetupPageProps) {
@@ -43,7 +44,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
       desc: '4-day push/pull with legs folded in. No dedicated leg day.',
     },
   };
-  const splitsForDays = (n: any) =>
+  const splitsForDays = (n: number) =>
     Object.entries(SPLIT_CONFIG)
       .filter(([, c]) => c.validDays.includes(n))
       .map(([k]) => k);
@@ -59,12 +60,12 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
   const [cardioDays, setCardioDays] = useState<Set<number>>(new Set());
   const [error, setError] = useState('');
   const [form, setForm] = useState(() => {
-    let saved: any = {};
+    let saved: Record<string, unknown> = {};
     try {
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
     } catch (e) {}
     const savedGoal = store.get('foundry:onboarding_goal') || '';
-    let transition: any = null;
+    let transition: { profile?: Partial<Profile> } | null = null;
     try {
       transition = JSON.parse(store.get('foundry:meso_transition') || 'null');
     } catch {}
@@ -87,7 +88,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     };
   });
   const [setupDob, setSetupDob] = useState(() => {
-    let saved: any = {};
+    let saved: Record<string, unknown> = {};
     try {
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
     } catch (e) {}
@@ -113,18 +114,18 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
   ];
   const [aiLoading, setAiLoading] = useState(false);
   const [, setAiCoachNote] = useState('');
-  const [legBalancePrompt, setLegBalancePrompt] = useState<any>(null);
+  const [legBalancePrompt, setLegBalancePrompt] = useState<Profile | null>(null);
   const [showCardioStep, setShowCardioStep] = useState(false);
-  const [pendingProfile, setPendingProfile] = useState<any>(null);
+  const [pendingProfile, setPendingProfile] = useState<Profile | null>(null);
 
   // Auto-builder specific state
   const [autoForm, setAutoForm] = useState(() => {
-    let saved: any = {};
+    let saved: Record<string, unknown> = {};
     try {
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
     } catch (e) {}
     return {
-      experience: saved.experience || null as string | null,
+      experience: (saved.experience as string) || null as string | null,
       split: null as string | null,
       daysPerWeek: null as number | null,
       mesoLength: null as number | null,
@@ -134,12 +135,12 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
   });
 
   // ── Shared callbacks ─────────────────────────────────────────────────────
-  const maybePromptCardio = (built: any) => {
+  const maybePromptCardio = (built: Profile) => {
     setPendingProfile(built);
     setShowCardioStep(true);
     window.scrollTo(0, 0);
   };
-  const maybePromptLegBalance = (built: any) => {
+  const maybePromptLegBalance = (built: Profile) => {
     if (built.splitType === 'ppl' && (built.daysPerWeek === 5 || built.workoutDays?.length === 5)) {
       setLegBalancePrompt(built);
     } else {
@@ -147,8 +148,8 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     }
   };
 
-  const setAuto = (k: any, v: any) => setAutoForm((f) => ({ ...f, [k]: v }));
-  const toggleAutoEquip = (item: any) => {
+  const setAuto = (k: string, v: string | number | string[] | null) => setAutoForm((f) => ({ ...f, [k]: v }));
+  const toggleAutoEquip = (item: string) => {
     setAutoForm((f) => {
       const has = f.equipment.includes(item);
       if (has && f.equipment.length === 1) return f;
@@ -159,10 +160,10 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     });
   };
 
-  const set = (k: any, v: any) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: string, v: string | number | string[] | number[]) => setForm((f) => ({ ...f, [k]: v }));
 
-  const setSplit = (split: any) => {
-    const cfg = (SPLIT_CONFIG as Record<string, any>)[split];
+  const setSplit = (split: string) => {
+    const cfg = (SPLIT_CONFIG as Record<string, { label: string; validDays: number[]; defaultDays: Record<number, number[]>; desc: string }>)[split];
     const best = cfg.validDays[cfg.validDays.length - 1];
     setForm((f) => ({
       ...f,
@@ -172,12 +173,12 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     }));
   };
 
-  const setDayCount = (n: any) => {
+  const setDayCount = (n: number) => {
     const compatible = splitsForDays(n);
     const split = compatible.includes(form.splitType)
       ? form.splitType
       : compatible[0] || form.splitType;
-    const cfg = (SPLIT_CONFIG as Record<string, any>)[split];
+    const cfg = (SPLIT_CONFIG as Record<string, { label: string; validDays: number[]; defaultDays: Record<number, number[]>; desc: string }>)[split];
     const days = cfg?.defaultDays[n] || form.workoutDays;
     setForm((f) => ({
       ...f,
@@ -187,7 +188,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     }));
   };
 
-  const toggleEquipment = (item: any) => {
+  const toggleEquipment = (item: string) => {
     setForm((f) => {
       const has = f.equipment.includes(item);
       if (has && f.equipment.length === 1) return f;
@@ -198,7 +199,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     });
   };
 
-  const toggleDay = (dayNum: any) => {
+  const toggleDay = (dayNum: number) => {
     setForm((f) => {
       const has = f.workoutDays.includes(dayNum);
       if (has && f.workoutDays.length === 1) return f;
@@ -521,7 +522,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                     {/* Month */}
                     <select
                       value={setupDob.month}
-                      onChange={(e) => setSetupDob((d: any) => ({ ...d, month: e.target.value }))}
+                      onChange={(e) => setSetupDob((d) => ({ ...d, month: e.target.value }))}
                       style={{
                         ...inputStyle,
                         marginTop: 0,
@@ -544,7 +545,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                     {/* Day */}
                     <select
                       value={setupDob.day}
-                      onChange={(e) => setSetupDob((d: any) => ({ ...d, day: e.target.value }))}
+                      onChange={(e) => setSetupDob((d) => ({ ...d, day: e.target.value }))}
                       style={{
                         ...inputStyle,
                         marginTop: 0,
@@ -567,7 +568,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                     {/* Year */}
                     <select
                       value={setupDob.year}
-                      onChange={(e) => setSetupDob((d: any) => ({ ...d, year: e.target.value }))}
+                      onChange={(e) => setSetupDob((d) => ({ ...d, year: e.target.value }))}
                       style={{
                         ...inputStyle,
                         marginTop: 0,

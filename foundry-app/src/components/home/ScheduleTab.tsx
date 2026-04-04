@@ -1,6 +1,7 @@
 import React from 'react';
 import { tokens } from '../../styles/tokens';
 import { TAG_ACCENT, PHASE_COLOR, getMeso, getWeekPhase } from '../../data/constants';
+import type { Profile, TrainingDay, Exercise } from '../../types';
 import Sheet from '../ui/Sheet';
 import {
   store,
@@ -17,7 +18,7 @@ import EditScheduleSheet from './EditScheduleSheet';
 
 // ── Inline icon helpers ────────────────────────────────────────────────────
 
-const scheduleIcon = (color: any) => (
+const scheduleIcon = (color: string) => (
   <svg
     width="16"
     height="16"
@@ -35,7 +36,7 @@ const scheduleIcon = (color: any) => (
   </svg>
 );
 
-const overviewIcon = (color: any) => (
+const overviewIcon = (color: string) => (
   <svg
     width="16"
     height="16"
@@ -53,7 +54,14 @@ const overviewIcon = (color: any) => (
 
 // ── NoteViewer ─────────────────────────────────────────────────────────────
 
-function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: any; setNoteViewer: any }) {
+interface NoteViewerData {
+  label: string;
+  exercises: Exercise[];
+  exNotes?: Record<number, string>;
+  sessionNote?: string;
+}
+
+function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData | null; setNoteViewer: (v: NoteViewerData | null) => void }) {
   if (!noteViewer) return null;
   return (
     <Sheet open={!!noteViewer} onClose={() => setNoteViewer(null)} zIndex={300}>
@@ -108,7 +116,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: any; setNoteVie
             ✕
           </button>
         </div>
-        {noteViewer.exercises.map((ex: any, i: any) => {
+        {noteViewer.exercises.map((ex: Exercise, i: number) => {
           const n = (noteViewer.exNotes || {})[i] || '';
           if (!n.trim()) return null;
           return (
@@ -174,35 +182,35 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: any; setNoteVie
 // ── Main ScheduleTab ───────────────────────────────────────────────────────
 
 interface ScheduleTabProps {
-  profile: any;
-  activeDays: any[];
-  completedDays: any;
-  activeWeek: any;
-  currentWeek: any;
-  calendarOffset: any;
-  setCalendarOffset: (v: any) => void;
-  expandedWeek?: any;
-  setExpandedWeek?: (v: any) => void;
-  showRestDay: any;
-  setShowRestDay: (v: any) => void;
-  showEditSchedule: any;
-  setShowEditSchedule: (v: any) => void;
-  noteViewer: any;
-  setNoteViewer: (v: any) => void;
-  skipVersion: any;
-  setSkipVersion: (v: any) => void;
+  profile: Profile;
+  activeDays: TrainingDay[];
+  completedDays: Set<string>;
+  activeWeek: number;
+  currentWeek: number;
+  calendarOffset: number;
+  setCalendarOffset: (v: number | ((prev: number) => number)) => void;
+  expandedWeek?: number | null;
+  setExpandedWeek?: (v: number | null) => void;
+  showRestDay: string | null;
+  setShowRestDay: (v: string | null) => void;
+  showEditSchedule: boolean;
+  setShowEditSchedule: (v: boolean) => void;
+  noteViewer: NoteViewerData | null;
+  setNoteViewer: (v: NoteViewerData | null) => void;
+  skipVersion: number;
+  setSkipVersion: (v: number) => void;
   goBack: () => void;
-  goTo: (v: any) => void;
-  onSelectDay?: (v: any) => void;
-  onSelectDayWeek: (dayIdx: any, weekIdx: any) => void;
-  onOpenExtra: (v: any) => void;
-  onOpenCardio: (dateStr: any, protocolId: any) => void;
-  setCurrentWeek: (v: any) => void;
-  onProfileUpdate: (v: any) => void;
-  setAddWorkoutModal: (v: any) => void;
-  setAddWorkoutStep: (v: any) => void;
-  setAddWorkoutType: (v: any) => void;
-  setAddWorkoutDayType: (v: any) => void;
+  goTo: (v: string) => void;
+  onSelectDay?: (v: number) => void;
+  onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
+  onOpenExtra: (v: string) => void;
+  onOpenCardio: (dateStr: string, protocolId: string | null) => void;
+  setCurrentWeek: (v: number) => void;
+  onProfileUpdate: (v: Profile) => void;
+  setAddWorkoutModal: (v: string | null) => void;
+  setAddWorkoutStep: (v: string) => void;
+  setAddWorkoutType: (v: string | null) => void;
+  setAddWorkoutDayType: (v: string | null) => void;
 }
 
 function ScheduleTab({
@@ -408,7 +416,7 @@ function ScheduleTab({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <button
-                onClick={() => canGoBack && setCalendarOffset((o: any) => o - 1)}
+                onClick={() => canGoBack && setCalendarOffset((o: number) => o - 1)}
                 style={{
                   width: 32,
                   height: 32,
@@ -446,7 +454,7 @@ function ScheduleTab({
                 </button>
               )}
               <button
-                onClick={() => canGoForward && setCalendarOffset((o: any) => o + 1)}
+                onClick={() => canGoForward && setCalendarOffset((o: number) => o + 1)}
                 style={{
                   width: 32,
                   height: 32,

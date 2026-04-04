@@ -1,5 +1,6 @@
 import React from 'react';
 import { store } from '../../utils/store';
+import { tokens } from '../../styles/tokens';
 
 interface TourOverlayProps {
   onDone: () => void;
@@ -76,7 +77,7 @@ export function TourOverlay({ onDone, onNavigate, onTabChange }: TourOverlayProp
           margin: '0 auto',
           background: 'var(--bg-card)',
           border: '1px solid var(--accent-blue)',
-          borderRadius: 12,
+          borderRadius: tokens.radius.xl,
           padding: '18px 20px',
           boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
           cursor: 'default',
@@ -91,7 +92,7 @@ export function TourOverlay({ onDone, onNavigate, onTabChange }: TourOverlayProp
               style={{
                 width: i === step ? 18 : 5,
                 height: 5,
-                borderRadius: 3,
+                borderRadius: tokens.radius.xs,
                 background: i <= step ? 'var(--accent-blue)' : 'var(--border-accent)',
                 transition: 'all 0.25s ease',
               }}
@@ -145,7 +146,7 @@ export function TourOverlay({ onDone, onNavigate, onTabChange }: TourOverlayProp
               padding: '10px 22px',
               fontSize: 13,
               fontWeight: 700,
-              borderRadius: 8,
+              borderRadius: tokens.radius.lg,
               cursor: 'pointer',
             }}
           >

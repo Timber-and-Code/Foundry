@@ -1,4 +1,5 @@
 import { getReadinessScore, getReadinessLabel } from '../../utils/store';
+import { tokens } from '../../styles/tokens';
 
 interface ReadinessCardProps {
   readiness: any;
@@ -45,7 +46,7 @@ function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadi
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        borderRadius: 8,
+        borderRadius: tokens.radius.lg,
         overflow: 'hidden',
         boxShadow: 'var(--shadow-sm)',
       }}
@@ -87,7 +88,7 @@ function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadi
                 color: rl.color,
                 background: rl.color + '22',
                 border: `1px solid ${rl.color}44`,
-                borderRadius: 4,
+                borderRadius: tokens.radius.sm,
                 padding: '2px 7px',
               }}
             >
@@ -148,7 +149,7 @@ function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadi
                       style={{
                         flex: 1,
                         padding: '9px 6px',
-                        borderRadius: 6,
+                        borderRadius: tokens.radius.md,
                         cursor: 'pointer',
                         fontSize: 12,
                         fontWeight: 700,
@@ -171,7 +172,7 @@ function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadi
               style={{
                 marginTop: 4,
                 padding: '10px 12px',
-                borderRadius: 6,
+                borderRadius: tokens.radius.md,
                 background: rl.color + '18',
                 border: `1px solid ${rl.color}44`,
                 borderLeft: `3px solid ${rl.color}`,

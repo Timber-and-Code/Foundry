@@ -15,25 +15,26 @@ import {
   loadDayWeek,
   loadSparklineData,
 } from '../../utils/store';
+import type { TrainingDay, Exercise, BodyWeightEntry } from '../../types';
 // haptic import reserved for future UI feedback
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function sessionTagToCategory(sessionTag: any, exTag: any) {
+function sessionTagToCategory(sessionTag: string | undefined, exTag: string | undefined) {
   if (sessionTag === 'UPPER' || sessionTag === 'LOWER' || sessionTag === 'FULL') return exTag;
   return sessionTag;
 }
 
-function flattenMuscleSets(byTag: any) {
-  const result: Record<string, any> = {};
-  Object.values(byTag).forEach((muscleMap: any) => {
+function flattenMuscleSets(byTag: Record<string, Record<string, number>>) {
+  const result: Record<string, number> = {};
+  Object.values(byTag).forEach((muscleMap: Record<string, number>) => {
     Object.entries(muscleMap || {}).forEach(([muscle, sets]) => {
-      result[muscle] = (result[muscle] || 0) + (sets as number);
+      result[muscle] = (result[muscle] || 0) + sets;
     });
   });
   return result;
 }
 
-function getLandmarkStatus(sets: any, lm: any) {
+function getLandmarkStatus(sets: number, lm: { mev: number; mavLow: number; mavHigh: number; mrv: number } | undefined) {
   if (!lm) return null;
   if (sets < lm.mev)
     return {
@@ -76,16 +77,16 @@ function getLandmarkStatus(sets: any, lm: any) {
   };
 }
 
-function calcMuscleSetsByTag(activeDays: any, completedDays: any, weekFilter: any) {
-  const byTag: Record<string, any> = { PUSH: {}, PULL: {}, LEGS: {} };
-  activeDays.forEach((day: any, dayIdx: any) => {
+function calcMuscleSetsByTag(activeDays: TrainingDay[], completedDays: Set<string>, weekFilter: number | null) {
+  const byTag: Record<string, Record<string, number>> = { PUSH: {}, PULL: {}, LEGS: {} };
+  activeDays.forEach((day: TrainingDay, dayIdx: number) => {
     for (let w = 0; w <= getMeso().weeks; w++) {
       if (weekFilter !== null && w !== weekFilter) continue;
       if (!completedDays.has(`${dayIdx}:${w}`)) continue;
       const wd = loadDayWeek(dayIdx, w);
-      day.exercises.forEach((ex: any, exIdx: any) => {
+      day.exercises.forEach((ex: Exercise, exIdx: number) => {
         const exData = wd[exIdx] || {};
-        const filledSets = Object.values(exData).filter((s: any) => s && s.reps && s.reps !== '').length;
+        const filledSets = Object.values(exData).filter((s: Record<string, unknown>) => s && s.reps && s.reps !== '').length;
         if (filledSets === 0) return;
         const cat = sessionTagToCategory(day.tag, ex.tag);
         if (!byTag[cat]) byTag[cat] = {};
@@ -103,13 +104,13 @@ function calcMuscleSetsByTag(activeDays: any, completedDays: any, weekFilter: an
 }
 
 // ── Volume Landmarks Card ────────────────────────────────────────────────────
-function VolumeLandmarksCard({ byTag, title }: { byTag: any; title: any }) {
+function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<string, number>>; title: string }) {
   const muscleSets = flattenMuscleSets(byTag);
   const entries = Object.entries(muscleSets)
-    .filter(([m, s]) => (s as number) > 0 && (VOLUME_LANDMARKS as Record<string, any>)[m])
+    .filter(([m, s]) => s > 0 && (VOLUME_LANDMARKS as Record<string, { mev: number; mavLow: number; mavHigh: number; mrv: number }>)[m])
     .sort((a, b) => {
-      const sa = getLandmarkStatus(a[1] as number, (VOLUME_LANDMARKS as Record<string, any>)[a[0]]);
-      const sb = getLandmarkStatus(b[1] as number, (VOLUME_LANDMARKS as Record<string, any>)[b[0]]);
+      const sa = getLandmarkStatus(a[1], (VOLUME_LANDMARKS as Record<string, { mev: number; mavLow: number; mavHigh: number; mrv: number }>)[a[0]]);
+      const sb = getLandmarkStatus(b[1], (VOLUME_LANDMARKS as Record<string, { mev: number; mavLow: number; mavHigh: number; mrv: number }>)[b[0]]);
       const priority = (s: NonNullable<ReturnType<typeof getLandmarkStatus>>) =>
         s.label === 'Exceeded' ? 0 : s.label === 'MV' ? 1 : s.label === 'High' ? 2 : 3;
       return priority(sa!) - priority(sb!) || (b[1] as number) - (a[1] as number);
@@ -349,7 +350,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: any; title: any }) {
                     width: `${fillPct}%`,
                     background: status.fill,
                     opacity: 0.72,
-                    borderRadius: '4px 0 0 4px',
+                    borderRadius: `${tokens.radius.sm}px 0 0 ${tokens.radius.sm}px`,
                     transition: 'width 0.5s cubic-bezier(0.22,1,0.36,1)',
                   }}
                 />
@@ -381,7 +382,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: any; title: any }) {
 interface ProgressViewProps {
   currentWeek: number;
   completedDays: Set<string>;
-  activeDays: any[];
+  activeDays: TrainingDay[];
   goBack: () => void;
   goTo: (n: number | string) => void;
 }
@@ -413,9 +414,9 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
       : null;
 
   const phase = getWeekPhase()[currentWeek] || 'Accumulation';
-  const pc = (PHASE_COLOR as Record<string, any>)[phase];
+  const pc = (PHASE_COLOR as Record<string, string>)[phase];
 
-  const statBox = (label: any, value: any, color: any) => (
+  const statBox = (label: string, value: string | number, color: string) => (
     <div
       style={{
         flex: 1,
@@ -464,15 +465,15 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
     let chartMin = 0,
       chartMax = 1;
     if (hasChart) {
-      const weights = bwLog.map((e: any) => e.weight);
+      const weights = bwLog.map((e: BodyWeightEntry) => e.weight);
       if (goalWeight !== null) weights.push(goalWeight);
       chartMin = Math.min(...weights);
       chartMax = Math.max(...weights);
     }
     const range = chartMax - chartMin || 1;
-    const toX = (i: any) => PX + (i / (bwLog.length - 1)) * (W - PX * 2);
-    const toY = (v: any) => H - PY - ((v - chartMin) / range) * (H - PY * 2);
-    const pts = hasChart ? bwLog.map((e: any, i: any) => `${toX(i)},${toY(e.weight)}`).join(' L ') : '';
+    const toX = (i: number) => PX + (i / (bwLog.length - 1)) * (W - PX * 2);
+    const toY = (v: number) => H - PY - ((v - chartMin) / range) * (H - PY * 2);
+    const pts = hasChart ? bwLog.map((e: BodyWeightEntry, i: number) => `${toX(i)},${toY(e.weight)}`).join(' L ') : '';
 
     const towardsGoal =
       goalWeight !== null &&
@@ -930,7 +931,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                 <div
                   style={{
                     width: '100%',
-                    borderRadius: '3px 3px 0 0',
+                    borderRadius: `${tokens.radius.xs}px ${tokens.radius.xs}px 0 0`,
                     height: h,
                     background: isCur ? 'var(--accent)' : 'var(--border-accent)',
                     transition: 'height 0.3s',
@@ -1029,9 +1030,9 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
 
         {/* e1RM card */}
         {(() => {
-          const anchors: { name: any; tag: any; e1rm: number; allTimeBest: number; isPR: boolean; load75: number; load85: number; isStalling: boolean }[] = [];
-          activeDays.forEach((day: any, dayIdx: any) => {
-            day.exercises.forEach((ex: any, exIdx: any) => {
+          const anchors: { name: string; tag: string | undefined; e1rm: number; allTimeBest: number; isPR: boolean; load75: number; load85: number; isStalling: boolean }[] = [];
+          activeDays.forEach((day: TrainingDay, dayIdx: number) => {
+            day.exercises.forEach((ex: Exercise, exIdx: number) => {
               if (!ex.anchor) return;
               const pts = loadSparklineData(dayIdx, exIdx);
               if (!pts.length) return;
@@ -1233,15 +1234,15 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           CURRENT WEIGHTS
         </div>
         {activeDays.map((day, dayIdx) => {
-          const accent = (TAG_ACCENT as Record<string, any>)[day.tag];
-          const dayLifts = day.exercises.map((ex: any, exIdx: any) => {
+          const accent = (TAG_ACCENT as Record<string, string>)[day.tag || ''];
+          const dayLifts = day.exercises.map((ex: Exercise, exIdx: number) => {
             let weight: string | number = '';
             for (let w = currentWeek; w >= 0; w--) {
               const wd = loadDayWeek(dayIdx, w);
               const exData = wd[exIdx] || {};
-              const sw = Object.values(exData).find((sv: any) => sv && sv.weight && sv.weight !== '');
+              const sw = Object.values(exData).find((sv: Record<string, unknown>) => sv && sv.weight && sv.weight !== '');
               if (sw) {
-                weight = (sw as any).weight;
+                weight = (sw as Record<string, string | number>).weight;
                 break;
               }
             }
@@ -1254,7 +1255,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               reps: ex.reps,
             };
           });
-          const anyLogged = dayLifts.some((l: any) => l.weight);
+          const anyLogged = dayLifts.some((l) => l.weight);
           const isDayExpanded = expandedDay === dayIdx;
           return (
             <div
@@ -1331,7 +1332,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               </button>
               {isDayExpanded && (
                 <div>
-                  {dayLifts.map((lift: any, i: any) => (
+                  {dayLifts.map((lift, i) => (
                     <div
                       key={i}
                       style={{

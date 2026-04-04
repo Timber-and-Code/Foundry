@@ -25,23 +25,24 @@ import ProgressTab from './ProgressTab';
 import MesoOverview from './MesoOverview';
 import ExplorePage from '../explore/ExplorePage';
 import { PricingPage } from '../settings/PricingPage';
+import type { Profile, TrainingDay, ReadinessEntry } from '../../types';
 
 interface HomeViewProps {
-  tabRef: any;
-  currentWeek: any;
-  setCurrentWeek: (v: any) => void;
-  onSelectDay: (v: any) => void;
-  onSelectDayWeek: (dayIdx: any, weekIdx: any) => void;
-  onOpenExtra: (v: any) => void;
-  onOpenCardio: (dateStr: any, protocolId?: any) => void;
-  onOpenMobility: (v: any) => void;
-  completedDays: any;
+  tabRef: React.MutableRefObject<((key: string) => void) | null>;
+  currentWeek: number;
+  setCurrentWeek: (v: number) => void;
+  onSelectDay: (v: number) => void;
+  onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
+  onOpenExtra: (v: string) => void;
+  onOpenCardio: (dateStr: string, protocolId?: string | null) => void;
+  onOpenMobility: (v: string) => void;
+  completedDays: Set<string>;
   onReset: () => void;
-  activeDays: any[];
-  profile: any;
-  openWeekly: any;
+  activeDays: TrainingDay[];
+  profile: Profile;
+  openWeekly: boolean;
   onOpenWeeklyHandled: () => void;
-  onProfileUpdate: (v: any) => void;
+  onProfileUpdate: (v: Profile) => void;
 }
 
 function HomeView({
@@ -63,7 +64,7 @@ function HomeView({
 }: HomeViewProps) {
   // ── Tab navigation ─────────────────────────────────────────────────────
   const [tab, setTab] = useState('landing');
-  const goTo = (key: any) => {
+  const goTo = (key: string) => {
     setTab(key);
     window.scrollTo(0, 0);
   };
@@ -136,7 +137,7 @@ function HomeView({
     }
   });
 
-  const updateReadiness = (key: any, val: any) => {
+  const updateReadiness = (key: keyof ReadinessEntry, val: string) => {
     const next = { ...(readiness || {}), [key]: val };
     store.set(todayReadinessKey, JSON.stringify(next));
     setReadiness(next);
@@ -207,7 +208,7 @@ function HomeView({
   const displayWeek = Math.min(activeWeek, calendarWeek);
 
   const phase = getWeekPhase()[Math.min(displayWeek, getMeso().weeks - 1)] || 'Deload';
-  const pc = (PHASE_COLOR as Record<string, any>)[phase];
+  const pc = (PHASE_COLOR as Record<string, string>)[phase];
   const rir = getWeekRir()[Math.min(displayWeek, getMeso().weeks - 1)] || 'N/A';
 
   const weekDone = activeDays.filter((_, i) => completedDays.has(`${i}:${displayWeek}`)).length;
@@ -220,7 +221,7 @@ function HomeView({
 
   // ── Add Workout Modal ───────────────────────────────────────────────────
 
-  const generateExtraWorkout = (dayTypeId: any) => ({
+  const generateExtraWorkout = (dayTypeId: string) => ({
     label: dayTypeId,
     exercises: [],
   });
@@ -295,7 +296,7 @@ function HomeView({
       setAddWorkoutDayType(null);
     };
 
-    const handleFoundryBuild = (dayTypeId: any) => {
+    const handleFoundryBuild = (dayTypeId: string) => {
       const day = generateExtraWorkout(dayTypeId);
       store.set(`foundry:extra:${dateStr}`, JSON.stringify(day));
       closeModal();
@@ -514,7 +515,7 @@ function HomeView({
     {
       key: 'landing',
       label: 'Home',
-      icon: (active: any) => (
+      icon: (active: boolean) => (
         <svg
           width="22"
           height="22"
@@ -533,7 +534,7 @@ function HomeView({
     {
       key: 'progress',
       label: 'Progress',
-      icon: (active: any) => (
+      icon: (active: boolean) => (
         <svg
           width="22"
           height="22"
@@ -553,7 +554,7 @@ function HomeView({
     {
       key: 'schedule',
       label: 'Schedule',
-      icon: (active: any) => (
+      icon: (active: boolean) => (
         <svg
           width="22"
           height="22"
@@ -574,7 +575,7 @@ function HomeView({
     {
       key: 'explore',
       label: 'Explore',
-      icon: (active: any) => (
+      icon: (active: boolean) => (
         <svg
           width="22"
           height="22"

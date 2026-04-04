@@ -206,6 +206,28 @@ export async function syncNotesToSupabase(dayIdx: number, weekIdx: number, sessi
   } catch (e) { console.warn('[Foundry Sync] Notes sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'notes' } }); } finally { syncEnd(); }
 }
 
+/** Returns true if remote timestamp is newer than local, or local has no timestamp */
+function remoteIsNewer(localKey: string, remoteUpdatedAt: string | undefined): boolean {
+  if (!remoteUpdatedAt) return true;
+  const localTs = store.getTimestamp(localKey);
+  if (!localTs) return true;
+  return new Date(remoteUpdatedAt).getTime() >= new Date(localTs).getTime();
+}
+
+/** Field-level merge for profile: for each key, keep the more recently written value */
+function mergeProfile(local: Record<string, unknown>, remote: Record<string, unknown>, remoteTs: string): Record<string, unknown> {
+  const localTs = store.getTimestamp('foundry:profile');
+  // If no local timestamp, remote wins entirely
+  if (!localTs) return { ...remote };
+  const localTime = new Date(localTs).getTime();
+  const remoteTime = new Date(remoteTs).getTime();
+  // Start with whichever is older, overlay the newer on top
+  if (remoteTime >= localTime) {
+    return { ...local, ...remote };
+  }
+  return { ...remote, ...local };
+}
+
 export async function pullFromSupabase(): Promise<void> {
   syncStart();
   try {
@@ -213,59 +235,110 @@ export async function pullFromSupabase(): Promise<void> {
     if (!user) return;
 
     const [profileRes, workoutsRes, readinessRes, bwRes, cardioRes, notesRes] = await Promise.allSettled([
-      supabase.from('user_profiles').select('data').eq('id', user.id).single(),
-      supabase.from('workout_sessions').select('day_idx,week_idx,data').eq('user_id', user.id),
-      supabase.from('readiness_checkins').select('date,sleep,soreness,energy').eq('user_id', user.id),
-      supabase.from('body_weight_log').select('date,weight_lbs').eq('user_id', user.id).order('date', { ascending: false }),
-      supabase.from('cardio_sessions').select('date,data').eq('user_id', user.id),
-      supabase.from('notes').select('day_idx,week_idx,session_notes,exercise_notes').eq('user_id', user.id),
+      supabase.from('user_profiles').select('data,updated_at').eq('id', user.id).single(),
+      supabase.from('workout_sessions').select('day_idx,week_idx,data,updated_at').eq('user_id', user.id),
+      supabase.from('readiness_checkins').select('date,sleep,soreness,energy,updated_at').eq('user_id', user.id),
+      supabase.from('body_weight_log').select('date,weight_lbs,updated_at').eq('user_id', user.id).order('date', { ascending: false }),
+      supabase.from('cardio_sessions').select('date,data,updated_at').eq('user_id', user.id),
+      supabase.from('notes').select('day_idx,week_idx,session_notes,exercise_notes,updated_at').eq('user_id', user.id),
     ]);
 
     if (profileRes.status === 'fulfilled' && (profileRes.value.data as { data?: unknown })?.data) {
-      const profileData = (profileRes.value.data as { data: unknown }).data;
-      const parsed = validateProfile(profileData);
+      const row = profileRes.value.data as { data: unknown; updated_at?: string };
+      const remoteTs = row.updated_at ?? new Date().toISOString();
+      const parsed = validateProfile(row.data);
       if (parsed.success) {
-        store.set('foundry:profile', JSON.stringify(parsed.data));
+        const localKey = 'foundry:profile';
+        const localRaw = store.get(localKey);
+        if (localRaw && !remoteIsNewer(localKey, remoteTs)) {
+          // Local is newer — merge fields, keep local as primary, mark dirty
+          try {
+            const merged = mergeProfile(JSON.parse(localRaw), parsed.data as Record<string, unknown>, remoteTs);
+            store.setFromRemote(localKey, JSON.stringify(merged), remoteTs);
+          } catch {
+            // Parse failed — keep local
+          }
+          markDirty(localKey);
+        } else if (localRaw) {
+          // Remote is newer — merge with remote as primary
+          try {
+            const merged = mergeProfile(JSON.parse(localRaw), parsed.data as Record<string, unknown>, remoteTs);
+            store.setFromRemote(localKey, JSON.stringify(merged), remoteTs);
+          } catch {
+            store.setFromRemote(localKey, JSON.stringify(parsed.data), remoteTs);
+          }
+        } else {
+          // No local data — take remote
+          store.setFromRemote(localKey, JSON.stringify(parsed.data), remoteTs);
+        }
       } else {
         console.warn('[Foundry Sync] Invalid profile from Supabase:', parsed.error.issues);
         Sentry.captureMessage('Invalid profile data from Supabase', { extra: { issues: parsed.error.issues } });
       }
     }
     if (workoutsRes.status === 'fulfilled' && workoutsRes.value.data) {
-      for (const row of workoutsRes.value.data as { day_idx: number; week_idx: number; data: unknown }[]) {
+      for (const row of workoutsRes.value.data as { day_idx: number; week_idx: number; data: unknown; updated_at?: string }[]) {
         if (row.data == null) continue;
         const parsed = validateDayData(row.data);
-        if (parsed.success) {
-          store.set('foundry:day' + row.day_idx + ':week' + row.week_idx, JSON.stringify(parsed.data));
+        if (!parsed.success) continue;
+        const localKey = 'foundry:day' + row.day_idx + ':week' + row.week_idx;
+        if (remoteIsNewer(localKey, row.updated_at)) {
+          store.setFromRemote(localKey, JSON.stringify(parsed.data), row.updated_at ?? new Date().toISOString());
+        } else {
+          markDirty(localKey);
         }
       }
     }
     if (readinessRes.status === 'fulfilled' && readinessRes.value.data) {
-      for (const row of readinessRes.value.data as { date: string; sleep?: string; soreness?: string; energy?: string }[]) {
+      for (const row of readinessRes.value.data as { date: string; sleep?: string; soreness?: string; energy?: string; updated_at?: string }[]) {
+        const localKey = 'foundry:readiness:' + row.date;
+        if (!remoteIsNewer(localKey, row.updated_at)) { markDirty(localKey); continue; }
         const entry: Record<string, string> = {};
         if (row.sleep) entry.sleep = row.sleep;
         if (row.soreness) entry.soreness = row.soreness;
         if (row.energy) entry.energy = row.energy;
-        store.set('foundry:readiness:' + row.date, JSON.stringify(entry));
+        store.setFromRemote(localKey, JSON.stringify(entry), row.updated_at ?? new Date().toISOString());
       }
     }
     if (bwRes.status === 'fulfilled' && (bwRes.value.data as unknown[])?.length) {
-      const entries = (bwRes.value.data as { date: string; weight_lbs: string }[])
-        .slice(0, 52).map((r) => ({ date: r.date, weight: parseFloat(r.weight_lbs) }));
-      store.set('foundry:bwlog', JSON.stringify(entries));
+      const localKey = 'foundry:bwlog';
+      const rows = bwRes.value.data as { date: string; weight_lbs: string; updated_at?: string }[];
+      const latestRemoteTs = rows.reduce((max, r) => {
+        const t = r.updated_at ?? '';
+        return t > max ? t : max;
+      }, '');
+      if (remoteIsNewer(localKey, latestRemoteTs)) {
+        const entries = rows.slice(0, 52).map((r) => ({ date: r.date, weight: parseFloat(r.weight_lbs) }));
+        store.setFromRemote(localKey, JSON.stringify(entries), latestRemoteTs || new Date().toISOString());
+      } else {
+        markDirty(localKey);
+      }
     }
     if (cardioRes.status === 'fulfilled' && cardioRes.value.data) {
-      for (const row of cardioRes.value.data as { date: string; data: unknown }[]) {
-        if (row.data != null) store.set('foundry:cardio:session:' + row.date, JSON.stringify(row.data));
+      for (const row of cardioRes.value.data as { date: string; data: unknown; updated_at?: string }[]) {
+        if (row.data == null) continue;
+        const localKey = 'foundry:cardio:session:' + row.date;
+        if (remoteIsNewer(localKey, row.updated_at)) {
+          store.setFromRemote(localKey, JSON.stringify(row.data), row.updated_at ?? new Date().toISOString());
+        } else {
+          markDirty(localKey);
+        }
       }
     }
     if (notesRes.status === 'fulfilled' && notesRes.value.data) {
-      for (const row of notesRes.value.data as { day_idx: number; week_idx: number; session_notes?: string; exercise_notes?: unknown }[]) {
-        if (row.session_notes != null) store.set('foundry:notes:d' + row.day_idx + ':w' + row.week_idx, row.session_notes);
-        if (row.exercise_notes != null) store.set('foundry:exnotes:d' + row.day_idx + ':w' + row.week_idx, JSON.stringify(row.exercise_notes));
+      for (const row of notesRes.value.data as { day_idx: number; week_idx: number; session_notes?: string; exercise_notes?: unknown; updated_at?: string }[]) {
+        const notesKey = 'foundry:notes:d' + row.day_idx + ':w' + row.week_idx;
+        const exNotesKey = 'foundry:exnotes:d' + row.day_idx + ':w' + row.week_idx;
+        if (remoteIsNewer(notesKey, row.updated_at)) {
+          const ts = row.updated_at ?? new Date().toISOString();
+          if (row.session_notes != null) store.setFromRemote(notesKey, row.session_notes, ts);
+          if (row.exercise_notes != null) store.setFromRemote(exNotesKey, JSON.stringify(row.exercise_notes), ts);
+        } else {
+          markDirty(notesKey);
+        }
       }
     }
-    console.log('[Foundry Sync] Pull from Supabase complete');
+    console.log('[Foundry Sync] Pull from Supabase complete (with conflict resolution)');
   } catch (e) { console.warn('[Foundry Sync] Pull from Supabase failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'pull' } }); } finally { syncEnd(); }
 }
 

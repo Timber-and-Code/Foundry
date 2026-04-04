@@ -148,7 +148,7 @@ function MesoOverviewContent() {
                 style={{
                   flex: 1,
                   height: isCurrent ? 8 : 6,
-                  borderRadius: 3,
+                  borderRadius: tokens.radius.xs,
                   background: color,
                   opacity: w <= currentWeek ? 1 : 0.3,
                   transition: 'all 0.2s',
@@ -163,7 +163,7 @@ function MesoOverviewContent() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {phaseGroups.map(({ phase, weeks, color }) => (
             <div key={phase} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
+              <div style={{ width: 8, height: 8, borderRadius: tokens.radius.xs, background: color }} />
               <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
                 {phase} <span style={{ color: 'var(--text-dim)' }}>W{weeks[0] + 1}–{weeks[weeks.length - 1] + 1}</span>
               </span>

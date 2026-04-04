@@ -29,17 +29,18 @@ import { useRestTimer } from '../../contexts/RestTimerContext';
 
 // Components
 import ExerciseCard from './ExerciseCard';
+import type { Profile, TrainingDay, Exercise } from '../../types';
 
 interface DayViewProps {
   dayIdx: number;
   weekIdx: number;
   onBack: () => void;
-  onComplete: (data?: any) => void;
+  onComplete: (data?: Record<string, unknown>) => void;
   onNextDay: () => void;
-  completedDays: any;
-  profile: any;
-  activeDays: any[];
-  onProfileUpdate: (profile: any) => void;
+  completedDays: Set<string>;
+  profile: Profile;
+  activeDays: TrainingDay[];
+  onProfileUpdate: (profile: Partial<Profile>) => void;
 }
 
 function DayView({
@@ -120,7 +121,7 @@ function DayView({
   // Must be computed before useState initializers that consume ex.sets.
   const weekDay = {
     ...day,
-    exercises: day.exercises.map((ex: any) => ({
+    exercises: day.exercises.map((ex: Exercise) => ({
       ...ex,
       sets: getWeekSets(ex.sets, weekIdx, getMeso().weeks),
     })),
@@ -129,7 +130,7 @@ function DayView({
   // Compute active week from completedDays (first week not fully done)
   const activeWeek = (() => {
     for (let w = 0; w < getMeso().weeks; w++) {
-      const allDone = activeDays.every((_: any, i: any) => completedDays.has(`${i}:${w}`));
+      const allDone = activeDays.every((_: TrainingDay, i: number) => completedDays.has(`${i}:${w}`));
       if (!allDone) return w;
     }
     return getMeso().weeks;
@@ -144,7 +145,7 @@ function DayView({
   const [bwModal, setBwModal] = React.useState<{ exIdx: number; exName: string } | null>(null);
   const [bwInput, setBwInput] = React.useState('');
 
-  const handleExpandToggle = (i: any) => {
+  const handleExpandToggle = (i: number) => {
     const ex = day.exercises[i];
     // If BW exercise, not yet confirmed this session, and not read-only
     if (ex.bw && !bwConfirmed.has(i) && !isDone && !isLocked) {
@@ -176,8 +177,8 @@ function DayView({
     if (isFutureSession) return new Set(); // future — nothing is done
     const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile);
     const restored = new Set();
-    weekDay.exercises.forEach((ex: any, i: any) => {
-      const exData = (saved as Record<string, any>)[i] || {};
+    weekDay.exercises.forEach((ex: Exercise, i: number) => {
+      const exData = (saved as Record<string, Record<string, Record<string, unknown>>>)[i] || {};
       let allFilled = true;
       for (let s = 0; s < ex.sets; s++) {
         const sd = exData[s] || {};
@@ -247,7 +248,7 @@ function DayView({
   }, [workoutStarted, isDone]);
 
   // Format elapsed seconds as M:SS or H:MM:SS
-  const formatElapsed = (secs: any) => {
+  const formatElapsed = (secs: number) => {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
@@ -276,10 +277,10 @@ function DayView({
   // Build resolved exercises by applying any saved overrides
   // MUST be declared before prevWeekNotes useMemo — Babel hoists var to undefined otherwise
   const [exercises] = useState(() => {
-    return (weekDay.exercises || []).map((ex: any, i: any) => {
+    return (weekDay.exercises || []).map((ex: Exercise, i: number) => {
       const ovId = loadExOverride(dayIdx, weekIdx, i);
       if (!ovId) return ex;
-      const dbEx = EXERCISE_DB.find((e: any) => e.id === ovId);
+      const dbEx = EXERCISE_DB.find((e) => e.id === ovId);
       if (!dbEx) return ex;
       const wu = ex.anchor
         ? profile?.sessionDuration <= 30
@@ -323,9 +324,9 @@ function DayView({
     else if (tag === 'UPPER') tagFilter = ['PUSH', 'PULL'];
     else if (tag === 'LOWER') tagFilter = ['LEGS'];
     else tagFilter = ['PUSH', 'PULL', 'LEGS'];
-    const exs = EXERCISE_DB.filter((e: any) => tagFilter.includes(e.tag));
-    const groups: Record<string, any[]> = {};
-    exs.forEach((e: any) => {
+    const exs = EXERCISE_DB.filter((e) => tagFilter.includes(e.tag || ''));
+    const groups: Record<string, typeof EXERCISE_DB[number][]> = {};
+    exs.forEach((e) => {
       if (!groups[e.muscle]) groups[e.muscle] = [];
       groups[e.muscle].push(e);
     });
@@ -352,9 +353,9 @@ function DayView({
 
   // Superset-aware set logger: defers rest until both exercises in pair have logged the same set
   const handleSetLogged = React.useCallback(
-    (restStr: any, exName: any, setIdx: any, isLastSet = false) => {
+    (restStr: string, exName: string, setIdx: number, isLastSet = false) => {
       // Find if this exercise is part of a superset pair
-      const exIdx = exercises.findIndex((e: any) => e.name === exName);
+      const exIdx = exercises.findIndex((e) => e.name === exName);
 
       // On the last set of an exercise, use the next exercise's rest period
       // so the timer guides the transition between exercises
@@ -376,7 +377,7 @@ function DayView({
 
       const ex = exercises[exIdx];
       const isPrimary = ex.supersetWith != null;
-      const isSecondary = !isPrimary && exercises.some((e: any) => e.supersetWith === exIdx);
+      const isSecondary = !isPrimary && exercises.some((e) => e.supersetWith === exIdx);
 
       if (!isPrimary && !isSecondary) {
         startRestTimer(effectiveRestStr, exName, dayIdx, weekIdx);
@@ -385,7 +386,7 @@ function DayView({
 
       const partnerIdx = isPrimary
         ? ex.supersetWith
-        : exercises.findIndex((e: any) => e.supersetWith === exIdx);
+        : exercises.findIndex((e) => e.supersetWith === exIdx);
 
       if (pendingRest && pendingRest.partnerIdx === exIdx && pendingRest.setIdx === setIdx) {
         startRestTimer(pendingRest.restStr || effectiveRestStr, exName, dayIdx, weekIdx);
@@ -410,7 +411,7 @@ function DayView({
   // handleAddExercise — reserved for add exercise feature
 
   const handleUpdateSet = useCallback(
-    (exIdx: any, setIdx: any, field: any, value: any) => {
+    (exIdx: number, setIdx: number, field: string, value: string | number | boolean) => {
       // If user edits actual data for a done exercise, un-done it so they can re-complete
       // Don't un-done on confirmed flag writes — those are checkmark actions, not edits
       if (field !== 'confirmed') {
@@ -426,13 +427,13 @@ function DayView({
         dialogShownRef.current.delete(exIdx);
       }
 
-      setWeekData((prev: any) => {
+      setWeekData((prev) => {
         const next = {
           ...prev,
           [exIdx]: {
-            ...((prev as Record<string, any>)[exIdx] || {}),
+            ...(prev[exIdx] || {}),
             [setIdx]: {
-              ...(((prev as Record<string, any>)[exIdx] || {})[setIdx] || {}),
+              ...((prev[exIdx] || {})[setIdx] || {}),
               [field]: value,
             },
           },
@@ -445,10 +446,10 @@ function DayView({
   );
 
   const handleWeightAutoFill = useCallback(
-    (exIdx: any, weight: any, numSets: any) => {
-      setWeekData((prev: any) => {
-        const exData = (prev as Record<string, any>)[exIdx] || {};
-        const next: Record<string, any> = { ...prev, [exIdx]: { ...exData } };
+    (exIdx: number, weight: string, numSets: number | string | undefined) => {
+      setWeekData((prev) => {
+        const exData = prev[exIdx] || {};
+        const next = { ...prev, [exIdx]: { ...exData } };
         for (let s = 1; s < numSets; s++) {
           const setData = exData[s] || {};
           // Only skip if the user has actually worked this set (confirmed or reps logged by hand)
@@ -466,7 +467,7 @@ function DayView({
   );
 
   const handleLastSetFilled = useCallback(
-    (exIdx: any, exName: any, restStr: any) => {
+    (exIdx: number, exName: string, restStr: string) => {
       // Don't fire if already done or already shown since last edit
       if (doneExercises.has(exIdx) || dialogShownRef.current.has(exIdx)) return;
       dialogShownRef.current.add(exIdx);
@@ -487,8 +488,8 @@ function DayView({
   // Used to pre-populate the end-of-session note textarea.
   const compileSessionNote = () => {
     const parts: string[] = [];
-    exercises.forEach((ex: any, i: any) => {
-      const exNote = (exNotes as Record<string, any>)[i];
+    exercises.forEach((ex: Exercise, i: number) => {
+      const exNote = (exNotes as Record<string, string>)[i];
       if (exNote && exNote.trim()) {
         parts.push(`${ex.name}: ${exNote}`);
       }
@@ -511,10 +512,10 @@ function DayView({
       date: dateStr,
       dayIdx: dayIdx,
       weekIdx: weekIdx,
-      exercises: exercises.map((ex: any, i: any) => ({
+      exercises: exercises.map((ex: Exercise, i: number) => ({
         name: ex.name,
         sets: ex.sets,
-        data: (weekData as Record<string, any>)[i] || {},
+        data: weekData[i] || {},
       })),
       sessionNote: sessionNote,
       duration: elapsedSecs,
@@ -604,7 +605,7 @@ function DayView({
         )}
 
         {/* Exercise Cards */}
-        {exercises.map((ex: any, i: any) => (
+        {exercises.map((ex: Exercise, i: number) => (
           <div key={i} id={`ex-${i}`} style={{ marginBottom: 12 }}>
             <ExerciseCard
               exercise={ex}
@@ -725,7 +726,7 @@ function DayView({
       </div>
 
       {/* Exercise Cards */}
-      {exercises.map((ex: any, i: any) => (
+      {exercises.map((ex: Exercise, i: number) => (
         <div key={i} id={`ex-${i}`} style={{ marginBottom: 12 }}>
           <ExerciseCard
             exercise={ex}
@@ -880,7 +881,7 @@ function DayView({
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
-              borderRadius: '14px 14px 0 0',
+              borderRadius: `${tokens.radius.xxl}px ${tokens.radius.xxl}px 0 0`,
               width: '100%',
               maxWidth: 480,
               padding: '24px 20px 36px',

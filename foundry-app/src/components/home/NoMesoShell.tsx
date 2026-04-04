@@ -1,6 +1,7 @@
 import FoundryBanner from '../shared/FoundryBanner';
 import ExplorePage from '../explore/ExplorePage';
 import { FOUNDRY_EMPTY_IMG } from '../../data/images-home';
+import { tokens } from '../../styles/tokens';
 
 interface NoMesoShellProps {
   onSetup: () => void;
@@ -45,7 +46,7 @@ function NoMesoShell({ onSetup, onStartProgram }: NoMesoShellProps) {
               height: 180,
               objectFit: 'cover',
               marginBottom: 12,
-              borderRadius: 16,
+              borderRadius: tokens.radius.round,
               WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 75%)',
               maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 75%)',
               filter: 'drop-shadow(0 0 20px rgba(232,101,26,0.15))',
@@ -102,7 +103,7 @@ function NoMesoShell({ onSetup, onStartProgram }: NoMesoShellProps) {
             padding: '15px',
             fontSize: 15,
             fontWeight: 700,
-            borderRadius: 6,
+            borderRadius: tokens.radius.md,
             letterSpacing: '0.02em',
           }}
         >

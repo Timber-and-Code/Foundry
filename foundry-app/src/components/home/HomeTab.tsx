@@ -16,6 +16,7 @@ import {
 } from '../../utils/store';
 import ReadinessCard from './ReadinessCard';
 import MobilityCard from './MobilityCard';
+import type { Profile, TrainingDay, Exercise, ReadinessEntry, CardioScheduleSlot } from '../../types';
 
 // ── Section Divider ───────────────────────────────────────────────────────
 
@@ -53,24 +54,24 @@ function RestStateCard({
   setCurrentWeek,
   onSelectDay,
 }: {
-  displayWeekAllDone: any;
-  calendarSessionDone: any;
-  nextDay: any;
-  nextDayIdx: any;
-  nextDayForCollapse: any;
-  nextDayIdxForCollapse: any;
-  doneLabel: any;
-  activeDays: any;
-  displayWeek: any;
-  completedDays: any;
-  showRecoveryOpen: any;
-  setShowRecoveryOpen: any;
-  showNextSession: any;
-  setShowNextSession: any;
-  activeWeek: any;
-  goBack: any;
-  setCurrentWeek: any;
-  onSelectDay: any;
+  displayWeekAllDone: boolean;
+  calendarSessionDone: boolean;
+  nextDay: TrainingDay | null;
+  nextDayIdx: number;
+  nextDayForCollapse: TrainingDay | null;
+  nextDayIdxForCollapse: number;
+  doneLabel: string;
+  activeDays: TrainingDay[];
+  displayWeek: number;
+  completedDays: Set<string>;
+  showRecoveryOpen: boolean;
+  setShowRecoveryOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
+  showNextSession: boolean;
+  setShowNextSession: (v: boolean | ((prev: boolean) => boolean)) => void;
+  activeWeek: number;
+  goBack: () => void;
+  setCurrentWeek: (v: number) => void;
+  onSelectDay: (v: number) => void;
 }) {
   // Find last completed day's tag for mobility
   let homeMobilityTag = null;
@@ -154,7 +155,7 @@ function RestStateCard({
         {/* Single collapsible recovery guide */}
         <div style={{ padding: '0' }}>
           <button
-            onClick={() => setShowRecoveryOpen((p: any) => !p)}
+            onClick={() => setShowRecoveryOpen((p: boolean) => !p)}
             style={{
               width: '100%',
               background: 'transparent',
@@ -239,7 +240,7 @@ function RestStateCard({
           }}
         >
           <button
-            onClick={() => setShowNextSession((p: any) => !p)}
+            onClick={() => setShowNextSession((p: boolean) => !p)}
             style={{
               width: '100%',
               background: 'transparent',
@@ -274,7 +275,7 @@ function RestStateCard({
                 onClick={() => { goBack(); setCurrentWeek(activeWeek); onSelectDay(nextDayIdxForCollapse); }}
                 style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0' }}
               >
-                {nextDayForCollapse.exercises.map((ex: any, ei: any) => {
+                {nextDayForCollapse.exercises.map((ex: Exercise, ei: number) => {
                   const ovId = store.get(`foundry:exov:d${nextDayIdxForCollapse}:ex${ei}`) || null;
                   const dbEx = ovId ? EXERCISE_DB.find((e) => e.id === ovId) : null;
                   return (
@@ -314,41 +315,41 @@ function RestStateCard({
 // ── HomeTab ───────────────────────────────────────────────────────────────
 
 interface HomeTabProps {
-  profile: any;
-  activeDays: any[];
-  completedDays: any;
-  activeWeek: any;
-  displayWeek: any;
-  phase: any;
-  pc: any;
-  rir: any;
-  weekDone: any;
-  weekTotal: any;
-  weekPct: any;
-  mesoPct: any;
-  doneSessions: any;
-  totalSessions: any;
-  readiness: any;
-  readinessOpen: any;
-  setReadinessOpen: (v: any) => void;
-  updateReadiness: (key: any, val: any) => void;
-  showRecoveryMorning: any;
-  setShowRecoveryMorning: (v: any) => void;
-  showRecoveryTag: any;
-  setShowRecoveryTag: (v: any) => void;
-  showNextSession: any;
-  setShowNextSession: (v: any) => void;
-  showMorningMobility: any;
-  setShowMorningMobility: (v: any) => void;
-  goTo: (v: any) => void;
+  profile: Profile;
+  activeDays: TrainingDay[];
+  completedDays: Set<string>;
+  activeWeek: number;
+  displayWeek: number;
+  phase: string;
+  pc: string;
+  rir: string | number;
+  weekDone: number;
+  weekTotal: number;
+  weekPct: number;
+  mesoPct: number;
+  doneSessions: number;
+  totalSessions: number;
+  readiness: ReadinessEntry | null;
+  readinessOpen: boolean;
+  setReadinessOpen: (v: boolean) => void;
+  updateReadiness: (key: keyof ReadinessEntry, val: string) => void;
+  showRecoveryMorning: boolean;
+  setShowRecoveryMorning: (v: boolean) => void;
+  showRecoveryTag: boolean;
+  setShowRecoveryTag: (v: boolean) => void;
+  showNextSession: boolean;
+  setShowNextSession: (v: boolean | ((prev: boolean) => boolean)) => void;
+  showMorningMobility: boolean;
+  setShowMorningMobility: (v: boolean | ((prev: boolean) => boolean)) => void;
+  goTo: (v: string) => void;
   goBack: () => void;
-  onSelectDay: (v: any) => void;
-  onSelectDayWeek: (dayIdx: any, weekIdx: any) => void;
-  setCurrentWeek: (v: any) => void;
-  setShowSkipConfirm: (v: any) => void;
-  onOpenCardio: (dateStr: any, protocol: any) => void;
-  onOpenMobility: (v: any) => void;
-  setShowPricing: (v: any) => void;
+  onSelectDay: (v: number) => void;
+  onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
+  setCurrentWeek: (v: number) => void;
+  setShowSkipConfirm: (v: { dayIdx: number; weekIdx: number } | null) => void;
+  onOpenCardio: (dateStr: string, protocol: string | null) => void;
+  onOpenMobility: (v: string) => void;
+  setShowPricing: (v: boolean) => void;
 }
 
 function HomeTab({
@@ -394,17 +395,17 @@ function HomeTab({
   })();
   const todayDow = new Date().getDay();
   const cardioSchedule = profile?.cardioSchedule || [];
-  const todayCardioSlot = cardioSchedule.find((s: any) => s.dayOfWeek === todayDow) || null;
+  const todayCardioSlot = cardioSchedule.find((s: CardioScheduleSlot) => s.dayOfWeek === todayDow) || null;
   const todayCardioSession = loadCardioSession(todayCardioStr);
   const CARDIO_COLOR = TAG_ACCENT['CARDIO'];
 
   const nextDayIdx = activeDays.findIndex((_, i) => !completedDays.has(`${i}:${activeWeek}`));
   const nextDay = nextDayIdx >= 0 ? activeDays[nextDayIdx] : null;
-  const nextDayAccent = nextDay ? (TAG_ACCENT as Record<string, any>)[nextDay.tag] : 'var(--accent)';
+  const nextDayAccent = nextDay ? (TAG_ACCENT as Record<string, string>)[nextDay.tag || ''] : 'var(--accent)';
 
   // Build sessionDateMap
   const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;
-  const sessionDateMap: Record<string, any> = {};
+  const sessionDateMap: Record<string, string> = {};
   if (startDate && activeDays.length > 0) {
     const total = (getMeso().weeks + 1) * activeDays.length;
     let sc = 0,
@@ -662,12 +663,12 @@ function HomeTab({
             </div>
           </button>
           <div style={{ padding: '6px 0 2px' }}>
-            {preview.map((ex: any, ei: any) => {
+            {preview.map((ex: Exercise, ei: number) => {
               const prevData = lastWeekData[ei];
               const prevSets = prevData
-                ? (Object.values(prevData) as any[]).filter((s: any) => s && s.weight && parseFloat(s.weight) > 0)
+                ? (Object.values(prevData) as Record<string, unknown>[]).filter((s) => s && s.weight && parseFloat(String(s.weight)) > 0)
                 : [];
-              const prevWeight = prevSets.length > 0 ? (prevSets[0] as any).weight : null;
+              const prevWeight = prevSets.length > 0 ? (prevSets[0] as Record<string, unknown>).weight : null;
               const ovId = store.get(`foundry:exov:d${showDayIdx}:ex${ei}`) || null;
               const dbEx = ovId ? EXERCISE_DB.find((e) => e.id === ovId) : null;
               return (
@@ -832,7 +833,7 @@ function HomeTab({
           }}
         >
           <button
-            onClick={() => setShowMorningMobility((p: any) => !p)}
+            onClick={() => setShowMorningMobility((p: boolean) => !p)}
             style={{
               width: '100%', background: 'var(--bg-inset)', border: 'none',
               borderBottom: '1px solid var(--border)', padding: '10px 16px', cursor: 'pointer',
