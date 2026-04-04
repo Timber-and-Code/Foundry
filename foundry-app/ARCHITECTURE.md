@@ -114,7 +114,10 @@ All sync code is in `src/utils/sync.ts`. Cheat sheet:
 - For each row, compares remote `updated_at` vs local timestamp via `remoteIsNewer()`. If remote is newer, `store.setFromRemote(key, value, remoteTs)` — writes without marking dirty. If local is newer, `markDirty(key)` to push on next flush.
 - Profile uses `mergeProfile()` for field-level merge (last-write-wins per field).
 
-### Supabase tables
+### Supabase schema (11 tables total)
+
+**Tables the app currently reads/writes (denormalized — jsonb blobs):**
+
 | Table | Columns | onConflict |
 |---|---|---|
 | `user_profiles` | id (uuid), data (jsonb), updated_at | `id` |
@@ -123,6 +126,25 @@ All sync code is in `src/utils/sync.ts`. Cheat sheet:
 | `body_weight_log` | user_id, date, weight_lbs, updated_at | `user_id,date` |
 | `cardio_sessions` | user_id, date, data (jsonb), updated_at | `user_id,date` |
 | `notes` | user_id, day_idx, week_idx, session_notes, exercise_notes (jsonb), updated_at | `user_id,day_idx,week_idx` |
+
+**Tables that exist in Supabase but the app does NOT touch:**
+
+| Table | Intended purpose | Current app behavior |
+|---|---|---|
+| `mesocycles` | Normalized meso records (one row per meso — mesoLength, splitType, phases, etc.) | App stores meso as fields on `foundry:profile` → `user_profiles.data` jsonb. Never writes to this table. |
+| `training_days` | Normalized day definitions (one row per day slot in a meso) | App generates days from `generateProgram(profile, EXERCISE_DB)` at runtime, caches in `foundry:storedProgram`. Never persisted to Supabase. |
+| `training_day_exercises` | Normalized exercises per day (join table) | Same as above — computed at runtime. Exercise overrides are stored locally as `foundry:exOv:d{d}:w{w}:ex{i}` keys. Not synced. |
+| `workout_sets` | Normalized per-set log (one row per completed set) | App bundles all sets for a session into `workout_sessions.data` jsonb. Never normalizes to per-set rows. |
+| `session_prs` | Normalized PR tracking per session | PRs are computed on-the-fly in `useMesoState.handleComplete` from the raw jsonb data. Never persisted. |
+
+**⚠️ Schema mismatch — important.** The Supabase project has a fully normalized relational schema (mesocycles → training_days → training_day_exercises → workout_sets, plus session_prs), but the application code uses a denormalized jsonb approach. Someone (previous session, DB designer, migration plan) set up the normalized tables but the app was never migrated to use them. This means:
+
+- Anything in `mesocycles`, `training_days`, `training_day_exercises`, `workout_sets`, `session_prs` will stay empty regardless of user activity
+- If these tables have NOT NULL constraints without defaults, and the app accidentally tries to cascade into them (e.g. via a foreign key), upserts could fail silently
+- Exercise overrides (swaps) are localStorage-only — they don't round-trip through Supabase at all, so swapping an exercise on one device won't carry to another device
+- PR history is also localStorage-only — clearing storage loses PR history entirely
+
+**Decision pending:** either migrate the app to write to the normalized tables, or drop the unused tables from Supabase to eliminate confusion. Until then, when debugging "data not syncing", confirm the code path is hitting one of the **6 tables the app actually uses**, not one of the 5 dormant ones.
 
 ### Gotchas
 - **Silent failures.** The push helpers catch errors and warn to console / capture to Sentry. If the Supabase project is **paused** (free-tier auto-pause after ~1 week of inactivity), writes and reads all fail silently and data appears to sync but never leaves the device. No UI indication.
@@ -182,13 +204,29 @@ All sync code is in `src/utils/sync.ts`. Cheat sheet:
 
 ---
 
-## 7. Meso Engine (data/constants.ts)
+## 7. Meso Engine (data/constants.ts + archive.ts)
 
 - **`buildMesoConfig(mesoLength, daysPerWeek, splitType)`** → produces `{weeks, days, phases, rirs, mesoRows, progTargets}`.
 - **Phases**: accumulation (first ~half), intensification (next ~quarter), peak (week before deload), deload (final week). Colored via `PHASE_COLOR`.
 - **`getProgTargets()`** returns per-week load/reps progression strings like "+5 lbs" / "9-11". `ExerciseCard` reads this to show the goal badge.
 - **`getMesoRows()`** returns per-week coaching guidance text (phase name + narrative).
 - **`_mesoCache`** is a module-level singleton — `resetMesoCache()` must be called after any profile write that changes mesoLength/split/days or the cache is stale.
+
+### Meso carryover (cycle-to-cycle progression)
+
+**Mesos are not independent.** Each new meso carries over ending loads, reps, and anchor PRs from the prior meso, so progressive overload continues across cycles — not just within one cycle. This is a core training principle in Foundry; losing carryover data means the user starts from scratch every 4–8 weeks, which breaks the programming model.
+
+The carryover path:
+1. **`archiveCurrentMeso(profile, { generateProgram, EXERCISE_DB })`** in `utils/archive.ts` runs when the user completes or resets a meso. It walks every `foundry:day{d}:week{w}` for the ending cycle, computes final set data per exercise, and writes an archived snapshot.
+2. **`resetMeso()`** clears the active cycle's session keys and writes a `foundry:meso_transition` record containing the starting loads/reps to use for the *next* meso (typically last-working-week +progression).
+3. **`SetupPage.tsx`** reads `foundry:meso_transition` during new-meso setup — if present, it pre-populates starting weights and shows "Carrying over from your last meso" messaging.
+4. **`CardioSetupFlow.tsx`** clears `foundry:meso_transition` (`store.set('foundry:meso_transition', '')`) once the new meso has been committed, so it's consumed exactly once.
+
+**When users say "my meso is gone," they may mean either:**
+- The active profile / session data was wiped (what you first think of)
+- **OR** the carryover chain from previous mesos was lost — so even though they can rebuild a profile, their next meso won't continue from where they progressed to before. This second kind of loss is the one that matters for long-term users.
+
+**The unused `mesocycles` table in Supabase was almost certainly intended as the remote backup for `foundry:meso_transition` + archive snapshots** — so carryover survives device changes and localStorage wipes. Currently carryover is **localStorage-only**, which means clearing storage breaks the progression chain between cycles even if the user is signed in. Migrating archive/transition data to `mesocycles` is a legitimate follow-up item.
 
 ---
 
