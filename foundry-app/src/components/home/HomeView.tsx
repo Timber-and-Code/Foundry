@@ -88,6 +88,13 @@ function HomeView({
   // ── Overlay / modal state ───────────────────────────────────────────────
   const [showReset, setShowReset] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
+
+  // Allow pricing modal to be triggered from anywhere via custom event
+  useEffect(() => {
+    const handler = () => setShowPricing(true);
+    window.addEventListener('foundry:showPricing', handler);
+    return () => window.removeEventListener('foundry:showPricing', handler);
+  }, []);
   const [showSkipConfirm, setShowSkipConfirm] = useState<{ dayIdx: number; weekIdx: number } | null>(null);
   const [skipVersion, setSkipVersion] = useState(0);
   const [addWorkoutModal, setAddWorkoutModal] = useState<string | null>(null);

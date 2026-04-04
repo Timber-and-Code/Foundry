@@ -615,6 +615,34 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           <div style={{ ...labelStyle, marginTop: 4 }}>SUPPORT</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button
+              onClick={() => {
+                onClose();
+                window.dispatchEvent(new CustomEvent('foundry:showPricing'));
+              }}
+              style={{
+                ...fieldRowStyle,
+                cursor: 'pointer',
+                border: '1px solid var(--phase-peak, #D4983C)55',
+                background: 'linear-gradient(135deg, #1A1410 0%, #221C14 100%)',
+              }}
+            >
+              <span style={{ ...fieldLabelStyle, color: 'var(--phase-peak, #D4983C)' }}>Foundry Pro</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  color: 'var(--phase-peak, #D4983C)',
+                  background: 'var(--phase-peak, #D4983C)22',
+                  border: '1px solid var(--phase-peak, #D4983C)44',
+                  borderRadius: tokens.radius.sm,
+                  padding: '1px 6px',
+                }}
+              >
+                UPGRADE
+              </span>
+            </button>
+            <button
               onClick={() => setShowFeedback(true)}
               style={{
                 ...fieldRowStyle,

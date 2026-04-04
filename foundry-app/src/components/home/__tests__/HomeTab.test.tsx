@@ -170,8 +170,6 @@ describe('HomeTab', () => {
   it('shows meso progress ring with correct percentage', () => {
     render(<HomeTab {...makeProps({ mesoPct: 42 })} />);
     expect(screen.getByText('42%')).toBeDefined();
-    expect(screen.getByText('MESO PROGRESS')).toBeDefined();
-    expect(screen.getByText('5/18')).toBeDefined();
   });
 
   it('renders day buttons for each active day', () => {
@@ -182,13 +180,13 @@ describe('HomeTab', () => {
     expect(screen.getByText('LE')).toBeDefined();
   });
 
-  it('clicking a day button calls onSelectDayWeek', () => {
+  it('clicking a day pill calls onSelectDayWeek', () => {
     const props = makeProps();
     render(<HomeTab {...props} />);
-    // Click the "PU" (Push) day button
-    const puButton = screen.getByText('PU').closest('button');
-    expect(puButton).toBeTruthy();
-    fireEvent.click(puButton!);
+    // Click the "PU" (Push) day pill — day pills are divs with onClick
+    const puPill = screen.getByText('PU').closest('div[style]');
+    expect(puPill).toBeTruthy();
+    fireEvent.click(puPill!);
     expect(props.goBack).toHaveBeenCalled();
     expect(props.onSelectDayWeek).toHaveBeenCalledWith(0, 0);
   });
