@@ -9,6 +9,7 @@ import {
 } from 'react-router-dom';
 import { RestTimerProvider, useRestTimer } from './contexts/RestTimerContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import { PageSkeleton } from './components/ui/Skeleton';
 const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
 
@@ -482,11 +483,13 @@ export default function WrappedApp() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <AuthProvider>
-          <RestTimerProvider>
-            <AuthGate />
-          </RestTimerProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <RestTimerProvider>
+              <AuthGate />
+            </RestTimerProvider>
+          </AuthProvider>
+        </ToastProvider>
       </BrowserRouter>
     </ErrorBoundary>
   );

@@ -110,7 +110,15 @@ export async function flushDirty(): Promise<void> {
           if (attempt < 2) await new Promise(res => setTimeout(res, 500 * (attempt + 1)));
         }
       }
-      if (succeeded) clearDirty(key);
+      if (succeeded) {
+        clearDirty(key);
+      } else {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('foundry:toast', {
+            detail: { message: 'Sync failed — changes saved locally', type: 'warning' },
+          }));
+        }
+      }
     }
   } catch (e) {
     Sentry.captureException(e, { tags: { context: 'sync', operation: 'flushDirty' } });

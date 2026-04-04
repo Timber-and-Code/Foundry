@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../utils/supabase';
 import Button from '../ui/Button';
 import { FOUNDRY_ANVIL_IMG } from '../../data/images-core';
@@ -7,6 +8,7 @@ import { tokens } from '../../styles/tokens';
 
 export default function AuthPage() {
   const { login, signup } = useAuth();
+  const { showToast } = useToast();
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +28,9 @@ export default function AuthPage() {
         setError(authError.message);
       } else if (mode === 'signup') {
         setInfo('Check your email for a confirmation link.');
+        showToast('Account created!', 'success');
+      } else {
+        showToast('Welcome back!', 'success');
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong.');

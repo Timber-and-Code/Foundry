@@ -1,4 +1,5 @@
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { tokens } from '../../styles/tokens';
 import { useSyncState, useSyncDirtyCount } from '../../hooks/useSyncState';
 import type { SyncState } from '../../hooks/useSyncState';
@@ -12,6 +13,7 @@ const SYNC_LABEL: Record<SyncState, { color: string; text: string }> = {
 
 export default function AccountSection() {
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const syncState = useSyncState();
   const dirtyCount = useSyncDirtyCount();
   if (!user) return null;
@@ -95,7 +97,7 @@ export default function AccountSection() {
 
       {/* Sign out */}
       <button
-        onClick={logout}
+        onClick={() => { showToast('Signed out', 'info'); logout(); }}
         style={{
           display: 'flex',
           justifyContent: 'space-between',
