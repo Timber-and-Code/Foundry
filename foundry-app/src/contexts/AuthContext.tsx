@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { User, Session } from '@supabase/supabase-js';
 import * as Sentry from '@sentry/react';
 import { supabase } from '../utils/supabase';
-import { pullFromSupabase, pushToSupabase } from '../utils/sync';
+import { pullFromSupabase, pushToSupabase, flushDirty } from '../utils/sync';
 
 interface AuthContextValue {
   user: User | null;
@@ -42,7 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         if (event === 'SIGNED_IN') {
           if (session?.user) Sentry.setUser({ email: session.user.email, id: session.user.id });
-          pullFromSupabase();
+          // Pull remote state first (merges into local, marks local-newer
+          // keys dirty), THEN flush the dirty queue so any pre-auth local
+          // work — e.g. a meso created while unauthenticated, or writes
+          // that silently failed on previous attempts — gets pushed to
+          // Supabase now that we have a valid session.
+          pullFromSupabase().then(() => flushDirty());
         } else if (event === 'USER_UPDATED') {
           pullFromSupabase();
         } else if (event === 'SIGNED_OUT') {

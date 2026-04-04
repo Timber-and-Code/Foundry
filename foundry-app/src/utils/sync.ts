@@ -78,37 +78,47 @@ export async function flushDirty(): Promise<void> {
       if (!raw) { clearDirty(key); continue; }
 
       let succeeded = false;
+      let lastError: unknown = null;
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           const dayWeekMatch = key.match(/^foundry:day(\d+):week(\d+)$/);
           if (dayWeekMatch) {
             const data = JSON.parse(raw);
             const [, d, w] = dayWeekMatch;
-            await supabase.from('workout_sessions').upsert({ user_id: user.id, day_idx: parseInt(d), week_idx: parseInt(w), data, updated_at: new Date().toISOString() }, { onConflict: 'user_id,day_idx,week_idx' });
+            const { error } = await supabase.from('workout_sessions').upsert({ user_id: user.id, day_idx: parseInt(d), week_idx: parseInt(w), data, updated_at: new Date().toISOString() }, { onConflict: 'user_id,day_idx,week_idx' });
+            if (error) throw error;
             succeeded = true; break;
           }
           if (key === 'foundry:profile') {
-            await supabase.from('user_profiles').upsert({ id: user.id, data: JSON.parse(raw), updated_at: new Date().toISOString() }, { onConflict: 'id' });
+            const { error } = await supabase.from('user_profiles').upsert({ id: user.id, data: JSON.parse(raw), updated_at: new Date().toISOString() }, { onConflict: 'id' });
+            if (error) throw error;
             succeeded = true; break;
           }
           const readinessMatch = key.match(/^foundry:readiness:(\d{4}-\d{2}-\d{2})$/);
           if (readinessMatch) {
             const r = JSON.parse(raw) as ReadinessEntry;
             const [, date] = readinessMatch;
-            await supabase.from('readiness_checkins').upsert({ user_id: user.id, date, sleep: r.sleep ?? null, soreness: r.soreness ?? null, energy: r.energy ?? null, score: readinessScore(r), updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
+            const { error } = await supabase.from('readiness_checkins').upsert({ user_id: user.id, date, sleep: r.sleep ?? null, soreness: r.soreness ?? null, energy: r.energy ?? null, score: readinessScore(r), updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
+            if (error) throw error;
             succeeded = true; break;
           }
           const cardioMatch = key.match(/^foundry:cardio:session:(\d{4}-\d{2}-\d{2})$/);
           if (cardioMatch) {
             const [, date] = cardioMatch;
-            await supabase.from('cardio_sessions').upsert({ user_id: user.id, date, data: JSON.parse(raw), updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
+            const { error } = await supabase.from('cardio_sessions').upsert({ user_id: user.id, date, data: JSON.parse(raw), updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
+            if (error) throw error;
             succeeded = true; break;
           }
           // Unknown key pattern — nothing to do
           succeeded = true; break;
-        } catch {
+        } catch (err) {
+          lastError = err;
           if (attempt < 2) await new Promise(res => setTimeout(res, 500 * (attempt + 1)));
         }
+      }
+      if (!succeeded && lastError) {
+        console.warn('[Foundry Sync] flushDirty key failed after retries:', key, lastError);
+        Sentry.captureException(lastError, { tags: { context: 'sync', operation: 'flushDirty', key } });
       }
       if (succeeded) {
         clearDirty(key);
@@ -137,13 +147,33 @@ function readinessScore(r: ReadinessEntry | null | undefined): number | null {
   return s + o + e;
 }
 
+// Track the last time we showed a sync-failure toast so we don't spam the
+// user when a whole batch of writes all fail for the same reason (offline,
+// RLS misconfig, schema error). One toast per 30s is plenty to surface the
+// problem without being annoying.
+let _lastSyncFailureToast = 0;
+function reportSyncFailure(operation: string, err: unknown): void {
+  console.warn(`[Foundry Sync] ${operation} failed`, err);
+  Sentry.captureException(err, { tags: { context: 'sync', operation } });
+  if (typeof window !== 'undefined') {
+    const now = Date.now();
+    if (now - _lastSyncFailureToast > 30_000) {
+      _lastSyncFailureToast = now;
+      window.dispatchEvent(new CustomEvent('foundry:toast', {
+        detail: { message: `Cloud sync failed (${operation}). Saved locally — will retry.`, type: 'warning' },
+      }));
+    }
+  }
+}
+
 export async function syncProfileToSupabase(profile: Profile): Promise<void> {
   syncStart();
   try {
     const user = await getUser();
     if (!user) return;
-    await supabase.from('user_profiles').upsert({ id: user.id, data: profile, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-  } catch (e) { console.warn('[Foundry Sync] Profile sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'profile' } }); } finally { syncEnd(); }
+    const { error } = await supabase.from('user_profiles').upsert({ id: user.id, data: profile, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    if (error) throw error;
+  } catch (e) { reportSyncFailure('profile', e); } finally { syncEnd(); }
 }
 
 export async function syncWorkoutToSupabase(dayIdx: number, weekIdx: number, data: DayData): Promise<void> {
@@ -151,11 +181,12 @@ export async function syncWorkoutToSupabase(dayIdx: number, weekIdx: number, dat
   try {
     const user = await getUser();
     if (!user) return;
-    await supabase.from('workout_sessions').upsert(
+    const { error } = await supabase.from('workout_sessions').upsert(
       { user_id: user.id, day_idx: dayIdx, week_idx: weekIdx, data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,day_idx,week_idx' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Workout sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'workout' } }); } finally { syncEnd(); }
+    if (error) throw error;
+  } catch (e) { reportSyncFailure('workout', e); } finally { syncEnd(); }
 }
 
 export async function syncReadinessToSupabase(date: string, readinessData: ReadinessEntry): Promise<void> {
@@ -163,11 +194,12 @@ export async function syncReadinessToSupabase(date: string, readinessData: Readi
   try {
     const user = await getUser();
     if (!user) return;
-    await supabase.from('readiness_checkins').upsert(
+    const { error } = await supabase.from('readiness_checkins').upsert(
       { user_id: user.id, date, sleep: readinessData.sleep ?? null, soreness: readinessData.soreness ?? null, energy: readinessData.energy ?? null, score: readinessScore(readinessData), updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Readiness sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'readiness' } }); } finally { syncEnd(); }
+    if (error) throw error;
+  } catch (e) { reportSyncFailure('readiness', e); } finally { syncEnd(); }
 }
 
 export async function syncBodyWeightToSupabase(date: string, weightLbs: number): Promise<void> {
@@ -175,11 +207,12 @@ export async function syncBodyWeightToSupabase(date: string, weightLbs: number):
   try {
     const user = await getUser();
     if (!user) return;
-    await supabase.from('body_weight_log').upsert(
+    const { error } = await supabase.from('body_weight_log').upsert(
       { user_id: user.id, date, weight_lbs: weightLbs, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Body weight sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'bodyweight' } }); } finally { syncEnd(); }
+    if (error) throw error;
+  } catch (e) { reportSyncFailure('bodyweight', e); } finally { syncEnd(); }
 }
 
 export async function syncCardioSessionToSupabase(date: string, data: unknown): Promise<void> {
@@ -187,11 +220,12 @@ export async function syncCardioSessionToSupabase(date: string, data: unknown): 
   try {
     const user = await getUser();
     if (!user) return;
-    await supabase.from('cardio_sessions').upsert(
+    const { error } = await supabase.from('cardio_sessions').upsert(
       { user_id: user.id, date, data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Cardio session sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'cardio' } }); } finally { syncEnd(); }
+    if (error) throw error;
+  } catch (e) { reportSyncFailure('cardio', e); } finally { syncEnd(); }
 }
 
 export async function syncNotesToSupabase(dayIdx: number, weekIdx: number, sessionNotes: string | null, exerciseNotes: unknown): Promise<void> {
@@ -199,11 +233,12 @@ export async function syncNotesToSupabase(dayIdx: number, weekIdx: number, sessi
   try {
     const user = await getUser();
     if (!user) return;
-    await supabase.from('notes').upsert(
+    const { error } = await supabase.from('notes').upsert(
       { user_id: user.id, day_idx: dayIdx, week_idx: weekIdx, session_notes: sessionNotes ?? null, exercise_notes: exerciseNotes ?? null, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,day_idx,week_idx' }
     );
-  } catch (e) { console.warn('[Foundry Sync] Notes sync failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'notes' } }); } finally { syncEnd(); }
+    if (error) throw error;
+  } catch (e) { reportSyncFailure('notes', e); } finally { syncEnd(); }
 }
 
 /** Returns true if remote timestamp is newer than local, or local has no timestamp */
@@ -426,9 +461,30 @@ export async function pushToSupabase(): Promise<void> {
     }
 
     const BATCH = 20;
+    let failureCount = 0;
+    let firstError: unknown = null;
     for (let i = 0; i < ops.length; i += BATCH) {
-      await Promise.allSettled(ops.slice(i, i + BATCH));
+      const results = await Promise.allSettled(ops.slice(i, i + BATCH));
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          failureCount++;
+          if (!firstError) firstError = r.reason;
+          continue;
+        }
+        // Supabase client resolves to { data, error } without throwing on
+        // API errors, so the allSettled "fulfilled" bucket still contains
+        // silent failures unless we inspect .error explicitly.
+        const v = r.value as { error?: unknown } | null | undefined;
+        if (v && v.error) {
+          failureCount++;
+          if (!firstError) firstError = v.error;
+        }
+      }
     }
-    console.log('[Foundry Sync] Pushed ' + ops.length + ' records to Supabase');
-  } catch (e) { console.warn('[Foundry Sync] Push to Supabase failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'push' } }); } finally { syncEnd(); }
+    if (failureCount > 0) {
+      reportSyncFailure('push', firstError ?? new Error(`${failureCount} upserts failed silently`));
+    } else {
+      console.log('[Foundry Sync] Pushed ' + ops.length + ' records to Supabase');
+    }
+  } catch (e) { reportSyncFailure('push', e); } finally { syncEnd(); }
 }
