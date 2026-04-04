@@ -20,14 +20,18 @@ async function blockSupabase(page: import('@playwright/test').Page) {
 // Helper: clear app state and open the root page
 async function openFresh(page: import('@playwright/test').Page) {
   await blockSupabase(page);
+  // Navigate once so we can access localStorage on the correct origin
   await page.goto('/');
-  // Clear any onboarding flags that may persist across tests
+  // Clear any onboarding/profile flags that may persist across tests
   await page.evaluate(() => {
     Object.keys(localStorage)
       .filter((k) => k.startsWith('foundry:'))
       .forEach((k) => localStorage.removeItem(k));
   });
   await page.reload();
+  // Wait for the auth check to resolve (Supabase blocked → authUnavailable)
+  // and the OnboardingFlow to render
+  await page.waitForLoadState('networkidle');
 }
 
 test.describe('Onboarding flow', () => {
@@ -73,9 +77,9 @@ test.describe('Onboarding flow', () => {
     await page.getByRole('button', { name: /enter the forge/i }).click();
     await page.getByPlaceholder('Your name').fill('Atlas');
     await page.getByRole('button', { name: /continue/i }).click();
-    await expect(page.getByText('Beginner')).toBeVisible();
-    await expect(page.getByText('Intermediate')).toBeVisible();
-    await expect(page.getByText('Advanced')).toBeVisible();
+    await expect(page.getByRole('radio', { name: /beginner/i })).toBeVisible();
+    await expect(page.getByRole('radio', { name: /intermediate/i })).toBeVisible();
+    await expect(page.getByRole('radio', { name: /advanced/i })).toBeVisible();
   });
 
   test('selecting experience and continuing reaches goal screen', async ({ page }) => {
@@ -83,7 +87,7 @@ test.describe('Onboarding flow', () => {
     await page.getByRole('button', { name: /enter the forge/i }).click();
     await page.getByPlaceholder('Your name').fill('Atlas');
     await page.getByRole('button', { name: /continue/i }).click();
-    await page.getByText('Intermediate').click();
+    await page.getByRole('radio', { name: /intermediate/i }).click();
     await page.getByRole('button', { name: /continue/i }).click();
     await expect(page.getByText(/what's your/i)).toBeVisible();
     await expect(page.getByText(/primary goal/i)).toBeVisible();
@@ -94,9 +98,9 @@ test.describe('Onboarding flow', () => {
     await page.getByRole('button', { name: /enter the forge/i }).click();
     await page.getByPlaceholder('Your name').fill('Atlas');
     await page.getByRole('button', { name: /continue/i }).click();
-    await page.getByText('Intermediate').click();
+    await page.getByRole('radio', { name: /intermediate/i }).click();
     await page.getByRole('button', { name: /continue/i }).click();
-    await expect(page.getByText('Build Muscle')).toBeVisible();
+    await expect(page.getByRole('radio', { name: /build muscle/i })).toBeVisible();
   });
 
   test('selecting goal and continuing shows ready/confirmation screen', async ({ page }) => {
@@ -104,9 +108,9 @@ test.describe('Onboarding flow', () => {
     await page.getByRole('button', { name: /enter the forge/i }).click();
     await page.getByPlaceholder('Your name').fill('Atlas');
     await page.getByRole('button', { name: /continue/i }).click();
-    await page.getByText('Intermediate').click();
+    await page.getByRole('radio', { name: /intermediate/i }).click();
     await page.getByRole('button', { name: /continue/i }).click();
-    await page.getByText('Build Muscle').click();
+    await page.getByRole('radio', { name: /build muscle/i }).click();
     await page.getByRole('button', { name: /continue/i }).click();
     await expect(page.getByText(/ready to forge/i)).toBeVisible();
   });
@@ -116,9 +120,9 @@ test.describe('Onboarding flow', () => {
     await page.getByRole('button', { name: /enter the forge/i }).click();
     await page.getByPlaceholder('Your name').fill('Atlas');
     await page.getByRole('button', { name: /continue/i }).click();
-    await page.getByText('Intermediate').click();
+    await page.getByRole('radio', { name: /intermediate/i }).click();
     await page.getByRole('button', { name: /continue/i }).click();
-    await page.getByText('Build Muscle').click();
+    await page.getByRole('radio', { name: /build muscle/i }).click();
     await page.getByRole('button', { name: /continue/i }).click();
     await expect(page.getByRole('button', { name: /build my program/i })).toBeVisible();
   });
