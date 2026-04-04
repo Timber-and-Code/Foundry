@@ -12,6 +12,8 @@ import {
   loadArchive,
 } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
+import type { Exercise, DayData } from '../../types';
+import type { WarmupStep, WarmupDetail } from '../../utils/training';
 
 interface HistoryRow {
   w: number;
@@ -50,23 +52,23 @@ interface ArchiveRecord {
 }
 
 interface ExerciseCardProps {
-  exercise: any;
+  exercise: Exercise;
   exIdx: number;
   dayIdx: number;
   weekIdx: number;
-  weekData: any;
-  onUpdateSet: (...args: any[]) => void;
-  onWeightAutoFill: (...args: any[]) => void;
-  onLastSetFilled: (...args: any[]) => void;
+  weekData: DayData;
+  onUpdateSet: (exIdx: number, setIdx: number, field: string, value: string | number | boolean) => void;
+  onWeightAutoFill: (exIdx: number, value: string, sets: number | string | undefined) => void;
+  onLastSetFilled: (exIdx: number, setIdx: number) => void;
   expanded: boolean;
   onToggle: () => void;
   done: boolean;
   readOnly: boolean;
-  onSwapClick: (...args: any[]) => void;
-  onSetLogged: (...args: any[]) => void;
-  bodyweight: any;
+  onSwapClick: (exIdx: number) => void;
+  onSetLogged: (exIdx: number, setIdx: number) => void;
+  bodyweight: number | string | undefined;
   note: string;
-  onNoteChange: (...args: any[]) => void;
+  onNoteChange: (exIdx: number, value: string) => void;
 }
 
 function ExerciseCard({
@@ -101,7 +103,6 @@ function ExerciseCard({
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
   const [showHowTo, setShowHowTo] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
-  const [warmupOpen, setWarmupOpen] = useState(false);
   const [noteOpen, _setNoteOpen] = useState(!!(note && note.trim()));
 
   // Load prev week raw data for "Last session" context hints
@@ -168,13 +169,13 @@ function ExerciseCard({
     }
     return restored;
   });
-  const handleWeightBlur = (s: any, value: any) => {
+  const handleWeightBlur = (s: number, value: string) => {
     if (s === 0 && value.trim() !== '' && !isNaN(parseFloat(value))) {
       onWeightAutoFill(exIdx, value, exercise.sets);
     }
   };
 
-  const handleRepsChange = (s: any, value: any) => {
+  const handleRepsChange = (s: number, value: string) => {
     onUpdateSet(exIdx, s, 'reps', value);
     // Un-done the set if user edits it
     setDoneSets((prev) => {
@@ -184,11 +185,11 @@ function ExerciseCard({
     });
   };
 
-  const handleRepsBlur = (_s: any, _value: any) => {
+  const handleRepsBlur = (_s: number, _value: string) => {
     // No-op: set completion now driven by explicit checkmark tap
   };
 
-  const handleSetCheckmark = (s: any) => {
+  const handleSetCheckmark = (s: number) => {
     if (doneSets.has(s)) {
       // Uncheck — re-enable editing, clear confirmed flag
       setDoneSets((prev) => {
@@ -410,23 +411,8 @@ function ExerciseCard({
       {/* ── EXPANDED CONTENT ── */}
       {expanded && (
         <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px' }}>
-          {/* Exercise meta */}
-          {exercise.description && (
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--text-secondary)',
-                marginBottom: 12,
-                paddingBottom: 12,
-                borderBottom: '1px solid var(--border)',
-              }}
-            >
-              {exercise.description}
-            </div>
-          )}
-
           {/* Warmup & How To buttons */}
-          {exercise.warmup && !done && (
+          {!done && (
             <div
               style={{
                 display: 'flex',
@@ -435,48 +421,29 @@ function ExerciseCard({
                 flexWrap: 'wrap',
               }}
             >
-              <button
-                onClick={handleWarmupClick}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: '10px 12px',
-                  borderRadius: tokens.radius.md,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-accent)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}
-              >
-                🔥 Warmup Guide
-              </button>
-              <button
-                onClick={() => setWarmupOpen(!warmupOpen)}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: '10px 12px',
-                  borderRadius: tokens.radius.md,
-                  background: warmupOpen ? 'rgba(var(--accent-rgb),0.15)' : 'var(--bg-inset)',
-                  border: warmupOpen ? '1px solid var(--text-accent)' : '1px solid var(--border)',
-                  color: 'var(--text-accent)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}
-              >
-                🏋️ 2 Ramp Sets
-              </button>
+              {exercise.warmup && (
+                <button
+                  onClick={handleWarmupClick}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: '10px 12px',
+                    borderRadius: tokens.radius.md,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-accent)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  Warmup Guide
+                </button>
+              )}
               <button
                 onClick={handleHowToClick}
                 style={{
@@ -496,40 +463,8 @@ function ExerciseCard({
                   gap: 6,
                 }}
               >
-                🎬 How To Video
+                How To
               </button>
-            </div>
-          )}
-          {/* Ramp sets detail (toggles open/closed) */}
-          {warmupOpen && exercise.warmup && !done && (
-            <div
-              style={{
-                fontSize: 12,
-                lineHeight: 1.6,
-                color: 'var(--text-secondary)',
-                background: 'var(--bg-inset)',
-                padding: 12,
-                borderRadius: tokens.radius.md,
-                marginBottom: 12,
-                border: '1px solid var(--border)',
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 700,
-                  color: 'var(--text-accent)',
-                  marginBottom: 6,
-                }}
-              >
-                Ramp-Up Sets
-              </div>
-              <ol style={{ paddingLeft: 20, margin: 0 }}>
-                {generateWarmupSteps(exercise, workingWeight)?.map((step: any, idx: number) => (
-                  <li key={idx} style={{ marginBottom: 4 }}>
-                    <strong>{step.label}</strong> — {step.reps}{step.detail ? `: ${step.detail}` : ''}
-                  </li>
-                ))}
-              </ol>
             </div>
           )}
 
@@ -716,23 +651,7 @@ function ExerciseCard({
                 cursor: 'pointer',
               }}
             >
-              📊 History
-            </button>
-            <button
-              onClick={handleHowToClick}
-              style={{
-                flex: 1,
-                minWidth: 100,
-                fontSize: 12,
-                padding: '8px 12px',
-                borderRadius: tokens.radius.sm,
-                background: 'var(--bg-inset)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-accent)',
-                cursor: 'pointer',
-              }}
-            >
-              🎬 How To Video
+              History
             </button>
             {!done && !readOnly && (
               <button
@@ -749,7 +668,7 @@ function ExerciseCard({
                   cursor: 'pointer',
                 }}
               >
-                🔄 Swap
+                Swap
               </button>
             )}
           </div>
@@ -899,18 +818,55 @@ function ExerciseCard({
                     marginBottom: 16,
                   }}
                 >
-                  HOW TO VIDEO
+                  HOW TO PERFORM
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.6,
-                    marginBottom: 16,
-                  }}
-                >
-                  {exercise.howTo || 'Video guide coming soon'}
-                </div>
+                {exercise.description ? (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6,
+                      marginBottom: 16,
+                    }}
+                  >
+                    {exercise.description}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      lineHeight: 1.6,
+                      marginBottom: 16,
+                    }}
+                  >
+                    No description available yet.
+                  </div>
+                )}
+                {exercise.videoUrl && (
+                  <a
+                    href={exercise.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: tokens.radius.sm,
+                      background: 'rgba(255,0,0,0.1)',
+                      border: '1px solid rgba(255,0,0,0.3)',
+                      color: '#ff4444',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      textAlign: 'center',
+                      textDecoration: 'none',
+                      marginBottom: 12,
+                    }}
+                  >
+                    Watch on YouTube
+                  </a>
+                )}
                 <button
                   onClick={() => setShowHowTo(false)}
                   style={{
@@ -959,7 +915,20 @@ function ExerciseCard({
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div id="warmup-modal-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Warmup Guide</div>
+                <div id="warmup-modal-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                  Warmup Guide
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--text-muted)',
+                    letterSpacing: '0.08em',
+                    marginBottom: 16,
+                  }}
+                >
+                  {(getWarmupDetail(exercise.warmup, exercise.name) as WarmupDetail)?.title || exercise.warmup}
+                </div>
                 <div
                   style={{
                     fontSize: 12,
@@ -968,18 +937,28 @@ function ExerciseCard({
                     marginBottom: 16,
                   }}
                 >
-                  {(getWarmupDetail(exercise.warmup, exercise.name) as any)?.detail}
+                  {(getWarmupDetail(exercise.warmup, exercise.name) as WarmupDetail)?.rationale}
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Steps:</div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: 'var(--text-accent)',
+                    marginBottom: 8,
+                  }}
+                >
+                  Ramp-Up Sets
+                </div>
                 <ol
                   style={{
                     fontSize: 12,
                     color: 'var(--text-secondary)',
+                    lineHeight: 1.6,
                     marginBottom: 16,
                     paddingLeft: 20,
                   }}
                 >
-                  {generateWarmupSteps(exercise, workingWeight)?.map((step: any, idx: number) => (
+                  {generateWarmupSteps(exercise, workingWeight)?.map((step: WarmupStep, idx: number) => (
                     <li key={idx} style={{ marginBottom: 6 }}>
                       <strong>{step.label}</strong> — {step.reps}{step.detail ? `: ${step.detail}` : ''}
                     </li>
@@ -1008,7 +987,7 @@ function ExerciseCard({
   );
 }
 
-function areExerciseCardsEqual(prev: any, next: any) {
+function areExerciseCardsEqual(prev: ExerciseCardProps, next: ExerciseCardProps) {
   // Cheap primitive checks first
   if (
     prev.exIdx !== next.exIdx ||
