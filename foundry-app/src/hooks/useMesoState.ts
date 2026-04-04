@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { WorkoutSet } from '../types';
 
 interface UseMesoStateParams {
@@ -48,6 +48,21 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
   const [completedDays, setCompletedDays] = useState(() => loadCompleted(getMeso()));
   const [currentWeek, setCurrentWeek] = useState(loadCurrentWeek);
   const [weekCompleteModal, setWeekCompleteModal] = useState<WeekCompleteModalData | null>(null);
+
+  // When Supabase pull finishes (on sign-in or manual sync), re-read local
+  // storage so freshly-restored profile + completion data show up without
+  // requiring a page reload.
+  useEffect(() => {
+    const handlePullComplete = () => {
+      resetMesoCache();
+      const fresh = loadProfile();
+      setProfile(fresh);
+      setCompletedDays(loadCompleted(getMeso()));
+      setCurrentWeek(loadCurrentWeek());
+    };
+    window.addEventListener('foundry:pull-complete', handlePullComplete);
+    return () => window.removeEventListener('foundry:pull-complete', handlePullComplete);
+  }, []);
 
   const activeDays = useMemo(() => {
     if (!profile) return [];

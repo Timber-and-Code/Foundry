@@ -207,7 +207,7 @@ export async function syncNotesToSupabase(dayIdx: number, weekIdx: number, sessi
 }
 
 /** Returns true if remote timestamp is newer than local, or local has no timestamp */
-function remoteIsNewer(localKey: string, remoteUpdatedAt: string | undefined): boolean {
+export function remoteIsNewer(localKey: string, remoteUpdatedAt: string | undefined): boolean {
   if (!remoteUpdatedAt) return true;
   const localTs = store.getTimestamp(localKey);
   if (!localTs) return true;
@@ -215,7 +215,7 @@ function remoteIsNewer(localKey: string, remoteUpdatedAt: string | undefined): b
 }
 
 /** Field-level merge for profile: for each key, keep the more recently written value */
-function mergeProfile(local: Record<string, unknown>, remote: Record<string, unknown>, remoteTs: string): Record<string, unknown> {
+export function mergeProfile(local: Record<string, unknown>, remote: Record<string, unknown>, remoteTs: string): Record<string, unknown> {
   const localTs = store.getTimestamp('foundry:profile');
   // If no local timestamp, remote wins entirely
   if (!localTs) return { ...remote };
@@ -339,6 +339,12 @@ export async function pullFromSupabase(): Promise<void> {
       }
     }
     console.log('[Foundry Sync] Pull from Supabase complete (with conflict resolution)');
+    // Notify listeners (App/useMesoState) that local storage has been
+    // refreshed from the remote, so they can re-read profile + derived state
+    // without requiring a page reload.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('foundry:pull-complete'));
+    }
   } catch (e) { console.warn('[Foundry Sync] Pull from Supabase failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'pull' } }); } finally { syncEnd(); }
 }
 

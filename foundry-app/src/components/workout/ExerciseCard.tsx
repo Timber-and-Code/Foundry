@@ -567,6 +567,7 @@ function ExerciseCard({
                   >
                     <input
                       type="number"
+                      inputMode="decimal"
                       placeholder="—"
                       value={sd.weight || ''}
                       aria-label={`Set ${s + 1} weight in pounds`}
@@ -574,17 +575,22 @@ function ExerciseCard({
                       onBlur={(e) => handleWeightBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
                       style={{
+                        minWidth: 0,
+                        width: '100%',
                         background: 'var(--bg-inset)',
                         border: '1px solid var(--border)',
                         borderRadius: tokens.radius.sm,
-                        padding: '6px 8px',
-                        fontSize: 13,
+                        padding: '8px 6px',
+                        fontSize: 14,
                         color: 'var(--text-primary)',
                         outline: 'none',
+                        textAlign: 'center',
+                        boxSizing: 'border-box',
                       }}
                     />
                     <input
                       type="number"
+                      inputMode="numeric"
                       placeholder="—"
                       value={sd.reps || ''}
                       aria-label={`Set ${s + 1} reps`}
@@ -592,13 +598,17 @@ function ExerciseCard({
                       onBlur={(e) => handleRepsBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
                       style={{
+                        minWidth: 0,
+                        width: '100%',
                         background: 'var(--bg-inset)',
                         border: '1px solid var(--border)',
                         borderRadius: tokens.radius.sm,
-                        padding: '6px 8px',
-                        fontSize: 13,
+                        padding: '8px 6px',
+                        fontSize: 14,
                         color: 'var(--text-primary)',
                         outline: 'none',
+                        textAlign: 'center',
+                        boxSizing: 'border-box',
                       }}
                     />
                     <button
@@ -607,21 +617,23 @@ function ExerciseCard({
                       aria-pressed={isDone}
                       aria-label={isDone ? `Set ${s + 1} complete — tap to undo` : `Mark set ${s + 1} complete`}
                       style={{
+                        minWidth: 0,
                         width: '100%',
                         border: isDone ? '2px solid var(--success)' : '1px solid var(--border)',
                         borderRadius: tokens.radius.sm,
-                        padding: '6px 8px',
+                        padding: '8px 6px',
                         background: isDone ? 'var(--success)' : 'var(--bg-inset)',
                         color: isDone ? 'white' : 'var(--text-muted)',
                         cursor: readOnly ? 'default' : 'pointer',
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: 700,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        boxSizing: 'border-box',
                       }}
                     >
-                      <span aria-hidden="true">{isDone ? '✓' : '✓'}</span>
+                      <span aria-hidden="true">{isDone ? '✓' : ''}</span>
                     </button>
                   </div>
                 );

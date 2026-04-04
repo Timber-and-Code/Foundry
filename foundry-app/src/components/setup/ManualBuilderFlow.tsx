@@ -596,7 +596,15 @@ export default function ManualBuilderFlow({
             type="date"
             value={form.startDate}
             onChange={(e) => set('startDate', e.target.value)}
-            style={{ ...inputStyle, colorScheme: 'dark' }}
+            style={{
+              ...inputStyle,
+              colorScheme: 'dark',
+              WebkitAppearance: 'none',
+              appearance: 'none',
+              display: 'block',
+              minWidth: 0,
+              maxWidth: '100%',
+            }}
           />
           {mesoEnd && (
             <div

@@ -230,6 +230,8 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
   // ── Shared style atoms ─────────────────────────────────────────────────
   const inputStyle: React.CSSProperties = {
     width: '100%',
+    minWidth: 0,
+    maxWidth: '100%',
     background: 'var(--bg-input)',
     border: '1px solid var(--border-accent)',
     borderRadius: tokens.radius.md,

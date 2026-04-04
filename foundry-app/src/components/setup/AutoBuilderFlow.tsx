@@ -679,7 +679,15 @@ export default function AutoBuilderFlow({
           type="date"
           value={autoForm.startDate}
           onChange={(e) => setAuto('startDate', e.target.value)}
-          style={{ ...inputStyle, colorScheme: 'dark' }}
+          style={{
+            ...inputStyle,
+            colorScheme: 'dark',
+            WebkitAppearance: 'none',
+            appearance: 'none',
+            display: 'block',
+            minWidth: 0,
+            maxWidth: '100%',
+          }}
         />
       </div>
 
