@@ -102,17 +102,45 @@ Everything lives under the `foundry:` namespace (migrated from legacy `ppl:` by 
 
 All sync code is in `src/utils/sync.ts`. Cheat sheet:
 
+### Critical gotcha — Supabase error handling
+
+**The Supabase JS client does NOT throw on API errors.** A call like `await supabase.from(...).upsert(...)` resolves with `{ data, error }` where `error` is populated on 4xx/5xx (RLS, schema, auth, etc.). A naive `try { await supabase... } catch {}` catches **nothing** — the try block completes "successfully" even when the server rejected the write.
+
+Every upsert in this codebase must destructure `{ error }` and either throw it or handle it explicitly. A regression here = silent data loss. The bug that made `user_profiles` stay at 0 rows while the UI showed sync as complete was exactly this mistake across every sync helper. If you add a new sync call, follow the pattern:
+
+```ts
+const { error } = await supabase.from('table').upsert({...}, {...});
+if (error) throw error;
+```
+
 ### Push (local → remote)
-- Every `store.set()` writes both the value AND a timestamp (`foundry:ts:{key}`).
-- `markDirty(key)` adds the key to `foundry:dirty`.
-- `flushDirty()` reads the dirty set, looks up each key's value + timestamp, upserts to the matching Supabase table. Clears the dirty entry on success. On failure, retries up to 3 times with backoff, then shows a `foundry:toast` warning.
-- Immediate push helpers exist too: `syncProfileToSupabase`, `syncWorkoutToSupabase`, `syncReadinessToSupabase`, `syncBodyWeightToSupabase`, `syncCardioSessionToSupabase`, `syncNotesToSupabase`. These are fire-and-forget and swallow errors.
+- Every `store.set()` writes both the value AND a timestamp (`foundry:ts:{key}`) and calls `markDirty(key)` for keys matching `SYNC_TRACKED` in `storage.ts`.
+- `flushDirty()` reads the dirty set, upserts each key to its matching Supabase table. Each upsert destructures `.error` and throws on failure. Retries up to 3 times with exponential backoff. Clears the dirty entry on success. After 3 failed attempts logs via `reportSyncFailure()` (Sentry + throttled toast).
+- Fire-and-forget immediate push helpers: `syncProfileToSupabase`, `syncWorkoutToSupabase`, `syncReadinessToSupabase`, `syncBodyWeightToSupabase`, `syncCardioSessionToSupabase`, `syncNotesToSupabase`. All inspect `.error` and route failures through `reportSyncFailure()`. The dirty queue is the safety net — if the direct push fails, the entry remains dirty and `flushDirty()` retries on the next trigger.
+- `pushToSupabase()` does a full scan push. Inspects each `Promise.allSettled` result for both rejected promises AND fulfilled-but-error responses, counts failures, reports via `reportSyncFailure()`.
 
 ### Pull (remote → local)
 - `pullFromSupabase()` runs on `SIGNED_IN` (from `AuthContext.tsx`) and on manual triggers.
-- Uses `Promise.allSettled` to fetch user_profiles, workout_sessions, readiness_checkins, body_weight_log, cardio_sessions, notes in parallel.
+- Uses `Promise.allSettled` to fetch `user_profiles`, `workout_sessions`, `readiness_checkins`, `body_weight_log`, `cardio_sessions`, `notes` in parallel.
 - For each row, compares remote `updated_at` vs local timestamp via `remoteIsNewer()`. If remote is newer, `store.setFromRemote(key, value, remoteTs)` — writes without marking dirty. If local is newer, `markDirty(key)` to push on next flush.
 - Profile uses `mergeProfile()` for field-level merge (last-write-wins per field).
+- On completion, dispatches a `foundry:pull-complete` CustomEvent. `useMesoState` listens for this and re-reads `loadProfile() + loadCompleted() + loadCurrentWeek()` so React state catches up with the freshly-restored localStorage without requiring a page reload.
+
+### Sign-in flush chain
+
+`AuthContext.tsx` on `SIGNED_IN`: `pullFromSupabase().then(() => flushDirty())`. The ordering matters:
+
+1. **Pull first** — merges remote into local. For keys where local is newer, `pullFromSupabase` calls `markDirty()` so they'll be pushed back.
+2. **Flush after** — pushes the freshly-dirtied keys PLUS any previously-dirty keys that accumulated while the user was unauthenticated (e.g. created a meso offline, then signed in). Without this step, pre-auth local work sits in the dirty queue forever unless the device goes offline→online to trigger the `window.addEventListener('online', flushDirty)` handler in `main.tsx`.
+
+### Error reporting helper
+
+`reportSyncFailure(operation, err)` in `sync.ts` is the single point for surfacing sync failures. It:
+- Logs via `console.warn` for dev
+- Captures to Sentry with a `context: 'sync'` tag and the operation name
+- Dispatches a `foundry:toast` CustomEvent with a warning message (throttled to once per 30 seconds via `_lastSyncFailureToast` so bulk-failure batches don't spam the user)
+
+Use this helper for any new sync operation that fails — don't reintroduce silent console.warn-only handling.
 
 ### Supabase schema (11 tables total)
 
@@ -294,7 +322,15 @@ Always check `git status` and `git log --oneline -5` before committing — the o
 
 ## 13. Known Rough Edges (as of 2026-04-04)
 
-- `ExerciseCard` / `DayView` / `ExtraDayView` have pre-existing TS errors around `exercise.sets` being `string | number | undefined` — the code works at runtime but strict narrowing is pending.
-- `pullFromSupabase` doesn't propagate completion to App, so fresh logins need a reload before the profile/meso appears.
-- Sync failures are silent if the Supabase project is paused (free-tier pauses after ~1 week idle). No persistent banner, only transient toasts.
-- Service worker cache can strand users on old builds after a deploy until they unregister the SW or reinstall the PWA.
+### Resolved
+- ~~Silent sync failures — Supabase `.error` field was never inspected, so every upsert appeared to succeed even when RLS/schema/auth rejected it. `user_profiles` stayed at 0 rows while UI reported sync complete.~~ Fixed in commit `63d8591`: every upsert now destructures and throws `.error`, failures route through `reportSyncFailure()` → Sentry + throttled toast.
+- ~~`pullFromSupabase` didn't propagate completion to App, so fresh logins needed a reload before the profile/meso appeared.~~ Fixed in commit `3c1aa09`: pull dispatches `foundry:pull-complete` CustomEvent, `useMesoState` listens and refreshes.
+- ~~Pre-auth local work (meso created while unauthenticated) never pushed on sign-in; only `pullFromSupabase` ran.~~ Fixed in commit `63d8591`: `AuthContext` SIGNED_IN now does `pullFromSupabase().then(() => flushDirty())`.
+
+### Still open
+- `ExerciseCard` / `DayView` / `ExtraDayView` have pre-existing TS errors around `exercise.sets` being `string | number | undefined`. The code works at runtime but strict narrowing is pending.
+- **Meso carryover is localStorage-only.** `foundry:meso_transition` + archived snapshots never sync to Supabase. The `mesocycles` table sits empty. Clearing storage on a signed-in device still loses the long-term progression chain between cycles. Follow-up: wire `archiveCurrentMeso` + `resetMeso` to write to `mesocycles`, and extend `pullFromSupabase` to read it back.
+- **5 dormant Supabase tables** (`mesocycles`, `training_days`, `training_day_exercises`, `workout_sets`, `session_prs`) exist in a normalized schema but the app never writes to them. Either migrate the app's storage model to use them or drop them to eliminate confusion.
+- Service worker cache can strand users on old builds after a deploy until they unregister the SW or reinstall the PWA. iOS Safari PWAs are particularly sticky — "clear site data" doesn't always unregister the SW. Workaround: delete home-screen PWA and re-add.
+- **Exercise swap overrides are localStorage-only.** `foundry:exOv:d{d}:w{w}:ex{i}` keys never sync. Swapping an exercise on one device won't carry to another.
+- **PR history is localStorage-only.** Computed on-the-fly in `useMesoState.handleComplete` from raw jsonb data. Clearing storage loses PR history entirely. The `session_prs` table exists but is never written.
