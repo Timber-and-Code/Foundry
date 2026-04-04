@@ -7,6 +7,12 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     exclude: ['e2e/**', 'node_modules/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'lcov'],
+      include: ['src/**/*.{ts,tsx,js}'],
+      exclude: ['src/**/__tests__/**', 'src/**/*.test.*', 'src/data/exercises.js', 'src/data/images*.js'],
+    },
   },
   server: {
     port: 3000,
