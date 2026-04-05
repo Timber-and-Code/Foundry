@@ -3,7 +3,6 @@ import { tokens } from '../../styles/tokens';
 import { GOAL_OPTIONS } from '../../data/constants';
 import { store, importData } from '../../utils/store';
 import {
-  FOUNDRY_DOOR_IMG,
   FOUNDRY_IRON_IMG,
   FOUNDRY_STEEL_IMG,
   FOUNDRY_GOAL_IMG,
@@ -14,7 +13,7 @@ import {
  * OnboardingFlow - Multi-screen onboarding experience
  *
  * Screens:
- *  0: Door splash (intro)
+ *  0: Path choice (Full Tour / Jump Right In / existing account sign-in)
  *  1: Name input + restore data option
  *  2: Experience selection
  *  3: Goal selection
@@ -175,7 +174,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
         overflow: 'hidden',
       }}
     >
-      {/* SCREEN 0: THE FORGE DOOR */}
+      {/* SCREEN 0: PATH CHOICE — Full Tour / Jump Right In / Sign in */}
       {screen === 0 && (
         <div
           style={{
@@ -185,11 +184,16 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
             flexDirection: 'column',
             justifyContent: 'space-between',
             minHeight: '100vh',
+            background: tokens.colors.bgRoot,
+            padding: '48px 24px 32px',
             overflow: 'hidden',
           }}
         >
+          {/* Background: molten stone blocks. Heavy gradient overlay keeps
+              headline + cards readable while letting the glow show through
+              in the middle third of the screen. */}
           <img
-            src={FOUNDRY_DOOR_IMG}
+            src="/pick-your-path.png"
             alt=""
             style={{
               position: 'absolute',
@@ -197,8 +201,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              objectPosition: 'center 40%',
-              opacity: 0.9,
+              objectPosition: 'center',
               zIndex: 0,
             }}
           />
@@ -208,73 +211,182 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
               inset: 0,
               zIndex: 1,
               background:
-                'linear-gradient(to bottom, rgba(10,10,12,0.88) 0%, rgba(10,10,12,0.6) 12%, rgba(10,10,12,0.05) 30%, rgba(10,10,12,0.0) 45%, rgba(10,10,12,0.05) 60%, rgba(10,10,12,0.5) 78%, rgba(10,10,12,0.92) 90%, rgba(10,10,12,0.98) 100%)',
+                'linear-gradient(to bottom, rgba(10,10,12,0.92) 0%, rgba(10,10,12,0.65) 18%, rgba(10,10,12,0.3) 38%, rgba(10,10,12,0.3) 55%, rgba(10,10,12,0.75) 78%, rgba(10,10,12,0.95) 100%)',
             }}
           />
+          {/* Inner wrapper so all content sits above the backdrop layers */}
           <div
             style={{
               position: 'relative',
               zIndex: 2,
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 24,
+            }}
+          >
+          {/* Heading */}
+          <div
+            style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               textAlign: 'center',
-              paddingTop: 60,
-              gap: 6,
+              gap: 10,
+              paddingTop: 24,
             }}
           >
             <div
               style={{
                 fontFamily: "'Bebas Neue','Inter',sans-serif",
-                fontSize: 'clamp(38px, 10vw, 52px)',
-                letterSpacing: '0.2em',
+                fontSize: 'clamp(32px, 8.5vw, 44px)',
+                letterSpacing: '0.16em',
                 color: '#FBF7E4',
-                textShadow: '0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(232,101,26,0.25)',
+                lineHeight: 1.1,
               }}
             >
-              THE FOUNDRY
-            </div>
-            <div
-              style={{
-                fontSize: 'clamp(13px, 3.5vw, 17px)',
-                letterSpacing: '0.2em',
-                textTransform: 'uppercase',
-                color: tokens.colors.amber,
-                fontWeight: 500,
-                textShadow: '0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)',
-              }}
-            >
-              Your Body. Your Blueprint.
-            </div>
-            <div
-              style={{
-                fontSize: 'clamp(11px, 3vw, 14px)',
-                letterSpacing: '0.15em',
-                textTransform: 'uppercase',
-                color: '#C0B8AC',
-                fontWeight: 400,
-                textShadow: '0 1px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7)',
-                marginTop: 4,
-              }}
-            >
-              Science-Driven Training
+              PICK YOUR PATH
             </div>
           </div>
+
+          {/* Path choice cards */}
           <div
             style={{
-              position: 'relative',
-              zIndex: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              width: '100%',
+              maxWidth: 420,
+              alignSelf: 'center',
+            }}
+          >
+            <button
+              onClick={() => goTo(1, 1)}
+              style={{
+                textAlign: 'left',
+                padding: '20px 22px',
+                borderRadius: tokens.radius.xl,
+                // Frosted glass: dark base with subtle amber warmth, backdrop
+                // blur so the lava image behind the card is quieted enough for
+                // the description text to read cleanly.
+                background:
+                  'linear-gradient(135deg, rgba(26,22,18,0.62), rgba(14,12,10,0.55))',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: `1px solid ${tokens.colors.accentBorder}`,
+                color: tokens.colors.textPrimary,
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                boxShadow: '0 4px 24px rgba(232,101,26,0.18)',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  color: '#FBF7E4',
+                }}
+              >
+                Full Tour
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: tokens.colors.textSecondary,
+                  lineHeight: 1.45,
+                }}
+              >
+                Learn how Foundry adapts to your training and drives real
+                progress.
+              </div>
+            </button>
+
+            <button
+              onClick={() => goTo(1, 1)}
+              style={{
+                textAlign: 'left',
+                padding: '20px 22px',
+                borderRadius: tokens.radius.xl,
+                // Identical frosted glass + amber halo to Full Tour. The
+                // two cards must match exactly so they read as the same
+                // family; only the border color is slightly different.
+                background:
+                  'linear-gradient(135deg, rgba(26,22,18,0.62), rgba(14,12,10,0.55))',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: `1px solid rgba(255,255,255,0.1)`,
+                color: tokens.colors.textPrimary,
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                boxShadow: '0 4px 24px rgba(232,101,26,0.18)',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  color: '#FBF7E4',
+                }}
+              >
+                Jump Right In
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: tokens.colors.textSecondary,
+                  lineHeight: 1.45,
+                }}
+              >
+                Skip the intro and go straight to building your first meso.
+              </div>
+            </button>
+          </div>
+
+          {/* Sign-in escape hatch for returning users */}
+          <div
+            style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 10,
-              padding: '0 24px 48px',
+              gap: 6,
+              paddingBottom: 8,
             }}
           >
-            <button onClick={advance} className="btn-primary" style={ctaBtnStyle}>
-              Enter The Forge
+            <div
+              style={{
+                fontSize: 13,
+                color: tokens.colors.textMuted,
+              }}
+            >
+              Already have an account?
+            </div>
+            <button
+              onClick={() => {
+                store.set('foundry:wants_auth', '1');
+                window.dispatchEvent(new Event('foundry:wants_auth'));
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: tokens.colors.accent,
+                fontSize: 14,
+                fontWeight: 600,
+                padding: '6px 12px',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                textUnderlineOffset: 3,
+              }}
+            >
+              Sign in
             </button>
-            <ProgressDots />
+          </div>
           </div>
         </div>
       )}
@@ -853,30 +965,30 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                 <div
                   style={{
                     fontFamily: "'Bebas Neue','Inter',sans-serif",
-                    fontSize: 'clamp(34px, 9vw, 46px)',
+                    fontSize: 'clamp(38px, 10vw, 52px)',
                     letterSpacing: '0.15em',
                     color: '#FBF7E4',
-                    lineHeight: 1.15,
-                    textShadow: '0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(232,101,26,0.2)',
+                    lineHeight: 1.1,
+                    textShadow: '0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(232,101,26,0.25)',
                   }}
                 >
-                  Ready to forge,
+                  THE FIRE
                   <br />
-                  {name.trim() || 'lifter'}?
+                  IS LIT
                 </div>
                 <div
                   style={{
                     fontSize: 'clamp(16px, 4.2vw, 20px)',
                     color: '#E8E4DC',
-                    marginTop: 10,
+                    marginTop: 16,
                     lineHeight: 1.6,
-                    maxWidth: 320,
+                    maxWidth: 340,
                     fontWeight: 400,
                     textShadow: '0 1px 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.7)',
                   }}
                 >
-                  Next you'll dial in the details — equipment, schedule, and preferences. Then The
-                  Foundry builds your program.
+                  Progress you can feel. Programming you can trust. A few
+                  details and The Foundry builds your first meso.
                 </div>
               </div>
             </div>

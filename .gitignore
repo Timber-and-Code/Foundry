@@ -20,9 +20,8 @@ Thumbs.db
 
 # Large image files at root
 *.png
-# Allow PWA icons
-!foundry-app/public/icon-*.png
-!foundry-app/public/apple-touch-icon.png
+# Allow all shipped public assets (PWA icons + onboarding imagery, etc.)
+!foundry-app/public/*.png
 
 # Old anchor icon option files
 anchor_icon_options*.html

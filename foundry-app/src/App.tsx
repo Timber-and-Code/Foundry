@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { PageSkeleton } from './components/ui/Skeleton';
 const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
+const WelcomeScreen = React.lazy(() => import('./components/onboarding/WelcomeScreen'));
 
 // Data
 import {
@@ -446,6 +447,31 @@ function App() {
 
 function AuthGate() {
   const { user, loading, authUnavailable } = useAuth();
+  // Track welcome + explicit auth-request state. Persisted to localStorage
+  // so it survives reloads; driven by custom events so AuthGate can react
+  // without a page reload when WelcomeScreen or OnboardingFlow updates it.
+  const [welcomed, setWelcomed] = useState(() => store.get('foundry:welcomed') === '1');
+  const [wantsAuth, setWantsAuth] = useState(() => store.get('foundry:wants_auth') === '1');
+
+  useEffect(() => {
+    const onWelcomed = () => setWelcomed(true);
+    const onWantsAuth = () => setWantsAuth(true);
+    window.addEventListener('foundry:welcomed', onWelcomed);
+    window.addEventListener('foundry:wants_auth', onWantsAuth);
+    return () => {
+      window.removeEventListener('foundry:welcomed', onWelcomed);
+      window.removeEventListener('foundry:wants_auth', onWantsAuth);
+    };
+  }, []);
+
+  // Once signed in, clear the explicit auth-request flag so a future
+  // sign-out drops back to anonymous mode instead of re-gating on AuthPage.
+  useEffect(() => {
+    if (user && wantsAuth) {
+      localStorage.removeItem('foundry:wants_auth');
+      setWantsAuth(false);
+    }
+  }, [user, wantsAuth]);
 
   if (loading) {
     return (
@@ -468,12 +494,26 @@ function AuthGate() {
     return <App />;
   }
 
+  // No session: welcome → anonymous app → auth (only on explicit request)
   if (!user) {
-    return (
-      <React.Suspense fallback={null}>
-        <AuthPage />
-      </React.Suspense>
-    );
+    if (!welcomed) {
+      return (
+        <React.Suspense fallback={null}>
+          <WelcomeScreen />
+        </React.Suspense>
+      );
+    }
+    if (wantsAuth) {
+      return (
+        <React.Suspense fallback={null}>
+          <AuthPage />
+        </React.Suspense>
+      );
+    }
+    // Anonymous mode: full app in localStorage-only. Sync layer no-ops
+    // until the user explicitly signs in via the onboarding path-choice
+    // screen or the user menu.
+    return <App />;
   }
 
   return <App />;
