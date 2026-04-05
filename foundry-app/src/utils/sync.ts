@@ -16,7 +16,7 @@ const MIGRATED = {
   profile: true,          // Chunk 1
   mesocycles: true,       // Chunk 2
   training_structure: true, // Chunk 3 (training_days + training_day_exercises)
-  workouts: true,         // Chunk 4a (workout_sessions + workout_sets WRITES only; pull path is 4b)
+  workouts: true,         // Chunks 4a (writes) + 4b (pull path)
   readiness: false,
   bodyweight: false,
   cardio: false,
@@ -637,6 +637,28 @@ export async function upsertWorkoutSessionRemote(
   }
 }
 
+// Delete a single workout_set row. Called when the user unchecks a set —
+// uncheck means "I didn't do this," so the remote row should go away rather
+// than linger with stale data. Fire-and-forget.
+export async function deleteWorkoutSetRemote(setId: string): Promise<void> {
+  if (!MIGRATED.workouts) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('workout_sets')
+      .delete()
+      .eq('id', setId)
+      .eq('user_id', user.id);
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('workout_set_delete', e);
+  } finally {
+    syncEnd();
+  }
+}
+
 // Single-set upsert. Called from DayView.handleUpdateSet after a set is
 // confirmed (or edited after confirmation). Debounced per-set-id to coalesce
 // rapid input edits.
@@ -679,6 +701,153 @@ export async function upsertWorkoutSetRemote(
     reportSyncFailure('workout_set', e);
   } finally {
     syncEnd();
+  }
+}
+
+// Chunk 4b: pull all workout_sessions + workout_sets for the active meso
+// and reconstruct the local foundry:day{d}:week{w} jsonb shape (+ done flags
+// and completedDate flags). Called from pullFromSupabase after
+// pullTrainingStructure so the training_day_exercises sort_order map is
+// available for exercise_id → exerciseIndex resolution.
+//
+// Shape the app expects in foundry:day{d}:week{w}:
+//   { [exerciseIndex]: { [setIdx]: { id, weight, reps, rpe, confirmed, warmup? } } }
+//
+// Maps RPE numeric back to the app's label strings: 7→"Easy", 8→"Good",
+// 9.5→"Hard". Other numeric RPE values pass through as numbers. Done this
+// way so the UI's RPE prompt stays label-based client-side while the
+// remote column stays numeric-queryable for coaching dashboards.
+async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void> {
+  try {
+    // Fetch all workout_sessions for this meso
+    const { data: sessionRows, error: sessionError } = await supabase
+      .from('workout_sessions')
+      .select('id, training_day_id, week_number, day_number, started_at, completed_at, is_complete')
+      .eq('user_id', userId)
+      .eq('meso_id', mesoId);
+
+    if (sessionError) throw sessionError;
+    if (!sessionRows || sessionRows.length === 0) return;
+
+    type SessionRow = {
+      id: string;
+      training_day_id: string;
+      week_number: number;
+      day_number: number;
+      started_at: string | null;
+      completed_at: string | null;
+      is_complete: boolean;
+    };
+    const sessions = sessionRows as SessionRow[];
+    const sessionIds = sessions.map((s) => s.id);
+
+    // Fetch all workout_sets for those sessions in one query
+    const { data: setRows, error: setsError } = await supabase
+      .from('workout_sets')
+      .select('id, workout_session_id, exercise_id, set_number, weight_lbs, reps, rpe, is_warmup')
+      .in('workout_session_id', sessionIds)
+      .order('set_number', { ascending: true });
+
+    if (setsError) throw setsError;
+
+    type SetRow = {
+      id: string;
+      workout_session_id: string;
+      exercise_id: string;
+      set_number: number;
+      weight_lbs: number | null;
+      reps: number | null;
+      rpe: number | null;
+      is_warmup: boolean;
+    };
+    const sets = (setRows || []) as SetRow[];
+
+    // Group sets by session_id for fast lookup during reconstruction
+    const setsBySession = new Map<string, SetRow[]>();
+    sets.forEach((s) => {
+      const existing = setsBySession.get(s.workout_session_id) || [];
+      existing.push(s);
+      setsBySession.set(s.workout_session_id, existing);
+    });
+
+    // Fetch the exercise_id → sort_order mapping for this meso so we can
+    // reconstruct the jsonb's exerciseIndex key (position, not exercise id).
+    // Join via training_day_id.
+    const trainingDayIds = Array.from(new Set(sessions.map((s) => s.training_day_id)));
+    const { data: tdeRows, error: tdeError } = await supabase
+      .from('training_day_exercises')
+      .select('training_day_id, exercise_id, sort_order')
+      .in('training_day_id', trainingDayIds);
+
+    if (tdeError) throw tdeError;
+
+    // Map: (training_day_id, exercise_id) → sort_order
+    const exerciseIndexMap = new Map<string, number>();
+    ((tdeRows || []) as { training_day_id: string; exercise_id: string; sort_order: number }[]).forEach((r) => {
+      exerciseIndexMap.set(`${r.training_day_id}:${r.exercise_id}`, r.sort_order);
+    });
+
+    // Helper: decode numeric rpe back to app's label strings
+    const decodeRpe = (n: number | null): string | number | undefined => {
+      if (n == null) return undefined;
+      if (n === 7) return 'Easy';
+      if (n === 8) return 'Good';
+      if (n === 9.5) return 'Hard';
+      return n;
+    };
+
+    // Reconstruct each session's jsonb
+    for (const session of sessions) {
+      const sessionSets = setsBySession.get(session.id) || [];
+
+      // Rebuild the { [exIdx]: { [setIdx]: {...} } } shape
+      const dayData: Record<string, Record<string, Record<string, unknown>>> = {};
+      for (const s of sessionSets) {
+        const exIdx = exerciseIndexMap.get(`${session.training_day_id}:${s.exercise_id}`);
+        if (exIdx == null) continue; // orphaned set (exercise no longer in program)
+        const exKey = String(exIdx);
+        if (!dayData[exKey]) dayData[exKey] = {};
+        dayData[exKey][String(s.set_number)] = {
+          id: s.id,
+          weight: s.weight_lbs != null ? String(s.weight_lbs) : '',
+          reps: s.reps != null ? String(s.reps) : '',
+          rpe: decodeRpe(s.rpe),
+          confirmed: true, // if the row exists, the user confirmed it
+          warmup: s.is_warmup || undefined,
+        };
+      }
+
+      // Persist the reconstructed session state locally. setFromRemote skips
+      // the dirty queue (it's a pulled value, not a local edit).
+      const dayKey = `foundry:day${session.day_number}:week${session.week_number}`;
+      const tsIso = session.completed_at || session.started_at || new Date().toISOString();
+      store.setFromRemote(dayKey, JSON.stringify(dayData), tsIso);
+
+      // Done flag + completed date
+      if (session.is_complete) {
+        try {
+          localStorage.setItem(`foundry:done:d${session.day_number}:w${session.week_number}`, '1');
+          if (session.completed_at) {
+            const d = new Date(session.completed_at);
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            localStorage.setItem(
+              `foundry:completedDate:d${session.day_number}:w${session.week_number}`,
+              dateStr,
+            );
+          }
+        } catch (e) {
+          console.warn('[Foundry Sync] Failed to write done/completedDate for session', e);
+        }
+      }
+
+      // Cache the session id so future writes (unchecks, re-completes) target
+      // the same workout_sessions row.
+      try {
+        localStorage.setItem(`foundry:ws_id:d${session.day_number}:w${session.week_number}`, session.id);
+      } catch {}
+    }
+  } catch (e) {
+    reportSyncFailure('workout_history_pull', e);
   }
 }
 
@@ -1167,6 +1336,15 @@ export async function pullFromSupabase(): Promise<void> {
         if (MIGRATED.training_structure) {
           await pullTrainingStructure(mesoId, user.id);
         }
+
+        // Chunk 4b: pull workout_sessions + workout_sets for this meso and
+        // reconstruct foundry:day{d}:week{w} jsonb + done flags. MUST run
+        // AFTER pullTrainingStructure so the training_day_exercises
+        // sort_order map is fresh (needed for exercise_id → exerciseIndex
+        // lookups during reconstruction).
+        if (MIGRATED.workouts) {
+          await pullWorkoutHistory(mesoId, user.id);
+        }
       }
     }
 
@@ -1176,7 +1354,7 @@ export async function pullFromSupabase(): Promise<void> {
     // don't exist. When each MIGRATED flag flips to true, implement its
     // pull block using the actual normalized columns.
 
-    console.log('[Foundry Sync] Pull complete (profile + mesocycles; other tables pending)');
+    console.log('[Foundry Sync] Pull complete (profile + mesocycles + training structure + workouts; readiness/bw/cardio/notes pending)');
     // Notify listeners (App/useMesoState) that local storage has been
     // refreshed from the remote, so they can re-read profile + derived state
     // without requiring a page reload.

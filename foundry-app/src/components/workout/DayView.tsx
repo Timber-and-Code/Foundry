@@ -29,6 +29,7 @@ import {
   syncExerciseSwapRemote,
   upsertWorkoutSessionRemote,
   upsertWorkoutSetRemote,
+  deleteWorkoutSetRemote,
   getOrCreateWorkoutSessionId,
   debouncedSync,
 } from '../../utils/sync';
@@ -460,9 +461,20 @@ function DayView({
       setWeekData((prev) => {
         // Generate a stable set id on first write if missing, so remote
         // upserts target the same workout_sets row across edits.
-        const prevExData = (prev[exIdx] || {}) as Record<string, Record<string, unknown>>;
+        const prevExData = ((prev[exIdx] || {}) as unknown) as Record<string, Record<string, unknown>>;
         const prevSet = (prevExData[setIdx] || {}) as Record<string, unknown>;
         const setId = (prevSet.id as string | undefined) || crypto.randomUUID();
+
+        // Chunk 4b: if the user is unchecking a confirmed set, delete the
+        // corresponding workout_sets row. Uncheck means "I didn't actually do
+        // this" — the row should disappear, not linger with stale data.
+        if (
+          field === 'confirmed' &&
+          value === false &&
+          (prevSet.id as string | undefined)
+        ) {
+          deleteWorkoutSetRemote(prevSet.id as string);
+        }
 
         const nextSet = {
           ...prevSet,
