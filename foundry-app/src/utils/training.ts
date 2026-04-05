@@ -1,6 +1,6 @@
 import { store } from './storage';
 import { validateProfile } from './validate';
-import { syncProfileToSupabase, syncBodyWeightToSupabase } from './sync';
+import { syncProfileToSupabase, syncBodyWeightToSupabase, syncMesocycleToSupabase } from './sync';
 import type {
   Profile,
   Exercise,
@@ -382,7 +382,12 @@ export function loadProfile(): Profile | null {
 
 export function saveProfile(profile: Profile): void {
   store.set('foundry:profile', JSON.stringify(profile));
-  syncProfileToSupabase(profile);
+  // Sync order matters: the mesocycle row must exist before the user_profile
+  // row is written, because user_profiles.active_meso_id has a foreign key
+  // to mesocycles.id. Chain via .then so the profile write waits for the
+  // mesocycle write even though saveProfile itself is fire-and-forget to
+  // keep its synchronous signature for callers.
+  syncMesocycleToSupabase(profile).then(() => syncProfileToSupabase(profile));
 }
 
 export function isSkipped(dayIdx: number, weekIdx: number): boolean {

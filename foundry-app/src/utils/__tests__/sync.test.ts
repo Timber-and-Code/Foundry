@@ -35,8 +35,10 @@ import {
   markDirty,
   clearDirty,
   flushDirty,
+  syncMesocycleToSupabase,
 } from '../sync';
 import { store } from '../storage';
+import type { Profile } from '../../types';
 
 beforeEach(() => {
   localStorage.clear();
@@ -331,5 +333,79 @@ describe('flushDirty', () => {
     expect(mockUpsert).not.toHaveBeenCalled();
     const set = JSON.parse(localStorage.getItem('foundry:sync:dirty') ?? '[]');
     expect(set).not.toContain('foundry:profile');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// syncMesocycleToSupabase — chunk 2
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('syncMesocycleToSupabase (chunk 2)', () => {
+  it('no-ops when the profile lacks mesoLength', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-123' } } });
+    mockUpsert.mockResolvedValue({ error: null });
+
+    await syncMesocycleToSupabase({ name: 'Atlas', experience: 'intermediate' } as unknown as Profile);
+
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it('no-ops when the profile lacks splitType', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-123' } } });
+    mockUpsert.mockResolvedValue({ error: null });
+
+    await syncMesocycleToSupabase({ name: 'Atlas', mesoLength: 6 } as unknown as Profile);
+
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it('upserts a mesocycle row with mapped fields when profile has full meso config', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-123' } } });
+    mockUpsert.mockResolvedValue({ error: null });
+
+    const profile = {
+      name: 'Atlas',
+      experience: 'intermediate',
+      splitType: 'ppl',
+      mesoLength: 6,
+      daysPerWeek: 3,
+      startDate: '2026-04-01',
+    } as unknown as Profile;
+
+    await syncMesocycleToSupabase(profile);
+
+    expect(mockUpsert).toHaveBeenCalledTimes(1);
+    const call = mockUpsert.mock.calls[0][0];
+    expect(call.user_id).toBe('user-123');
+    expect(call.weeks_count).toBe(6);
+    expect(call.days_per_week).toBe(3);
+    expect(call.split_type).toBe('PPL'); // uppercased enum
+    expect(call.status).toBe('active');
+    expect(call.started_at).toBe('2026-04-01');
+    expect(call.id).toMatch(/^[0-9a-f-]{36}$/); // UUID
+    expect(call.name).toContain('6 Week PPL');
+  });
+
+  it('reuses the same meso id across multiple saves (idempotent upsert)', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-123' } } });
+    mockUpsert.mockResolvedValue({ error: null });
+
+    const profile = {
+      name: 'Atlas',
+      experience: 'intermediate',
+      splitType: 'ppl',
+      mesoLength: 6,
+      daysPerWeek: 3,
+      startDate: '2026-04-01',
+    } as unknown as Profile;
+
+    await syncMesocycleToSupabase(profile);
+    const firstId = mockUpsert.mock.calls[0][0].id;
+
+    await syncMesocycleToSupabase(profile);
+    const secondId = mockUpsert.mock.calls[1][0].id;
+
+    expect(firstId).toBe(secondId);
+    expect(localStorage.getItem('foundry:active_meso_id')).toBe(firstId);
   });
 });

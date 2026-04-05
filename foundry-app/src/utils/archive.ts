@@ -1,6 +1,7 @@
 import { store } from './storage';
 import { getReadinessScore } from './analytics';
 import { validateArchive } from './validate';
+import { archiveMesocycleRemote } from './sync';
 import type { Profile, ArchiveEntry, Exercise, TrainingDay } from '../types';
 
 // ─── ARCHIVE HELPERS ─────────────────────────────────────────────────────────
@@ -99,6 +100,10 @@ export function resetMeso(mesoWeeks?: number, mesoDays?: number): void {
   } catch (e) {
     console.warn('[Foundry]', 'Failed to reset current week', e);
   }
+  // Chunk 2: mark the remote mesocycle as abandoned and clear the local
+  // active meso pointer. Fire-and-forget — failures are logged via
+  // reportSyncFailure inside archiveMesocycleRemote.
+  archiveMesocycleRemote();
 }
 
 // ─── ARCHIVE CURRENT MESO ───────────────────────────────────────────────────

@@ -13,8 +13,8 @@ import type { Profile, ReadinessEntry, DayData } from '../types';
 // others early-return without trying to sync, so users aren't spammed with
 // "Cloud sync failed" toasts for features that are still pending migration.
 const MIGRATED = {
-  profile: true,  // Chunk 1 — this file
-  mesocycles: false,
+  profile: true,     // Chunk 1
+  mesocycles: true,  // Chunk 2
   workouts: false,
   readiness: false,
   bodyweight: false,
@@ -50,6 +50,25 @@ interface SupabaseProfileRow {
   date_of_birth: string | null;
   weight_lbs: number | null;
   additional_notes: string | null;
+  workout_days: number[];        // chunk 2 — days of week [0-6]
+  session_duration_min: number;  // chunk 2
+  active_meso_id: string | null; // chunk 2 — FK to mesocycles.id
+  updated_at?: string;
+}
+
+// ─── MESOCYCLE TYPES (chunk 2) ──────────────────────────────────────────────
+type SupabaseMesoStatus = 'active' | 'completed' | 'abandoned';
+
+interface SupabaseMesocycleRow {
+  id: string;
+  user_id: string;
+  name: string;
+  status: SupabaseMesoStatus;
+  weeks_count: number;
+  days_per_week: number;
+  split_type: SupabaseSplitType;
+  started_at: string | null;
+  completed_at: string | null;
   updated_at?: string;
 }
 
@@ -106,6 +125,26 @@ function appProfileToSupabaseRow(
       ? parseFloat(String(p.weight))
       : null;
 
+  // workout_days: smallint[] of day-of-week numbers 0-6 (Sun-Sat)
+  let workoutDays: number[];
+  const rawWd = p.workoutDays;
+  if (Array.isArray(rawWd)) {
+    workoutDays = rawWd
+      .map((d) => Number(d))
+      .filter((d) => !isNaN(d) && d >= 0 && d <= 6);
+  } else {
+    workoutDays = [1, 3, 5]; // sensible default: Mon/Wed/Fri
+  }
+  if (workoutDays.length === 0) workoutDays = [1, 3, 5];
+
+  const sessionDuration = Number(p.sessionDuration);
+
+  // Active meso id: tracks which mesocycle row is currently loaded. Written
+  // locally as foundry:active_meso_id, mirrored here as the FK column.
+  const activeMesoId = typeof window !== 'undefined'
+    ? (localStorage.getItem('foundry:active_meso_id') || null)
+    : null;
+
   return {
     id: userId,
     name: (typeof p.name === 'string' && p.name) || 'User',
@@ -118,24 +157,81 @@ function appProfileToSupabaseRow(
     date_of_birth: typeof p.birthdate === 'string' ? p.birthdate : null,
     weight_lbs: weightNum && !isNaN(weightNum) ? weightNum : null,
     additional_notes: null,
+    workout_days: workoutDays,
+    session_duration_min: sessionDuration && !isNaN(sessionDuration) ? sessionDuration : 60,
+    active_meso_id: activeMesoId,
   };
 }
 
 function supabaseRowToAppProfileFields(row: SupabaseProfileRow): Record<string, unknown> {
-  // Returns ONLY the identity fields — never touches meso-specific fields
-  // (workoutDays, mesoLength, startDate, sessionDuration) so a pull doesn't
-  // accidentally clear the user's active local meso config.
+  // Returns identity fields AND user-level preferences (workoutDays,
+  // sessionDuration). Meso-specific fields (mesoLength, startDate) come
+  // from the mesocycles row via supabaseMesoRowToAppFields — not here.
   return {
     name: row.name,
-    experience: row.experience, // canonical enum value
+    experience: row.experience,
     goal: row.primary_goal,
-    splitType: row.preferred_split.toLowerCase(), // app uses lowercase
+    splitType: row.preferred_split.toLowerCase(),
     daysPerWeek: row.days_per_week,
     equipment: Array.isArray(row.equipment) ? row.equipment : [],
     gender: row.gender ?? undefined,
     birthdate: row.date_of_birth ?? undefined,
     weight: row.weight_lbs != null ? String(row.weight_lbs) : undefined,
+    workoutDays: Array.isArray(row.workout_days) ? row.workout_days : [1, 3, 5],
+    sessionDuration: row.session_duration_min ?? 60,
   };
+}
+
+// ─── MESOCYCLE MAPPERS (chunk 2) ────────────────────────────────────────────
+
+function generateMesoName(weeksCount: number, splitType: SupabaseSplitType, startedAt: string | null): string {
+  const date = startedAt ? new Date(startedAt) : new Date();
+  const month = date.toLocaleString('en-US', { month: 'long' });
+  const year = date.getFullYear();
+  return `${weeksCount} Week ${splitType} — ${month} ${year}`;
+}
+
+function appProfileToMesocycleRow(
+  profile: Profile,
+  userId: string,
+  mesoId: string,
+): Omit<SupabaseMesocycleRow, 'updated_at'> {
+  const p = profile as unknown as Record<string, unknown>;
+  const weeksCount = Number(p.mesoLength) || 6;
+  const splitType = appSplitToEnum(p.splitType);
+  const startedAt = typeof p.startDate === 'string' ? p.startDate : null;
+
+  return {
+    id: mesoId,
+    user_id: userId,
+    name: generateMesoName(weeksCount, splitType, startedAt),
+    status: 'active',
+    weeks_count: weeksCount,
+    days_per_week: Number(p.daysPerWeek) || 3,
+    split_type: splitType,
+    started_at: startedAt,
+    completed_at: null,
+  };
+}
+
+function supabaseMesoRowToAppFields(row: SupabaseMesocycleRow): Record<string, unknown> {
+  // Returns ONLY the meso-specific fields. Identity fields come from
+  // supabaseRowToAppProfileFields separately.
+  return {
+    splitType: row.split_type.toLowerCase(),
+    mesoLength: row.weeks_count,
+    daysPerWeek: row.days_per_week,
+    startDate: row.started_at ?? undefined,
+  };
+}
+
+function getOrCreateActiveMesoId(): string {
+  if (typeof window === 'undefined') return crypto.randomUUID();
+  const existing = localStorage.getItem('foundry:active_meso_id');
+  if (existing) return existing;
+  const fresh = crypto.randomUUID();
+  localStorage.setItem('foundry:active_meso_id', fresh);
+  return fresh;
 }
 
 async function getUser() {
@@ -318,6 +414,91 @@ export async function syncProfileToSupabase(profile: Profile): Promise<void> {
   } catch (e) { reportSyncFailure('profile', e); } finally { syncEnd(); }
 }
 
+// Chunk 2: mesocycle sync. Called alongside syncProfileToSupabase whenever
+// the profile is saved. Idempotent via upsert on the stable
+// foundry:active_meso_id — first call creates the row, subsequent calls
+// update it. Resetting a meso clears the id (see archiveMesocycleRemote)
+// so the next saveProfile creates a fresh mesocycle row.
+export async function syncMesocycleToSupabase(profile: Profile): Promise<void> {
+  if (!MIGRATED.mesocycles) return;
+  // Skip if the profile doesn't have enough meso config yet (e.g., during
+  // partial onboarding writes before setup completes).
+  const p = profile as unknown as Record<string, unknown>;
+  if (!p.mesoLength || !p.splitType) return;
+
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const mesoId = getOrCreateActiveMesoId();
+    const row = appProfileToMesocycleRow(profile, user.id, mesoId);
+    const { error } = await supabase
+      .from('mesocycles')
+      .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    if (error) throw error;
+  } catch (e) { reportSyncFailure('mesocycle', e); } finally { syncEnd(); }
+}
+
+// Mark the active mesocycle as abandoned and clear the local active meso
+// pointer. Called from resetMeso() in archive.ts when the user discards
+// the current cycle mid-way. Next saveProfile creates a fresh mesocycle.
+export async function archiveMesocycleRemote(): Promise<void> {
+  if (!MIGRATED.mesocycles) return;
+  if (typeof window === 'undefined') return;
+  const mesoId = localStorage.getItem('foundry:active_meso_id');
+  if (!mesoId) return;
+
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('mesocycles')
+      .update({
+        status: 'abandoned',
+        completed_at: new Date().toISOString().slice(0, 10),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', mesoId)
+      .eq('user_id', user.id);
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('mesocycle', e);
+  } finally {
+    // Always clear locally — even if remote update failed. The dirty state
+    // is acceptable because mesocycles is append/archive only, not merged.
+    localStorage.removeItem('foundry:active_meso_id');
+    syncEnd();
+  }
+}
+
+// Mark the active mesocycle as completed (all weeks finished). Called from
+// useMesoState.handleComplete when the final week wraps. Keeps the id
+// around so the user can see it in history; next meso requires explicit
+// reset + setup.
+export async function completeMesocycleRemote(): Promise<void> {
+  if (!MIGRATED.mesocycles) return;
+  if (typeof window === 'undefined') return;
+  const mesoId = localStorage.getItem('foundry:active_meso_id');
+  if (!mesoId) return;
+
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('mesocycles')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString().slice(0, 10),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', mesoId)
+      .eq('user_id', user.id);
+    if (error) throw error;
+  } catch (e) { reportSyncFailure('mesocycle', e); } finally { syncEnd(); }
+}
+
 // The following helpers are stubbed until their respective normalized-schema
 // migration chunks land. They silently no-op so we don't spam toasts for
 // tables that have a different shape than the app is writing. When each
@@ -376,10 +557,12 @@ export async function pullFromSupabase(): Promise<void> {
     // Pulling the others would 400 because the app's expected column
     // shape doesn't match what exists in Supabase yet. See MIGRATED above.
 
+    let remoteActiveMesoId: string | null = null;
+
     if (MIGRATED.profile) {
       const profileRes = await supabase
         .from('user_profiles')
-        .select('id, name, experience, primary_goal, days_per_week, preferred_split, equipment, gender, date_of_birth, weight_lbs, additional_notes, updated_at')
+        .select('id, name, experience, primary_goal, days_per_week, preferred_split, equipment, gender, date_of_birth, weight_lbs, additional_notes, workout_days, session_duration_min, active_meso_id, updated_at')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -388,14 +571,12 @@ export async function pullFromSupabase(): Promise<void> {
       } else if (profileRes.data) {
         const row = profileRes.data as SupabaseProfileRow;
         const remoteTs = row.updated_at ?? new Date().toISOString();
+        remoteActiveMesoId = row.active_meso_id ?? null;
         const localKey = 'foundry:profile';
         const localRaw = store.get(localKey);
         const remoteFields = supabaseRowToAppProfileFields(row);
 
         if (localRaw) {
-          // Merge: overlay remote identity fields on the local profile, but
-          // preserve local meso-specific fields (workoutDays, mesoLength,
-          // startDate, sessionDuration, etc.) since those are not yet synced.
           try {
             const localProfile = JSON.parse(localRaw) as Record<string, unknown>;
             const remoteIsFresher = remoteIsNewer(localKey, remoteTs);
@@ -405,24 +586,77 @@ export async function pullFromSupabase(): Promise<void> {
             store.setFromRemote(localKey, JSON.stringify(merged), remoteTs);
             if (!remoteIsFresher) markDirty(localKey);
           } catch {
-            // Local parse failed — take remote as-is
             store.setFromRemote(localKey, JSON.stringify(remoteFields), remoteTs);
           }
         } else {
-          // No local profile — take remote identity fields. User will still
-          // need to complete meso setup since those fields aren't synced yet.
           store.setFromRemote(localKey, JSON.stringify(remoteFields), remoteTs);
         }
       }
     }
 
-    // Workouts, readiness, body weight, cardio sessions, notes — all pending
-    // normalized-schema migration. Skipping the pull for these avoids the
-    // 400s that happen when asking for denormalized columns that don't exist.
-    // When each MIGRATED flag flips to true, re-implement the matching pull
-    // block using the actual normalized columns for that table.
+    // Chunk 2: fetch the active mesocycle row and hydrate meso-specific
+    // fields into the local profile. Uses active_meso_id from user_profiles
+    // as the authoritative pointer; falls back to most-recent-active if that
+    // column is null (e.g., legacy user_profiles rows pre-chunk 2).
+    if (MIGRATED.mesocycles) {
+      let mesoId = remoteActiveMesoId;
 
-    console.log('[Foundry Sync] Pull from Supabase complete (profile only — other tables pending migration)');
+      // Fallback: find the most recent active mesocycle for this user.
+      if (!mesoId) {
+        const { data: recentRows, error: recentErr } = await supabase
+          .from('mesocycles')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        if (!recentErr && recentRows && recentRows.length > 0) {
+          mesoId = (recentRows[0] as { id: string }).id;
+        }
+      }
+
+      if (mesoId) {
+        // Mirror locally so subsequent saveProfile writes target the right row
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('foundry:active_meso_id', mesoId);
+        }
+
+        const { data: mesoData, error: mesoErr } = await supabase
+          .from('mesocycles')
+          .select('id, user_id, name, status, weeks_count, days_per_week, split_type, started_at, completed_at, updated_at')
+          .eq('id', mesoId)
+          .maybeSingle();
+
+        if (mesoErr) {
+          console.warn('[Foundry Sync] Mesocycle pull failed', mesoErr);
+        } else if (mesoData) {
+          const mesoRow = mesoData as SupabaseMesocycleRow;
+          const localKey = 'foundry:profile';
+          const localRaw = store.get(localKey);
+          const mesoFields = supabaseMesoRowToAppFields(mesoRow);
+          // Overlay meso fields on top of the profile (written by the
+          // profile block above). Local meso-specific values win only if
+          // they're more recent — but since mesocycles has no per-field
+          // timestamps, we always trust remote here for meso fields.
+          try {
+            const current = localRaw ? JSON.parse(localRaw) : {};
+            const merged = { ...current, ...mesoFields };
+            const remoteTs = mesoRow.updated_at ?? new Date().toISOString();
+            store.setFromRemote(localKey, JSON.stringify(merged), remoteTs);
+          } catch {
+            // ignore parse errors
+          }
+        }
+      }
+    }
+
+    // Workouts, readiness, body weight, cardio sessions, notes — all pending
+    // normalized-schema migration (chunks 4-5). Skipping the pull for these
+    // avoids the 400s that happen when asking for denormalized columns that
+    // don't exist. When each MIGRATED flag flips to true, implement its
+    // pull block using the actual normalized columns.
+
+    console.log('[Foundry Sync] Pull complete (profile + mesocycles; other tables pending)');
     // Notify listeners (App/useMesoState) that local storage has been
     // refreshed from the remote, so they can re-read profile + derived state
     // without requiring a page reload.
