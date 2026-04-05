@@ -25,7 +25,13 @@ import {
   bwPromptShownThisWeek,
   getWeekSets,
 } from '../../utils/store';
-import { syncExerciseSwapRemote } from '../../utils/sync';
+import {
+  syncExerciseSwapRemote,
+  upsertWorkoutSessionRemote,
+  upsertWorkoutSetRemote,
+  getOrCreateWorkoutSessionId,
+  debouncedSync,
+} from '../../utils/sync';
 import { useRestTimer } from '../../contexts/RestTimerContext';
 
 // Components
@@ -265,6 +271,14 @@ function DayView({
     setWorkoutStarted(true);
     setShowMesoOverlay(false);
     if (!bwPromptShownThisWeek()) setShowBwCheckin(true);
+    // Chunk 4a: create/upsert the remote workout_sessions row with
+    // started_at. Fire-and-forget. Failures are surfaced via toast.
+    const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
+    upsertWorkoutSessionRemote(dayIdx, weekIdx, {
+      sessionId,
+      startedAt: new Date(now).toISOString(),
+      isComplete: false,
+    });
   };
 
   // showPostStrengthPrompt, showCardioPrompt — reserved for post-strength/cardio prompts
@@ -444,21 +458,94 @@ function DayView({
       }
 
       setWeekData((prev) => {
+        // Generate a stable set id on first write if missing, so remote
+        // upserts target the same workout_sets row across edits.
+        const prevExData = (prev[exIdx] || {}) as Record<string, Record<string, unknown>>;
+        const prevSet = (prevExData[setIdx] || {}) as Record<string, unknown>;
+        const setId = (prevSet.id as string | undefined) || crypto.randomUUID();
+
+        const nextSet = {
+          ...prevSet,
+          id: setId,
+          [field]: value,
+        };
         const next = {
           ...prev,
           [exIdx]: {
-            ...(prev[exIdx] || {}),
-            [setIdx]: {
-              ...((prev[exIdx] || {})[setIdx] || {}),
-              [field]: value,
-            },
+            ...prevExData,
+            [setIdx]: nextSet,
           },
         };
         saveDayWeek(dayIdx, weekIdx, next);
+
+        // Chunk 4a: sync this set to workout_sets (debounced per-set to
+        // coalesce rapid typing). Only fire if the set has meaningful
+        // data (reps present) so we don't spam empty rows for sets the
+        // user is just auto-filling weight on.
+        const merged = nextSet as {
+          id: string;
+          weight?: string | number;
+          reps?: string | number;
+          rpe?: string | number | boolean;
+          confirmed?: boolean;
+          warmup?: boolean;
+        };
+        const hasData = merged.reps != null && merged.reps !== '';
+        if (hasData) {
+          const exercise = exercises[exIdx];
+          const exerciseId = String(exercise?.id ?? '');
+          if (exerciseId) {
+            const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
+            const weightNum =
+              merged.weight != null && merged.weight !== ''
+                ? parseFloat(String(merged.weight))
+                : null;
+            const repsNum =
+              merged.reps != null && merged.reps !== ''
+                ? parseInt(String(merged.reps), 10)
+                : null;
+            // rpe can be a string label ("Easy"/"Good"/"Hard") from the
+            // RPE prompt, or numeric. Map labels to approximate numbers
+            // for the numeric column; leave numeric values as-is.
+            let rpeNum: number | null = null;
+            if (typeof merged.rpe === 'number') {
+              rpeNum = merged.rpe;
+            } else if (typeof merged.rpe === 'string' && merged.rpe) {
+              const label = merged.rpe.toLowerCase();
+              if (label === 'easy') rpeNum = 7;
+              else if (label === 'good') rpeNum = 8;
+              else if (label === 'hard') rpeNum = 9.5;
+              else {
+                const parsed = parseFloat(merged.rpe);
+                rpeNum = isNaN(parsed) ? null : parsed;
+              }
+            }
+
+            debouncedSync(
+              `set:${setId}`,
+              () => {
+                upsertWorkoutSetRemote(
+                  sessionId,
+                  setId,
+                  exerciseId,
+                  setIdx,
+                  {
+                    weight: weightNum && !isNaN(weightNum) ? weightNum : null,
+                    reps: repsNum && !isNaN(repsNum) ? repsNum : null,
+                    rpe: rpeNum,
+                    isWarmup: !!merged.warmup,
+                  },
+                );
+              },
+              1500,
+            );
+          }
+        }
+
         return next;
       });
     },
-    [dayIdx, weekIdx]
+    [dayIdx, weekIdx, exercises]
   );
 
   const handleWeightAutoFill = useCallback(
@@ -539,6 +626,14 @@ function DayView({
     };
     store.set(`foundry:done:d${dayIdx}:w${weekIdx}`, '1');
     store.set(`foundry:sessionNote:d${dayIdx}:w${weekIdx}`, sessionNote);
+    // Chunk 4a: mark the remote workout_sessions row complete with
+    // completed_at. Fire-and-forget.
+    const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
+    upsertWorkoutSessionRemote(dayIdx, weekIdx, {
+      sessionId,
+      completedAt: now.toISOString(),
+      isComplete: true,
+    });
     onComplete && onComplete(completionData);
   };
 

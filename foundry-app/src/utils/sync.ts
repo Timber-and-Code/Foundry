@@ -16,7 +16,7 @@ const MIGRATED = {
   profile: true,          // Chunk 1
   mesocycles: true,       // Chunk 2
   training_structure: true, // Chunk 3 (training_days + training_day_exercises)
-  workouts: false,
+  workouts: true,         // Chunk 4a (workout_sessions + workout_sets WRITES only; pull path is 4b)
   readiness: false,
   bodyweight: false,
   cardio: false,
@@ -356,6 +356,11 @@ export async function ensureTrainingStructureRemote(
       .insert(trainingDayRows);
     if (tdError) throw tdError;
 
+    // Cache the training_day ids locally, keyed by day_index, so chunk 4a
+    // workout_sessions writes can look up the training_day_id FK without
+    // a round-trip. Key shape: foundry:td_ids:{mesoId} = {"0": uuid, "1": uuid, ...}
+    writeTrainingDayIdCache(mesoId, trainingDayRows);
+
     // Build training_day_exercises rows referencing the training_day ids.
     const tdeRows: Omit<SupabaseTrainingDayExerciseRow, 'id'>[] = [];
     program.forEach((day, dayIdx) => {
@@ -419,6 +424,9 @@ async function pullTrainingStructure(mesoId: string, userId: string): Promise<vo
 
     if (tdError) throw tdError;
     if (!tdRows || tdRows.length === 0) return;
+
+    // Cache training_day ids locally for chunk 4a workout_sessions writes
+    writeTrainingDayIdCache(mesoId, tdRows as { id: string; day_index: number }[]);
 
     const dayIds = (tdRows as { id: string; day_index: number; label: string }[]).map((r) => r.id);
     const { data: tdeRows, error: tdeError } = await supabase
@@ -509,6 +517,168 @@ async function pullTrainingStructure(mesoId: string, userId: string): Promise<vo
     }
   } catch (e) {
     reportSyncFailure('training_structure_pull', e);
+  }
+}
+
+// Chunk 3/4 shared helper: writes a local cache of training_day_id keyed by
+// day_index for a given meso. Used by workout_sessions writes (chunk 4a) to
+// resolve the training_day_id FK without a round trip.
+function writeTrainingDayIdCache(
+  mesoId: string,
+  rows: Array<{ id: string; day_index: number }>,
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const map: Record<string, string> = {};
+    rows.forEach((r) => {
+      map[String(r.day_index)] = r.id;
+    });
+    localStorage.setItem(`foundry:td_ids:${mesoId}`, JSON.stringify(map));
+  } catch (e) {
+    console.warn('[Foundry Sync] Failed to write training_day_id cache', e);
+  }
+}
+
+function getTrainingDayIdLocal(mesoId: string, dayIdx: number): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`foundry:td_ids:${mesoId}`);
+    if (!raw) return null;
+    const map = JSON.parse(raw) as Record<string, string>;
+    return map[String(dayIdx)] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── WORKOUT SESSIONS + SETS (chunk 4a — writes only) ───────────────────────
+// Pull path is chunk 4b (next session). Until that ships, workout data
+// reliably writes to Supabase but doesn't restore from Supabase on sign-in.
+// Users will still see their local data on the device they worked out on.
+
+interface WorkoutSessionPayload {
+  id: string;
+  user_id: string;
+  meso_id: string;
+  training_day_id: string;
+  week_number: number;
+  day_number: number;
+  started_at: string | null;
+  completed_at: string | null;
+  is_complete: boolean;
+}
+
+// Generates or retrieves the stable uuid for a (dayIdx, weekIdx) session.
+// Cached in localStorage so set upserts all reference the same session row.
+export function getOrCreateWorkoutSessionId(dayIdx: number, weekIdx: number): string {
+  if (typeof window === 'undefined') return crypto.randomUUID();
+  const key = `foundry:ws_id:d${dayIdx}:w${weekIdx}`;
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const fresh = crypto.randomUUID();
+  localStorage.setItem(key, fresh);
+  return fresh;
+}
+
+export async function upsertWorkoutSessionRemote(
+  dayIdx: number,
+  weekIdx: number,
+  opts: {
+    sessionId?: string;
+    startedAt?: string | null;
+    completedAt?: string | null;
+    isComplete?: boolean;
+  } = {},
+): Promise<void> {
+  if (!MIGRATED.workouts) return;
+  if (typeof window === 'undefined') return;
+  const mesoId = localStorage.getItem('foundry:active_meso_id');
+  if (!mesoId) return;
+  const trainingDayId = getTrainingDayIdLocal(mesoId, dayIdx);
+  if (!trainingDayId) {
+    // Training structure hasn't been written yet for this meso (e.g.,
+    // offline setup). Skip silently — next sync cycle will populate it.
+    return;
+  }
+
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+
+    const sessionId = opts.sessionId || getOrCreateWorkoutSessionId(dayIdx, weekIdx);
+
+    // Read current known values from localStorage so we don't clobber
+    // started_at when only completing, etc. We upsert the full row each time.
+    const savedStart = localStorage.getItem(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
+    const startedAt = opts.startedAt
+      ?? (savedStart ? new Date(parseInt(savedStart, 10)).toISOString() : null);
+
+    const row: WorkoutSessionPayload = {
+      id: sessionId,
+      user_id: user.id,
+      meso_id: mesoId,
+      training_day_id: trainingDayId,
+      week_number: weekIdx,
+      day_number: dayIdx,
+      started_at: startedAt,
+      completed_at: opts.completedAt ?? null,
+      is_complete: opts.isComplete ?? false,
+    };
+
+    const { error } = await supabase
+      .from('workout_sessions')
+      .upsert(row, { onConflict: 'id' });
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('workout_session', e);
+  } finally {
+    syncEnd();
+  }
+}
+
+// Single-set upsert. Called from DayView.handleUpdateSet after a set is
+// confirmed (or edited after confirmation). Debounced per-set-id to coalesce
+// rapid input edits.
+export async function upsertWorkoutSetRemote(
+  sessionId: string,
+  setId: string,
+  exerciseId: string,
+  setNumber: number,
+  payload: {
+    weight: number | null;
+    reps: number | null;
+    rpe: number | null;
+    isWarmup: boolean;
+  },
+): Promise<void> {
+  if (!MIGRATED.workouts) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('workout_sets')
+      .upsert(
+        {
+          id: setId,
+          workout_session_id: sessionId,
+          user_id: user.id,
+          exercise_id: exerciseId,
+          set_number: setNumber,
+          weight_lbs: payload.weight,
+          reps: payload.reps,
+          rpe: payload.rpe,
+          is_warmup: payload.isWarmup,
+        },
+        { onConflict: 'id' },
+      );
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('workout_set', e);
+  } finally {
+    syncEnd();
   }
 }
 
@@ -845,8 +1015,14 @@ export async function completeMesocycleRemote(): Promise<void> {
 // chunk is implemented, flip the corresponding MIGRATED flag and rewrite the
 // body to use the actual normalized columns.
 
+// Chunk 4a: this legacy "whole day" sync helper is intentionally a no-op.
+// The normalized workout_sets model uses per-set upserts fired directly
+// from DayView (see upsertWorkoutSetRemote + upsertWorkoutSessionRemote)
+// rather than a "save the whole day's jsonb on every field change" shape.
+// persistence.saveDayWeek still calls this for backward compat — it safely
+// does nothing. Per-set writes go through the new helpers in DayView.
 export async function syncWorkoutToSupabase(_dayIdx: number, _weekIdx: number, _data: DayData): Promise<void> {
-  if (!MIGRATED.workouts) return;
+  return;
 }
 
 export async function syncReadinessToSupabase(_date: string, _readinessData: ReadinessEntry): Promise<void> {
