@@ -549,7 +549,7 @@ function ExerciseCard({
               >
                 <div>Weight (lbs)</div>
                 <div>Reps</div>
-                <div>✓</div>
+                <div style={{ textAlign: 'center' }}>Done</div>
               </div>
               {Array.from({ length: exercise.sets }).map((_, s) => {
                 const sd = (weekData[exIdx] || {})[s] || {};
