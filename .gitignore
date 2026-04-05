@@ -1,8 +1,9 @@
 # Dependencies
 foundry-app/node_modules/
 
-# Build output
-foundry-app/dist/
+# NOTE: foundry-app/dist/ is intentionally tracked. GitHub Pages serves
+# the pre-built bundle from dist/, so it must be committed for deploys
+# to reflect source changes. Run `npm run build` before committing.
 
 # Native platforms (built locally, not needed in repo)
 foundry-app/android/
@@ -22,6 +23,8 @@ Thumbs.db
 *.png
 # Allow all shipped public assets (PWA icons + onboarding imagery, etc.)
 !foundry-app/public/*.png
+# Allow built dist PNGs (Vite copies public/ into dist/ on build)
+!foundry-app/dist/*.png
 
 # Old anchor icon option files
 anchor_icon_options*.html

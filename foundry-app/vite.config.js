@@ -9,6 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifest: false, // keep existing public/manifest.json
       workbox: {
+        // 5 MB ceiling — onboarding imagery (pick-your-path.png ~2.2 MB,
+        // ready-to-forge.png ~1.8 MB) exceeds the 2 MB workbox default.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
