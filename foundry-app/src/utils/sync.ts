@@ -13,14 +13,14 @@ import type { Profile, ReadinessEntry, DayData } from '../types';
 // others early-return without trying to sync, so users aren't spammed with
 // "Cloud sync failed" toasts for features that are still pending migration.
 const MIGRATED = {
-  profile: true,          // Chunk 1
-  mesocycles: true,       // Chunk 2
-  training_structure: true, // Chunk 3 (training_days + training_day_exercises)
-  workouts: true,         // Chunks 4a (writes) + 4b (pull path)
-  readiness: false,
-  bodyweight: false,
-  cardio: false,
-  notes: false,
+  profile: true,            // Chunk 1
+  mesocycles: true,         // Chunk 2
+  training_structure: true, // Chunk 3
+  workouts: true,           // Chunk 4
+  readiness: true,          // Chunk 5b
+  bodyweight: true,         // Chunk 5a
+  cardio: true,             // Chunk 5c
+  notes: false,             // Chunk 5d — pending target_type enum values
 };
 
 // ─── PROFILE FIELD MAPPERS (app <-> normalized user_profiles) ───────────────
@@ -851,6 +851,110 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
   }
 }
 
+// Chunk 5a: pull body_weight_log rows for the user, rebuild the local
+// foundry:bwlog array. Ordered by date desc and capped at 52 entries to
+// match the local write-side cap in addBwEntry.
+async function pullBodyWeightLog(userId: string): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from('body_weight_log')
+      .select('logged_at, weight_lbs')
+      .eq('user_id', userId)
+      .order('logged_at', { ascending: false })
+      .limit(52);
+    if (error) throw error;
+    if (!data) return;
+    const entries = (data as { logged_at: string; weight_lbs: number }[]).map((r) => ({
+      date: r.logged_at,
+      weight: Number(r.weight_lbs),
+    }));
+    store.setFromRemote('foundry:bwlog', JSON.stringify(entries), new Date().toISOString());
+  } catch (e) {
+    reportSyncFailure('bodyweight_pull', e);
+  }
+}
+
+// Chunk 5b: pull readiness_checkins rows for the user, rebuild the
+// per-date foundry:readiness:YYYY-MM-DD keys. Reads sleep/soreness/energy
+// columns if present (ALTER TABLE must have been run); otherwise only the
+// score is available and the individual components come back as null.
+async function pullReadinessCheckins(userId: string): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from('readiness_checkins')
+      .select('checked_at, score, sleep, soreness, energy')
+      .eq('user_id', userId);
+    if (error) throw error;
+    if (!data) return;
+
+    type Row = {
+      checked_at: string;
+      score: number;
+      sleep: string | null;
+      soreness: string | null;
+      energy: string | null;
+    };
+    (data as Row[]).forEach((row) => {
+      const entry: Record<string, string> = {};
+      if (row.sleep) entry.sleep = row.sleep;
+      if (row.soreness) entry.soreness = row.soreness;
+      if (row.energy) entry.energy = row.energy;
+      // Only write if we have at least one component — otherwise the key
+      // would be an empty object and the UI would show "Not Set"
+      if (Object.keys(entry).length === 0) return;
+      const key = `foundry:readiness:${row.checked_at}`;
+      store.setFromRemote(key, JSON.stringify(entry), new Date().toISOString());
+    });
+  } catch (e) {
+    reportSyncFailure('readiness_pull', e);
+  }
+}
+
+// Chunk 5c: pull cardio_sessions rows, rebuild per-date
+// foundry:cardio:session:YYYY-MM-DD keys. Prefers the `data` jsonb blob
+// (written by chunk 5c's sync helper) since it preserves all fields the
+// app uses; falls back to reconstructing from the normalized columns if
+// `data` is null (e.g., rows inserted by some other tool).
+async function pullCardioSessions(userId: string): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from('cardio_sessions')
+      .select('protocol, duration_min, intensity, performed_at, data')
+      .eq('user_id', userId);
+    if (error) throw error;
+    if (!data) return;
+
+    type Row = {
+      protocol: string;
+      duration_min: number;
+      intensity: string | null;
+      performed_at: string;
+      data: unknown;
+    };
+    (data as Row[]).forEach((row) => {
+      const dateStr = row.performed_at.slice(0, 10);
+      const key = `foundry:cardio:session:${dateStr}`;
+      // Prefer the jsonb blob if it was written by the app; reconstruct
+      // otherwise. Both shapes are valid inputs to CardioSessionView.
+      const reconstructed =
+        row.data && typeof row.data === 'object'
+          ? row.data
+          : {
+              protocolId: null,
+              type: row.protocol,
+              duration: String(row.duration_min),
+              intensity: row.intensity || '',
+              completed: true,
+              startedAt: null,
+              completedAt: new Date(row.performed_at).getTime(),
+            };
+      store.setFromRemote(key, JSON.stringify(reconstructed), new Date().toISOString());
+    });
+  } catch (e) {
+    reportSyncFailure('cardio_pull', e);
+  }
+}
+
 // Chunk 3: update a single training_day_exercises row when the user swaps
 // an exercise. Called from DayView.handleSwap after the local override is
 // written. The swap replaces the exercise_id for that (training_day, sort_order)
@@ -1010,11 +1114,34 @@ export async function flushDirty(): Promise<void> {
           const readinessMatch = key.match(/^foundry:readiness:(\d{4}-\d{2}-\d{2})$/);
           if (readinessMatch) {
             if (!MIGRATED.readiness) { deferred = true; break; }
+            const r = JSON.parse(raw) as ReadinessEntry;
+            const [, date] = readinessMatch;
+            const score = readinessScoreFromEntry(r);
+            if (score == null) { succeeded = true; break; } // incomplete entry
+            const { error } = await supabase
+              .from('readiness_checkins')
+              .upsert(
+                {
+                  user_id: user.id,
+                  checked_at: date,
+                  score,
+                  sleep: r.sleep ?? null,
+                  soreness: r.soreness ?? null,
+                  energy: r.energy ?? null,
+                },
+                { onConflict: 'user_id,checked_at' },
+              );
+            if (error) throw error;
             succeeded = true; break;
           }
           const cardioMatch = key.match(/^foundry:cardio:session:(\d{4}-\d{2}-\d{2})$/);
           if (cardioMatch) {
             if (!MIGRATED.cardio) { deferred = true; break; }
+            // Route through the same helper used by direct saves so we
+            // apply the exact same "only sync completed sessions" gate
+            // and field mapping.
+            const [, date] = cardioMatch;
+            await syncCardioSessionToSupabase(date, JSON.parse(raw));
             succeeded = true; break;
           }
           // Unknown key pattern — nothing to do
@@ -1194,20 +1321,148 @@ export async function syncWorkoutToSupabase(_dayIdx: number, _weekIdx: number, _
   return;
 }
 
-export async function syncReadinessToSupabase(_date: string, _readinessData: ReadinessEntry): Promise<void> {
+// Chunk 5b: readiness_checkins — upsert keyed on (user_id, checked_at).
+// Expects sleep/soreness/energy columns to exist (ALTER TABLE run manually).
+// Also writes the computed score (0-6) for indexable queries.
+export async function syncReadinessToSupabase(
+  date: string,
+  readinessData: ReadinessEntry,
+): Promise<void> {
   if (!MIGRATED.readiness) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const score = readinessScoreFromEntry(readinessData);
+    if (score == null) return; // incomplete entry — don't write partial rows
+
+    const { error } = await supabase
+      .from('readiness_checkins')
+      .upsert(
+        {
+          user_id: user.id,
+          checked_at: date,
+          score,
+          sleep: readinessData.sleep ?? null,
+          soreness: readinessData.soreness ?? null,
+          energy: readinessData.energy ?? null,
+        },
+        { onConflict: 'user_id,checked_at' },
+      );
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('readiness', e);
+  } finally {
+    syncEnd();
+  }
 }
 
-export async function syncBodyWeightToSupabase(_date: string, _weightLbs: number): Promise<void> {
+// Chunk 5a: body_weight_log — upsert keyed on (user_id, logged_at).
+// Note the column is `logged_at`, not `date`, and the value is numeric.
+export async function syncBodyWeightToSupabase(
+  date: string,
+  weightLbs: number,
+): Promise<void> {
   if (!MIGRATED.bodyweight) return;
+  if (isNaN(weightLbs) || weightLbs <= 0) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('body_weight_log')
+      .upsert(
+        {
+          user_id: user.id,
+          logged_at: date,
+          weight_lbs: weightLbs,
+        },
+        { onConflict: 'user_id,logged_at' },
+      );
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('bodyweight', e);
+  } finally {
+    syncEnd();
+  }
 }
 
-export async function syncCardioSessionToSupabase(_date: string, _data: unknown): Promise<void> {
+// Chunk 5c: cardio_sessions — only syncs when the session is complete.
+// Partial sessions (protocol selected but not finished) stay localStorage-only
+// because cardio_sessions has NOT NULL on protocol/duration_min/performed_at,
+// and we don't want to invent placeholder values for unfinished work.
+export async function syncCardioSessionToSupabase(
+  date: string,
+  sessionData: unknown,
+): Promise<void> {
   if (!MIGRATED.cardio) return;
+  const s = sessionData as {
+    protocolId?: string | null;
+    type?: string;
+    duration?: string | number;
+    intensity?: string;
+    completed?: boolean;
+    startedAt?: number | null;
+    completedAt?: number | null;
+  };
+  if (!s || !s.completed) return; // only sync completed sessions
+
+  const durationNum = parseInt(String(s.duration ?? ''), 10);
+  if (isNaN(durationNum) || durationNum <= 0) return;
+
+  // Protocol is NOT NULL. Prefer explicit type, fall back to protocol id,
+  // then a generic label so we never write null.
+  const protocol =
+    (typeof s.type === 'string' && s.type) ||
+    (typeof s.protocolId === 'string' && s.protocolId) ||
+    'Cardio';
+
+  // performed_at is NOT NULL. Prefer completedAt, then startedAt, then the
+  // date string at midnight.
+  const performedAtMs = s.completedAt ?? s.startedAt ?? null;
+  const performedAt = performedAtMs
+    ? new Date(performedAtMs).toISOString()
+    : `${date}T00:00:00.000Z`;
+
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('cardio_sessions')
+      .upsert(
+        {
+          user_id: user.id,
+          protocol,
+          duration_min: durationNum,
+          intensity: typeof s.intensity === 'string' && s.intensity ? s.intensity : null,
+          performed_at: performedAt,
+          data: sessionData, // full blob preserved in the jsonb escape hatch
+        },
+        { onConflict: 'user_id,performed_at' },
+      );
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('cardio', e);
+  } finally {
+    syncEnd();
+  }
 }
 
+// Chunk 5d: notes — pending target_type enum discovery. Stays a no-op.
 export async function syncNotesToSupabase(_dayIdx: number, _weekIdx: number, _sessionNotes: string | null, _exerciseNotes: unknown): Promise<void> {
   if (!MIGRATED.notes) return;
+}
+
+// Helper used by syncReadinessToSupabase (chunk 5b). Same scoring logic as
+// the readinessScore helper removed in chunk 1, now lifted to module scope.
+function readinessScoreFromEntry(r: ReadinessEntry | null | undefined): number | null {
+  if (!r) return null;
+  const s = ({ poor: 0, ok: 1, good: 2 } as Record<string, number>)[r.sleep ?? ''] ?? null;
+  const o = ({ high: 0, moderate: 1, low: 2 } as Record<string, number>)[r.soreness ?? ''] ?? null;
+  const e = ({ low: 0, moderate: 1, high: 2 } as Record<string, number>)[r.energy ?? ''] ?? null;
+  if (s === null || o === null || e === null) return null;
+  return s + o + e;
 }
 
 /** Returns true if remote timestamp is newer than local, or local has no timestamp */
@@ -1346,6 +1601,19 @@ export async function pullFromSupabase(): Promise<void> {
           await pullWorkoutHistory(mesoId, user.id);
         }
       }
+    }
+
+    // Chunk 5a/5b/5c: pull body weight log, readiness check-ins, cardio
+    // sessions. These are per-user (not per-meso) so they run outside the
+    // mesocycle block. Each writes its own localStorage key(s).
+    if (MIGRATED.bodyweight) {
+      await pullBodyWeightLog(user.id);
+    }
+    if (MIGRATED.readiness) {
+      await pullReadinessCheckins(user.id);
+    }
+    if (MIGRATED.cardio) {
+      await pullCardioSessions(user.id);
     }
 
     // Workouts, readiness, body weight, cardio sessions, notes — all pending

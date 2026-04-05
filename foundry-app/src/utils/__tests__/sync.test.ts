@@ -302,12 +302,12 @@ describe('flushDirty', () => {
     expect(set).not.toContain('foundry:profile');
   });
 
-  it('flushes migrated keys and defers non-migrated ones in one pass', async () => {
-    // After chunks 1-4a:
+  it('flushes migrated keys and handles chunk-specific behavior in one pass', async () => {
+    // After chunks 1-5 (except 5d notes):
     //   - profile (chunk 1) → flushes via upsert
     //   - workout jsonb legacy keys (chunk 4a moved to per-set writes) →
     //     cleared as no-op since they're no longer the source of truth
-    //   - readiness (chunk 5, still pending) → stays deferred
+    //   - readiness (chunk 5b) → flushes via upsert to readiness_checkins
     localStorage.setItem('foundry:profile', JSON.stringify({ name: 'Atlas', experience: 'intermediate' }));
     localStorage.setItem('foundry:day0:week0', JSON.stringify({ 0: { 0: { weight: '100', reps: '8' } } }));
     localStorage.setItem('foundry:readiness:2025-06-15', JSON.stringify({ sleep: 'good', soreness: 'low', energy: 'high' }));
@@ -319,12 +319,12 @@ describe('flushDirty', () => {
 
     await flushDirty();
 
-    // Only the profile upsert should run
-    expect(mockUpsert).toHaveBeenCalledTimes(1);
+    // profile + readiness both upsert; workout is a no-op
+    expect(mockUpsert).toHaveBeenCalledTimes(2);
     const set = JSON.parse(localStorage.getItem('foundry:sync:dirty') ?? '[]');
     expect(set).not.toContain('foundry:profile'); // cleared via upsert
     expect(set).not.toContain('foundry:day0:week0'); // cleared as no-op (chunk 4a)
-    expect(set).toContain('foundry:readiness:2025-06-15'); // deferred (chunk 5 pending)
+    expect(set).not.toContain('foundry:readiness:2025-06-15'); // cleared via upsert (chunk 5b)
   });
 
   it('clears a dirty key whose value was deleted from localStorage (orphan cleanup)', async () => {
