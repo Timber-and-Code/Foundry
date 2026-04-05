@@ -252,7 +252,10 @@ describe('flushDirty', () => {
     expect(set).not.toContain('foundry:profile');
   });
 
-  it('clears a dirty workout key after successful upsert', async () => {
+  it('defers dirty workout keys until the workouts migration chunk lands', async () => {
+    // Workouts are not yet migrated to the normalized schema. flushDirty
+    // should leave the key dirty and NOT attempt an upsert (which would fail
+    // against the normalized workout_sessions + workout_sets table shape).
     const workoutData = { 0: { 0: { weight: '100', reps: '8' } } };
     localStorage.setItem('foundry:day2:week3', JSON.stringify(workoutData));
     markDirty('foundry:day2:week3');
@@ -261,13 +264,9 @@ describe('flushDirty', () => {
 
     await flushDirty();
 
-    expect(mockUpsert).toHaveBeenCalledTimes(1);
-    const call = mockUpsert.mock.calls[0][0];
-    expect(call.day_idx).toBe(2);
-    expect(call.week_idx).toBe(3);
-    expect(call.data).toEqual(workoutData);
+    expect(mockUpsert).not.toHaveBeenCalled();
     const set = JSON.parse(localStorage.getItem('foundry:sync:dirty') ?? '[]');
-    expect(set).not.toContain('foundry:day2:week3');
+    expect(set).toContain('foundry:day2:week3'); // still dirty for the future chunk
   });
 
   it('retains a dirty key when all 3 upsert attempts fail', async () => {
@@ -299,7 +298,9 @@ describe('flushDirty', () => {
     expect(set).not.toContain('foundry:profile');
   });
 
-  it('flushes multiple dirty keys in one pass', async () => {
+  it('flushes migrated keys and defers non-migrated ones in one pass', async () => {
+    // Only profile is migrated to the normalized schema in chunk 1. Workout
+    // and readiness keys stay dirty and never hit upsert.
     localStorage.setItem('foundry:profile', JSON.stringify({ name: 'Atlas', experience: 'intermediate' }));
     localStorage.setItem('foundry:day0:week0', JSON.stringify({ 0: { 0: { weight: '100', reps: '8' } } }));
     localStorage.setItem('foundry:readiness:2025-06-15', JSON.stringify({ sleep: 'good', soreness: 'low', energy: 'high' }));
@@ -311,9 +312,12 @@ describe('flushDirty', () => {
 
     await flushDirty();
 
-    expect(mockUpsert).toHaveBeenCalledTimes(3);
+    // Only the profile upsert should run
+    expect(mockUpsert).toHaveBeenCalledTimes(1);
     const set = JSON.parse(localStorage.getItem('foundry:sync:dirty') ?? '[]');
-    expect(set.length).toBe(0);
+    expect(set).not.toContain('foundry:profile'); // cleared
+    expect(set).toContain('foundry:day0:week0'); // deferred
+    expect(set).toContain('foundry:readiness:2025-06-15'); // deferred
   });
 
   it('clears a dirty key whose value was deleted from localStorage (orphan cleanup)', async () => {

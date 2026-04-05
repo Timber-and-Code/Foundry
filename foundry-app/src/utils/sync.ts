@@ -2,7 +2,141 @@ import * as Sentry from '@sentry/react';
 import { supabase } from './supabase.js';
 import { store } from './storage.js';
 import type { Profile, ReadinessEntry, DayData } from '../types';
-import { validateProfile, validateDayData } from './schemas';
+// validateDayData + validateProfile are imported by other modules; sync.ts
+// will use them again once workouts/readiness chunks migrate to the
+// normalized schema. For chunk 1 (profile only), neither is needed here.
+
+// ─── NORMALIZED SCHEMA MIGRATION STATE ──────────────────────────────────────
+// The Supabase schema is normalized (mesocycles, training_days, workout_sets,
+// etc.) — see ARCHITECTURE.md. Sync is being migrated table-by-table to use
+// the normalized columns. Tables marked `true` here have been migrated; the
+// others early-return without trying to sync, so users aren't spammed with
+// "Cloud sync failed" toasts for features that are still pending migration.
+const MIGRATED = {
+  profile: true,  // Chunk 1 — this file
+  mesocycles: false,
+  workouts: false,
+  readiness: false,
+  bodyweight: false,
+  cardio: false,
+  notes: false,
+};
+
+// ─── PROFILE FIELD MAPPERS (app <-> normalized user_profiles) ───────────────
+// App-side Profile has a mix of identity fields (name, experience, goal...)
+// and meso-config fields (workoutDays, mesoLength, startDate, sessionDuration).
+// The normalized user_profiles table only stores identity + high-level
+// preferences. Meso-specific fields will migrate to the mesocycles table in
+// chunk 2 and remain localStorage-only until then.
+
+type SupabaseExperience = 'beginner' | 'intermediate' | 'advanced';
+type SupabasePrimaryGoal =
+  | 'build_muscle'
+  | 'build_strength'
+  | 'lose_fat'
+  | 'improve_fitness'
+  | 'sport_conditioning';
+type SupabaseSplitType = 'PPL' | 'UL' | 'FB' | 'PP';
+
+interface SupabaseProfileRow {
+  id: string;
+  name: string;
+  experience: SupabaseExperience;
+  primary_goal: SupabasePrimaryGoal;
+  days_per_week: number;
+  preferred_split: SupabaseSplitType;
+  equipment: string[];
+  gender: string | null;
+  date_of_birth: string | null;
+  weight_lbs: number | null;
+  additional_notes: string | null;
+  updated_at?: string;
+}
+
+function appExperienceToEnum(exp: unknown): SupabaseExperience {
+  // OnboardingFlow uses 'new' as the beginner option; other flows use
+  // 'beginner'. Normalize both to the enum value.
+  if (exp === 'new' || exp === 'beginner') return 'beginner';
+  if (exp === 'advanced') return 'advanced';
+  return 'intermediate';
+}
+
+function appGoalToEnum(goal: unknown): SupabasePrimaryGoal {
+  const valid: SupabasePrimaryGoal[] = [
+    'build_muscle',
+    'build_strength',
+    'lose_fat',
+    'improve_fitness',
+    'sport_conditioning',
+  ];
+  if (typeof goal === 'string' && (valid as string[]).includes(goal)) {
+    return goal as SupabasePrimaryGoal;
+  }
+  return 'build_muscle';
+}
+
+function appSplitToEnum(split: unknown): SupabaseSplitType {
+  const upper = String(split || 'PPL').toUpperCase();
+  if (upper === 'PPL' || upper === 'UL' || upper === 'FB' || upper === 'PP') {
+    return upper;
+  }
+  return 'PPL';
+}
+
+function appProfileToSupabaseRow(
+  profile: Profile,
+  userId: string,
+): Omit<SupabaseProfileRow, 'updated_at'> {
+  const p = profile as unknown as Record<string, unknown>;
+  // Equipment: app setup stores as string[], older profiles may have a single
+  // string. Normalize to string[] for the text[] column.
+  let equipment: string[];
+  const rawEq = p.equipment;
+  if (Array.isArray(rawEq)) {
+    equipment = rawEq.map(String).filter(Boolean);
+  } else if (typeof rawEq === 'string' && rawEq) {
+    equipment = [rawEq];
+  } else {
+    equipment = ['full_gym'];
+  }
+  if (equipment.length === 0) equipment = ['full_gym'];
+
+  const weightNum =
+    p.weight != null && p.weight !== ''
+      ? parseFloat(String(p.weight))
+      : null;
+
+  return {
+    id: userId,
+    name: (typeof p.name === 'string' && p.name) || 'User',
+    experience: appExperienceToEnum(p.experience),
+    primary_goal: appGoalToEnum(p.goal),
+    days_per_week: Number(p.daysPerWeek) || 3,
+    preferred_split: appSplitToEnum(p.splitType),
+    equipment,
+    gender: typeof p.gender === 'string' ? p.gender : null,
+    date_of_birth: typeof p.birthdate === 'string' ? p.birthdate : null,
+    weight_lbs: weightNum && !isNaN(weightNum) ? weightNum : null,
+    additional_notes: null,
+  };
+}
+
+function supabaseRowToAppProfileFields(row: SupabaseProfileRow): Record<string, unknown> {
+  // Returns ONLY the identity fields — never touches meso-specific fields
+  // (workoutDays, mesoLength, startDate, sessionDuration) so a pull doesn't
+  // accidentally clear the user's active local meso config.
+  return {
+    name: row.name,
+    experience: row.experience, // canonical enum value
+    goal: row.primary_goal,
+    splitType: row.preferred_split.toLowerCase(), // app uses lowercase
+    daysPerWeek: row.days_per_week,
+    equipment: Array.isArray(row.equipment) ? row.equipment : [],
+    gender: row.gender ?? undefined,
+    birthdate: row.date_of_birth ?? undefined,
+    weight: row.weight_lbs != null ? String(row.weight_lbs) : undefined,
+  };
+}
 
 async function getUser() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -78,35 +212,34 @@ export async function flushDirty(): Promise<void> {
       if (!raw) { clearDirty(key); continue; }
 
       let succeeded = false;
+      let deferred = false; // key belongs to an unmigrated table — leave dirty, don't error
       let lastError: unknown = null;
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           const dayWeekMatch = key.match(/^foundry:day(\d+):week(\d+)$/);
           if (dayWeekMatch) {
-            const data = JSON.parse(raw);
-            const [, d, w] = dayWeekMatch;
-            const { error } = await supabase.from('workout_sessions').upsert({ user_id: user.id, day_idx: parseInt(d), week_idx: parseInt(w), data, updated_at: new Date().toISOString() }, { onConflict: 'user_id,day_idx,week_idx' });
-            if (error) throw error;
+            if (!MIGRATED.workouts) { deferred = true; break; }
+            // When MIGRATED.workouts flips to true, implement the normalized
+            // write here (workout_sessions row + workout_sets rows).
             succeeded = true; break;
           }
           if (key === 'foundry:profile') {
-            const { error } = await supabase.from('user_profiles').upsert({ id: user.id, data: JSON.parse(raw), updated_at: new Date().toISOString() }, { onConflict: 'id' });
+            if (!MIGRATED.profile) { deferred = true; break; }
+            const row = appProfileToSupabaseRow(JSON.parse(raw) as Profile, user.id);
+            const { error } = await supabase
+              .from('user_profiles')
+              .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: 'id' });
             if (error) throw error;
             succeeded = true; break;
           }
           const readinessMatch = key.match(/^foundry:readiness:(\d{4}-\d{2}-\d{2})$/);
           if (readinessMatch) {
-            const r = JSON.parse(raw) as ReadinessEntry;
-            const [, date] = readinessMatch;
-            const { error } = await supabase.from('readiness_checkins').upsert({ user_id: user.id, date, sleep: r.sleep ?? null, soreness: r.soreness ?? null, energy: r.energy ?? null, score: readinessScore(r), updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
-            if (error) throw error;
+            if (!MIGRATED.readiness) { deferred = true; break; }
             succeeded = true; break;
           }
           const cardioMatch = key.match(/^foundry:cardio:session:(\d{4}-\d{2}-\d{2})$/);
           if (cardioMatch) {
-            const [, date] = cardioMatch;
-            const { error } = await supabase.from('cardio_sessions').upsert({ user_id: user.id, date, data: JSON.parse(raw), updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
-            if (error) throw error;
+            if (!MIGRATED.cardio) { deferred = true; break; }
             succeeded = true; break;
           }
           // Unknown key pattern — nothing to do
@@ -115,6 +248,11 @@ export async function flushDirty(): Promise<void> {
           lastError = err;
           if (attempt < 2) await new Promise(res => setTimeout(res, 500 * (attempt + 1)));
         }
+      }
+      if (deferred) {
+        // Migration-pending — leave the key dirty so the next flush retries
+        // once the chunk lands. No error, no toast.
+        continue;
       }
       if (!succeeded && lastError) {
         console.warn('[Foundry Sync] flushDirty key failed after retries:', key, lastError);
@@ -138,14 +276,14 @@ export async function flushDirty(): Promise<void> {
   }
 }
 
-function readinessScore(r: ReadinessEntry | null | undefined): number | null {
-  if (!r) return null;
-  const s = ({ poor: 0, ok: 1, good: 2 } as Record<string, number>)[r.sleep ?? ''] ?? null;
-  const o = ({ high: 0, moderate: 1, low: 2 } as Record<string, number>)[r.soreness ?? ''] ?? null;
-  const e = ({ low: 0, moderate: 1, high: 2 } as Record<string, number>)[r.energy ?? ''] ?? null;
-  if (s === null || o === null || e === null) return null;
-  return s + o + e;
-}
+// NOTE: `readinessScore(r)` helper was removed along with the old denormalized
+// readiness sync. When the readiness chunk migrates to the normalized schema,
+// reinstate a helper that computes the 0-6 score from sleep/soreness/energy
+// enums:
+//   sleep:   poor=0, ok=1, good=2
+//   soreness: high=0, moderate=1, low=2
+//   energy:  low=0, moderate=1, high=2
+//   score = sleep + soreness + energy  (null if any field is missing)
 
 // Track the last time we showed a sync-failure toast so we don't spam the
 // user when a whole batch of writes all fail for the same reason (offline,
@@ -167,78 +305,43 @@ function reportSyncFailure(operation: string, err: unknown): void {
 }
 
 export async function syncProfileToSupabase(profile: Profile): Promise<void> {
+  if (!MIGRATED.profile) return;
   syncStart();
   try {
     const user = await getUser();
     if (!user) return;
-    const { error } = await supabase.from('user_profiles').upsert({ id: user.id, data: profile, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    const row = appProfileToSupabaseRow(profile, user.id);
+    const { error } = await supabase
+      .from('user_profiles')
+      .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: 'id' });
     if (error) throw error;
   } catch (e) { reportSyncFailure('profile', e); } finally { syncEnd(); }
 }
 
-export async function syncWorkoutToSupabase(dayIdx: number, weekIdx: number, data: DayData): Promise<void> {
-  syncStart();
-  try {
-    const user = await getUser();
-    if (!user) return;
-    const { error } = await supabase.from('workout_sessions').upsert(
-      { user_id: user.id, day_idx: dayIdx, week_idx: weekIdx, data, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,day_idx,week_idx' }
-    );
-    if (error) throw error;
-  } catch (e) { reportSyncFailure('workout', e); } finally { syncEnd(); }
+// The following helpers are stubbed until their respective normalized-schema
+// migration chunks land. They silently no-op so we don't spam toasts for
+// tables that have a different shape than the app is writing. When each
+// chunk is implemented, flip the corresponding MIGRATED flag and rewrite the
+// body to use the actual normalized columns.
+
+export async function syncWorkoutToSupabase(_dayIdx: number, _weekIdx: number, _data: DayData): Promise<void> {
+  if (!MIGRATED.workouts) return;
 }
 
-export async function syncReadinessToSupabase(date: string, readinessData: ReadinessEntry): Promise<void> {
-  syncStart();
-  try {
-    const user = await getUser();
-    if (!user) return;
-    const { error } = await supabase.from('readiness_checkins').upsert(
-      { user_id: user.id, date, sleep: readinessData.sleep ?? null, soreness: readinessData.soreness ?? null, energy: readinessData.energy ?? null, score: readinessScore(readinessData), updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,date' }
-    );
-    if (error) throw error;
-  } catch (e) { reportSyncFailure('readiness', e); } finally { syncEnd(); }
+export async function syncReadinessToSupabase(_date: string, _readinessData: ReadinessEntry): Promise<void> {
+  if (!MIGRATED.readiness) return;
 }
 
-export async function syncBodyWeightToSupabase(date: string, weightLbs: number): Promise<void> {
-  syncStart();
-  try {
-    const user = await getUser();
-    if (!user) return;
-    const { error } = await supabase.from('body_weight_log').upsert(
-      { user_id: user.id, date, weight_lbs: weightLbs, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,date' }
-    );
-    if (error) throw error;
-  } catch (e) { reportSyncFailure('bodyweight', e); } finally { syncEnd(); }
+export async function syncBodyWeightToSupabase(_date: string, _weightLbs: number): Promise<void> {
+  if (!MIGRATED.bodyweight) return;
 }
 
-export async function syncCardioSessionToSupabase(date: string, data: unknown): Promise<void> {
-  syncStart();
-  try {
-    const user = await getUser();
-    if (!user) return;
-    const { error } = await supabase.from('cardio_sessions').upsert(
-      { user_id: user.id, date, data, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,date' }
-    );
-    if (error) throw error;
-  } catch (e) { reportSyncFailure('cardio', e); } finally { syncEnd(); }
+export async function syncCardioSessionToSupabase(_date: string, _data: unknown): Promise<void> {
+  if (!MIGRATED.cardio) return;
 }
 
-export async function syncNotesToSupabase(dayIdx: number, weekIdx: number, sessionNotes: string | null, exerciseNotes: unknown): Promise<void> {
-  syncStart();
-  try {
-    const user = await getUser();
-    if (!user) return;
-    const { error } = await supabase.from('notes').upsert(
-      { user_id: user.id, day_idx: dayIdx, week_idx: weekIdx, session_notes: sessionNotes ?? null, exercise_notes: exerciseNotes ?? null, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,day_idx,week_idx' }
-    );
-    if (error) throw error;
-  } catch (e) { reportSyncFailure('notes', e); } finally { syncEnd(); }
+export async function syncNotesToSupabase(_dayIdx: number, _weekIdx: number, _sessionNotes: string | null, _exerciseNotes: unknown): Promise<void> {
+  if (!MIGRATED.notes) return;
 }
 
 /** Returns true if remote timestamp is newer than local, or local has no timestamp */
@@ -269,111 +372,57 @@ export async function pullFromSupabase(): Promise<void> {
     const user = await getUser();
     if (!user) return;
 
-    const [profileRes, workoutsRes, readinessRes, bwRes, cardioRes, notesRes] = await Promise.allSettled([
-      supabase.from('user_profiles').select('data,updated_at').eq('id', user.id).single(),
-      supabase.from('workout_sessions').select('day_idx,week_idx,data,updated_at').eq('user_id', user.id),
-      supabase.from('readiness_checkins').select('date,sleep,soreness,energy,updated_at').eq('user_id', user.id),
-      supabase.from('body_weight_log').select('date,weight_lbs,updated_at').eq('user_id', user.id).order('date', { ascending: false }),
-      supabase.from('cardio_sessions').select('date,data,updated_at').eq('user_id', user.id),
-      supabase.from('notes').select('day_idx,week_idx,session_notes,exercise_notes,updated_at').eq('user_id', user.id),
-    ]);
+    // Only fetch tables that have been migrated to the normalized schema.
+    // Pulling the others would 400 because the app's expected column
+    // shape doesn't match what exists in Supabase yet. See MIGRATED above.
 
-    if (profileRes.status === 'fulfilled' && (profileRes.value.data as { data?: unknown })?.data) {
-      const row = profileRes.value.data as { data: unknown; updated_at?: string };
-      const remoteTs = row.updated_at ?? new Date().toISOString();
-      const parsed = validateProfile(row.data);
-      if (parsed.success) {
+    if (MIGRATED.profile) {
+      const profileRes = await supabase
+        .from('user_profiles')
+        .select('id, name, experience, primary_goal, days_per_week, preferred_split, equipment, gender, date_of_birth, weight_lbs, additional_notes, updated_at')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profileRes.error) {
+        console.warn('[Foundry Sync] Profile pull failed', profileRes.error);
+      } else if (profileRes.data) {
+        const row = profileRes.data as SupabaseProfileRow;
+        const remoteTs = row.updated_at ?? new Date().toISOString();
         const localKey = 'foundry:profile';
         const localRaw = store.get(localKey);
-        if (localRaw && !remoteIsNewer(localKey, remoteTs)) {
-          // Local is newer — merge fields, keep local as primary, mark dirty
+        const remoteFields = supabaseRowToAppProfileFields(row);
+
+        if (localRaw) {
+          // Merge: overlay remote identity fields on the local profile, but
+          // preserve local meso-specific fields (workoutDays, mesoLength,
+          // startDate, sessionDuration, etc.) since those are not yet synced.
           try {
-            const merged = mergeProfile(JSON.parse(localRaw), parsed.data as Record<string, unknown>, remoteTs);
+            const localProfile = JSON.parse(localRaw) as Record<string, unknown>;
+            const remoteIsFresher = remoteIsNewer(localKey, remoteTs);
+            const merged = remoteIsFresher
+              ? { ...localProfile, ...remoteFields }
+              : { ...remoteFields, ...localProfile };
             store.setFromRemote(localKey, JSON.stringify(merged), remoteTs);
+            if (!remoteIsFresher) markDirty(localKey);
           } catch {
-            // Parse failed — keep local
-          }
-          markDirty(localKey);
-        } else if (localRaw) {
-          // Remote is newer — merge with remote as primary
-          try {
-            const merged = mergeProfile(JSON.parse(localRaw), parsed.data as Record<string, unknown>, remoteTs);
-            store.setFromRemote(localKey, JSON.stringify(merged), remoteTs);
-          } catch {
-            store.setFromRemote(localKey, JSON.stringify(parsed.data), remoteTs);
+            // Local parse failed — take remote as-is
+            store.setFromRemote(localKey, JSON.stringify(remoteFields), remoteTs);
           }
         } else {
-          // No local data — take remote
-          store.setFromRemote(localKey, JSON.stringify(parsed.data), remoteTs);
-        }
-      } else {
-        console.warn('[Foundry Sync] Invalid profile from Supabase:', parsed.error.issues);
-        Sentry.captureMessage('Invalid profile data from Supabase', { extra: { issues: parsed.error.issues } });
-      }
-    }
-    if (workoutsRes.status === 'fulfilled' && workoutsRes.value.data) {
-      for (const row of workoutsRes.value.data as { day_idx: number; week_idx: number; data: unknown; updated_at?: string }[]) {
-        if (row.data == null) continue;
-        const parsed = validateDayData(row.data);
-        if (!parsed.success) continue;
-        const localKey = 'foundry:day' + row.day_idx + ':week' + row.week_idx;
-        if (remoteIsNewer(localKey, row.updated_at)) {
-          store.setFromRemote(localKey, JSON.stringify(parsed.data), row.updated_at ?? new Date().toISOString());
-        } else {
-          markDirty(localKey);
+          // No local profile — take remote identity fields. User will still
+          // need to complete meso setup since those fields aren't synced yet.
+          store.setFromRemote(localKey, JSON.stringify(remoteFields), remoteTs);
         }
       }
     }
-    if (readinessRes.status === 'fulfilled' && readinessRes.value.data) {
-      for (const row of readinessRes.value.data as { date: string; sleep?: string; soreness?: string; energy?: string; updated_at?: string }[]) {
-        const localKey = 'foundry:readiness:' + row.date;
-        if (!remoteIsNewer(localKey, row.updated_at)) { markDirty(localKey); continue; }
-        const entry: Record<string, string> = {};
-        if (row.sleep) entry.sleep = row.sleep;
-        if (row.soreness) entry.soreness = row.soreness;
-        if (row.energy) entry.energy = row.energy;
-        store.setFromRemote(localKey, JSON.stringify(entry), row.updated_at ?? new Date().toISOString());
-      }
-    }
-    if (bwRes.status === 'fulfilled' && (bwRes.value.data as unknown[])?.length) {
-      const localKey = 'foundry:bwlog';
-      const rows = bwRes.value.data as { date: string; weight_lbs: string; updated_at?: string }[];
-      const latestRemoteTs = rows.reduce((max, r) => {
-        const t = r.updated_at ?? '';
-        return t > max ? t : max;
-      }, '');
-      if (remoteIsNewer(localKey, latestRemoteTs)) {
-        const entries = rows.slice(0, 52).map((r) => ({ date: r.date, weight: parseFloat(r.weight_lbs) }));
-        store.setFromRemote(localKey, JSON.stringify(entries), latestRemoteTs || new Date().toISOString());
-      } else {
-        markDirty(localKey);
-      }
-    }
-    if (cardioRes.status === 'fulfilled' && cardioRes.value.data) {
-      for (const row of cardioRes.value.data as { date: string; data: unknown; updated_at?: string }[]) {
-        if (row.data == null) continue;
-        const localKey = 'foundry:cardio:session:' + row.date;
-        if (remoteIsNewer(localKey, row.updated_at)) {
-          store.setFromRemote(localKey, JSON.stringify(row.data), row.updated_at ?? new Date().toISOString());
-        } else {
-          markDirty(localKey);
-        }
-      }
-    }
-    if (notesRes.status === 'fulfilled' && notesRes.value.data) {
-      for (const row of notesRes.value.data as { day_idx: number; week_idx: number; session_notes?: string; exercise_notes?: unknown; updated_at?: string }[]) {
-        const notesKey = 'foundry:notes:d' + row.day_idx + ':w' + row.week_idx;
-        const exNotesKey = 'foundry:exnotes:d' + row.day_idx + ':w' + row.week_idx;
-        if (remoteIsNewer(notesKey, row.updated_at)) {
-          const ts = row.updated_at ?? new Date().toISOString();
-          if (row.session_notes != null) store.setFromRemote(notesKey, row.session_notes, ts);
-          if (row.exercise_notes != null) store.setFromRemote(exNotesKey, JSON.stringify(row.exercise_notes), ts);
-        } else {
-          markDirty(notesKey);
-        }
-      }
-    }
-    console.log('[Foundry Sync] Pull from Supabase complete (with conflict resolution)');
+
+    // Workouts, readiness, body weight, cardio sessions, notes — all pending
+    // normalized-schema migration. Skipping the pull for these avoids the
+    // 400s that happen when asking for denormalized columns that don't exist.
+    // When each MIGRATED flag flips to true, re-implement the matching pull
+    // block using the actual normalized columns for that table.
+
+    console.log('[Foundry Sync] Pull from Supabase complete (profile only — other tables pending migration)');
     // Notify listeners (App/useMesoState) that local storage has been
     // refreshed from the remote, so they can re-read profile + derived state
     // without requiring a page reload.
@@ -390,75 +439,25 @@ export async function pushToSupabase(): Promise<void> {
     if (!user) return;
     const ops: PromiseLike<unknown>[] = [];
 
-    const rawProfile = store.get('foundry:profile');
-    if (rawProfile) {
-      try {
-        const profile = JSON.parse(rawProfile);
-        ops.push(supabase.from('user_profiles').upsert({ id: user.id, data: profile, updated_at: new Date().toISOString() }, { onConflict: 'id' }));
-      } catch {}
+    if (MIGRATED.profile) {
+      const rawProfile = store.get('foundry:profile');
+      if (rawProfile) {
+        try {
+          const profile = JSON.parse(rawProfile) as Profile;
+          const row = appProfileToSupabaseRow(profile, user.id);
+          ops.push(
+            supabase.from('user_profiles').upsert(
+              { ...row, updated_at: new Date().toISOString() },
+              { onConflict: 'id' },
+            ),
+          );
+        } catch {}
+      }
     }
 
-    const rawBwLog = store.get('foundry:bwlog');
-    if (rawBwLog) {
-      try {
-        const entries = JSON.parse(rawBwLog) as { date: string; weight: number }[];
-        for (const entry of entries) {
-          if (!entry.date || !entry.weight) continue;
-          ops.push(supabase.from('body_weight_log').upsert({ user_id: user.id, date: entry.date, weight_lbs: entry.weight, updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' }));
-        }
-      } catch {}
-    }
-
-    const keysToProcess: string[] = [];
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('foundry:')) keysToProcess.push(key);
-      }
-    } catch {}
-
-    for (const key of keysToProcess) {
-      const raw = localStorage.getItem(key);
-      if (!raw) continue;
-      const dayWeekMatch = key.match(/^foundry:day(\d+):week(\d+)$/);
-      if (dayWeekMatch) {
-        try {
-          const data = JSON.parse(raw);
-          const [, d, w] = dayWeekMatch;
-          ops.push(supabase.from('workout_sessions').upsert({ user_id: user.id, day_idx: parseInt(d), week_idx: parseInt(w), data, updated_at: new Date().toISOString() }, { onConflict: 'user_id,day_idx,week_idx' }));
-        } catch {}
-        continue;
-      }
-      const readinessMatch = key.match(/^foundry:readiness:(\d{4}-\d{2}-\d{2})$/);
-      if (readinessMatch) {
-        try {
-          const r = JSON.parse(raw) as ReadinessEntry;
-          const [, date] = readinessMatch;
-          ops.push(supabase.from('readiness_checkins').upsert({ user_id: user.id, date, sleep: r.sleep ?? null, soreness: r.soreness ?? null, energy: r.energy ?? null, score: readinessScore(r), updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' }));
-        } catch {}
-        continue;
-      }
-      const cardioMatch = key.match(/^foundry:cardio:session:(\d{4}-\d{2}-\d{2})$/);
-      if (cardioMatch) {
-        try {
-          const data = JSON.parse(raw);
-          const [, date] = cardioMatch;
-          ops.push(supabase.from('cardio_sessions').upsert({ user_id: user.id, date, data, updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' }));
-        } catch {}
-        continue;
-      }
-      const notesMatch = key.match(/^foundry:notes:d(\d+):w(\d+)$/);
-      if (notesMatch) {
-        const [, d, w] = notesMatch;
-        let exNotes: unknown = null;
-        try {
-          const exRaw = localStorage.getItem('foundry:exnotes:d' + d + ':w' + w);
-          if (exRaw) exNotes = JSON.parse(exRaw);
-        } catch {}
-        ops.push(supabase.from('notes').upsert({ user_id: user.id, day_idx: parseInt(d), week_idx: parseInt(w), session_notes: raw, exercise_notes: exNotes, updated_at: new Date().toISOString() }, { onConflict: 'user_id,day_idx,week_idx' }));
-        continue;
-      }
-    }
+    // body_weight_log, workouts, readiness, cardio, notes — pending migration.
+    // See MIGRATED flag at top of file. Re-implement each block here using
+    // normalized columns when its chunk lands.
 
     const BATCH = 20;
     let failureCount = 0;
