@@ -20,7 +20,7 @@ const MIGRATED = {
   readiness: true,          // Chunk 5b
   bodyweight: true,         // Chunk 5a
   cardio: true,             // Chunk 5c
-  notes: false,             // Chunk 5d — pending target_type enum values
+  notes: true,              // Chunk 5d
 };
 
 // ─── PROFILE FIELD MAPPERS (app <-> normalized user_profiles) ───────────────
@@ -362,7 +362,10 @@ export async function ensureTrainingStructureRemote(
     writeTrainingDayIdCache(mesoId, trainingDayRows);
 
     // Build training_day_exercises rows referencing the training_day ids.
-    const tdeRows: Omit<SupabaseTrainingDayExerciseRow, 'id'>[] = [];
+    // Generate uuids client-side so we can cache the (dayIdx, exIdx) → tde.id
+    // map for chunk 5d notes sync without a round-trip select.
+    const tdeRows: SupabaseTrainingDayExerciseRow[] = [];
+    const tdeIdMap: Record<string, string> = {};
     program.forEach((day, dayIdx) => {
       const exercises = (day as { exercises?: unknown[] }).exercises || [];
       exercises.forEach((ex, exIdx) => {
@@ -376,7 +379,10 @@ export async function ensureTrainingStructureRemote(
         };
         const { min, max } = parseRepRange(e.reps);
         const setsNum = Number(e.sets);
+        const tdeId = crypto.randomUUID();
+        tdeIdMap[`${dayIdx}:${exIdx}`] = tdeId;
         tdeRows.push({
+          id: tdeId,
           training_day_id: trainingDayRows[dayIdx].id,
           user_id: user.id,
           exercise_id: String(e.id ?? `unknown_${exIdx}`),
@@ -396,11 +402,11 @@ export async function ensureTrainingStructureRemote(
     });
 
     if (tdeRows.length > 0) {
-      // Let Supabase assign uuids for tde rows (we don't need them client-side)
       const { error: tdeError } = await supabase
         .from('training_day_exercises')
         .insert(tdeRows);
       if (tdeError) throw tdeError;
+      writeTdeIdCache(mesoId, tdeIdMap);
     }
   } catch (e) {
     reportSyncFailure('training_structure', e);
@@ -431,12 +437,28 @@ async function pullTrainingStructure(mesoId: string, userId: string): Promise<vo
     const dayIds = (tdRows as { id: string; day_index: number; label: string }[]).map((r) => r.id);
     const { data: tdeRows, error: tdeError } = await supabase
       .from('training_day_exercises')
-      .select('training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier')
+      .select('id, training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier')
       .in('training_day_id', dayIds)
       .order('sort_order', { ascending: true });
 
     if (tdeError) throw tdeError;
     if (!tdeRows) return;
+
+    // Populate the tde_id cache for chunk 5d notes sync. Map is
+    // "dayIdx:exIdx" → training_day_exercises.id. Uses day_index from the
+    // training_days join (looked up via training_day_id).
+    const dayIdxByDayId = new Map<string, number>();
+    (tdRows as { id: string; day_index: number; label: string }[]).forEach((td) => {
+      dayIdxByDayId.set(td.id, td.day_index);
+    });
+    const tdeIdMap: Record<string, string> = {};
+    (tdeRows as { id: string; training_day_id: string; sort_order: number }[]).forEach((tde) => {
+      const dayIdx = dayIdxByDayId.get(tde.training_day_id);
+      if (dayIdx != null) {
+        tdeIdMap[`${dayIdx}:${tde.sort_order}`] = tde.id;
+      }
+    });
+    writeTdeIdCache(mesoId, tdeIdMap);
 
     // Dynamic import to avoid static circular dep
     const exercisesMod = await import('../data/exercises');
@@ -546,6 +568,29 @@ function getTrainingDayIdLocal(mesoId: string, dayIdx: number): string | null {
     if (!raw) return null;
     const map = JSON.parse(raw) as Record<string, string>;
     return map[String(dayIdx)] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Chunk 5d: training_day_exercises id cache keyed by "dayIdx:exIdx".
+// Written by ensureTrainingStructureRemote and pullTrainingStructure.
+// Read by syncNotesToSupabase to resolve the target_id for exercise notes.
+function writeTdeIdCache(mesoId: string, map: Record<string, string>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`foundry:tde_ids:${mesoId}`, JSON.stringify(map));
+  } catch (e) {
+    console.warn('[Foundry Sync] Failed to write tde_id cache', e);
+  }
+}
+
+function getTdeIdMapLocal(mesoId: string): Record<string, string> | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`foundry:tde_ids:${mesoId}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as Record<string, string>;
   } catch {
     return null;
   }
@@ -952,6 +997,102 @@ async function pullCardioSessions(userId: string): Promise<void> {
     });
   } catch (e) {
     reportSyncFailure('cardio_pull', e);
+  }
+}
+
+// Chunk 5d: pull notes and rebuild the local foundry:notes:d{d}:w{w} +
+// foundry:exnotes:d{d}:w{w} keys. Session notes attach to workout_session
+// rows (resolved via workout_sessions.id → (day_number, week_number));
+// exercise notes attach to training_day_exercises (resolved via the
+// (dayIdx:exIdx) tde map populated in chunk 3/4a).
+async function pullNotes(userId: string): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from('notes')
+      .select('target_type, target_id, content')
+      .eq('user_id', userId);
+    if (error) throw error;
+    if (!data) return;
+
+    type Row = { target_type: string; target_id: string; content: string };
+    const rows = data as Row[];
+
+    // Group by target_type
+    const sessionNotes = new Map<string, string>(); // workout_session.id → text
+    const exerciseNotes = new Map<string, string>(); // training_day_exercise.id → text
+    rows.forEach((r) => {
+      if (r.target_type === 'workout_session') sessionNotes.set(r.target_id, r.content);
+      else if (r.target_type === 'exercise') exerciseNotes.set(r.target_id, r.content);
+    });
+
+    // ── Session notes → foundry:notes:d{d}:w{w} ─────────────────────────
+    // Need the reverse map workout_session.id → (dayIdx, weekIdx). Pulled
+    // in chunk 4b via the cached foundry:ws_id keys written at that time.
+    // Walk localStorage for those keys and build the reverse lookup.
+    const sessionIdToDayWeek = new Map<string, { d: number; w: number }>();
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        const m = k.match(/^foundry:ws_id:d(\d+):w(\d+)$/);
+        if (m) {
+          const id = localStorage.getItem(k);
+          if (id) sessionIdToDayWeek.set(id, { d: parseInt(m[1], 10), w: parseInt(m[2], 10) });
+        }
+      }
+    } catch {}
+
+    sessionNotes.forEach((text, sessionId) => {
+      const loc = sessionIdToDayWeek.get(sessionId);
+      if (!loc) return;
+      const key = `foundry:notes:d${loc.d}:w${loc.w}`;
+      store.setFromRemote(key, text, new Date().toISOString());
+    });
+
+    // ── Exercise notes → foundry:exnotes:d{d}:w{w} ──────────────────────
+    // Each exercise note row attaches to a training_day_exercise.id, which
+    // is per-(day, exIdx) and shared across all weeks of the meso. Fan out
+    // the same note text into every week's exnotes key for that (day, exIdx).
+    if (exerciseNotes.size > 0) {
+      const mesoId = typeof window !== 'undefined' ? localStorage.getItem('foundry:active_meso_id') : null;
+      if (mesoId) {
+        const tdeMap = getTdeIdMapLocal(mesoId);
+        if (tdeMap) {
+          // Reverse: tde_id → "dayIdx:exIdx"
+          const tdeIdToKey = new Map<string, string>();
+          Object.entries(tdeMap).forEach(([k, v]) => tdeIdToKey.set(v, k));
+
+          // Group exercise notes by dayIdx
+          const byDay = new Map<number, Record<string, string>>();
+          exerciseNotes.forEach((text, tdeId) => {
+            const keyStr = tdeIdToKey.get(tdeId);
+            if (!keyStr) return;
+            const [dayIdxStr, exIdxStr] = keyStr.split(':');
+            const dayIdx = parseInt(dayIdxStr, 10);
+            const existing = byDay.get(dayIdx) || {};
+            existing[exIdxStr] = text;
+            byDay.set(dayIdx, existing);
+          });
+
+          // Fan out to every week's foundry:exnotes:d{d}:w{w}. Read meso
+          // length from the stored profile to know how many weeks exist.
+          let weeks = 6;
+          try {
+            const p = JSON.parse(localStorage.getItem('foundry:profile') || '{}') as { mesoLength?: number };
+            if (p.mesoLength && p.mesoLength > 0) weeks = p.mesoLength;
+          } catch {}
+
+          byDay.forEach((notesByEx, dayIdx) => {
+            for (let w = 0; w <= weeks; w++) {
+              const key = `foundry:exnotes:d${dayIdx}:w${w}`;
+              store.setFromRemote(key, JSON.stringify(notesByEx), new Date().toISOString());
+            }
+          });
+        }
+      }
+    }
+  } catch (e) {
+    reportSyncFailure('notes_pull', e);
   }
 }
 
@@ -1449,9 +1590,107 @@ export async function syncCardioSessionToSupabase(
   }
 }
 
-// Chunk 5d: notes — pending target_type enum discovery. Stays a no-op.
-export async function syncNotesToSupabase(_dayIdx: number, _weekIdx: number, _sessionNotes: string | null, _exerciseNotes: unknown): Promise<void> {
+// Chunk 5d: notes sync. Two kinds of notes in the app:
+//   1. Session notes (foundry:notes:d{d}:w{w}) — one string per session →
+//      stored with note_target_type='workout_session', target_id=session.id
+//   2. Exercise notes (foundry:exnotes:d{d}:w{w}) — {[exIdx]: string} map →
+//      one row per exercise with note_target_type='exercise', target_id is
+//      the training_day_exercises.id (not per-week since the exercise
+//      template is shared across weeks). Latest-edit-wins semantics.
+//
+// Uses delete-then-insert idempotency because the notes table doesn't have
+// a composite unique index that would support onConflict upsert.
+export async function syncNotesToSupabase(
+  dayIdx: number,
+  weekIdx: number,
+  sessionText: string | null,
+  exerciseNotes: unknown,
+): Promise<void> {
   if (!MIGRATED.notes) return;
+  if (typeof window === 'undefined') return;
+  const mesoId = localStorage.getItem('foundry:active_meso_id');
+  if (!mesoId) return;
+
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+
+    // ── Session note ────────────────────────────────────────────────────
+    const sessionId = localStorage.getItem(`foundry:ws_id:d${dayIdx}:w${weekIdx}`);
+    if (sessionId) {
+      // Delete any existing session note for this workout_session (idempotent)
+      const { error: delErr } = await supabase
+        .from('notes')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('target_type', 'workout_session')
+        .eq('target_id', sessionId);
+      if (delErr) throw delErr;
+
+      if (sessionText && sessionText.trim()) {
+        const { error: insErr } = await supabase.from('notes').insert({
+          user_id: user.id,
+          target_type: 'workout_session',
+          target_id: sessionId,
+          content: sessionText,
+        });
+        if (insErr) throw insErr;
+      }
+    }
+
+    // ── Exercise notes ──────────────────────────────────────────────────
+    if (exerciseNotes && typeof exerciseNotes === 'object') {
+      const tdeMap = getTdeIdMapLocal(mesoId);
+      if (tdeMap) {
+        const notesObj = exerciseNotes as Record<string, string>;
+        const affectedTdeIds: string[] = [];
+        const toInsert: Array<{
+          user_id: string;
+          target_type: string;
+          target_id: string;
+          content: string;
+        }> = [];
+
+        Object.entries(notesObj).forEach(([exIdxStr, content]) => {
+          const exIdx = parseInt(exIdxStr, 10);
+          if (isNaN(exIdx)) return;
+          const tdeId = tdeMap[`${dayIdx}:${exIdx}`];
+          if (!tdeId) return;
+          affectedTdeIds.push(tdeId);
+          if (content && content.trim()) {
+            toInsert.push({
+              user_id: user.id,
+              target_type: 'exercise',
+              target_id: tdeId,
+              content,
+            });
+          }
+        });
+
+        // Delete existing notes for all exercises we're updating (even the
+        // ones where content is empty — that handles note deletion)
+        if (affectedTdeIds.length > 0) {
+          const { error: delErr } = await supabase
+            .from('notes')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('target_type', 'exercise')
+            .in('target_id', affectedTdeIds);
+          if (delErr) throw delErr;
+        }
+
+        if (toInsert.length > 0) {
+          const { error: insErr } = await supabase.from('notes').insert(toInsert);
+          if (insErr) throw insErr;
+        }
+      }
+    }
+  } catch (e) {
+    reportSyncFailure('notes', e);
+  } finally {
+    syncEnd();
+  }
 }
 
 // Helper used by syncReadinessToSupabase (chunk 5b). Same scoring logic as
@@ -1614,6 +1853,9 @@ export async function pullFromSupabase(): Promise<void> {
     }
     if (MIGRATED.cardio) {
       await pullCardioSessions(user.id);
+    }
+    if (MIGRATED.notes) {
+      await pullNotes(user.id);
     }
 
     // Workouts, readiness, body weight, cardio sessions, notes — all pending
