@@ -25,6 +25,7 @@ import {
   bwPromptShownThisWeek,
   getWeekSets,
 } from '../../utils/store';
+import { syncExerciseSwapRemote } from '../../utils/sync';
 import { useRestTimer } from '../../contexts/RestTimerContext';
 
 // Components
@@ -338,13 +339,28 @@ function DayView({
   const handleSwap = useCallback(
     (newExId: string) => {
       if (swapTarget === null) return;
-      // Save override for rest of the meso
+      // Save override for rest of the meso (local)
       saveExOverride(dayIdx, weekIdx, swapTarget.exIdx, newExId, 'meso');
+      // Chunk 3: also sync the swap to training_day_exercises so it round-trips
+      // through Supabase and persists across devices. Fire-and-forget.
+      const mesoId = typeof window !== 'undefined' ? localStorage.getItem('foundry:active_meso_id') : null;
+      if (mesoId) {
+        const newDbEx = EXERCISE_DB.find((e) => e.id === newExId);
+        if (newDbEx) {
+          syncExerciseSwapRemote(mesoId, dayIdx, swapTarget.exIdx, {
+            id: newDbEx.id,
+            sets: newDbEx.sets,
+            reps: newDbEx.reps,
+            progression: newDbEx.pattern === 'isolation' ? 'reps' : 'weight',
+            anchor: exercises[swapTarget.exIdx]?.anchor,
+          });
+        }
+      }
       setSwapTarget(null);
       // Reload to pick up the override
       window.location.reload();
     },
-    [swapTarget, dayIdx, weekIdx],
+    [swapTarget, dayIdx, weekIdx, exercises],
   );
   const dialogShownRef = React.useRef(new Set());
 

@@ -1,6 +1,6 @@
 import { store } from './storage';
 import { validateProfile } from './validate';
-import { syncProfileToSupabase, syncBodyWeightToSupabase, syncMesocycleToSupabase } from './sync';
+import { syncProfileToSupabase, syncBodyWeightToSupabase, syncMesocycleToSupabase, ensureTrainingStructureRemote } from './sync';
 import type {
   Profile,
   Exercise,
@@ -382,12 +382,19 @@ export function loadProfile(): Profile | null {
 
 export function saveProfile(profile: Profile): void {
   store.set('foundry:profile', JSON.stringify(profile));
-  // Sync order matters: the mesocycle row must exist before the user_profile
-  // row is written, because user_profiles.active_meso_id has a foreign key
-  // to mesocycles.id. Chain via .then so the profile write waits for the
-  // mesocycle write even though saveProfile itself is fire-and-forget to
-  // keep its synchronous signature for callers.
-  syncMesocycleToSupabase(profile).then(() => syncProfileToSupabase(profile));
+  // Sync order matters: mesocycle must exist before user_profiles
+  // (active_meso_id FK), and training_days/training_day_exercises must
+  // wait for the mesocycle too (meso_id FK). Chain via .then so the
+  // writes sequence correctly even though saveProfile itself stays
+  // synchronous to its callers.
+  syncMesocycleToSupabase(profile)
+    .then(() => syncProfileToSupabase(profile))
+    .then(() => {
+      if (typeof window === 'undefined') return;
+      const mesoId = localStorage.getItem('foundry:active_meso_id');
+      if (!mesoId) return;
+      return ensureTrainingStructureRemote(mesoId, profile);
+    });
 }
 
 export function isSkipped(dayIdx: number, weekIdx: number): boolean {

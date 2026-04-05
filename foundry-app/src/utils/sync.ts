@@ -13,8 +13,9 @@ import type { Profile, ReadinessEntry, DayData } from '../types';
 // others early-return without trying to sync, so users aren't spammed with
 // "Cloud sync failed" toasts for features that are still pending migration.
 const MIGRATED = {
-  profile: true,     // Chunk 1
-  mesocycles: true,  // Chunk 2
+  profile: true,          // Chunk 1
+  mesocycles: true,       // Chunk 2
+  training_structure: true, // Chunk 3 (training_days + training_day_exercises)
   workouts: false,
   readiness: false,
   bodyweight: false,
@@ -232,6 +233,345 @@ function getOrCreateActiveMesoId(): string {
   const fresh = crypto.randomUUID();
   localStorage.setItem('foundry:active_meso_id', fresh);
   return fresh;
+}
+
+// ─── TRAINING STRUCTURE TYPES (chunk 3) ─────────────────────────────────────
+// training_days: one row per day slot in a meso (e.g. Push Day, Pull Day)
+// training_day_exercises: one row per exercise in a day (the program details)
+
+type SupabaseProgressionType =
+  | 'double_progression'
+  | 'linear'
+  | 'rpe_based'
+  | 'wave'
+  | 'maintenance';
+
+interface SupabaseTrainingDayRow {
+  id: string;
+  meso_id: string;
+  user_id: string;
+  day_index: number;
+  label: string;
+}
+
+interface SupabaseTrainingDayExerciseRow {
+  id: string;
+  training_day_id: string;
+  user_id: string;
+  exercise_id: string;
+  sort_order: number;
+  sets: number;
+  rep_min: number;
+  rep_max: number;
+  progression: SupabaseProgressionType;
+  is_warmup: boolean;
+  is_anchor: boolean;
+  modifier: string | null;
+}
+
+// Parse the app's rep-range string ("6-10", "8", "12-15") into min/max integers.
+function parseRepRange(reps: unknown): { min: number; max: number } {
+  if (typeof reps === 'number') return { min: reps, max: reps };
+  if (typeof reps !== 'string') return { min: 8, max: 12 };
+  const trimmed = reps.trim();
+  const match = trimmed.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+  if (match) {
+    return { min: parseInt(match[1], 10), max: parseInt(match[2], 10) };
+  }
+  const single = parseInt(trimmed, 10);
+  if (!isNaN(single)) return { min: single, max: single };
+  return { min: 8, max: 12 };
+}
+
+// Map the app's binary 'weight'/'reps' progression to the normalized enum.
+// Compound lifts and anchors use double_progression (hit rep target, add
+// weight). Accessory 'reps' exercises use linear (add reps within a fixed
+// weight). This is a pragmatic mapping — chunk 3 TODO: revisit once we have
+// real user data to validate the mapping makes sense in practice.
+function mapProgressionType(exercise: { progression?: unknown; anchor?: unknown }): SupabaseProgressionType {
+  if (exercise.progression === 'reps') return 'linear';
+  return 'double_progression';
+}
+
+// Chunk 3: ensure the training_days + training_day_exercises rows exist for
+// the given meso. Idempotent — checks if rows already exist and early-returns
+// if so. Called from saveProfile after the mesocycle row is upserted.
+//
+// Uses dynamic import() to break the static circular dependency chain
+// (sync → program → training → sync). At runtime this resolves fine.
+export async function ensureTrainingStructureRemote(
+  mesoId: string,
+  profile: Profile,
+): Promise<void> {
+  if (!MIGRATED.training_structure) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+
+    // Skip if the structure already exists for this meso.
+    const { data: existing, error: checkError } = await supabase
+      .from('training_days')
+      .select('id')
+      .eq('meso_id', mesoId)
+      .eq('user_id', user.id)
+      .limit(1);
+
+    if (checkError) throw checkError;
+    if (existing && existing.length > 0) return; // already populated
+
+    // Dynamic imports to avoid static circular dependency.
+    const [programMod, exercisesMod] = await Promise.all([
+      import('./program'),
+      import('../data/exercises'),
+    ]);
+    const { generateProgram } = programMod;
+    const EXERCISE_DB = (exercisesMod as { EXERCISE_DB: unknown[] }).EXERCISE_DB;
+
+    const program = generateProgram(
+      profile,
+      EXERCISE_DB as Parameters<typeof generateProgram>[1],
+    );
+    if (!Array.isArray(program) || program.length === 0) return;
+
+    // Build training_days rows — generate uuids up front so we can reference
+    // them from the child training_day_exercises rows in a single round trip.
+    const trainingDayRows: SupabaseTrainingDayRow[] = program.map((day, idx) => {
+      const d = day as { label?: unknown; tag?: unknown };
+      const label =
+        (typeof d.label === 'string' && d.label) ||
+        (typeof d.tag === 'string' && d.tag) ||
+        `Day ${idx + 1}`;
+      return {
+        id: crypto.randomUUID(),
+        meso_id: mesoId,
+        user_id: user.id,
+        day_index: idx,
+        label,
+      };
+    });
+
+    const { error: tdError } = await supabase
+      .from('training_days')
+      .insert(trainingDayRows);
+    if (tdError) throw tdError;
+
+    // Build training_day_exercises rows referencing the training_day ids.
+    const tdeRows: Omit<SupabaseTrainingDayExerciseRow, 'id'>[] = [];
+    program.forEach((day, dayIdx) => {
+      const exercises = (day as { exercises?: unknown[] }).exercises || [];
+      exercises.forEach((ex, exIdx) => {
+        const e = ex as {
+          id?: unknown;
+          sets?: unknown;
+          reps?: unknown;
+          progression?: unknown;
+          anchor?: unknown;
+          modifier?: unknown;
+        };
+        const { min, max } = parseRepRange(e.reps);
+        const setsNum = Number(e.sets);
+        tdeRows.push({
+          training_day_id: trainingDayRows[dayIdx].id,
+          user_id: user.id,
+          exercise_id: String(e.id ?? `unknown_${exIdx}`),
+          sort_order: exIdx,
+          sets: !isNaN(setsNum) && setsNum > 0 ? setsNum : 3,
+          rep_min: min,
+          rep_max: max,
+          progression: mapProgressionType({
+            progression: e.progression,
+            anchor: e.anchor,
+          }),
+          is_warmup: false,
+          is_anchor: !!e.anchor,
+          modifier: typeof e.modifier === 'string' ? e.modifier : null,
+        });
+      });
+    });
+
+    if (tdeRows.length > 0) {
+      // Let Supabase assign uuids for tde rows (we don't need them client-side)
+      const { error: tdeError } = await supabase
+        .from('training_day_exercises')
+        .insert(tdeRows);
+      if (tdeError) throw tdeError;
+    }
+  } catch (e) {
+    reportSyncFailure('training_structure', e);
+  } finally {
+    syncEnd();
+  }
+}
+
+// Chunk 3: pull the training structure for a meso and rebuild
+// foundry:storedProgram locally. Also clears any stale exOv override keys
+// since the reconstructed program already has the user's swaps baked in
+// (exercise_id reflects the current assigned exercise, swap or default).
+async function pullTrainingStructure(mesoId: string, userId: string): Promise<void> {
+  try {
+    const { data: tdRows, error: tdError } = await supabase
+      .from('training_days')
+      .select('id, day_index, label')
+      .eq('meso_id', mesoId)
+      .eq('user_id', userId)
+      .order('day_index', { ascending: true });
+
+    if (tdError) throw tdError;
+    if (!tdRows || tdRows.length === 0) return;
+
+    const dayIds = (tdRows as { id: string; day_index: number; label: string }[]).map((r) => r.id);
+    const { data: tdeRows, error: tdeError } = await supabase
+      .from('training_day_exercises')
+      .select('training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier')
+      .in('training_day_id', dayIds)
+      .order('sort_order', { ascending: true });
+
+    if (tdeError) throw tdeError;
+    if (!tdeRows) return;
+
+    // Dynamic import to avoid static circular dep
+    const exercisesMod = await import('../data/exercises');
+    const EXERCISE_DB = (exercisesMod as { EXERCISE_DB: Array<Record<string, unknown>> }).EXERCISE_DB;
+    const dbById = new Map(EXERCISE_DB.map((e) => [String(e.id), e]));
+
+    // Group exercises by training_day_id
+    type TdeRow = {
+      training_day_id: string;
+      exercise_id: string;
+      sort_order: number;
+      sets: number;
+      rep_min: number;
+      rep_max: number;
+      progression: SupabaseProgressionType;
+      is_warmup: boolean;
+      is_anchor: boolean;
+      modifier: string | null;
+    };
+    const exercisesByDay = new Map<string, TdeRow[]>();
+    (tdeRows as TdeRow[]).forEach((row) => {
+      const existing = exercisesByDay.get(row.training_day_id) || [];
+      existing.push(row);
+      exercisesByDay.set(row.training_day_id, existing);
+    });
+
+    // Reconstruct the program shape (matches generateProgram output)
+    const program = (tdRows as { id: string; day_index: number; label: string }[]).map((td) => {
+      const rows = (exercisesByDay.get(td.id) || []).sort((a, b) => a.sort_order - b.sort_order);
+      const exercises = rows.map((row) => {
+        const dbEx = dbById.get(row.exercise_id) || {};
+        const repRange =
+          row.rep_min === row.rep_max ? String(row.rep_min) : `${row.rep_min}-${row.rep_max}`;
+        return {
+          id: row.exercise_id,
+          name: (dbEx.name as string) || row.exercise_id,
+          muscle: (dbEx.muscle as string) || '',
+          muscles: (dbEx.muscles as string[]) || [],
+          equipment: (dbEx.equipment as string) || '',
+          tag: (dbEx.tag as string) || '',
+          anchor: row.is_anchor,
+          sets: row.sets,
+          reps: repRange,
+          rest: (dbEx.rest as string) || '2 min',
+          warmup: (dbEx.warmup as string) || '1 feeler set',
+          progression: row.progression === 'linear' ? 'reps' : 'weight',
+          description: (dbEx.description as string) || '',
+          videoUrl: (dbEx.videoUrl as string) || '',
+          bw: !!dbEx.bw,
+          modifier: row.modifier || undefined,
+        };
+      });
+      return {
+        dayNum: td.day_index + 1,
+        label: td.label,
+        tag: (exercises[0]?.tag as string) || '',
+        muscles: '',
+        note: '',
+        cardio: null,
+        exercises,
+      };
+    });
+
+    // Persist to localStorage. Use direct set (not setFromRemote) because
+    // storedProgram isn't in SYNC_TRACKED — it's a derived cache of the
+    // training_days + training_day_exercises rows we just pulled.
+    try {
+      localStorage.setItem('foundry:storedProgram', JSON.stringify(program));
+      // Clear any stale exOv keys — the swaps are now baked into storedProgram
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('foundry:exov:')) keysToRemove.push(k);
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch (e) {
+      console.warn('[Foundry Sync] Failed to write reconstructed storedProgram', e);
+    }
+  } catch (e) {
+    reportSyncFailure('training_structure_pull', e);
+  }
+}
+
+// Chunk 3: update a single training_day_exercises row when the user swaps
+// an exercise. Called from DayView.handleSwap after the local override is
+// written. The swap replaces the exercise_id for that (training_day, sort_order)
+// slot; other fields (sets, reps, progression) inherit from the new exercise.
+export async function syncExerciseSwapRemote(
+  mesoId: string,
+  dayIdx: number,
+  exIdx: number,
+  newExercise: {
+    id: unknown;
+    sets?: unknown;
+    reps?: unknown;
+    progression?: unknown;
+    anchor?: unknown;
+  },
+): Promise<void> {
+  if (!MIGRATED.training_structure) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+
+    // Find the training_day row for this (meso, dayIdx)
+    const { data: tdRows, error: tdError } = await supabase
+      .from('training_days')
+      .select('id')
+      .eq('meso_id', mesoId)
+      .eq('user_id', user.id)
+      .eq('day_index', dayIdx)
+      .limit(1);
+    if (tdError) throw tdError;
+    if (!tdRows || tdRows.length === 0) return;
+    const trainingDayId = (tdRows[0] as { id: string }).id;
+
+    const { min, max } = parseRepRange(newExercise.reps);
+    const setsNum = Number(newExercise.sets);
+
+    const { error: updateError } = await supabase
+      .from('training_day_exercises')
+      .update({
+        exercise_id: String(newExercise.id),
+        sets: !isNaN(setsNum) && setsNum > 0 ? setsNum : 3,
+        rep_min: min,
+        rep_max: max,
+        progression: mapProgressionType({
+          progression: newExercise.progression,
+          anchor: newExercise.anchor,
+        }),
+        is_anchor: !!newExercise.anchor,
+      })
+      .eq('training_day_id', trainingDayId)
+      .eq('user_id', user.id)
+      .eq('sort_order', exIdx);
+
+    if (updateError) throw updateError;
+  } catch (e) {
+    reportSyncFailure('exercise_swap', e);
+  } finally {
+    syncEnd();
+  }
 }
 
 async function getUser() {
@@ -634,10 +974,6 @@ export async function pullFromSupabase(): Promise<void> {
           const localKey = 'foundry:profile';
           const localRaw = store.get(localKey);
           const mesoFields = supabaseMesoRowToAppFields(mesoRow);
-          // Overlay meso fields on top of the profile (written by the
-          // profile block above). Local meso-specific values win only if
-          // they're more recent — but since mesocycles has no per-field
-          // timestamps, we always trust remote here for meso fields.
           try {
             const current = localRaw ? JSON.parse(localRaw) : {};
             const merged = { ...current, ...mesoFields };
@@ -646,6 +982,14 @@ export async function pullFromSupabase(): Promise<void> {
           } catch {
             // ignore parse errors
           }
+        }
+
+        // Chunk 3: pull training_days + training_day_exercises for this meso
+        // and rebuild the local storedProgram cache. Joins exercise metadata
+        // from EXERCISE_DB so the reconstructed program has all the fields
+        // the rest of the app expects (name, muscle, tag, warmup, etc.).
+        if (MIGRATED.training_structure) {
+          await pullTrainingStructure(mesoId, user.id);
         }
       }
     }
