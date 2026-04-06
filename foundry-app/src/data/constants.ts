@@ -159,31 +159,25 @@ export const GOAL_OPTIONS: readonly GoalOption[] = [
   {
     id: 'build_muscle',
     label: 'Build Muscle',
-    desc: 'Maximize hypertrophy. High volume, progressive overload, size-focused.',
+    desc: 'Grow bigger. Higher training volume with rep ranges designed for muscle growth.',
     priority: 'size',
   },
   {
     id: 'build_strength',
     label: 'Build Strength',
-    desc: 'Chase PRs. Heavier loads, lower reps, strength-first programming.',
+    desc: 'Get stronger. Heavier weights, fewer reps, focused on hitting new PRs.',
     priority: 'strength',
   },
   {
     id: 'lose_fat',
-    label: 'Lose Fat',
-    desc: 'Body recomp. Cardio pairing matters. Lift to retain muscle.',
+    label: 'Lose Fat & Stay Strong',
+    desc: 'Burn fat while keeping the muscle you\'ve built. Pairs well with cardio.',
     priority: 'both',
   },
   {
-    id: 'improve_fitness',
-    label: 'Improve Fitness',
-    desc: 'General health and conditioning. Balanced lifting and cardio capacity.',
-    priority: 'both',
-  },
-  {
-    id: 'sport_conditioning',
-    label: 'Sport & Conditioning',
-    desc: 'Athletic output. Power, work capacity, performance transfer.',
+    id: 'general_fitness',
+    label: 'General Fitness',
+    desc: 'Balanced training for overall health, endurance, and feeling good.',
     priority: 'both',
   },
 ];

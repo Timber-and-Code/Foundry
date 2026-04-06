@@ -35,6 +35,8 @@ type SupabasePrimaryGoal =
   | 'build_muscle'
   | 'build_strength'
   | 'lose_fat'
+  | 'general_fitness'
+  // Legacy — kept so appGoalToEnum can read old DB rows and remap them
   | 'improve_fitness'
   | 'sport_conditioning';
 type SupabaseSplitType = 'PPL' | 'UL' | 'FB' | 'PP';
@@ -82,14 +84,18 @@ function appExperienceToEnum(exp: unknown): SupabaseExperience {
 }
 
 function appGoalToEnum(goal: unknown): SupabasePrimaryGoal {
+  if (typeof goal !== 'string') return 'build_muscle';
+  // Remap legacy values to general_fitness
+  if (goal === 'improve_fitness' || goal === 'sport_conditioning') {
+    return 'general_fitness';
+  }
   const valid: SupabasePrimaryGoal[] = [
     'build_muscle',
     'build_strength',
     'lose_fat',
-    'improve_fitness',
-    'sport_conditioning',
+    'general_fitness',
   ];
-  if (typeof goal === 'string' && (valid as string[]).includes(goal)) {
+  if ((valid as string[]).includes(goal)) {
     return goal as SupabasePrimaryGoal;
   }
   return 'build_muscle';
@@ -171,7 +177,10 @@ function supabaseRowToAppProfileFields(row: SupabaseProfileRow): Record<string, 
   return {
     name: row.name,
     experience: row.experience,
-    goal: row.primary_goal,
+    goal:
+      row.primary_goal === 'improve_fitness' || row.primary_goal === 'sport_conditioning'
+        ? 'general_fitness'
+        : row.primary_goal,
     splitType: row.preferred_split.toLowerCase(),
     daysPerWeek: row.days_per_week,
     equipment: Array.isArray(row.equipment) ? row.equipment : [],
