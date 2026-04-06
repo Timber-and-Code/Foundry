@@ -219,6 +219,7 @@ function DayView({
 
   // editMode — reserved for edit-mode toggle
   const [showLeavePrompt] = useState(false);
+  const [showEndEarlyConfirm, setShowEndEarlyConfirm] = useState(false);
   const leaveQuoteRef = React.useRef<{ text: string; author: string } | null>(null);
   React.useEffect(() => {
     if (showLeavePrompt && !leaveQuoteRef.current) {
@@ -755,7 +756,23 @@ function DayView({
           >
             {day.name} - Week {weekIdx + 1}
           </h1>
-          <div style={{ width: 32 }} />
+          <button
+            onClick={() => setShowEndEarlyConfirm(true)}
+            aria-label="End workout early"
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              background: 'none',
+              border: '1px solid var(--danger, #a03333)',
+              borderRadius: tokens.radius.sm,
+              cursor: 'pointer',
+              color: 'var(--danger, #a03333)',
+              padding: '4px 8px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            End Early
+          </button>
         </div>
 
         {/* Meso Overlay */}
@@ -1119,6 +1136,81 @@ function DayView({
             >
               Confirm
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* End Workout Early Confirmation */}
+      {showEndEarlyConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 900,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+          onClick={() => setShowEndEarlyConfirm(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.xl,
+              padding: 24,
+              maxWidth: 320,
+              width: '100%',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>
+              End workout early?
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+              Your logged sets will be saved.
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowEndEarlyConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: tokens.radius.md,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                Keep Going
+              </button>
+              <button
+                onClick={() => {
+                  setShowEndEarlyConfirm(false);
+                  if (dismissRestTimer) dismissRestTimer();
+                  onBack();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: tokens.radius.md,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  background: 'var(--danger, #a03333)',
+                  border: 'none',
+                  color: '#fff',
+                }}
+              >
+                End Workout
+              </button>
+            </div>
           </div>
         </div>
       )}
