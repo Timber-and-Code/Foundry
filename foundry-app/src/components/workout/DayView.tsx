@@ -422,6 +422,16 @@ function DayView({
         }
       }
 
+      // Auto-advance: expand next exercise card and scroll to it
+      if (isLastSet && exIdx !== -1 && exIdx + 1 < exercises.length) {
+        const nextIdx = exIdx + 1;
+        setExpandedIdx(nextIdx);
+        setTimeout(() => {
+          const el = document.getElementById(`ex-${nextIdx}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+      }
+
       if (exIdx === -1) {
         startRestTimer(effectiveRestStr, exName, dayIdx, weekIdx);
         return;
