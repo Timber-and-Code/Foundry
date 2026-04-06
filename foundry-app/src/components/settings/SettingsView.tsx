@@ -599,6 +599,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                   {[
                     ['m', 'Male'],
                     ['f', 'Female'],
+                    ['nb', 'Other'],
                   ].map(([val, label]) => (
                     <button
                       key={val}

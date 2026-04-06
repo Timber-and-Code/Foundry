@@ -669,6 +669,8 @@ function DayView({
         reordered[toIdx] = fromData;
         return reordered;
       });
+      // Follow the moved exercise — keep it expanded at its new position
+      setExpandedIdx(toIdx);
     },
     [],
   );

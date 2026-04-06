@@ -231,10 +231,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
         setError('Please enter your name.');
         return;
       }
-      if (!form.gender) {
-        setError('Please select a gender.');
-        return;
-      }
+      // Gender is optional — no validation needed
       // DOB required (all three fields) — needed for free-tier age qualification.
       if (!setupDob.month || !setupDob.day || !setupDob.year) {
         setError('Please enter your full date of birth.');
@@ -531,18 +528,19 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
 
               {/* Gender */}
               <div style={sec}>
-                <label style={sLabel}>Gender *</label>
+                <label style={sLabel}>Gender</label>
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
+                    gridTemplateColumns: '1fr 1fr 1fr',
                     gap: 8,
                     marginTop: 8,
                   }}
                 >
                   {[
-                    ['m', 'Male ♂'],
-                    ['f', 'Female ♀'],
+                    ['m', 'Male'],
+                    ['f', 'Female'],
+                    ['nb', 'Other'],
                   ].map(([val, lbl]) => (
                     <button
                       key={val}
