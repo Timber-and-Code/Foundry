@@ -511,6 +511,9 @@ function DayView({
           ...prevSet,
           id: setId,
           [field]: value,
+          // Clear suggestion flags when user manually edits weight or reps
+          ...(field === 'weight' ? { suggested: false } : {}),
+          ...(field === 'reps' ? { repsSuggested: false } : {}),
         };
         const next = {
           ...prev,
@@ -601,7 +604,7 @@ function DayView({
           // Only fill sets that don't already have a user-entered weight
           const hasWeight = setData.weight && String(setData.weight).trim() !== '';
           if (!hasWeight) {
-            next[exIdx][s] = { ...setData, weight };
+            next[exIdx][s] = { ...setData, weight, suggested: false };
           }
         }
         saveDayWeek(dayIdx, weekIdx, next);

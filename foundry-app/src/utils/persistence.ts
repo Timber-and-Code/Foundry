@@ -73,10 +73,12 @@ export function loadDayWeekWithCarryover(
       }
 
       let nudge = 0;
+      let bwRepBump = false; // bodyweight: progress reps beyond rangeMax
       if (allRepsHit && hasAnyWorkingSet) {
         const equip = ex.equipment || '';
         if (ex.bw) {
           nudge = 0;
+          bwRepBump = true; // signal to add reps instead of weight
         } else if (equip === 'barbell') {
           nudge = 5;
         } else if (equip === 'dumbbell') {
@@ -104,7 +106,11 @@ export function loadDayWeekWithCarryover(
         const prevReps = parseInt(String(prevSet.reps || '0'));
         let suggestedReps: string;
         if (nudge > 0) {
+          // Weight went up → reset reps to bottom of range
           suggestedReps = String(rangeMin);
+        } else if (bwRepBump && prevReps > 0) {
+          // Bodyweight: no weight to add, so progress reps beyond rangeMax
+          suggestedReps = String(prevReps + 1);
         } else if (prevReps > 0) {
           suggestedReps = String(Math.min(prevReps + 1, rangeMax));
         } else {

@@ -230,6 +230,31 @@ function ExerciseCard({
     setRpePrompt(null);
   };
 
+  // Progression hint — derived from whether set 0 has suggested flags
+  const progressionBanner = useMemo(() => {
+    if (weekIdx === 0) return null; // No progression on first week
+    const set0 = (weekData[exIdx] || {})[0];
+    if (!set0) return null;
+    // Only show banner if set 0 still carries suggestion flags (user hasn't edited yet)
+    if (!set0.suggested && !set0.repsSuggested) return null;
+
+    const prevData = prevWeekRaw[exIdx] || {};
+    const prevWeight = parseFloat(String((prevData[0] || {}).weight || '0'));
+    const currWeight = parseFloat(String(set0.weight || '0'));
+
+    if (set0.suggested && currWeight > prevWeight) {
+      const bump = Math.round((currWeight - prevWeight) * 10) / 10;
+      return { text: `+${bump} lbs — you hit all reps last week`, color: 'var(--success)' };
+    }
+    if (exercise.bw && set0.repsSuggested) {
+      return { text: '+1 rep — bodyweight progression', color: 'var(--text-accent)' };
+    }
+    if (set0.repsSuggested && !set0.suggested) {
+      return { text: 'Same weight, +1 rep — building toward top of range', color: 'var(--text-accent)' };
+    }
+    return null;
+  }, [weekData, exIdx, weekIdx, prevWeekRaw, exercise.bw]);
+
   // Compute stall detection based on previous week's set data and this week's input
   const { stallWarning, stallTarget } = useMemo(() => {
     const curr = (weekData[exIdx] || {})[0] || {};
@@ -509,6 +534,24 @@ function ExerciseCard({
             </div>
           )}
 
+          {/* Progression suggestion banner */}
+          {progressionBanner && !done && (
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: progressionBanner.color,
+                marginBottom: 12,
+                padding: '8px 10px',
+                background: 'var(--bg-inset)',
+                borderRadius: tokens.radius.sm,
+                borderLeft: `3px solid ${progressionBanner.color}`,
+              }}
+            >
+              {progressionBanner.text}
+            </div>
+          )}
+
           {/* Previous week hint */}
           {prevWeekRaw[exIdx] && (
             <div
@@ -568,6 +611,8 @@ function ExerciseCard({
               {Array.from({ length: exercise.sets }).map((_, s) => {
                 const sd = (weekData[exIdx] || {})[s] || {};
                 const isDone = doneSets.has(s);
+                const isSuggestedWeight = !!sd.suggested;
+                const isSuggestedReps = !!sd.repsSuggested;
                 return (
                   <div
                     key={s}
@@ -592,11 +637,12 @@ function ExerciseCard({
                         minWidth: 0,
                         width: '100%',
                         background: 'var(--bg-inset)',
-                        border: '1px solid var(--border)',
+                        border: isSuggestedWeight ? '1.5px solid var(--text-accent)' : '1px solid var(--border)',
                         borderRadius: tokens.radius.sm,
                         padding: '8px 6px',
                         fontSize: 14,
-                        color: 'var(--text-primary)',
+                        color: isSuggestedWeight ? 'var(--text-accent)' : 'var(--text-primary)',
+                        fontStyle: isSuggestedWeight ? 'italic' : 'normal',
                         outline: 'none',
                         textAlign: 'center',
                         boxSizing: 'border-box',
@@ -615,11 +661,12 @@ function ExerciseCard({
                         minWidth: 0,
                         width: '100%',
                         background: 'var(--bg-inset)',
-                        border: '1px solid var(--border)',
+                        border: isSuggestedReps ? '1.5px solid var(--text-accent)' : '1px solid var(--border)',
                         borderRadius: tokens.radius.sm,
                         padding: '8px 6px',
                         fontSize: 14,
-                        color: 'var(--text-primary)',
+                        color: isSuggestedReps ? 'var(--text-accent)' : 'var(--text-primary)',
+                        fontStyle: isSuggestedReps ? 'italic' : 'normal',
                         outline: 'none',
                         textAlign: 'center',
                         boxSizing: 'border-box',
