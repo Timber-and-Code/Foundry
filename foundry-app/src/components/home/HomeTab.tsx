@@ -562,22 +562,23 @@ function HomeTab({
               const done = completedDays.has(`${i}:${displayWeek}`);
               const isNext = !done && activeDays.slice(0, i).every((_, j) => completedDays.has(`${j}:${displayWeek}`));
               const tc = (TAG_ACCENT as Record<string, any>)[day.tag];
+              const accent = '#E8651A';
               return (
                 <div
                   key={i}
                   onClick={(e) => { e.stopPropagation(); goBack(); onSelectDayWeek(i, activeWeek); }}
                   style={{
                     flex: 1, minWidth: 0, padding: '4px 2px', borderRadius: tokens.radius.xs,
-                    border: `1px solid ${done ? tc + '60' : isNext ? tc : pc + '44'}`,
-                    background: done ? tc + '1a' : isNext ? tc + '12' : 'transparent',
+                    border: `1px solid ${done ? tc + '60' : isNext ? accent : pc + '44'}`,
+                    background: done ? tc + '1a' : isNext ? accent + '18' : 'transparent',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: 'pointer',
                   }}
                 >
-                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', color: done ? tc : isNext ? tc : 'var(--text-muted)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', color: done ? tc : isNext ? accent : 'var(--text-muted)' }}>
                     {({ PUSH: 'Push', PULL: 'Pull', LEGS: 'Legs', UPPER: 'Upper', LOWER: 'Lower', FULL: 'Full' } as Record<string, any>)[day.tag] || day.tag}
                   </div>
                   <div style={{ fontSize: 10, lineHeight: 1 }}>
-                    {done ? <span style={{ color: tc }}>✓</span> : isNext ? <span style={{ color: tc }}>●</span> : <span style={{ color: 'var(--text-dim)' }}>·</span>}
+                    {done ? <span style={{ color: tc }}>✓</span> : isNext ? <span style={{ color: accent }}>●</span> : <span style={{ color: 'var(--text-dim)' }}>·</span>}
                   </div>
                 </div>
               );
