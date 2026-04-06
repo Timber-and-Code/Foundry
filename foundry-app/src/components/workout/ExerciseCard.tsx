@@ -69,6 +69,11 @@ interface ExerciseCardProps {
   bodyweight: number | string | undefined;
   note: string;
   onNoteChange: (exIdx: number, value: string) => void;
+  onAddSet?: (exIdx: number) => void;
+  onMoveUp?: (exIdx: number) => void;
+  onMoveDown?: (exIdx: number) => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 function ExerciseCard({
@@ -89,6 +94,11 @@ function ExerciseCard({
   bodyweight: _bodyweight,
   note,
   onNoteChange,
+  onAddSet,
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast,
 }: ExerciseCardProps) {
   const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression]?.[weekIdx];
   const goalColor =
@@ -641,13 +651,34 @@ function ExerciseCard({
             </div>
           )}
 
+          {/* Add Set button */}
+          {!done && !readOnly && onAddSet && (
+            <button
+              onClick={() => onAddSet(exIdx)}
+              style={{
+                width: '100%',
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '8px',
+                marginBottom: 12,
+                borderRadius: tokens.radius.sm,
+                background: 'transparent',
+                border: '1px dashed var(--border)',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              + Add Set
+            </button>
+          )}
+
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               onClick={handleHistoryClick}
               style={{
                 flex: 1,
-                minWidth: 100,
+                minWidth: 70,
                 fontSize: 12,
                 padding: '8px 12px',
                 borderRadius: tokens.radius.sm,
@@ -664,7 +695,7 @@ function ExerciseCard({
                 onClick={() => onSwapClick(exIdx)}
                 style={{
                   flex: 1,
-                  minWidth: 100,
+                  minWidth: 70,
                   fontSize: 12,
                   padding: '8px 12px',
                   borderRadius: tokens.radius.sm,
@@ -675,6 +706,40 @@ function ExerciseCard({
                 }}
               >
                 Swap
+              </button>
+            )}
+            {!done && !readOnly && onMoveUp && !isFirst && (
+              <button
+                onClick={() => onMoveUp(exIdx)}
+                aria-label="Move exercise up"
+                style={{
+                  fontSize: 14,
+                  padding: '8px 12px',
+                  borderRadius: tokens.radius.sm,
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                ↑
+              </button>
+            )}
+            {!done && !readOnly && onMoveDown && !isLast && (
+              <button
+                onClick={() => onMoveDown(exIdx)}
+                aria-label="Move exercise down"
+                style={{
+                  fontSize: 14,
+                  padding: '8px 12px',
+                  borderRadius: tokens.radius.sm,
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                ↓
               </button>
             )}
           </div>

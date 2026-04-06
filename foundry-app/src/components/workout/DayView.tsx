@@ -615,7 +615,50 @@ function DayView({
 
   // handleDialogNo — reserved for dialog dismissal
 
-  // handleAddSet — reserved for add-set feature
+  const handleAddSet = useCallback(
+    (exIdx: number) => {
+      setExercises((prev) => {
+        const updated = [...prev];
+        const ex = updated[exIdx];
+        if (ex) {
+          updated[exIdx] = { ...ex, sets: (Number(ex.sets) || 0) + 1 };
+        }
+        return updated;
+      });
+    },
+    [],
+  );
+
+  const handleMoveExercise = useCallback(
+    (fromIdx: number, toIdx: number) => {
+      setExercises((prev) => {
+        const updated = [...prev];
+        const [moved] = updated.splice(fromIdx, 1);
+        updated.splice(toIdx, 0, moved);
+        return updated;
+      });
+      // Also reorder the weekData keys so set data follows the exercise
+      setWeekData((prev) => {
+        const entries = Object.entries(prev).sort(([a], [b]) => Number(a) - Number(b));
+        const reordered: typeof prev = {};
+        const fromData = prev[fromIdx];
+        const dir = toIdx > fromIdx ? 1 : -1;
+        for (let i = 0; i < entries.length; i++) {
+          if (i === fromIdx) continue;
+          if (dir === 1 && i > fromIdx && i <= toIdx) {
+            reordered[i - 1] = prev[i];
+          } else if (dir === -1 && i >= toIdx && i < fromIdx) {
+            reordered[i + 1] = prev[i];
+          } else {
+            reordered[i] = prev[i];
+          }
+        }
+        reordered[toIdx] = fromData;
+        return reordered;
+      });
+    },
+    [],
+  );
 
   // handleNoteChange — reserved for note editing
 
@@ -771,6 +814,11 @@ function DayView({
                 const next = { ...exNotes, [idx]: val };
                 setExNotes(next);
               }}
+              onAddSet={handleAddSet}
+              onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
+              onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
+              isFirst={i === 0}
+              isLast={i === exercises.length - 1}
             />
           </div>
         ))}
@@ -1003,6 +1051,11 @@ function DayView({
               const next = { ...exNotes, [idx]: val };
               setExNotes(next);
             }}
+            onAddSet={handleAddSet}
+            onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
+            onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
+            isFirst={i === 0}
+            isLast={i === exercises.length - 1}
           />
         </div>
       ))}
