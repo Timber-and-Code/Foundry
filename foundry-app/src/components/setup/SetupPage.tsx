@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { store, ageFromDob } from '../../utils/store';
+import { supabase } from '../../utils/supabase';
 import FoundryBanner from '../shared/FoundryBanner';
 import AutoBuilderFlow from './AutoBuilderFlow';
 import ManualBuilderFlow from './ManualBuilderFlow';
@@ -262,7 +263,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
             const msg = (signupError.message || '').toLowerCase();
             if (msg.includes('already registered') || msg.includes('already exists')) {
               setError(
-                'You already have an account with this email. Go back to the welcome screen and tap "Sign in".'
+                'You already have an account with this email. Tap "Sign in instead" below to log in, or "Forgot password?" to reset it.'
               );
             } else {
               setError(signupError.message || 'Sign up failed. Please try again.');
@@ -732,6 +733,69 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                   onChange={(e) => set('password', e.target.value)}
                   style={{ ...inputStyle, marginTop: 10 }}
                 />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: 10,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const email = form.email.trim();
+                      if (!email || !email.includes('@')) {
+                        setError('Enter your email address first.');
+                        return;
+                      }
+                      setError('');
+                      try {
+                        const { error: resetErr } =
+                          await supabase.auth.resetPasswordForEmail(email);
+                        if (resetErr) {
+                          setError(resetErr.message);
+                        } else {
+                          showToast('Password reset email sent', 'success');
+                        }
+                      } catch {
+                        setError('Could not send reset email. Try again.');
+                      }
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      padding: 0,
+                      textDecoration: 'underline',
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      store.set('foundry:wants_auth', '1');
+                      window.dispatchEvent(new Event('foundry:wants_auth'));
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: tokens.colors.accent,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                      textDecoration: 'underline',
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    Sign in instead
+                  </button>
+                </div>
               </div>
 
               {/* Error */}
