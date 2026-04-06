@@ -298,11 +298,11 @@ function DayView({
 
   // Build resolved exercises by applying any saved overrides
   // MUST be declared before prevWeekNotes useMemo — Babel hoists var to undefined otherwise
-  const [exercises] = useState(() => {
+  const resolveExercises = useCallback(() => {
     return (weekDay.exercises || []).map((ex: Exercise, i: number) => {
       const ovId = loadExOverride(dayIdx, weekIdx, i);
       if (!ovId) return ex;
-      const dbEx = EXERCISE_DB.find((e) => e.id === ovId);
+      const dbEx = EXERCISE_DB.find((e: Exercise) => e.id === ovId);
       if (!dbEx) return ex;
       const wu = ex.anchor
         ? profile?.sessionDuration <= 30
@@ -325,7 +325,8 @@ function DayView({
         videoUrl: dbEx.videoUrl || '',
       };
     });
-  });
+  }, [weekDay.exercises, dayIdx, weekIdx]);
+  const [exercises, setExercises] = useState(resolveExercises);
 
   // prevWeekNotes memo — reserved for previous week notes callout
 
@@ -366,7 +367,7 @@ function DayView({
       // through Supabase and persists across devices. Fire-and-forget.
       const mesoId = typeof window !== 'undefined' ? localStorage.getItem('foundry:active_meso_id') : null;
       if (mesoId) {
-        const newDbEx = EXERCISE_DB.find((e) => e.id === newExId);
+        const newDbEx = EXERCISE_DB.find((e: Exercise) => e.id === newExId);
         if (newDbEx) {
           syncExerciseSwapRemote(mesoId, dayIdx, swapTarget.exIdx, {
             id: newDbEx.id,
@@ -378,10 +379,12 @@ function DayView({
         }
       }
       setSwapTarget(null);
-      // Reload to pick up the override
-      window.location.reload();
+      // Re-resolve exercises from overrides instead of reloading — avoids
+      // the race where pullFromSupabase clears exov keys before the remote
+      // swap write lands.
+      setExercises(resolveExercises());
     },
-    [swapTarget, dayIdx, weekIdx, exercises],
+    [swapTarget, dayIdx, weekIdx, exercises, resolveExercises],
   );
   const dialogShownRef = React.useRef(new Set());
 
