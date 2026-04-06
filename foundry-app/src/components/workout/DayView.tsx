@@ -587,10 +587,9 @@ function DayView({
         const next = { ...prev, [exIdx]: { ...exData } };
         for (let s = 1; s < numSets; s++) {
           const setData = exData[s] || {};
-          // Only skip if the user has actually worked this set (confirmed or reps logged by hand)
-          // Suggested reps don't count as worked — always overwrite those
-          const alreadyWorked = setData.confirmed === true;
-          if (!alreadyWorked) {
+          // Only fill sets that don't already have a user-entered weight
+          const hasWeight = setData.weight && String(setData.weight).trim() !== '';
+          if (!hasWeight) {
             next[exIdx][s] = { ...setData, weight };
           }
         }

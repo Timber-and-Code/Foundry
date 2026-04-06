@@ -371,43 +371,47 @@ function ExerciseCard({
             </div>
           )}
 
-          {/* Title + Badge */}
+          {/* Title + Badge + Subtitle */}
           <div
             style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: 8,
+              flexDirection: 'column',
               minWidth: 0,
               flex: 1,
             }}
           >
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {exercise.name}
-            </span>
-            {exercise.anchor && <HammerIcon size={16} style={{ marginTop: 1 }} />}
-            {exercise.modifier && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span
                 style={{
-                  fontSize: 11,
-                  background: 'var(--bg-inset)',
-                  color: 'var(--text-muted)',
-                  padding: '2px 6px',
-                  borderRadius: tokens.radius.xs,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
                   whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
-                {exercise.modifier}
+                {exercise.name}
               </span>
-            )}
+              {exercise.anchor && <HammerIcon size={16} style={{ marginTop: 1 }} />}
+              {exercise.modifier && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    background: 'var(--bg-inset)',
+                    color: 'var(--text-muted)',
+                    padding: '2px 6px',
+                    borderRadius: tokens.radius.xs,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {exercise.modifier}
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+              {exercise.reps} reps{exercise.rest ? ` · ${exercise.rest}` : ''}
+            </div>
           </div>
         </div>
 
