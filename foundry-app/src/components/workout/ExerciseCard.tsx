@@ -375,38 +375,44 @@ function ExerciseCard({
           <div
             style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: 8,
+              flexDirection: 'column',
               minWidth: 0,
               flex: 1,
             }}
           >
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {exercise.name}
-            </span>
-            {exercise.anchor && <HammerIcon size={16} style={{ marginTop: 1 }} />}
-            {exercise.modifier && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span
                 style={{
-                  fontSize: 11,
-                  background: 'var(--bg-inset)',
-                  color: 'var(--text-muted)',
-                  padding: '2px 6px',
-                  borderRadius: tokens.radius.xs,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
                   whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
-                {exercise.modifier}
+                {exercise.name}
               </span>
+              {exercise.anchor && <HammerIcon size={16} style={{ marginTop: 1 }} />}
+              {exercise.modifier && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    background: 'var(--bg-inset)',
+                    color: 'var(--text-muted)',
+                    padding: '2px 6px',
+                    borderRadius: tokens.radius.xs,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {exercise.modifier}
+                </span>
+              )}
+            </div>
+            {(exercise.reps || exercise.rest) && (
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                {[exercise.reps && `${exercise.reps} reps`, exercise.rest].filter(Boolean).join(' · ')}
+              </div>
             )}
           </div>
         </div>
@@ -581,7 +587,12 @@ function ExerciseCard({
                       placeholder="—"
                       value={sd.weight || ''}
                       aria-label={`Set ${s + 1} weight in pounds`}
-                      onChange={(e) => onUpdateSet(exIdx, s, 'weight', e.target.value)}
+                      onChange={(e) => {
+                        onUpdateSet(exIdx, s, 'weight', e.target.value);
+                        if (s === 0 && e.target.value.trim() !== '' && !isNaN(parseFloat(e.target.value))) {
+                          onWeightAutoFill(exIdx, e.target.value, exercise.sets);
+                        }
+                      }}
                       onBlur={(e) => handleWeightBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
                       style={{

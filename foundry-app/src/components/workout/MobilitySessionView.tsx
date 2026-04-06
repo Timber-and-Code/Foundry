@@ -901,7 +901,7 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
                   marginBottom: 6,
                 }}
               >
-                {p.category.toUpperCase()} · {p.exercises.length} EXERCISES
+                {p?.category?.toUpperCase()} · {p.exercises.length} EXERCISES
               </div>
               <div
                 style={{

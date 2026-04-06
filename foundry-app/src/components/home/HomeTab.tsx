@@ -13,6 +13,7 @@ import {
   loadCardioSession,
   getWorkoutDaysForWeek,
   getTimeGreeting,
+  getWeekSets,
 } from '../../utils/store';
 import ReadinessCard from './ReadinessCard';
 import MobilityCard from './MobilityCard';
@@ -285,7 +286,7 @@ function RestStateCard({
                           {dbEx ? dbEx.name : ex.name}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1 }}>
-                          {ex.sets} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
+                          {getWeekSets(ex.sets, activeWeek, getMeso().weeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
                         </div>
                       </div>
                     </div>
@@ -686,7 +687,7 @@ function HomeTab({
                       {dbEx ? dbEx.name : ex.name}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1 }}>
-                      {ex.sets} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
+                      {getWeekSets(ex.sets, showDayWeek, getMeso().weeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
                     </div>
                   </div>
                   {prevWeight && (

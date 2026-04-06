@@ -1124,49 +1124,65 @@ function DayView({
         </div>
       )}
 
-      {/* Rest Timer (if active) */}
-      {restTimer && !restTimerMinimized && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 20,
-            right: 20,
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg,
-            padding: 16,
-            zIndex: 150,
-          }}
-        >
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Rest time</div>
+      {/* Rest Timer overlay (if active and not minimized) */}
+      {restTimer && !restTimerMinimized && (() => {
+        const r = restTimer.remaining;
+        const m = Math.floor(r / 60);
+        const s = r % 60;
+        const timeStr = `${m}:${String(s).padStart(2, '0')}`;
+        const done = r === 0;
+        return (
           <div
-            aria-live="polite"
-            aria-atomic="true"
-            aria-label={`Rest time remaining: ${restTimer.remaining}`}
             style={{
-              fontSize: 24,
-              fontWeight: 700,
-              color: 'var(--text-accent)',
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.82)',
+              zIndex: 300,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 16,
             }}
           >
-            {restTimer.remaining}
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {done ? 'Rest complete' : 'Resting'}
+            </div>
+            <div
+              aria-live="polite"
+              aria-atomic="true"
+              aria-label={`Rest time remaining: ${timeStr}`}
+              style={{
+                fontSize: 88,
+                fontWeight: 900,
+                color: done ? 'var(--phase-accum)' : 'var(--text-accent)',
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1,
+              }}
+            >
+              {done ? 'GO!' : timeStr}
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{restTimer.exName}</div>
+            <button
+              onClick={() => setRestTimerMinimized(true)}
+              style={{
+                marginTop: 12,
+                padding: '12px 32px',
+                borderRadius: tokens.radius.md,
+                background: 'var(--bg-inset)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: 'pointer',
+                letterSpacing: '0.04em',
+              }}
+            >
+              Minimize
+            </button>
           </div>
-          <button
-            onClick={() => setRestTimerMinimized(true)}
-            style={{
-              marginTop: 8,
-              width: '100%',
-              padding: '6px',
-              borderRadius: tokens.radius.sm,
-              background: 'var(--bg-inset)',
-              border: '1px solid var(--border)',
-              cursor: 'pointer',
-            }}
-          >
-            Minimize
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Note Review Step */}
       {showNoteReview && (

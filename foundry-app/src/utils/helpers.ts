@@ -1,10 +1,10 @@
-// Parse a rest string like "3-4 min", "90 sec", "60-90 sec" → seconds (lower bound)
+// Parse a rest string like "3-4 min", "90 sec", "60-90 sec" → seconds (upper bound of range)
 export function parseRestSeconds(restStr: string | undefined | null): number {
   if (!restStr) return 90;
   const s = restStr.toLowerCase();
-  const match = s.match(/(\d+(?:\.\d+)?)/);
-  if (!match) return 90;
-  const val = parseFloat(match[1]);
+  const matches = s.match(/(\d+(?:\.\d+)?)/g);
+  if (!matches) return 90;
+  const val = parseFloat(matches[matches.length - 1]);
   if (s.includes('min')) return Math.round(val * 60);
   if (s.includes('sec')) return Math.round(val);
   return 90;
