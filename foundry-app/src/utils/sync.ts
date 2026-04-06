@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react';
 import { supabase } from './supabase.js';
 import { store } from './storage.js';
-import type { Profile, ReadinessEntry, DayData } from '../types';
+import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData } from '../types';
 // validateDayData + validateProfile are imported by other modules; sync.ts
 // will use them again once workouts/readiness chunks migrate to the
 // normalized schema. For chunk 1 (profile only), neither is needed here.
@@ -1937,4 +1937,302 @@ export async function pushToSupabase(): Promise<void> {
       console.log('[Foundry Sync] Pushed ' + ops.length + ' records to Supabase');
     }
   } catch (e) { reportSyncFailure('push', e); } finally { syncEnd(); }
+}
+
+// ─── TRAIN WITH FRIENDS (social) ───────────────────────────────────────────
+
+const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+export function generateInviteCode(): string {
+  const arr = new Uint8Array(8);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => INVITE_CHARS[b % INVITE_CHARS.length]).join('');
+}
+
+export async function createMesoInvite(mesoId: string): Promise<string | null> {
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return null;
+    const code = generateInviteCode();
+    const { error } = await supabase
+      .from('mesocycle_members')
+      .upsert(
+        {
+          mesocycle_id: mesoId,
+          user_id: user.id,
+          role: 'owner',
+          invite_code: code,
+          joined_at: new Date().toISOString(),
+        },
+        { onConflict: 'mesocycle_id,user_id' },
+      );
+    if (error) throw error;
+    return code;
+  } catch (e) {
+    reportSyncFailure('create_invite', e);
+    return null;
+  } finally {
+    syncEnd();
+  }
+}
+
+export async function getInviteCode(mesoId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('mesocycle_members')
+      .select('invite_code')
+      .eq('mesocycle_id', mesoId)
+      .eq('role', 'owner')
+      .maybeSingle();
+    if (error || !data) return null;
+    return (data as { invite_code: string | null }).invite_code;
+  } catch {
+    return null;
+  }
+}
+
+export async function previewInviteCode(code: string): Promise<{
+  mesoId: string;
+  mesoName: string;
+  ownerName: string;
+} | null> {
+  try {
+    const { data, error } = await supabase
+      .from('mesocycle_members')
+      .select('mesocycle_id')
+      .eq('invite_code', code.toUpperCase())
+      .maybeSingle();
+    if (error || !data) return null;
+
+    const mesoId = (data as { mesocycle_id: string }).mesocycle_id;
+
+    const { data: meso } = await supabase
+      .from('mesocycles')
+      .select('name, user_id')
+      .eq('id', mesoId)
+      .maybeSingle();
+    if (!meso) return null;
+
+    const { name: mesoName, user_id: ownerId } = meso as { name: string; user_id: string };
+
+    const { data: ownerProfile } = await supabase
+      .from('user_profiles')
+      .select('name')
+      .eq('id', ownerId)
+      .maybeSingle();
+
+    const ownerName = (ownerProfile as { name: string } | null)?.name || 'Someone';
+
+    return { mesoId, mesoName, ownerName };
+  } catch {
+    return null;
+  }
+}
+
+export async function joinMesoByCode(code: string): Promise<{
+  success: boolean;
+  mesoName?: string;
+  ownerName?: string;
+  error?: string;
+}> {
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return { success: false, error: 'Not signed in' };
+
+    const preview = await previewInviteCode(code);
+    if (!preview) return { success: false, error: 'Invalid invite code' };
+
+    const { mesoId, mesoName, ownerName } = preview;
+
+    // Check if already a member
+    const { data: existing } = await supabase
+      .from('mesocycle_members')
+      .select('user_id')
+      .eq('mesocycle_id', mesoId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (existing) return { success: false, error: 'You already joined this program' };
+
+    // Archive current meso first (non-destructive — just marks as abandoned)
+    await archiveMesocycleRemote();
+
+    // Insert member row
+    const { error: insertError } = await supabase
+      .from('mesocycle_members')
+      .insert({
+        mesocycle_id: mesoId,
+        user_id: user.id,
+        role: 'member',
+      });
+    if (insertError) throw insertError;
+
+    // Point active meso to the shared one
+    localStorage.setItem('foundry:active_meso_id', mesoId);
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .update({ active_meso_id: mesoId, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
+    if (profileError) throw profileError;
+
+    // Pull training structure + workout history for the shared meso
+    await pullFromSupabase();
+
+    return { success: true, mesoName, ownerName };
+  } catch (e) {
+    reportSyncFailure('join_meso', e);
+    return { success: false, error: 'Something went wrong. Try again.' };
+  } finally {
+    syncEnd();
+  }
+}
+
+export async function fetchMesoMembers(mesoId: string): Promise<MesoMember[]> {
+  try {
+    const user = await getUser();
+    if (!user) return [];
+
+    const { data: members, error } = await supabase
+      .from('mesocycle_members')
+      .select('mesocycle_id, user_id, role, joined_at')
+      .eq('mesocycle_id', mesoId);
+    if (error || !members) return [];
+
+    type MemberRow = { mesocycle_id: string; user_id: string; role: string; joined_at: string };
+    const rows = members as MemberRow[];
+
+    // Filter out current user
+    const others = rows.filter((r) => r.user_id !== user.id);
+    if (others.length === 0) return [];
+
+    // Fetch names
+    const userIds = others.map((r) => r.user_id);
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('id, name')
+      .in('id', userIds);
+    const nameMap = new Map<string, string>();
+    if (profiles) {
+      for (const p of profiles as { id: string; name: string }[]) {
+        nameMap.set(p.id, p.name || 'User');
+      }
+    }
+
+    // Fetch latest completed session per member for this meso
+    const { data: sessions } = await supabase
+      .from('workout_sessions')
+      .select('user_id, day_number, week_number, completed_at, is_complete')
+      .eq('meso_id', mesoId)
+      .in('user_id', userIds)
+      .eq('is_complete', true)
+      .order('completed_at', { ascending: false });
+
+    const activityMap = new Map<string, { dayIdx: number; weekIdx: number; completedAt: string | null }>();
+    if (sessions) {
+      for (const s of sessions as { user_id: string; day_number: number; week_number: number; completed_at: string | null }[]) {
+        if (!activityMap.has(s.user_id)) {
+          activityMap.set(s.user_id, {
+            dayIdx: s.day_number,
+            weekIdx: s.week_number,
+            completedAt: s.completed_at,
+          });
+        }
+      }
+    }
+
+    return others.map((r): MesoMember => ({
+      mesoId: r.mesocycle_id,
+      userId: r.user_id,
+      role: r.role as 'owner' | 'member',
+      name: nameMap.get(r.user_id) || 'User',
+      joinedAt: r.joined_at,
+      latestActivity: activityMap.get(r.user_id) ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchFriendWorkout(
+  friendUserId: string,
+  mesoId: string,
+  dayIdx: number,
+  weekIdx: number,
+): Promise<FriendWorkoutData | null> {
+  try {
+    // Get friend's name
+    const { data: profileData } = await supabase
+      .from('user_profiles')
+      .select('name')
+      .eq('id', friendUserId)
+      .maybeSingle();
+    const userName = (profileData as { name: string } | null)?.name || 'Friend';
+
+    // Get the workout session
+    const { data: sessionData } = await supabase
+      .from('workout_sessions')
+      .select('id')
+      .eq('user_id', friendUserId)
+      .eq('meso_id', mesoId)
+      .eq('day_number', dayIdx)
+      .eq('week_number', weekIdx)
+      .maybeSingle();
+
+    if (!sessionData) {
+      return { userId: friendUserId, userName, dayIdx, weekIdx, exercises: [] };
+    }
+
+    const sessionId = (sessionData as { id: string }).id;
+
+    // Get their sets
+    const { data: setRows } = await supabase
+      .from('workout_sets')
+      .select('exercise_id, set_number, weight_lbs, reps, rpe, is_warmup')
+      .eq('workout_session_id', sessionId)
+      .order('set_number', { ascending: true });
+
+    if (!setRows || setRows.length === 0) {
+      return { userId: friendUserId, userName, dayIdx, weekIdx, exercises: [] };
+    }
+
+    type SetRow = {
+      exercise_id: string;
+      set_number: number;
+      weight_lbs: number | null;
+      reps: number | null;
+      rpe: number | null;
+      is_warmup: boolean;
+    };
+
+    // Group sets by exercise_id
+    const byExercise = new Map<string, SetRow[]>();
+    for (const s of setRows as SetRow[]) {
+      if (s.is_warmup) continue; // skip warmup sets in friend view
+      const arr = byExercise.get(s.exercise_id) || [];
+      arr.push(s);
+      byExercise.set(s.exercise_id, arr);
+    }
+
+    // Resolve exercise names from EXERCISE_DB (dynamic import to avoid circular dep)
+    const { EXERCISE_DB } = await import('../data/exercises');
+
+    const exercises: FriendWorkoutData['exercises'] = [];
+    for (const [exId, sets] of byExercise) {
+      const dbEx = (EXERCISE_DB as Record<string, { name?: string; muscle?: string }>)[exId];
+      exercises.push({
+        name: dbEx?.name || exId,
+        muscle: dbEx?.muscle || '',
+        sets: sets.map((s) => ({
+          weight: s.weight_lbs ?? '',
+          reps: s.reps ?? '',
+          rpe: s.rpe != null ? (s.rpe === 7 ? 'Easy' : s.rpe === 8 ? 'Good' : s.rpe >= 9 ? 'Hard' : s.rpe) : undefined,
+        })),
+      });
+    }
+
+    return { userId: friendUserId, userName, dayIdx, weekIdx, exercises };
+  } catch {
+    return null;
+  }
 }

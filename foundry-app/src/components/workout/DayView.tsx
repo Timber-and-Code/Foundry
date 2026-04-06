@@ -37,7 +37,9 @@ import { useRestTimer } from '../../contexts/RestTimerContext';
 
 // Components
 import ExerciseCard from './ExerciseCard';
-import type { Profile, TrainingDay, Exercise } from '../../types';
+import FriendsStrip from '../social/FriendsStrip';
+import FriendWorkoutModal from '../social/FriendWorkoutModal';
+import type { Profile, TrainingDay, Exercise, MesoMember } from '../../types';
 
 interface DayViewProps {
   dayIdx: number;
@@ -147,6 +149,10 @@ function DayView({
   // Future sessions are completely locked — show empty, no interaction
   const isFutureSession = weekIdx > activeWeek;
   const isLocked = isFutureSession;
+
+  // Train with Friends
+  const mesoId = typeof window !== 'undefined' ? localStorage.getItem('foundry:active_meso_id') : null;
+  const [selectedFriend, setSelectedFriend] = React.useState<MesoMember | null>(null);
 
   // BW confirm modal — fires once per session per BW exercise
   const [bwConfirmed, setBwConfirmed] = React.useState(new Set());
@@ -868,6 +874,14 @@ function DayView({
         />
       </div>
 
+      {/* Friends Strip */}
+      {mesoId && (
+        <FriendsStrip
+          mesoId={mesoId}
+          onSelectFriend={(m) => setSelectedFriend(m)}
+        />
+      )}
+
       {/* Exercise Cards */}
       {exercises.map((ex: Exercise, i: number) => (
         <div key={i} id={`ex-${i}`} style={{ marginBottom: 12 }}>
@@ -1116,6 +1130,18 @@ function DayView({
           autoExpandMuscle={swapMuscle}
         />
       </Sheet>
+
+      {/* Friend Workout Modal */}
+      {mesoId && (
+        <FriendWorkoutModal
+          open={selectedFriend !== null}
+          member={selectedFriend}
+          mesoId={mesoId}
+          dayIdx={dayIdx}
+          weekIdx={weekIdx}
+          onClose={() => setSelectedFriend(null)}
+        />
+      )}
     </div>
   );
 }

@@ -139,3 +139,34 @@ export interface ArchiveEntry {
   weeks?: number;
   date?: string;
 }
+
+// ─── SOCIAL (Train with Friends) ────────────────────────────────────────────
+
+export interface MesoMember {
+  mesoId: string;
+  userId: string;
+  role: 'owner' | 'member';
+  name: string;
+  joinedAt: string;
+  latestActivity?: {
+    dayIdx: number;
+    weekIdx: number;
+    completedAt: string | null;
+  } | null;
+}
+
+export interface FriendWorkoutData {
+  userId: string;
+  userName: string;
+  dayIdx: number;
+  weekIdx: number;
+  exercises: {
+    name: string;
+    muscle: string;
+    sets: {
+      weight: number | string;
+      reps: number | string;
+      rpe?: number | string;
+    }[];
+  }[];
+}

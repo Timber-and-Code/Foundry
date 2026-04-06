@@ -13,6 +13,7 @@ import {
   saveProfile,
 } from '../../utils/store';
 import { syncReadinessToSupabase } from '../../utils/sync';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Shared UI
 import Modal from '../ui/Modal';
@@ -25,6 +26,8 @@ import ProgressTab from './ProgressTab';
 import MesoOverview from './MesoOverview';
 import ExplorePage from '../explore/ExplorePage';
 import { PricingPage } from '../settings/PricingPage';
+import ShareMesoModal from '../social/ShareMesoModal';
+import JoinMesoFlow from '../social/JoinMesoFlow';
 import type { Profile, TrainingDay, ReadinessEntry } from '../../types';
 
 interface HomeViewProps {
@@ -86,9 +89,14 @@ function HomeView({
     }
   }, [openWeekly]);
 
+  // ── Auth ────────────────────────────────────────────────────────────────
+  const { user } = useAuth();
+
   // ── Overlay / modal state ───────────────────────────────────────────────
   const [showReset, setShowReset] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [showJoin, setShowJoin] = useState(false);
 
   // Allow pricing modal to be triggered from anywhere via custom event
   useEffect(() => {
@@ -600,6 +608,8 @@ function HomeView({
       {showReset && <ResetDialog />}
       <AddWorkoutModal />
       {showPricing && <PricingPage onClose={() => setShowPricing(false)} />}
+      <ShareMesoModal open={showShare} onClose={() => setShowShare(false)} />
+      <JoinMesoFlow open={showJoin} onClose={() => setShowJoin(false)} onJoined={() => window.location.reload()} />
 
       {/* Skip confirm modal */}
       {showSkipConfirm && (
@@ -695,43 +705,71 @@ function HomeView({
 
       {/* ── Tab content ── */}
       {tab === 'landing' && (
-        <HomeTab
-          profile={profile}
-          activeDays={activeDays}
-          completedDays={completedDays}
-          activeWeek={activeWeek}
-          displayWeek={displayWeek}
-          phase={phase}
-          pc={pc}
-          rir={rir}
-          weekDone={weekDone}
-          weekTotal={weekTotal}
-          weekPct={weekPct}
-          mesoPct={mesoPct}
-          doneSessions={doneSessions}
-          totalSessions={totalSessions}
-          readiness={readiness}
-          readinessOpen={readinessOpen}
-          setReadinessOpen={setReadinessOpen}
-          updateReadiness={updateReadiness}
-          showRecoveryMorning={showRecoveryMorning}
-          setShowRecoveryMorning={setShowRecoveryMorning}
-          showRecoveryTag={showRecoveryTag}
-          setShowRecoveryTag={setShowRecoveryTag}
-          showNextSession={showNextSession}
-          setShowNextSession={setShowNextSession}
-          showMorningMobility={showMorningMobility}
-          setShowMorningMobility={setShowMorningMobility}
-          goTo={goTo}
-          goBack={goBack}
-          onSelectDay={onSelectDay}
-          onSelectDayWeek={onSelectDayWeek}
-          setCurrentWeek={setCurrentWeek}
-          setShowSkipConfirm={setShowSkipConfirm}
-          onOpenCardio={onOpenCardio}
-          onOpenMobility={onOpenMobility}
-          setShowPricing={setShowPricing}
-        />
+        <>
+          <HomeTab
+            profile={profile}
+            activeDays={activeDays}
+            completedDays={completedDays}
+            activeWeek={activeWeek}
+            displayWeek={displayWeek}
+            phase={phase}
+            pc={pc}
+            rir={rir}
+            weekDone={weekDone}
+            weekTotal={weekTotal}
+            weekPct={weekPct}
+            mesoPct={mesoPct}
+            doneSessions={doneSessions}
+            totalSessions={totalSessions}
+            readiness={readiness}
+            readinessOpen={readinessOpen}
+            setReadinessOpen={setReadinessOpen}
+            updateReadiness={updateReadiness}
+            showRecoveryMorning={showRecoveryMorning}
+            setShowRecoveryMorning={setShowRecoveryMorning}
+            showRecoveryTag={showRecoveryTag}
+            setShowRecoveryTag={setShowRecoveryTag}
+            showNextSession={showNextSession}
+            setShowNextSession={setShowNextSession}
+            showMorningMobility={showMorningMobility}
+            setShowMorningMobility={setShowMorningMobility}
+            goTo={goTo}
+            goBack={goBack}
+            onSelectDay={onSelectDay}
+            onSelectDayWeek={onSelectDayWeek}
+            setCurrentWeek={setCurrentWeek}
+            setShowSkipConfirm={setShowSkipConfirm}
+            onOpenCardio={onOpenCardio}
+            onOpenMobility={onOpenMobility}
+            setShowPricing={setShowPricing}
+          />
+
+          {/* Train with Friends */}
+          {user && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                padding: '0 20px 16px',
+              }}
+            >
+              <Button
+                onClick={() => setShowShare(true)}
+                variant="secondary"
+                style={{ flex: 1, fontSize: 13 }}
+              >
+                Share Program
+              </Button>
+              <Button
+                onClick={() => setShowJoin(true)}
+                variant="secondary"
+                style={{ flex: 1, fontSize: 13 }}
+              >
+                Join a Friend
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
       {tab === 'progress' && (
