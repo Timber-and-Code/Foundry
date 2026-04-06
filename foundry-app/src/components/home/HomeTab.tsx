@@ -574,7 +574,7 @@ function HomeTab({
                   }}
                 >
                   <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', color: done ? tc : isNext ? tc : 'var(--text-muted)' }}>
-                    {({ PUSH: 'PU', PULL: 'PL', LEGS: 'LE', UPPER: 'UP', LOWER: 'LO', FULL: 'FB' } as Record<string, any>)[day.tag] || day.tag.slice(0, 2)}
+                    {({ PUSH: 'Push', PULL: 'Pull', LEGS: 'Legs', UPPER: 'Upper', LOWER: 'Lower', FULL: 'Full' } as Record<string, any>)[day.tag] || day.tag}
                   </div>
                   <div style={{ fontSize: 10, lineHeight: 1 }}>
                     {done ? <span style={{ color: tc }}>✓</span> : isNext ? <span style={{ color: tc }}>●</span> : <span style={{ color: 'var(--text-dim)' }}>·</span>}

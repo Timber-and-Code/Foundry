@@ -174,17 +174,17 @@ describe('HomeTab', () => {
 
   it('renders day buttons for each active day', () => {
     render(<HomeTab {...makeProps()} />);
-    // PPL days render abbreviated tags: PU, PL, LE
-    expect(screen.getByText('PU')).toBeDefined();
-    expect(screen.getByText('PL')).toBeDefined();
-    expect(screen.getByText('LE')).toBeDefined();
+    // PPL days render full tags: Push, Pull, Legs
+    expect(screen.getByText('Push')).toBeDefined();
+    expect(screen.getByText('Pull')).toBeDefined();
+    expect(screen.getByText('Legs')).toBeDefined();
   });
 
   it('clicking a day pill calls onSelectDayWeek', () => {
     const props = makeProps();
     render(<HomeTab {...props} />);
-    // Click the "PU" (Push) day pill — day pills are divs with onClick
-    const puPill = screen.getByText('PU').closest('div[style]');
+    // Click the "Push" day pill — day pills are divs with onClick
+    const puPill = screen.getByText('Push').closest('div[style]');
     expect(puPill).toBeTruthy();
     fireEvent.click(puPill!);
     expect(props.goBack).toHaveBeenCalled();
