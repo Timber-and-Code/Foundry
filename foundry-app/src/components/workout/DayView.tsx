@@ -335,21 +335,24 @@ function DayView({
 
   // showUnfinishedPrompt — reserved for unfinished workout prompt
   const [swapTarget, setSwapTarget] = useState<{ exIdx: number } | null>(null);
+  const [swapPending, setSwapPending] = useState<{ exIdx: number; newExId: string } | null>(null);
   const [, setShowAddExercise] = useState(false);
 
   /* ── Swap: build exercise groups for picker ─────────────────────────────── */
   const swapExGroups = useMemo(() => {
     const tag = day?.tag || 'FULL';
     let tagFilter: string[];
-    if (tag === 'PUSH') tagFilter = ['PUSH'];
-    else if (tag === 'PULL') tagFilter = ['PULL'];
+    // Push/Pull split includes leg exercises (squats in push, hinges in pull),
+    // so the swap picker must show LEGS alongside PUSH/PULL.
+    if (tag === 'PUSH') tagFilter = ['PUSH', 'LEGS'];
+    else if (tag === 'PULL') tagFilter = ['PULL', 'LEGS'];
     else if (tag === 'LEGS') tagFilter = ['LEGS'];
     else if (tag === 'UPPER') tagFilter = ['PUSH', 'PULL'];
     else if (tag === 'LOWER') tagFilter = ['LEGS'];
     else tagFilter = ['PUSH', 'PULL', 'LEGS'];
-    const exs = EXERCISE_DB.filter((e) => tagFilter.includes(e.tag || ''));
+    const exs = EXERCISE_DB.filter((e: Exercise) => tagFilter.includes(e.tag || ''));
     const groups: Record<string, typeof EXERCISE_DB[number][]> = {};
-    exs.forEach((e) => {
+    exs.forEach((e: typeof EXERCISE_DB[number]) => {
       if (!groups[e.muscle]) groups[e.muscle] = [];
       groups[e.muscle].push(e);
     });
@@ -361,30 +364,38 @@ function DayView({
   const handleSwap = useCallback(
     (newExId: string) => {
       if (swapTarget === null) return;
-      // Save override for rest of the meso (local)
-      saveExOverride(dayIdx, weekIdx, swapTarget.exIdx, newExId, 'meso');
-      // Chunk 3: also sync the swap to training_day_exercises so it round-trips
-      // through Supabase and persists across devices. Fire-and-forget.
-      const mesoId = typeof window !== 'undefined' ? localStorage.getItem('foundry:active_meso_id') : null;
-      if (mesoId) {
-        const newDbEx = EXERCISE_DB.find((e: Exercise) => e.id === newExId);
-        if (newDbEx) {
-          syncExerciseSwapRemote(mesoId, dayIdx, swapTarget.exIdx, {
-            id: newDbEx.id,
-            sets: newDbEx.sets,
-            reps: newDbEx.reps,
-            progression: newDbEx.pattern === 'isolation' ? 'reps' : 'weight',
-            anchor: exercises[swapTarget.exIdx]?.anchor,
-          });
+      // Show scope selector before executing
+      setSwapPending({ exIdx: swapTarget.exIdx, newExId });
+      setSwapTarget(null);
+    },
+    [swapTarget],
+  );
+
+  const executeSwap = useCallback(
+    (scope: 'week' | 'meso') => {
+      if (!swapPending) return;
+      const { exIdx, newExId } = swapPending;
+      saveExOverride(dayIdx, weekIdx, exIdx, newExId, scope);
+      // Sync to Supabase for meso-wide swaps
+      if (scope === 'meso') {
+        const mesoId = typeof window !== 'undefined' ? localStorage.getItem('foundry:active_meso_id') : null;
+        if (mesoId) {
+          const newDbEx = EXERCISE_DB.find((e: Exercise) => e.id === newExId);
+          if (newDbEx) {
+            syncExerciseSwapRemote(mesoId, dayIdx, exIdx, {
+              id: newDbEx.id,
+              sets: newDbEx.sets,
+              reps: newDbEx.reps,
+              progression: newDbEx.pattern === 'isolation' ? 'reps' : 'weight',
+              anchor: exercises[exIdx]?.anchor,
+            });
+          }
         }
       }
-      setSwapTarget(null);
-      // Re-resolve exercises from overrides instead of reloading — avoids
-      // the race where pullFromSupabase clears exov keys before the remote
-      // swap write lands.
+      setSwapPending(null);
       setExercises(resolveExercises());
     },
-    [swapTarget, dayIdx, weekIdx, exercises, resolveExercises],
+    [swapPending, dayIdx, weekIdx, exercises, resolveExercises],
   );
   const dialogShownRef = React.useRef(new Set());
 
@@ -827,6 +838,89 @@ function DayView({
             autoExpandMuscle={swapMuscle}
           />
         </Sheet>
+
+        {/* Swap Scope Selector (pre-workout) */}
+        {swapPending && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.7)',
+              zIndex: 310,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
+            }}
+            onClick={() => setSwapPending(null)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: tokens.radius.xl,
+                padding: 24,
+                maxWidth: 320,
+                width: '100%',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                Swap {exercises[swapPending.exIdx]?.name}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
+                Apply this swap to...
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <button
+                  onClick={() => executeSwap('meso')}
+                  style={{
+                    padding: '14px 20px',
+                    borderRadius: tokens.radius.lg,
+                    background: 'var(--btn-primary-bg)',
+                    border: '1px solid var(--btn-primary-border)',
+                    color: 'var(--btn-primary-text)',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Entire Meso
+                </button>
+                <button
+                  onClick={() => executeSwap('week')}
+                  style={{
+                    padding: '14px 20px',
+                    borderRadius: tokens.radius.lg,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  This Session Only
+                </button>
+                <button
+                  onClick={() => setSwapPending(null)}
+                  style={{
+                    padding: '10px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    marginTop: 4,
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1133,6 +1227,89 @@ function DayView({
           autoExpandMuscle={swapMuscle}
         />
       </Sheet>
+
+      {/* Swap Scope Selector */}
+      {swapPending && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.7)',
+            zIndex: 310,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+          onClick={() => setSwapPending(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.xl,
+              padding: 24,
+              maxWidth: 320,
+              width: '100%',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+              Swap {exercises[swapPending.exIdx]?.name}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
+              Apply this swap to...
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                onClick={() => executeSwap('meso')}
+                style={{
+                  padding: '14px 20px',
+                  borderRadius: tokens.radius.lg,
+                  background: 'var(--btn-primary-bg)',
+                  border: '1px solid var(--btn-primary-border)',
+                  color: 'var(--btn-primary-text)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Entire Meso
+              </button>
+              <button
+                onClick={() => executeSwap('week')}
+                style={{
+                  padding: '14px 20px',
+                  borderRadius: tokens.radius.lg,
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                This Session Only
+              </button>
+              <button
+                onClick={() => setSwapPending(null)}
+                style={{
+                  padding: '10px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  marginTop: 4,
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Friend Workout Modal */}
       {mesoId && (
