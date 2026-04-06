@@ -64,7 +64,7 @@ function DayView({
   activeDays,
   onProfileUpdate,
 }: DayViewProps) {
-  const { restTimer, restTimerMinimized, setRestTimerMinimized, startRestTimer, dismissRestTimer: _dismissRestTimer } =
+  const { restTimer, restTimerMinimized, setRestTimerMinimized, startRestTimer, dismissRestTimer } =
     useRestTimer();
   const day = activeDays[dayIdx];
 
@@ -1123,49 +1123,121 @@ function DayView({
         </div>
       )}
 
-      {/* Rest Timer (if active) */}
-      {restTimer && !restTimerMinimized && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 20,
-            right: 20,
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg,
-            padding: 16,
-            zIndex: 150,
-          }}
-        >
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Rest time</div>
+      {/* Full-screen Rest Timer Overlay */}
+      {restTimer && !restTimerMinimized && (() => {
+        const rt = restTimer;
+        const pct = rt.total > 0 ? rt.remaining / rt.total : 0;
+        const done = rt.remaining === 0;
+        const mins = Math.floor(rt.remaining / 60);
+        const secs = rt.remaining % 60;
+        const timeDisplay = mins > 0
+          ? `${mins}:${String(secs).padStart(2, '0')}`
+          : `${secs}`;
+        const R = 100;
+        const CIRC = 2 * Math.PI * R;
+        const dash = CIRC * pct;
+        const gap = CIRC - dash;
+        const ringColor = done ? 'var(--phase-accum)' : pct > 0.25 ? '#D4A03C' : '#a03333';
+
+        return (
           <div
-            aria-live="polite"
-            aria-atomic="true"
-            aria-label={`Rest time remaining: ${restTimer.remaining}`}
             style={{
-              fontSize: 24,
-              fontWeight: 700,
-              color: 'var(--text-accent)',
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1000,
+              background: 'rgba(0,0,0,0.92)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 24,
             }}
           >
-            {restTimer.remaining}
+            {/* Exercise name */}
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {rt.exName}
+            </div>
+
+            {/* Countdown ring + time */}
+            <div style={{ position: 'relative', width: 224, height: 224 }}>
+              <svg width="224" height="224" style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx="112" cy="112" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                <circle
+                  cx="112" cy="112" r={R}
+                  fill="none" stroke={ringColor} strokeWidth="8" strokeLinecap="round"
+                  strokeDasharray={`${dash} ${gap}`}
+                  style={{ transition: 'stroke-dasharray 0.5s linear, stroke 0.5s' }}
+                />
+              </svg>
+              <div
+                aria-live="polite"
+                aria-atomic="true"
+                aria-label={`Rest time remaining: ${rt.remaining} seconds`}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <div style={{
+                  fontSize: 88,
+                  fontWeight: 900,
+                  color: done ? 'var(--phase-accum)' : 'var(--text-primary)',
+                  lineHeight: 1,
+                  fontVariantNumeric: 'tabular-nums',
+                  letterSpacing: '-0.04em',
+                }}>
+                  {done ? 'GO' : timeDisplay}
+                </div>
+                {!done && (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, marginTop: 4 }}>
+                    {mins > 0 ? 'min' : 'sec'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* I'm Ready / Dismiss button */}
+            <button
+              onClick={dismissRestTimer}
+              style={{
+                padding: '16px 48px',
+                borderRadius: tokens.radius.xl,
+                cursor: 'pointer',
+                fontSize: 16,
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+                background: done ? 'var(--phase-accum)' : 'transparent',
+                border: done ? 'none' : '2px solid rgba(255,255,255,0.25)',
+                color: done ? '#000' : 'var(--text-primary)',
+                transition: 'all 0.3s',
+              }}
+            >
+              {done ? "LET'S GO" : "I'm Ready"}
+            </button>
+
+            {/* Minimize button */}
+            <button
+              onClick={() => setRestTimerMinimized(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
+                color: 'var(--text-dim)',
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                marginTop: 8,
+              }}
+            >
+              MINIMIZE
+            </button>
           </div>
-          <button
-            onClick={() => setRestTimerMinimized(true)}
-            style={{
-              marginTop: 8,
-              width: '100%',
-              padding: '6px',
-              borderRadius: tokens.radius.sm,
-              background: 'var(--bg-inset)',
-              border: '1px solid var(--border)',
-              cursor: 'pointer',
-            }}
-          >
-            Minimize
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Note Review Step */}
       {showNoteReview && (
