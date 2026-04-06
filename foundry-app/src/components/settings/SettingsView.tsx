@@ -1,6 +1,7 @@
 import React, { Suspense, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { FOUNDRY_PROFILE_IMG } from '../../data/images-profile';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AccountSection = React.lazy(() => import('../auth/UserMenu'));
 
@@ -15,12 +16,124 @@ interface ProfileDrawerProps {
 }
 
 export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
+  const { logout } = useAuth();
   const savedBd = saved.birthdate ? saved.birthdate.split('-') : [];
   const [form, setForm] = useState({
     name: saved.name || '',
     weight: saved.weight || '',
     gender: saved.gender || '',
   });
+
+  // ── Reset helpers ─────────────────────────────────────────────────────────
+  // Wipes only the active meso. Profile identity (name/gender/DOB) is NOT
+  // preserved across this wipe — profile is monolithic in localStorage, so
+  // the meso config and identity live in the same blob. After wipe, SetupPage
+  // rehydrates name/experience/goal from foundry:onboarding_data and
+  // foundry:onboarding_goal, which we explicitly preserve.
+  //
+  // KNOWN LIMITATION: For signed-in users, if they wipe the current meso and
+  // then close the app before building a new one, the next sign-in triggers
+  // pullFromSupabase which restores the old meso from the server. The wipe
+  // is only durable if they complete SetupPage afterward (which pushes the
+  // new meso up and overwrites the server copy). If this becomes a real
+  // problem, the fix is to push an empty meso state to Supabase here before
+  // navigating (deferred per session decision — see memory).
+  const deleteCurrentMeso = () => {
+    // Always-cleared meso state keys
+    const fixedKeys = [
+      'foundry:profile',
+      'foundry:completedDays',
+      'foundry:currentWeek',
+      'foundry:storedProgram',
+      'foundry:ts:foundry:profile',
+      'foundry:ts:foundry:completedDays',
+      'foundry:ts:foundry:currentWeek',
+    ];
+    fixedKeys.forEach((k) => localStorage.removeItem(k));
+
+    // Prefix-keyed workout/session/note data (set logs, skipped, notes per exercise/day)
+    const dynamicKeys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (
+        k &&
+        (k.startsWith('foundry:completedSets:') ||
+          k.startsWith('foundry:setLog:') ||
+          k.startsWith('foundry:skipped:') ||
+          k.startsWith('foundry:sessionNotes:') ||
+          k.startsWith('foundry:exerciseNotes:'))
+      ) {
+        dynamicKeys.push(k);
+      }
+    }
+    dynamicKeys.forEach((k) => localStorage.removeItem(k));
+
+    onClose();
+    window.dispatchEvent(new Event('foundry:resetToSetup'));
+  };
+
+  // Nuclear: wipes everything on this device AND signs the user out of
+  // Supabase so sync doesn't immediately re-pull their meso back from the
+  // server. The welcomed flag is preserved so they don't re-see the brand
+  // moment — they land on the path-choice screen in OnboardingFlow for a
+  // fresh start. Server data is NOT touched; signing back in restores it.
+  const deleteAllFoundryData = async () => {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('foundry:') && k !== 'foundry:welcomed') {
+        keys.push(k);
+      }
+    }
+    keys.forEach((k) => localStorage.removeItem(k));
+
+    try {
+      await logout();
+    } catch {
+      // Swallow — if logout fails we still want the local wipe to proceed.
+    }
+
+    onClose();
+    window.location.reload();
+  };
+
+  const handleDeleteCurrentMeso = () => {
+    if (
+      !window.confirm(
+        'Delete your current meso? Your profile, workout history from prior cycles, and past cycle carryover will be preserved. You’ll be taken to the meso builder to rebuild.'
+      )
+    )
+      return;
+    if (
+      !window.confirm(
+        'Are you sure? All progress in your current meso — sets, completions, notes — will be permanently deleted.'
+      )
+    )
+      return;
+    deleteCurrentMeso();
+  };
+
+  const handleDeleteAllFoundryData = () => {
+    if (
+      !window.confirm(
+        'Delete ALL Foundry data on this device? This wipes your profile, active meso, and all workout history from this device.'
+      )
+    )
+      return;
+    if (
+      !window.confirm(
+        'Are you REALLY sure? You’ll also be signed out. Your Supabase account and its data are preserved — signing in again will restore everything.'
+      )
+    )
+      return;
+    if (
+      !window.confirm(
+        'Last chance. This cannot be undone without signing back in. Continue?'
+      )
+    )
+      return;
+    deleteAllFoundryData();
+  };
   const [birthYear, setBirthYear] = useState(savedBd[0] || '');
   const [birthMonth, setBirthMonth] = useState(savedBd[1] ? parseInt(savedBd[1]).toString() : '');
   const [birthDay, setBirthDay] = useState(savedBd[2] ? parseInt(savedBd[2]).toString() : '');
@@ -574,17 +687,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               </span>
             </button>
             <button
-              onClick={() => {
-                if (window.confirm('Reset ALL Foundry data? This cannot be undone.')) {
-                  const keys: string[] = [];
-                  for (let i = 0; i < localStorage.length; i++) {
-                    const k = localStorage.key(i);
-                    if (k && k.startsWith('foundry:')) keys.push(k);
-                  }
-                  keys.forEach((k) => localStorage.removeItem(k));
-                  window.location.reload();
-                }
-              }}
+              onClick={handleDeleteCurrentMeso}
               style={{
                 ...fieldRowStyle,
                 cursor: 'pointer',
@@ -592,7 +695,27 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 background: 'var(--bg-inset)',
               }}
             >
-              <span style={fieldLabelStyle}>Reset All Data</span>
+              <span style={fieldLabelStyle}>Delete Current Meso</span>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: 'var(--warning, #ff9800)',
+                  fontWeight: 500,
+                }}
+              >
+                Delete
+              </span>
+            </button>
+            <button
+              onClick={handleDeleteAllFoundryData}
+              style={{
+                ...fieldRowStyle,
+                cursor: 'pointer',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-inset)',
+              }}
+            >
+              <span style={fieldLabelStyle}>Delete All Foundry Data</span>
               <span
                 style={{
                   fontSize: 13,
@@ -600,7 +723,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                   fontWeight: 500,
                 }}
               >
-                Reset
+                Delete
               </span>
             </button>
           </div>

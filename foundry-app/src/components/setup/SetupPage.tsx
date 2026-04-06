@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { store, ageFromDob } from '../../utils/store';
-import { GOAL_OPTIONS } from '../../data/constants';
 import FoundryBanner from '../shared/FoundryBanner';
 import AutoBuilderFlow from './AutoBuilderFlow';
 import ManualBuilderFlow from './ManualBuilderFlow';
 import CardioSetupFlow from './CardioSetupFlow';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import type { Profile } from '../../types';
 
 interface SetupPageProps {
@@ -13,6 +14,8 @@ interface SetupPageProps {
 }
 
 export default function SetupPage({ onComplete }: SetupPageProps) {
+  const { signup, user } = useAuth();
+  const { showToast } = useToast();
   const SPLIT_CONFIG = {
     ppl: {
       label: 'Push · Pull · Legs',
@@ -77,6 +80,8 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
       weight: tp?.weight || '',
       goal: savedGoal || tp?.goal || '',
       goalNote: '' as string,
+      email: '',
+      password: '',
       mesoLength: tp?.mesoLength || 6,
       sessionDuration: tp?.sessionDuration || 60,
       equipment: (tp?.equipment || []) as string[],
@@ -87,12 +92,19 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
       daysPerWeek: tp?.daysPerWeek || 6,
     };
   });
-  const [setupDob, setSetupDob] = useState(() => {
+  const [setupDob, setSetupDob] = useState<{ month: string; day: string; year: string }>(() => {
     let saved: Record<string, unknown> = {};
     try {
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
     } catch (e) {}
-    if (saved.dob && saved.dob.month) return saved.dob;
+    const savedDob = saved.dob as { month?: string; day?: string; year?: string } | undefined;
+    if (savedDob && savedDob.month) {
+      return {
+        month: savedDob.month || '',
+        day: savedDob.day || '',
+        year: savedDob.year || '',
+      };
+    }
     try {
       const profile = JSON.parse(store.get('foundry:profile') || '{}');
       if (profile.birthdate) {
@@ -113,6 +125,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
   const [aiLoading, setAiLoading] = useState(false);
+  const [signupLoading, setSignupLoading] = useState(false);
   const [, setAiCoachNote] = useState('');
   const [legBalancePrompt, setLegBalancePrompt] = useState<Profile | null>(null);
   const [showCardioStep, setShowCardioStep] = useState(false);
@@ -210,7 +223,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     });
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     setError('');
     if (step === 1) {
       if (!form.name.trim()) {
@@ -220,6 +233,50 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
       if (!form.gender) {
         setError('Please select a gender.');
         return;
+      }
+      // DOB required (all three fields) — needed for free-tier age qualification.
+      if (!setupDob.month || !setupDob.day || !setupDob.year) {
+        setError('Please enter your full date of birth.');
+        return;
+      }
+      // Email + password gate — create the account here so the meso the user
+      // is about to build is tied to a persistent Supabase account from the
+      // first set. Skipped entirely if the user is already signed in (e.g.
+      // returning via the Sign in link on Pick Your Path).
+      if (!user) {
+        const email = form.email.trim();
+        const password = form.password;
+        if (!email || !email.includes('@')) {
+          setError('Please enter a valid email address.');
+          return;
+        }
+        if (!password || password.length < 6) {
+          setError('Password must be at least 6 characters.');
+          return;
+        }
+        setSignupLoading(true);
+        try {
+          const { error: signupError } = await signup(email, password);
+          if (signupError) {
+            setSignupLoading(false);
+            const msg = (signupError.message || '').toLowerCase();
+            if (msg.includes('already registered') || msg.includes('already exists')) {
+              setError(
+                'You already have an account with this email. Go back to the welcome screen and tap "Sign in".'
+              );
+            } else {
+              setError(signupError.message || 'Sign up failed. Please try again.');
+            }
+            return;
+          }
+          showToast('Account created — check your email to confirm', 'success');
+        } catch (e) {
+          setSignupLoading(false);
+          const err = e as Error;
+          setError(err.message || 'Sign up failed. Please try again.');
+          return;
+        }
+        setSignupLoading(false);
       }
       setPathMode(null);
     }
@@ -643,108 +700,39 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                 </div>
               </div>
 
-              {/* Goal */}
-              {(() => {
-                const onboardingGoal = store.get('foundry:onboarding_goal');
-                return (
-                  <div style={sec}>
-                    <label style={sLabel}>Goal for this meso</label>
-                    {onboardingGoal && form.goal && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: 'var(--text-muted)',
-                          marginTop: 4,
-                          marginBottom: 2,
-                        }}
-                      >
-                        Pre-filled from onboarding — change anytime
-                      </div>
-                    )}
-                    {
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 8,
-                          marginTop: 8,
-                        }}
-                      >
-                        {GOAL_OPTIONS.map((g) => {
-                          const sel = form.goal === g.id;
-                          return (
-                            <button
-                              key={g.id}
-                              onClick={() => set('goal', sel ? '' : g.id)}
-                              style={{
-                                padding: '14px 16px',
-                                borderRadius: tokens.radius.lg,
-                                cursor: 'pointer',
-                                textAlign: 'left',
-                                background: sel ? 'rgba(var(--accent-rgb),0.10)' : 'var(--bg-card)',
-                                border: `1px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
-                                transition: 'all 0.15s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 12,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: '50%',
-                                  flexShrink: 0,
-                                  background: sel ? 'var(--accent)' : 'var(--border)',
-                                  transition: 'background 0.15s',
-                                }}
-                              />
-                              <div>
-                                <div
-                                  style={{
-                                    fontSize: 14,
-                                    fontWeight: 700,
-                                    color: sel ? 'var(--accent)' : 'var(--text-primary)',
-                                    marginBottom: 2,
-                                  }}
-                                >
-                                  {g.label}
-                                </div>
-                                <div
-                                  style={{
-                                    fontSize: 12,
-                                    color: 'var(--text-secondary)',
-                                    lineHeight: 1.4,
-                                  }}
-                                >
-                                  {g.desc}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    }
-                    <textarea
-                      placeholder="Anything else? (optional — e.g. powerlifting meet in 12 weeks, coming back from injury...)"
-                      value={
-                        typeof form.goal === 'string' &&
-                        !GOAL_OPTIONS.find((g) => g.id === form.goal)
-                          ? form.goal
-                          : form.goalNote || ''
-                      }
-                      onChange={(e) => set('goalNote', e.target.value)}
-                      style={{
-                        ...inputStyle,
-                        minHeight: 64,
-                        resize: 'vertical',
-                        lineHeight: 1.6,
-                        marginTop: 10,
-                      }}
-                    />
-                  </div>
-                );
-              })()}
+              {/* Save your progress — email + password signup (required) */}
+              <div style={sec}>
+                <label style={sLabel}>Save your progress *</label>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.5,
+                    marginTop: 4,
+                    marginBottom: 10,
+                  }}
+                >
+                  Create your free Foundry account to sync your meso across
+                  devices and keep your work safe.
+                </div>
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="Email address"
+                  value={form.email}
+                  onChange={(e) => set('email', e.target.value)}
+                  style={inputStyle}
+                />
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Password (at least 6 characters)"
+                  value={form.password}
+                  onChange={(e) => set('password', e.target.value)}
+                  style={{ ...inputStyle, marginTop: 10 }}
+                />
+              </div>
 
               {/* Error */}
               {error && (
@@ -765,12 +753,13 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
 
               <button
                 onClick={goNext}
+                disabled={signupLoading}
                 className="btn-primary"
                 style={{
                   width: '100%',
                   padding: '20px',
                   borderRadius: tokens.radius.md,
-                  cursor: 'pointer',
+                  cursor: signupLoading ? 'not-allowed' : 'pointer',
                   background: 'var(--btn-primary-bg)',
                   border: '1px solid var(--btn-primary-border)',
                   color: 'var(--btn-primary-text)',
@@ -778,9 +767,10 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                   fontWeight: 800,
                   letterSpacing: '0.04em',
                   boxShadow: '0 4px 24px rgba(var(--accent-rgb),0.3)',
+                  opacity: signupLoading ? 0.7 : 1,
                 }}
               >
-                Continue →
+                {signupLoading ? 'Creating account…' : 'Continue →'}
               </button>
             </div>
           )}

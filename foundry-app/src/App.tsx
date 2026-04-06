@@ -186,6 +186,24 @@ function App() {
     return () => window.removeEventListener('foundry:openCardio', handler);
   }, [navigate]);
 
+  // Listen for "delete current meso" requests from SettingsView. The drawer
+  // has already wiped the meso-specific localStorage keys; we clear the
+  // in-memory profile/meso cache and flip showSetup=true so the early-return
+  // gate below routes the user straight to SetupPage with their onboarding
+  // fallbacks (name, goal, experience) still intact.
+  useEffect(() => {
+    const handler = () => {
+      resetMesoCache();
+      setProfile(null);
+      setCompletedDays(new Set());
+      setCurrentWeek(0);
+      setShowSetup(true);
+      navigate('/');
+    };
+    window.addEventListener('foundry:resetToSetup', handler);
+    return () => window.removeEventListener('foundry:resetToSetup', handler);
+  }, [navigate, setProfile, setCompletedDays, setCurrentWeek]);
+
   // Show tour if flagged (e.g. on reload after setup, or first visit)
   useEffect(() => {
     if (store.get('foundry:show_tour') === '1' && !store.get('foundry:toured')) {

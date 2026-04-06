@@ -114,7 +114,7 @@ function MesoOverviewContent() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 2 }}>Duration</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-              {meso.weeks} weeks + deload
+              {meso.weeks} weeks
             </div>
           </div>
           <div style={{ flex: 1 }}>
