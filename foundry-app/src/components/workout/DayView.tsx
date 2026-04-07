@@ -1285,6 +1285,7 @@ function DayView({
 
         return (
           <div
+            onClick={done ? dismissRestTimer : undefined}
             style={{
               position: 'fixed',
               inset: 0,
@@ -1295,6 +1296,7 @@ function DayView({
               alignItems: 'center',
               justifyContent: 'center',
               gap: 24,
+              cursor: done ? 'pointer' : 'default',
             }}
           >
             {/* Exercise name */}
