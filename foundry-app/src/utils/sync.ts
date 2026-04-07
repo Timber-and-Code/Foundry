@@ -439,7 +439,10 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
       .order('day_index', { ascending: true });
 
     if (tdError) throw tdError;
-    if (!tdRows || tdRows.length === 0) return;
+    if (!tdRows || tdRows.length === 0) {
+      console.warn('[Foundry Sync] pullTrainingStructure: 0 training_days for meso', mesoId);
+      return;
+    }
 
     // Cache training_day ids locally for chunk 4a workout_sessions writes
     writeTrainingDayIdCache(mesoId, tdRows as { id: string; day_index: number }[]);
@@ -2109,8 +2112,64 @@ export async function joinMesoByCode(code: string): Promise<{
       .eq('id', user.id);
     if (profileError) throw profileError;
 
-    // Pull training structure + workout history for the shared meso
-    await pullFromSupabase();
+    // Clear ALL dirty tracking — old profile/workout keys from the previous
+    // meso must not be flushed back on reload. The shared meso's data comes
+    // from the owner, not from the friend's local writes.
+    writeDirtySet(new Set());
+
+    // ── Direct pull of the shared meso ──────────────────────────────────
+    // Don't use the full pullFromSupabase() — it re-reads user_profiles,
+    // does timestamp-based merges, and can race with the reload. Instead
+    // fetch exactly what we need with the mesoId we already have.
+
+    // 1. Fetch the mesocycle row and merge its fields into the local profile
+    const { data: mesoData } = await supabase
+      .from('mesocycles')
+      .select('id, user_id, name, status, weeks_count, days_per_week, split_type, started_at, completed_at, updated_at')
+      .eq('id', mesoId)
+      .maybeSingle();
+
+    if (mesoData) {
+      const mesoRow = mesoData as SupabaseMesocycleRow;
+      const mesoFields = supabaseMesoRowToAppFields(mesoRow);
+      const localRaw = store.get('foundry:profile');
+      const current = localRaw ? JSON.parse(localRaw) : {};
+      const merged = { ...current, ...mesoFields };
+      const remoteTs = mesoRow.updated_at ?? new Date().toISOString();
+      store.setFromRemote('foundry:profile', JSON.stringify(merged), remoteTs);
+    }
+
+    // 2. Pull the owner's training structure → writes foundry:storedProgram
+    await pullTrainingStructure(mesoId);
+
+    // 3. If pullTrainingStructure found nothing (owner's training_days not in
+    //    Supabase or RLS blocked), generate the program from the mesocycle's
+    //    parameters so the friend doesn't get a random default PPL.
+    if (!store.get('foundry:storedProgram') && mesoData) {
+      console.warn('[Foundry Sync] joinMeso: pullTrainingStructure returned empty — generating from meso config');
+      const mesoRow = mesoData as SupabaseMesocycleRow;
+      const profileRaw = store.get('foundry:profile');
+      if (profileRaw) {
+        const [programMod, exercisesMod] = await Promise.all([
+          import('./program'),
+          import('../data/exercises'),
+        ]);
+        const profileForGen = JSON.parse(profileRaw);
+        // Use the shared meso's split/days, not whatever the friend had
+        profileForGen.splitType = mesoRow.split_type.toLowerCase();
+        profileForGen.daysPerWeek = mesoRow.days_per_week;
+        const program = programMod.generateProgram(
+          profileForGen,
+          (exercisesMod as { EXERCISE_DB: unknown[] }).EXERCISE_DB as Parameters<typeof programMod.generateProgram>[1],
+        );
+        localStorage.setItem('foundry:storedProgram', JSON.stringify(program));
+      }
+    }
+
+    // 4. Dispatch pull-complete so useMesoState re-reads from localStorage
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('foundry:pull-complete'));
+    }
 
     return { success: true, mesoName, ownerName };
   } catch (e) {
