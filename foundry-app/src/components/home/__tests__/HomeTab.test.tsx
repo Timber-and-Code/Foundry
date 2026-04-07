@@ -36,6 +36,7 @@ vi.mock('../../../utils/store', () => ({
   getReadinessScore: mockGetReadinessScore,
   getReadinessLabel: mockGetReadinessLabel,
   getTimeGreeting: mockGetTimeGreeting,
+  getWeekSets: vi.fn((sets: number) => sets),
 }));
 
 vi.mock('../../../data/constants', () => ({

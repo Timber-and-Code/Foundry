@@ -104,7 +104,10 @@ vi.mock('../../styles/tokens', () => ({
       amberHighlight: '#fff3cd',
       gold: '#FFD700',
       overlayHeavy: 'rgba(0,0,0,0.7)',
+      overlayMed: 'rgba(0,0,0,0.5)',
+      overlayLight: 'rgba(0,0,0,0.3)',
     },
+    radius: { xs: 2, sm: 4, md: 6, lg: 8, xl: 12, xxl: 16 },
   },
 }));
 
@@ -289,5 +292,27 @@ describe('DayView', () => {
     const stored = localStorage.getItem(sessionKey);
     expect(stored).not.toBeNull();
     expect(Number(stored)).toBeGreaterThan(0);
+  });
+
+  it('shows "End Early" button when workout is started', () => {
+    mocks.store.get.mockImplementation((key: string) => {
+      if (key === 'foundry:sessionStart:d0:w0') return String(Date.now() - 60000);
+      return null;
+    });
+
+    render(<DayView {...defaultProps()} />);
+    const endEarlyBtn = screen.getByRole('button', { name: /end workout early/i });
+    expect(endEarlyBtn).toBeInTheDocument();
+  });
+
+  it('End Early button has correct styling and label', () => {
+    mocks.store.get.mockImplementation((key: string) => {
+      if (key === 'foundry:sessionStart:d0:w0') return String(Date.now() - 60000);
+      return null;
+    });
+
+    render(<DayView {...defaultProps()} />);
+    const btn = screen.getByRole('button', { name: /end workout early/i });
+    expect(btn).toHaveTextContent('End Early');
   });
 });

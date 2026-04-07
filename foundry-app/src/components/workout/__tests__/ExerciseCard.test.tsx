@@ -193,4 +193,41 @@ describe('ExerciseCard', () => {
     fireEvent.change(textarea, { target: { value: 'updated note' } });
     expect(onNoteChange).toHaveBeenCalledWith(0, 'updated note');
   });
+
+  // 11. Shows rep range + rest subtitle in header
+  it('shows rep range and rest interval subtitle in header', () => {
+    const props = defaultProps({
+      exercise: makeExercise({ reps: '8-12', rest: '2-3 min' }),
+    });
+    render(<ExerciseCard {...props} />);
+    expect(screen.getByText(/8-12 reps/)).toBeInTheDocument();
+    expect(screen.getByText(/2-3 min/)).toBeInTheDocument();
+  });
+
+  // 12. Weight auto-fill calls onWeightAutoFill on set 0 blur
+  it('calls onWeightAutoFill when set 0 weight blurs with a value', () => {
+    const onWeightAutoFill = vi.fn();
+    // Provide weekData with set 0 weight so the blur handler sees a value
+    const props = defaultProps({
+      onWeightAutoFill,
+      weekData: { 0: { 0: { weight: '135', reps: '' } } },
+    });
+    render(<ExerciseCard {...props} />);
+    const weightInputs = screen.getAllByLabelText(/Set \d+ weight in pounds/);
+    fireEvent.blur(weightInputs[0]);
+    expect(onWeightAutoFill).toHaveBeenCalledWith(0, '135', 3);
+  });
+
+  // 13. Does NOT call onWeightAutoFill for non-first sets
+  it('does not call onWeightAutoFill when set 2 weight blurs', () => {
+    const onWeightAutoFill = vi.fn();
+    const props = defaultProps({
+      onWeightAutoFill,
+      weekData: { 0: { 1: { weight: '135', reps: '' } } },
+    });
+    render(<ExerciseCard {...props} />);
+    const weightInputs = screen.getAllByLabelText(/Set \d+ weight in pounds/);
+    fireEvent.blur(weightInputs[1]);
+    expect(onWeightAutoFill).not.toHaveBeenCalled();
+  });
 });
