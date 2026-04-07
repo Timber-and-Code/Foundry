@@ -30,7 +30,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({ ex, onClose }
       onClick={(e) => e.stopPropagation()}
       style={{
         background: 'var(--bg-card)',
-        borderRadius: '12px 12px 0 0',
+        borderRadius: `${tokens.radius.xl}px ${tokens.radius.xl}px 0 0`,
         border: '1px solid var(--border)',
         borderBottom: 'none',
         width: '100%',
