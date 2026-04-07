@@ -137,15 +137,19 @@ function MobilityViewRoute({ profile }: { profile: any }) {
 }
 
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
+const SaveProgressSheet = React.lazy(() => import('./components/auth/SaveProgressSheet'));
+
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   const [onboarded, setOnboarded] = useState(() => !!store.get('foundry:onboarded'));
   const [openWeekly, setOpenWeekly] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const [showSaveProgress, setShowSaveProgress] = useState(false);
   const syncState = useSyncState();
   const homeTabRef = useRef<((tab: string) => void) | null>(null);
 
@@ -263,6 +267,10 @@ function App() {
             setCompletedDays(loadCompleted(getMeso()));
             setCurrentWeek(loadCurrentWeek());
             setShowSetup(false);
+            // Prompt anonymous users to save their progress after first meso build
+            if (!user && !store.get('foundry:save_progress_dismissed')) {
+              setTimeout(() => setShowSaveProgress(true), 800);
+            }
           }}
         />
       </React.Suspense>
@@ -457,6 +465,13 @@ function App() {
               setRestTimerMinimized(false);
             }}
           />
+        )}
+
+        {/* Save your progress — deferred auth for anonymous users */}
+        {showSaveProgress && (
+          <React.Suspense fallback={null}>
+            <SaveProgressSheet onDismiss={() => setShowSaveProgress(false)} />
+          </React.Suspense>
         )}
       </div>
     </React.Suspense>
