@@ -52,6 +52,17 @@ create policy "Members can read shared mesocycles"
     )
   );
 
+-- mesocycles: anyone authenticated can preview a meso that has an active invite
+-- (needed during the join flow — the user isn't a member yet when previewing)
+create policy "Anyone can preview invited mesocycles"
+  on mesocycles for select using (
+    exists (
+      select 1 from mesocycle_members
+      where mesocycle_members.mesocycle_id = mesocycles.id
+        and mesocycle_members.invite_code is not null
+    )
+  );
+
 -- training_days: members can read shared training days
 create policy "Members can read shared training days"
   on training_days for select using (
@@ -102,5 +113,16 @@ create policy "Members can read shared member profiles"
       join mesocycle_members mm2 on mm1.mesocycle_id = mm2.mesocycle_id
       where mm1.user_id = auth.uid()
         and mm2.user_id = user_profiles.id
+    )
+  );
+
+-- user_profiles: anyone authenticated can read the owner name for invite preview
+-- (the joining user isn't a member yet, so the join-based policy above won't work)
+create policy "Anyone can read invite owner profile"
+  on user_profiles for select using (
+    exists (
+      select 1 from mesocycle_members
+      where mesocycle_members.user_id = user_profiles.id
+        and mesocycle_members.invite_code is not null
     )
   );
