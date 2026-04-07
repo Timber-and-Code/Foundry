@@ -428,13 +428,14 @@ export async function ensureTrainingStructureRemote(
 // foundry:storedProgram locally. Also clears any stale exOv override keys
 // since the reconstructed program already has the user's swaps baked in
 // (exercise_id reflects the current assigned exercise, swap or default).
-async function pullTrainingStructure(mesoId: string, userId: string): Promise<void> {
+async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<void> {
   try {
+    // Don't filter by user_id — training_days belong to the meso owner but
+    // are shared with members via RLS. meso_id is sufficient.
     const { data: tdRows, error: tdError } = await supabase
       .from('training_days')
       .select('id, day_index, label')
       .eq('meso_id', mesoId)
-      .eq('user_id', userId)
       .order('day_index', { ascending: true });
 
     if (tdError) throw tdError;
