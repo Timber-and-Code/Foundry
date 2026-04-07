@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
 import { EXERCISE_DB } from '../../data/exercises';
 import HammerIcon from '../shared/HammerIcon';
@@ -89,11 +89,11 @@ const FilterRow = ({
   labelMap,
   onChange,
 }: {
-  label: any;
-  options: any;
-  value: any;
-  labelMap: any;
-  onChange: any;
+  label: string;
+  options: string[];
+  value: string;
+  labelMap?: Record<string, string>;
+  onChange: (value: string) => void;
 }) => (
   <div style={{ marginBottom: 14 }}>
     <div
@@ -108,7 +108,7 @@ const FilterRow = ({
       {label}
     </div>
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {options.map((opt: any) => {
+      {options.map((opt: string) => {
         const active = value === opt;
         return (
           <button
@@ -171,6 +171,31 @@ function ExerciseBrowser({ onBack }: ExerciseBrowserProps) {
       return true;
     });
   }, [libFilter]);
+
+  // Lazy loading: show 30 at a time, load more as user scrolls
+  const PAGE_SIZE = 30;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset visible count when filters change
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [libFilter]);
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredEx.length));
+  }, [filteredEx.length]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore(); },
+      { rootMargin: '200px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [loadMore, visibleCount]);
+
+  const visibleEx = filteredEx.slice(0, visibleCount);
 
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
@@ -524,28 +549,28 @@ function ExerciseBrowser({ onBack }: ExerciseBrowserProps) {
             options={ALL_MUSCLES}
             value={libFilter.muscle}
             labelMap={muscleLabels}
-            onChange={(v: any) => setLibFilter((f) => ({ ...f, muscle: v }))}
+            onChange={(v: string) => setLibFilter((f) => ({ ...f, muscle: v }))}
           />
           <FilterRow
             label="EQUIPMENT"
             options={ALL_EQUIPS}
             value={libFilter.equip}
             labelMap={equipLabels}
-            onChange={(v: any) => setLibFilter((f) => ({ ...f, equip: v }))}
+            onChange={(v: string) => setLibFilter((f) => ({ ...f, equip: v }))}
           />
           <FilterRow
             label="MOVEMENT"
             options={ALL_PATTERNS}
             value={libFilter.pattern}
             labelMap={PATTERN_MAP}
-            onChange={(v: any) => setLibFilter((f) => ({ ...f, pattern: v }))}
+            onChange={(v: string) => setLibFilter((f) => ({ ...f, pattern: v }))}
           />
           <FilterRow
             label="SPLIT TAG"
             options={ALL_TAGS}
             value={libFilter.tag}
             labelMap={tagLabels}
-            onChange={(v: any) => setLibFilter((f) => ({ ...f, tag: v }))}
+            onChange={(v: string) => setLibFilter((f) => ({ ...f, tag: v }))}
           />
           <div style={{ display: 'flex', gap: 8, marginTop: 4, marginBottom: 6 }}>
             {activeFilterCount > 0 && (
@@ -615,7 +640,7 @@ function ExerciseBrowser({ onBack }: ExerciseBrowserProps) {
             No exercises match that filter.
           </div>
         )}
-        {filteredEx.map((ex) => {
+        {visibleEx.map((ex) => {
           const tc = TAG_COLORS[ex.tag] || 'var(--accent)';
           return (
             <button
@@ -694,6 +719,15 @@ function ExerciseBrowser({ onBack }: ExerciseBrowserProps) {
             </button>
           );
         })}
+        {/* Lazy-load sentinel */}
+        {visibleCount < filteredEx.length && (
+          <div ref={sentinelRef} style={{ height: 1 }} />
+        )}
+        {filteredEx.length > 0 && (
+          <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-dim)', padding: '8px 0' }}>
+            Showing {Math.min(visibleCount, filteredEx.length)} of {filteredEx.length}
+          </div>
+        )}
       </div>
     </div>
   );

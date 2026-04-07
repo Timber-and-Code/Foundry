@@ -66,7 +66,7 @@ export default function MinimizedTimerBar({ restTimer, onTap }: MinimizedTimerBa
             style={{
               fontSize: 24,
               fontWeight: 900,
-              color: 'rgba(0,0,0,0.8)',
+              color: '#fff',
               fontVariantNumeric: 'tabular-nums',
               minWidth: 54,
               lineHeight: 1,
@@ -79,13 +79,13 @@ export default function MinimizedTimerBar({ restTimer, onTap }: MinimizedTimerBa
               style={{
                 fontSize: 13,
                 fontWeight: 700,
-                color: tokens.colors.overlayMed,
+                color: 'rgba(255,255,255,0.85)',
                 lineHeight: 1,
               }}
             >
               {done ? 'Rest complete' : 'Resting'}
             </div>
-            <div style={{ fontSize: 12, color: tokens.colors.overlayLight, lineHeight: 1 }}>{exName}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1 }}>{exName}</div>
           </div>
         </div>
         <div
@@ -93,9 +93,9 @@ export default function MinimizedTimerBar({ restTimer, onTap }: MinimizedTimerBa
             fontSize: 12,
             fontWeight: 800,
             letterSpacing: '0.05em',
-            color: 'rgba(0,0,0,0.7)',
-            background: 'rgba(0,0,0,0.15)',
-            border: '1px solid rgba(0,0,0,0.2)',
+            color: '#fff',
+            background: 'rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.15)',
             borderRadius: tokens.radius.md,
             padding: '7px 12px',
             whiteSpace: 'nowrap',

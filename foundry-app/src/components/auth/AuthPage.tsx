@@ -102,7 +102,7 @@ export default function AuthPage() {
           style={{
             fontSize: 10,
             letterSpacing: '0.2em',
-            color: 'rgba(232,101,26,0.7)',
+            color: 'var(--accent)',
             textTransform: 'uppercase',
             margin: 0,
             fontWeight: 400,

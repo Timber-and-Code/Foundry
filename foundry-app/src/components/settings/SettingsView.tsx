@@ -369,7 +369,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               {/* Mini progress bar */}
               <div style={{
                 height: 4,
-                borderRadius: 2,
+                borderRadius: tokens.radius.xs,
                 background: 'var(--border)',
                 overflow: 'hidden',
               }}>
@@ -377,7 +377,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                   height: '100%',
                   width: `${Math.round(((currentWeek + 1) / totalWeeks) * 100)}%`,
                   background: 'var(--accent)',
-                  borderRadius: 2,
+                  borderRadius: tokens.radius.xs,
                   transition: 'width 0.3s',
                 }} />
               </div>
@@ -491,7 +491,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               <span style={{ fontSize: 15, fontWeight: 800, color: '#D4983C', letterSpacing: '0.04em' }}>
                 Foundry Pro
               </span>
-              <span style={{ fontSize: 11, color: 'rgba(212,152,60,0.65)', fontWeight: 500 }}>
+              <span style={{ fontSize: 11, color: '#C4A46A', fontWeight: 500 }}>
                 Coaching dashboard, train with friends & more
               </span>
             </div>
