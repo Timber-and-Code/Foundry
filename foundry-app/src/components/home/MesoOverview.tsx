@@ -73,6 +73,7 @@ function MesoOverviewContent() {
     ppl: 'Push / Pull / Legs',
     upper_lower: 'Upper / Lower',
     full_body: 'Full Body',
+    push_pull: 'Push / Pull',
   };
 
   // Group weeks by phase for the phase summary
