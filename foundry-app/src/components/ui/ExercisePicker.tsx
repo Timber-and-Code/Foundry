@@ -247,7 +247,7 @@ export default function ExercisePicker({
             onPointerUp={handlePointerUp}
           >
             {selected.map((id, i) => {
-              const ex = EXERCISE_DB.find((e: any) => e.id === id);
+              const ex = EXERCISE_DB.find((e: ExerciseItem) => e.id === id);
               if (!ex) return null;
               const isAnchor = i === 0;
               const isDragging = dragIdx === i;

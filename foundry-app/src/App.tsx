@@ -40,6 +40,7 @@ import { useSyncState } from './hooks/useSyncState';
 import ErrorBoundary from './components/ErrorBoundary';
 import MinimizedTimerBar from './components/MinimizedTimerBar';
 import WeekCompleteModal from './components/WeekCompleteModal';
+import type { Profile, TrainingDay } from './types';
 
 // Hooks
 import { useMesoState } from './hooks/useMesoState';
@@ -59,12 +60,12 @@ const NotFoundPage = React.lazy(() => import('./components/NotFoundPage'));
 // ─── ROUTE WRAPPERS ───────────────────────────────────────────────────────────
 
 interface DayViewRouteProps {
-  onComplete: (...args: any[]) => void;
-  handleNextDay: (...args: any[]) => void;
+  onComplete: (data?: Record<string, unknown>) => void;
+  handleNextDay: (dayIdx: number, weekIdx: number) => void;
   completedDays: Set<string>;
-  profile: any;
-  activeDays: any[];
-  onProfileUpdate: (p: any) => void;
+  profile: Profile;
+  activeDays: TrainingDay[];
+  onProfileUpdate: (p: Partial<Profile>) => void;
 }
 
 function DayViewRoute({ onComplete, handleNextDay, completedDays, profile, activeDays, onProfileUpdate }: DayViewRouteProps) {
@@ -88,7 +89,7 @@ function DayViewRoute({ onComplete, handleNextDay, completedDays, profile, activ
   );
 }
 
-function ExtraViewRoute({ profile, activeDays, onProfileUpdate }: { profile: any; activeDays: any[]; onProfileUpdate: (p: any) => void }) {
+function ExtraViewRoute({ profile, activeDays, onProfileUpdate }: { profile: Profile; activeDays: TrainingDay[]; onProfileUpdate: (p: Partial<Profile>) => void }) {
   const { dateStr } = useParams();
   const navigate = useNavigate();
   return (
@@ -105,7 +106,7 @@ function ExtraViewRoute({ profile, activeDays, onProfileUpdate }: { profile: any
   );
 }
 
-function CardioViewRoute({ profile }: { profile: any }) {
+function CardioViewRoute({ profile }: { profile: Profile }) {
   const { dateStr, protocolId } = useParams();
   const navigate = useNavigate();
   return (
@@ -121,7 +122,7 @@ function CardioViewRoute({ profile }: { profile: any }) {
   );
 }
 
-function MobilityViewRoute({ profile }: { profile: any }) {
+function MobilityViewRoute({ profile }: { profile: Profile }) {
   const { dateStr } = useParams();
   const navigate = useNavigate();
   return (
@@ -180,7 +181,7 @@ function App() {
 
   // Listen for cardio open requests from DayView
   useEffect(() => {
-    const handler = (e: any) => {
+    const handler = (e: Event) => {
       const { dateStr, protocolId } = e.detail || {};
       if (dateStr) {
         navigate(`/cardio/${dateStr}/${protocolId || 'none'}`);
@@ -258,7 +259,7 @@ function App() {
     return (
       <React.Suspense fallback={suspenseFallback}>
         <SetupPage
-          onComplete={(p: any) => {
+          onComplete={(p: Profile) => {
             saveProfile(p);
             localStorage.removeItem('foundry:storedProgram');
             if (!store.get('foundry:toured')) store.set('foundry:show_tour', '1');
@@ -277,7 +278,7 @@ function App() {
     );
   }
 
-  const handleNextDay = (dayIdx: any, weekIdx: any) => {
+  const handleNextDay = (dayIdx: number, weekIdx: number) => {
     const nextDayIdx = dayIdx + 1;
     if (nextDayIdx <= getMeso().days - 1) {
       navigate(`/day/${nextDayIdx}/${weekIdx}`);
@@ -293,7 +294,7 @@ function App() {
     }
   };
 
-  const handleProfileUpdate = (updates: any) => {
+  const handleProfileUpdate = (updates: Partial<Profile>) => {
     if ('split' in updates || 'days' in updates) {
       localStorage.removeItem('foundry:storedProgram');
     }
@@ -335,7 +336,7 @@ function App() {
         <div style={{ position: 'sticky', top: 0, zIndex: 50 }}>
           <FoundryBanner
             subtitle={(() => {
-              const tags = [...new Set(activeDays.map((d: any) => d.tag).filter(Boolean))];
+              const tags = [...new Set(activeDays.map((d: TrainingDay) => d.tag).filter(Boolean))];
               const splitLabel = tags.length > 0 ? tags.join(' / ') : (({ ppl: 'PPL', upper_lower: 'UPPER / LOWER', full_body: 'FULL BODY', push_pull: 'PUSH / PULL' } as Record<string, string>)[getMeso().splitType] || getMeso().splitType?.toUpperCase().replace(/_/g, ' ') || 'PPL');
               return `${profile.name ? profile.name.toUpperCase() + ' · ' : ''}${getMeso().weeks}WK ${splitLabel} · WEEK ${activeWeek + 1}`;
             })()}

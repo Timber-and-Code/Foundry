@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import type { WorkoutSet } from '../types';
+import type { WorkoutSet, TrainingDay, Exercise } from '../types';
 
 interface UseMesoStateParams {
   setView: (view: string) => void;
@@ -76,13 +76,13 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
         })();
     const days = base.slice(0, getMeso().days);
     const added = profile.addedDayExercises || {};
-    return days.map((day: any, dayIdx: any) => {
+    return days.map((day: TrainingDay, dayIdx: number) => {
       const extraIds = (added as Record<string, any>)[dayIdx] || [];
       if (extraIds.length === 0) return day;
       const extraExs = extraIds
-        .map((id: any) => EXERCISE_DB.find((e: any) => e.id === id))
+        .map((id: string) => EXERCISE_DB.find((e: { id: string }) => e.id === id))
         .filter(Boolean)
-        .map((e: any) => ({
+        .map((e: Record<string, unknown>) => ({
           id: e.id,
           name: e.name,
           muscle: e.muscle,
@@ -106,13 +106,13 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
 
   const activeWeek = (() => {
     for (let w = 0; w < getMeso().weeks; w++) {
-      const allDone = activeDays.every((_: any, i: any) => completedDays.has(`${i}:${w}`));
+      const allDone = activeDays.every((_: TrainingDay, i: number) => completedDays.has(`${i}:${w}`));
       if (!allDone) return w;
     }
     return getMeso().weeks;
   })();
 
-  const handleComplete = (dayIdx: any, weekIdx: any) => {
+  const handleComplete = (dayIdx: number, weekIdx: number) => {
     markComplete(dayIdx, weekIdx);
     const newCompleted = new Set([...completedDays, `${dayIdx}:${weekIdx}`]);
     setCompletedDays(newCompleted);
@@ -133,12 +133,12 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       let totalVolume = 0;
       let prCount = 0;
 
-      prog.forEach((day: any, d: any) => {
+      prog.forEach((day: TrainingDay, d: number) => {
         const raw = store.get(`foundry:day${d}:week${weekIdx}`);
         if (!raw) return;
         try {
           const wd = JSON.parse(raw);
-          day.exercises.forEach((ex: any, exIdx: any) => {
+          day.exercises.forEach((ex: Exercise, exIdx: number) => {
             const exData = wd[exIdx] || {};
             let thisBest = 0;
             Object.values(exData as Record<string, WorkoutSet>).forEach((s) => {
@@ -187,12 +187,12 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
           }
         }
         for (let w = 0; w <= getMeso().weeks; w++) {
-          prog.forEach((day: any, d: any) => {
+          prog.forEach((day: TrainingDay, d: number) => {
             const raw = store.get(`foundry:day${d}:week${w}`);
             if (!raw) return;
             try {
               const wd = JSON.parse(raw);
-              day.exercises.forEach((ex: any, exIdx: any) => {
+              day.exercises.forEach((ex: Exercise, exIdx: number) => {
                 const exData = wd[exIdx] || {};
                 let thisBest = 0;
                 Object.values(exData as Record<string, WorkoutSet>).forEach((s) => {
@@ -228,8 +228,8 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
         }
 
         // Anchor lift progression
-        prog.forEach((day: any, d: any) => {
-          day.exercises.forEach((ex: any, exIdx: any) => {
+        prog.forEach((day: TrainingDay, d: number) => {
+          day.exercises.forEach((ex: Exercise, exIdx: number) => {
             if (!ex.anchor) return;
             const w1Raw = store.get(`foundry:day${d}:week0`);
             let w1Best = 0;
