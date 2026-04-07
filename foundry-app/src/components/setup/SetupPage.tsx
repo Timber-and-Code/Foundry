@@ -75,10 +75,10 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     } catch {}
     const tp = transition?.profile || null;
     return {
-      name: saved.name || tp?.name || '',
+      name: (saved.name as string) || tp?.name || '',
       age: saved.age ? String(saved.age) : tp?.age ? String(tp.age) : '',
       gender: tp?.gender || '',
-      weight: tp?.weight || '',
+      weight: tp?.weight || '' as string | number,
       goal: savedGoal || tp?.goal || '',
       goalNote: '' as string,
       email: '',
@@ -988,7 +988,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
           {/* ─── AUTO BUILDER INPUTS ─── */}
           {step === 2 && pathMode === 'auto' && (
             <AutoBuilderFlow
-              form={form}
+              form={{ ...form, name: String(form.name), weight: String(form.weight) }}
               setupDob={setupDob}
               autoForm={autoForm}
               aiLoading={aiLoading}
@@ -1008,7 +1008,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
           {/* ─── MANUAL BUILDER ─── */}
           {step === 2 && pathMode === 'manual' && (
             <ManualBuilderFlow
-              form={form}
+              form={{ ...form, name: String(form.name), weight: String(form.weight), sessionDuration: Number(form.sessionDuration) }}
               manualExStep={manualExStep}
               manualPairStep={manualPairStep}
               dayExercises={dayExercises}
