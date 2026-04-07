@@ -216,12 +216,12 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
 
   const sectionLabel = (text: string) => (
     <div style={{
-      fontSize: 9,
-      fontWeight: 600,
-      letterSpacing: '0.14em',
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: '0.12em',
       color: 'var(--text-dim)',
-      marginBottom: 3,
-      marginTop: 4,
+      marginBottom: 4,
+      marginTop: 6,
       textTransform: 'uppercase' as const,
     }}>
       {text}
@@ -313,17 +313,18 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{
-                fontSize: 18,
-                fontWeight: 700,
+                fontSize: 20,
+                fontWeight: 800,
                 color: 'var(--text-primary)',
                 lineHeight: 1.2,
               }}>
                 {saved.name || 'Athlete'}
               </div>
               <div style={{
-                fontSize: 11,
+                fontSize: 12,
                 color: 'var(--text-muted)',
-                marginTop: 2,
+                marginTop: 3,
+                fontWeight: 500,
               }}>
                 {saved.experience ? (saved.experience.charAt(0).toUpperCase() + saved.experience.slice(1)) : ''}
                 {saved.experience && splitLabel ? ' · ' : ''}
@@ -347,12 +348,12 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 alignItems: 'center',
                 marginBottom: 6,
               }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
                   Week {currentWeek + 1} of {totalWeeks}
                 </span>
                 {phase && (
                   <span style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
                     letterSpacing: '0.06em',
                     color: 'var(--phase-accum)',
@@ -391,7 +392,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             }}
             onClick={() => !editingWeight && setEditingWeight(true)}
           >
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Body Weight</span>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Body Weight</span>
             {editingWeight ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input
@@ -418,7 +419,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>lbs</span>
               </div>
             ) : (
-              <span style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 500 }}>
+              <span style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
                 {saved.weight ? `${saved.weight} lbs` : 'Tap to set'}
               </span>
             )}
@@ -451,10 +452,10 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
                   {value}
                 </div>
-                <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginTop: 4, letterSpacing: '0.06em' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginTop: 5, letterSpacing: '0.06em' }}>
                   {label.toUpperCase()}
                 </div>
               </div>
@@ -468,39 +469,58 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             <AccountSection />
           </Suspense>
 
+          {/* Foundry Pro — premium CTA */}
+          {divider}
+          <button
+            onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('foundry:showPricing')); }}
+            style={{
+              cursor: 'pointer',
+              padding: '16px',
+              borderRadius: tokens.radius.xl,
+              border: '1px solid rgba(212,152,60,0.35)',
+              background: 'linear-gradient(135deg, #1A1410 0%, #251D13 50%, #1A1410 100%)',
+              boxShadow: '0 2px 20px rgba(212,152,60,0.12), inset 0 1px 0 rgba(212,152,60,0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: 2,
+              marginBottom: 2,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, textAlign: 'left' }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#D4983C', letterSpacing: '0.04em' }}>
+                Foundry Pro
+              </span>
+              <span style={{ fontSize: 11, color: 'rgba(212,152,60,0.65)', fontWeight: 500 }}>
+                Coaching dashboard, train with friends & more
+              </span>
+            </div>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              color: '#1A1410',
+              background: 'linear-gradient(135deg, #D4983C, #E8B14A)',
+              borderRadius: tokens.radius.md,
+              padding: '6px 12px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              marginLeft: 12,
+            }}>
+              UPGRADE
+            </span>
+          </button>
+
           {/* Support */}
           {divider}
           {sectionLabel('SUPPORT')}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button
-              onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('foundry:showPricing')); }}
-              style={{
-                ...fieldRowStyle,
-                cursor: 'pointer',
-                border: '1px solid var(--phase-peak, #D4983C)55',
-                background: 'linear-gradient(135deg, #1A1410 0%, #221C14 100%)',
-              }}
-            >
-              <span style={{ fontSize: 11, color: 'var(--phase-peak, #D4983C)' }}>Foundry Pro</span>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                color: 'var(--phase-peak, #D4983C)',
-                background: 'var(--phase-peak, #D4983C)22',
-                border: '1px solid var(--phase-peak, #D4983C)44',
-                borderRadius: tokens.radius.sm,
-                padding: '1px 6px',
-              }}>
-                UPGRADE
-              </span>
-            </button>
-            <button
               onClick={() => setShowFeedback(true)}
               style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
             >
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Send Feedback</span>
-              <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500 }}>Write</span>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Send Feedback</span>
+              <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>Write</span>
             </button>
           </div>
 
@@ -539,21 +559,21 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 onClick={handleExport}
                 style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
               >
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Export Backup</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Export Backup</span>
                 <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500 }}>Download</span>
               </button>
               <button
                 onClick={handleDeleteCurrentMeso}
                 style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
               >
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Delete Current Meso</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Delete Current Meso</span>
                 <span style={{ fontSize: 13, color: 'var(--warning, #ff9800)', fontWeight: 500 }}>Delete</span>
               </button>
               <button
                 onClick={handleDeleteAllFoundryData}
                 style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
               >
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Delete All Foundry Data</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Delete All Foundry Data</span>
                 <span style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 500 }}>Delete</span>
               </button>
             </div>
@@ -567,7 +587,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             marginTop: 12,
             paddingBottom: 20,
           }}>
-            The Foundry v{typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''}
+            The Foundry v{typeof APP_VERSION !== 'undefined' ? APP_VERSION : '2.1.0'}
           </div>
         </div>
       </div>
