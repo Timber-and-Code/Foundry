@@ -2,6 +2,7 @@ import React, { Suspense, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../contexts/AuthContext';
 import { store } from '../../utils/store';
+import { archiveMesocycleRemote } from '../../utils/sync';
 import { getMeso } from '../../data/constants';
 
 const AccountSection = React.lazy(() => import('../auth/UserMenu'));
@@ -97,7 +98,11 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   })();
 
   // ── Reset helpers ─────────────────────────────────────────────────────────
-  const deleteCurrentMeso = () => {
+  const deleteCurrentMeso = async () => {
+    // Mark the meso as abandoned in Supabase and clear active_meso_id
+    // BEFORE wiping localStorage, so the remote pointer is gone first.
+    await archiveMesocycleRemote();
+
     const fixedKeys = [
       'foundry:profile',
       'foundry:completedDays',

@@ -1418,6 +1418,12 @@ export async function archiveMesocycleRemote(): Promise<void> {
       .eq('id', mesoId)
       .eq('user_id', user.id);
     if (error) throw error;
+
+    // Clear the FK pointer so pullFromSupabase won't restore this meso
+    await supabase
+      .from('user_profiles')
+      .update({ active_meso_id: null, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
   } catch (e) {
     reportSyncFailure('mesocycle', e);
   } finally {
@@ -1817,7 +1823,7 @@ export async function pullFromSupabase(): Promise<void> {
 
         if (mesoErr) {
           console.warn('[Foundry Sync] Mesocycle pull failed', mesoErr);
-        } else if (mesoData) {
+        } else if (mesoData && (mesoData as SupabaseMesocycleRow).status === 'active') {
           const mesoRow = mesoData as SupabaseMesocycleRow;
           const localKey = 'foundry:profile';
           const localRaw = store.get(localKey);
@@ -2219,7 +2225,7 @@ export async function fetchFriendWorkout(
 
     const exercises: FriendWorkoutData['exercises'] = [];
     for (const [exId, sets] of byExercise) {
-      const dbEx = (EXERCISE_DB as Record<string, { name?: string; muscle?: string }>)[exId];
+      const dbEx = (EXERCISE_DB as unknown as Record<string, { name?: string; muscle?: string }>)[exId];
       exercises.push({
         name: dbEx?.name || exId,
         muscle: dbEx?.muscle || '',
