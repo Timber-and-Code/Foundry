@@ -11,12 +11,12 @@ const TAG_COLORS: Record<string, string> = {
 };
 
 // Build AI days array from a sample program's day definitions
-const buildAiDaysFromSample = (prog: any) => {
+const buildAiDaysFromSample = (prog: Record<string, unknown>) => {
   if (!prog || !prog.days) return [];
-  return prog.days.map((day: any) => ({
+  return (prog.days as Record<string, unknown>[]).map((day: Record<string, unknown>) => ({
     label: day.label || day.name || 'Day',
     tag: day.tag || 'PUSH',
-    exercises: (day.exercises || []).map((ex: any) => ({
+    exercises: ((day.exercises || []) as Record<string, unknown>[]).map((ex: Record<string, unknown>) => ({
       name: ex.name || ex,
       sets: ex.sets || 3,
       repRange: ex.repRange || '8-12',
@@ -33,10 +33,10 @@ const StartSampleProgramModal = ({
   onConfirm,
   onCancel,
 }: {
-  prog: any;
-  hasActiveMeso: any;
-  onConfirm: any;
-  onCancel: any;
+  prog: Record<string, unknown>;
+  hasActiveMeso: boolean;
+  onConfirm: (startDate: string) => void;
+  onCancel: () => void;
 }) => {
   const [startDate, setStartDate] = React.useState(() => new Date().toISOString().slice(0, 10));
   return (
@@ -159,9 +159,9 @@ const StartSampleProgramModal = ({
 };
 
 interface SampleProgramsProps {
-  profile: any;
+  profile: Record<string, unknown> | null;
   onBack: () => void;
-  onStartProgram?: (program: any) => void;
+  onStartProgram?: (program: Record<string, unknown>) => void;
 }
 
 function SamplePrograms({ profile, onBack, onStartProgram }: SampleProgramsProps) {
@@ -467,7 +467,7 @@ function SamplePrograms({ profile, onBack, onStartProgram }: SampleProgramsProps
         <StartSampleProgramModal
           prog={startModalProg}
           hasActiveMeso={!!profile}
-          onConfirm={(startDate: any) => {
+          onConfirm={(startDate: string) => {
             const experienceMap: Record<string, string> = {
               Beginner: 'beginner',
               Intermediate: 'intermediate',
