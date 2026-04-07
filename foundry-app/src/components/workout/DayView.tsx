@@ -300,30 +300,34 @@ function DayView({
   // Build resolved exercises by applying any saved overrides
   // MUST be declared before prevWeekNotes useMemo — Babel hoists var to undefined otherwise
   const resolveExercises = useCallback(() => {
+    const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');
     return (weekDay.exercises || []).map((ex: Exercise, i: number) => {
       const ovId = loadExOverride(dayIdx, weekIdx, i);
       if (!ovId) return ex;
       const dbEx = EXERCISE_DB.find((e: Exercise) => e.id === ovId);
-      if (!dbEx) return ex;
+      // Check custom exercises if not in DB
+      const customEx = !dbEx && ovId.startsWith('custom:') ? customExercises[ovId] : null;
+      const resolved = dbEx || customEx;
+      if (!resolved) return ex;
       const wu = ex.anchor
         ? profile?.sessionDuration <= 30
           ? '2 ramp sets — time is tight, be thorough'
-          : dbEx.warmup
-        : dbEx.warmup || '1 feeler set';
+          : resolved.warmup
+        : resolved.warmup || '1 feeler set';
       return {
-        id: dbEx.id,
-        name: dbEx.name,
-        muscle: dbEx.muscle,
-        equipment: dbEx.equipment,
-        tag: dbEx.tag,
+        id: resolved.id,
+        name: resolved.name,
+        muscle: resolved.muscle || ex.muscle,
+        equipment: resolved.equipment || 'other',
+        tag: resolved.tag || ex.tag,
         anchor: ex.anchor,
-        sets: getWeekSets(dbEx.sets, weekIdx, getMeso().weeks),
-        reps: dbEx.reps,
-        rest: dbEx.rest,
+        sets: getWeekSets(resolved.sets || ex.sets, weekIdx, getMeso().weeks),
+        reps: resolved.reps || ex.reps,
+        rest: resolved.rest || ex.rest,
         warmup: wu,
-        progression: dbEx.pattern === 'isolation' ? 'reps' : 'weight',
-        description: dbEx.description || '',
-        videoUrl: dbEx.videoUrl || '',
+        progression: resolved.pattern === 'isolation' ? 'reps' : 'weight',
+        description: resolved.description || '',
+        videoUrl: resolved.videoUrl || '',
       };
     });
   }, [weekDay.exercises, dayIdx, weekIdx]);
@@ -372,6 +376,35 @@ function DayView({
     [swapTarget],
   );
 
+  const handleCustomExercise = useCallback(
+    (name: string) => {
+      if (swapTarget === null) return;
+      const customId = `custom:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      // Store custom exercise so ExerciseCard and other components can look it up
+      const existing = JSON.parse(store.get('foundry:customExercises') || '{}');
+      if (!existing[customId]) {
+        const original = exercises[swapTarget.exIdx];
+        existing[customId] = {
+          id: customId,
+          name,
+          muscle: original?.muscle || 'other',
+          tag: original?.tag || day?.tag || 'FULL',
+          sets: original?.sets || 3,
+          reps: original?.reps || '8-12',
+          rest: original?.rest || '2 min',
+          equipment: 'other',
+          pattern: 'compound',
+          bw: false,
+        };
+        store.set('foundry:customExercises', JSON.stringify(existing));
+      }
+      // Feed through the same swap flow
+      setSwapPending({ exIdx: swapTarget.exIdx, newExId: customId });
+      setSwapTarget(null);
+    },
+    [swapTarget, exercises, day?.tag],
+  );
+
   const executeSwap = useCallback(
     (scope: 'week' | 'meso') => {
       if (!swapPending) return;
@@ -382,12 +415,15 @@ function DayView({
         const mesoId = typeof window !== 'undefined' ? localStorage.getItem('foundry:active_meso_id') : null;
         if (mesoId) {
           const newDbEx = EXERCISE_DB.find((e: Exercise) => e.id === newExId);
-          if (newDbEx) {
+          const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');
+          const customEx = !newDbEx && newExId.startsWith('custom:') ? customExercises[newExId] : null;
+          const resolved = newDbEx || customEx;
+          if (resolved) {
             syncExerciseSwapRemote(mesoId, dayIdx, exIdx, {
-              id: newDbEx.id,
-              sets: newDbEx.sets,
-              reps: newDbEx.reps,
-              progression: newDbEx.pattern === 'isolation' ? 'reps' : 'weight',
+              id: resolved.id,
+              sets: resolved.sets,
+              reps: resolved.reps,
+              progression: resolved.pattern === 'isolation' ? 'reps' : 'weight',
               anchor: exercises[exIdx]?.anchor,
             });
           }
@@ -915,6 +951,7 @@ function DayView({
             onReorder={() => {}}
             userEquipment={profile?.equipment}
             autoExpandMuscle={swapMuscle}
+            onCustomExercise={handleCustomExercise}
           />
         </Sheet>
 

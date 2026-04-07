@@ -27,6 +27,8 @@ interface ExercisePickerProps {
   autoExpandMuscle?: string;
   /** Accent colour override */
   accent?: string;
+  /** Called when user adds a custom exercise by name */
+  onCustomExercise?: (name: string) => void;
 }
 
 /* ── component ─────────────────────────────────────────────────────────────── */
@@ -38,6 +40,7 @@ export default function ExercisePicker({
   userEquipment,
   autoExpandMuscle,
   accent = tokens.colors.accent,
+  onCustomExercise,
 }: ExercisePickerProps) {
   const [search, setSearch] = useState('');
   const [openGroup, setOpenGroup] = useState<string | null>(autoExpandMuscle ?? null);
@@ -439,7 +442,53 @@ export default function ExercisePicker({
               fontSize: 13,
             }}
           >
-            No exercises match &ldquo;{search}&rdquo;
+            <div>No exercises match &ldquo;{search}&rdquo;</div>
+            {onCustomExercise && search.trim().length >= 2 && (
+              <button
+                onClick={() => {
+                  onCustomExercise(search.trim());
+                  setSearch('');
+                }}
+                style={{
+                  marginTop: 12,
+                  padding: '10px 20px',
+                  borderRadius: tokens.radius.md,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  background: accent + '22',
+                  border: `1px solid ${accent}`,
+                  color: accent,
+                }}
+              >
+                + Add &ldquo;{search.trim()}&rdquo; as custom exercise
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Always show custom exercise option at bottom when searching with results */}
+        {isSearching && visibleMuscles.length > 0 && onCustomExercise && search.trim().length >= 2 && (
+          <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-subtle)' }}>
+            <button
+              onClick={() => {
+                onCustomExercise(search.trim());
+                setSearch('');
+              }}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: tokens.radius.md,
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+                background: 'none',
+                border: '1px dashed var(--border)',
+                color: 'var(--text-muted)',
+              }}
+            >
+              Don&rsquo;t see it? Add &ldquo;{search.trim()}&rdquo; as custom exercise
+            </button>
           </div>
         )}
       </div>
