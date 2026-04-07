@@ -334,7 +334,11 @@ function App() {
         {/* Header */}
         <div style={{ position: 'sticky', top: 0, zIndex: 50 }}>
           <FoundryBanner
-            subtitle={`${profile.name ? profile.name.toUpperCase() + ' · ' : ''}${profile.mesoLength || getMeso().weeks}WK ${({ ppl: 'PPL', upper_lower: 'UPPER LOWER', full_body: 'FULL BODY', push_pull: 'PUSH PULL' } as Record<string, string>)[profile.splitType] || (profile.splitType || 'PPL').toUpperCase().replace(/_/g, ' ')} · WEEK ${activeWeek + 1}`}
+            subtitle={(() => {
+              const tags = [...new Set(activeDays.map((d: any) => d.tag).filter(Boolean))];
+              const splitLabel = tags.length > 0 ? tags.join(' / ') : (({ ppl: 'PPL', upper_lower: 'UPPER / LOWER', full_body: 'FULL BODY', push_pull: 'PUSH / PULL' } as Record<string, string>)[getMeso().splitType] || getMeso().splitType?.toUpperCase().replace(/_/g, ' ') || 'PPL');
+              return `${profile.name ? profile.name.toUpperCase() + ' · ' : ''}${getMeso().weeks}WK ${splitLabel} · WEEK ${activeWeek + 1}`;
+            })()}
             onProfileTap={isHome ? () => setShowProfileDrawer(true) : undefined}
             syncState={syncState}
           />

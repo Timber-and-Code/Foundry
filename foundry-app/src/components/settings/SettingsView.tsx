@@ -40,7 +40,18 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const currentWeek = parseInt(localStorage.getItem('foundry:currentWeek') || '0');
   const totalWeeks = meso?.weeks || saved.mesoLength || null;
   const phase = meso?.phases?.[currentWeek] || '';
-  const splitLabel = SPLIT_LABELS[saved.splitType] || (saved.splitType || '').toUpperCase().replace(/_/g, ' ');
+  const splitLabel = (() => {
+    // Derive from actual day tags in the stored program (most accurate)
+    try {
+      const raw = store.get('foundry:storedProgram');
+      if (raw) {
+        const days = JSON.parse(raw);
+        const tags = [...new Set(days.map((d: any) => d.tag).filter(Boolean))];
+        if (tags.length > 0) return tags.join(' / ');
+      }
+    } catch {}
+    return SPLIT_LABELS[meso?.splitType || saved.splitType] || (meso?.splitType || saved.splitType || '').toUpperCase().replace(/_/g, ' ');
+  })();
 
   // ── Training stats ────────────────────────────────────────────────────────
   const stats = (() => {
