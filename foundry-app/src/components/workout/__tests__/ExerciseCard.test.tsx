@@ -50,9 +50,10 @@ import ExerciseCard from '../ExerciseCard';
 function makeExercise(overrides: Record<string, unknown> = {}) {
   return {
     name: 'Bench Press',
+    muscle: 'chest',
     sets: 3,
     progression: 'linear',
-    warmup: false,
+    warmup: '',
     anchor: false,
     modifier: '',
     cardio: false,

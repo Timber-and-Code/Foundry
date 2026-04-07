@@ -133,7 +133,7 @@ function DayView({
     ...day,
     exercises: day.exercises.map((ex: Exercise) => ({
       ...ex,
-      sets: getWeekSets(ex.sets, weekIdx, getMeso().weeks),
+      sets: getWeekSets(Number(ex.sets ?? 0), weekIdx, getMeso().weeks),
     })),
   };
 
@@ -172,7 +172,7 @@ function DayView({
   const handleBwConfirm = () => {
     if (!bwModal) return;
     const val = parseFloat(bwInput);
-    if (!isNaN(val) && val > 0 && val !== parseFloat(profile?.weight || 0)) {
+    if (!isNaN(val) && val > 0 && val !== parseFloat(String(profile?.weight || 0))) {
       onProfileUpdate && onProfileUpdate({ weight: bwInput });
     }
     setBwConfirmed((prev) => new Set([...prev, bwModal.exIdx]));
@@ -192,9 +192,9 @@ function DayView({
     const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile);
     const restored = new Set();
     weekDay.exercises.forEach((ex: Exercise, i: number) => {
-      const exData = (saved as Record<string, Record<string, Record<string, unknown>>>)[i] || {};
+      const exData = (saved as unknown as Record<string, Record<string, Record<string, unknown>>>)[i] || {};
       let allFilled = true;
-      for (let s = 0; s < ex.sets; s++) {
+      for (let s = 0; s < Number(ex.sets ?? 0); s++) {
         const sd = exData[s] || {};
         // Only count as done if user actually confirmed — not from suggestion engine
         if (!sd.reps || sd.reps === '' || sd.repsSuggested) {
@@ -310,7 +310,7 @@ function DayView({
       const resolved = dbEx || customEx;
       if (!resolved) return ex;
       const wu = ex.anchor
-        ? profile?.sessionDuration <= 30
+        ? Number(profile?.sessionDuration ?? 60) <= 30
           ? '2 ramp sets — time is tight, be thorough'
           : resolved.warmup
         : resolved.warmup || '1 feeler set';
@@ -321,14 +321,15 @@ function DayView({
         equipment: resolved.equipment || 'other',
         tag: resolved.tag || ex.tag,
         anchor: ex.anchor,
-        sets: getWeekSets(resolved.sets || ex.sets, weekIdx, getMeso().weeks),
+        sets: getWeekSets(Number((resolved.sets || ex.sets) ?? 0), weekIdx, getMeso().weeks),
         reps: resolved.reps || ex.reps,
         rest: resolved.rest || ex.rest,
         warmup: wu,
         progression: resolved.pattern === 'isolation' ? 'reps' : 'weight',
         description: resolved.description || '',
         videoUrl: resolved.videoUrl || '',
-      };
+        supersetWith: ex.supersetWith,
+      } as Exercise;
     });
   }, [weekDay.exercises, dayIdx, weekIdx]);
   const [exercises, setExercises] = useState(resolveExercises);
@@ -483,7 +484,7 @@ function DayView({
       }
 
       const partnerIdx = isPrimary
-        ? ex.supersetWith
+        ? (ex.supersetWith ?? -1)
         : exercises.findIndex((e) => e.supersetWith === exIdx);
 
       if (pendingRest && pendingRest.partnerIdx === exIdx && pendingRest.setIdx === setIdx) {
@@ -633,16 +634,17 @@ function DayView({
   const handleWeightAutoFill = useCallback(
     (exIdx: number, weight: string, numSets: number | string | undefined) => {
       setWeekData((prev) => {
-        const exData = prev[exIdx] || {};
-        const next = { ...prev, [exIdx]: { ...exData } };
-        for (let s = 1; s < numSets; s++) {
+        const exData = prev[exIdx] || ({} as typeof prev[string]);
+        const exCopy: typeof prev[string] = { ...exData };
+        for (let s = 1; s < Number(numSets ?? 0); s++) {
           const setData = exData[s] || {};
           // Only fill sets that don't already have a user-entered weight
           const hasWeight = setData.weight && String(setData.weight).trim() !== '';
           if (!hasWeight) {
-            next[exIdx][s] = { ...setData, weight, suggested: false };
+            exCopy[s] = { ...setData, weight, suggested: false };
           }
         }
+        const next = { ...prev, [exIdx]: exCopy };
         saveDayWeek(dayIdx, weekIdx, next);
         return next;
       });
@@ -651,13 +653,14 @@ function DayView({
   );
 
   const handleLastSetFilled = useCallback(
-    (exIdx: number, exName: string, restStr: string) => {
+    (exIdx: number, _setIdx: number) => {
       // Don't fire if already done or already shown since last edit
       if (doneExercises.has(exIdx) || dialogShownRef.current.has(exIdx)) return;
       dialogShownRef.current.add(exIdx);
-      setDialog({ exIdx, exName, restStr, isLastSet: true });
+      const ex = exercises[exIdx];
+      setDialog({ exIdx, exName: ex?.name, restStr: ex?.rest, isLastSet: true });
     },
-    [doneExercises]
+    [doneExercises, exercises]
   );
 
   // handleDialogYes — reserved for dialog confirmation flow
@@ -949,7 +952,7 @@ function DayView({
             selected={[]}
             onToggle={handleSwap}
             onReorder={() => {}}
-            userEquipment={profile?.equipment}
+            userEquipment={Array.isArray(profile?.equipment) ? profile.equipment : profile?.equipment ? [profile.equipment] : undefined}
             autoExpandMuscle={swapMuscle}
             onCustomExercise={handleCustomExercise}
           />
@@ -1493,7 +1496,7 @@ function DayView({
           selected={[]}
           onToggle={handleSwap}
           onReorder={() => {}}
-          userEquipment={profile?.equipment}
+          userEquipment={Array.isArray(profile?.equipment) ? profile.equipment : profile?.equipment ? [profile.equipment] : undefined}
           autoExpandMuscle={swapMuscle}
         />
       </Sheet>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { EXERCISE_DB, SAMPLE_PROGRAMS } from '../../data/exercises';
 import ExerciseBrowser from './ExerciseBrowser';

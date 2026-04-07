@@ -42,9 +42,9 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
   const numDays = profile?.workoutDays?.length || profile?.daysPerWeek || 6;
   const dayMuscleConfig: Record<number, DayMuscleConfigEntry> =
     (profile as any).dayMuscleConfig || {};
-  const shortWarmup = duration <= 30;
+  const shortWarmup = Number(duration) <= 30;
   const exCount =
-    duration <= 30 ? 3 : duration <= 45 ? 4 : duration <= 60 ? 5 : duration <= 75 ? 6 : 7;
+    Number(duration) <= 30 ? 3 : Number(duration) <= 45 ? 4 : Number(duration) <= 60 ? 5 : Number(duration) <= 75 ? 6 : 7;
 
   const experience = profile?.experience || 'intermediate';
   const maxDiff = experience === 'beginner' ? 1 : experience === 'intermediate' ? 2 : 3;

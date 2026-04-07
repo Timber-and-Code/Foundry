@@ -1,4 +1,3 @@
-import React from 'react';
 import { tokens } from '../../styles/tokens';
 import type { Toast, ToastType } from '../../contexts/ToastContext';
 

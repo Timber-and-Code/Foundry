@@ -54,11 +54,15 @@ const overviewIcon = (color: string) => (
 
 // ── NoteViewer ─────────────────────────────────────────────────────────────
 
-interface NoteViewerData {
+export interface NoteViewerData {
   label: string;
   exercises: Exercise[];
   exNotes?: Record<number, string>;
   sessionNote?: string;
+  type?: string;
+  dayIdx?: number;
+  weekIdx?: number;
+  dateStr?: string;
 }
 
 function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData | null; setNoteViewer: (v: NoteViewerData | null) => void }) {
@@ -191,8 +195,8 @@ interface ScheduleTabProps {
   setCalendarOffset: (v: number | ((prev: number) => number)) => void;
   expandedWeek?: number | null;
   setExpandedWeek?: (v: number | null) => void;
-  showRestDay: string | null;
-  setShowRestDay: (v: string | null) => void;
+  showRestDay: { dateStr: string; isPast?: boolean } | null;
+  setShowRestDay: (v: { dateStr: string; isPast?: boolean } | null) => void;
   showEditSchedule: boolean;
   setShowEditSchedule: (v: boolean) => void;
   noteViewer: NoteViewerData | null;

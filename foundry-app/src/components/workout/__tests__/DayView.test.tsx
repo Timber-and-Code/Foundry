@@ -142,8 +142,8 @@ function makeDay(overrides: Record<string, unknown> = {}) {
     tag: 'PUSH',
     type: 'strength',
     exercises: [
-      { name: 'Bench Press', id: 'bench', sets: 3, reps: '8-12', rest: 90, anchor: true, bw: false, warmup: '2 ramp sets', progression: 'weight', muscle: 'chest' },
-      { name: 'Overhead Press', id: 'ohp', sets: 3, reps: '8-12', rest: 90, anchor: false, bw: false, warmup: '1 feeler set', progression: 'weight', muscle: 'shoulders' },
+      { name: 'Bench Press', id: 'bench', sets: 3, reps: '8-12', rest: '90', anchor: true, bw: false, warmup: '2 ramp sets', progression: 'weight', muscle: 'chest' },
+      { name: 'Overhead Press', id: 'ohp', sets: 3, reps: '8-12', rest: '90', anchor: false, bw: false, warmup: '1 feeler set', progression: 'weight', muscle: 'shoulders' },
     ],
     ...overrides,
   };
@@ -156,7 +156,7 @@ const defaultProps = () => ({
   onComplete: vi.fn(),
   onNextDay: vi.fn(),
   completedDays: new Set<string>(),
-  profile: { weight: 185, sessionDuration: 60, addedDayExercises: {} },
+  profile: { weight: 185, experience: 'intermediate', sessionDuration: 60, addedDayExercises: {} },
   activeDays: [makeDay(), makeDay({ name: 'Pull Day', label: 'Pull Day', tag: 'PULL' })],
   onProfileUpdate: vi.fn(),
 });

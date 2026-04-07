@@ -55,9 +55,9 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   })();
 
   // ── Session state ────────────────────────────────────────────────────────────
-  const [session, setSession] = React.useState(() => {
+  const [session, setSession] = React.useState<CardioSessionState>(() => {
     const saved = loadCardioSession(dateStr);
-    if (saved) return saved;
+    if (saved) return saved as unknown as CardioSessionState;
     // Initialize from planned protocol if provided
     const proto = plannedProtocolId
       ? CARDIO_WORKOUTS.find((w) => w.id === plannedProtocolId)
@@ -108,7 +108,7 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   const save = (updates: Partial<CardioSessionState>) => {
     const next = { ...session, ...updates };
     setSession(next);
-    saveCardioSession(dateStr, next);
+    saveCardioSession(dateStr, next as unknown as import('../../types').CardioSession);
   };
 
   // ── Protocol selection ───────────────────────────────────────────────────────

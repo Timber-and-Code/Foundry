@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
 import { EXERCISE_DB } from '../../data/exercises';
 import HammerIcon from '../shared/HammerIcon';

@@ -92,7 +92,7 @@ export interface CardioScheduleSlot {
 export interface CardioSession {
   completed?: boolean;
   type?: string;
-  duration?: number;
+  duration?: number | string;
   intensity?: string;
   protocolId?: string;
   startedAt?: number | string;

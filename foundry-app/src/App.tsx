@@ -60,7 +60,7 @@ const NotFoundPage = React.lazy(() => import('./components/NotFoundPage'));
 // ─── ROUTE WRAPPERS ───────────────────────────────────────────────────────────
 
 interface DayViewRouteProps {
-  onComplete: (data?: Record<string, unknown>) => void;
+  onComplete: (dayIdx: number, weekIdx: number) => void;
   handleNextDay: (dayIdx: number, weekIdx: number) => void;
   completedDays: Set<string>;
   profile: Profile;
@@ -79,8 +79,8 @@ function DayViewRoute({ onComplete, handleNextDay, completedDays, profile, activ
         window.scrollTo(0, 0);
         navigate('/');
       }}
-      onComplete={onComplete}
-      onNextDay={handleNextDay}
+      onComplete={() => onComplete(parseInt(dayIdx!, 10), parseInt(weekIdx!, 10))}
+      onNextDay={() => handleNextDay(parseInt(dayIdx!, 10), parseInt(weekIdx!, 10))}
       completedDays={completedDays}
       profile={profile}
       activeDays={activeDays}
@@ -182,7 +182,7 @@ function App() {
   // Listen for cardio open requests from DayView
   useEffect(() => {
     const handler = (e: Event) => {
-      const { dateStr, protocolId } = e.detail || {};
+      const { dateStr, protocolId } = (e as CustomEvent).detail || {};
       if (dateStr) {
         navigate(`/cardio/${dateStr}/${protocolId || 'none'}`);
       }

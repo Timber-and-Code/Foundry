@@ -86,9 +86,9 @@ function calcMuscleSetsByTag(activeDays: TrainingDay[], completedDays: Set<strin
       const wd = loadDayWeek(dayIdx, w);
       day.exercises.forEach((ex: Exercise, exIdx: number) => {
         const exData = wd[exIdx] || {};
-        const filledSets = Object.values(exData).filter((s: Record<string, unknown>) => s && s.reps && s.reps !== '').length;
+        const filledSets = Object.values(exData).filter((s: any) => s && s.reps && s.reps !== '').length;
         if (filledSets === 0) return;
-        const cat = sessionTagToCategory(day.tag, ex.tag);
+        const cat = sessionTagToCategory(day.tag, ex.tag) || 'OTHER';
         if (!byTag[cat]) byTag[cat] = {};
         let primaryMuscle = ex.muscle || (ex.muscles && ex.muscles[0]);
         if (primaryMuscle === 'Lats') primaryMuscle = 'Back';
@@ -1080,7 +1080,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                 }}
               >
                 {anchors.map((a, i) => {
-                  const ac = (TAG_ACCENT as Record<string, any>)[a.tag] || 'var(--accent)';
+                  const ac = (TAG_ACCENT as Record<string, any>)[a.tag || ''] || 'var(--accent)';
                   return (
                     <div
                       key={i}
@@ -1240,9 +1240,9 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             for (let w = currentWeek; w >= 0; w--) {
               const wd = loadDayWeek(dayIdx, w);
               const exData = wd[exIdx] || {};
-              const sw = Object.values(exData).find((sv: Record<string, unknown>) => sv && sv.weight && sv.weight !== '');
+              const sw = Object.values(exData).find((sv: any) => sv && sv.weight && sv.weight !== '');
               if (sw) {
-                weight = (sw as Record<string, string | number>).weight;
+                weight = (sw as unknown as Record<string, string | number>).weight;
                 break;
               }
             }

@@ -82,19 +82,19 @@ const ACTIVE_DAYS = [
   {
     label: 'Push Day',
     tag: 'PUSH',
-    exercises: [{ name: 'Bench Press', sets: 3, reps: '8-10', rest: '2 min' }],
+    exercises: [{ name: 'Bench Press', muscle: 'chest', sets: 3, reps: '8-10', rest: '2 min' }],
     type: 'strength',
   },
   {
     label: 'Pull Day',
     tag: 'PULL',
-    exercises: [{ name: 'Barbell Row', sets: 3, reps: '8-10', rest: '2 min' }],
+    exercises: [{ name: 'Barbell Row', muscle: 'back', sets: 3, reps: '8-10', rest: '2 min' }],
     type: 'strength',
   },
   {
     label: 'Leg Day',
     tag: 'LEGS',
-    exercises: [{ name: 'Squat', sets: 3, reps: '6-8', rest: '3 min' }],
+    exercises: [{ name: 'Squat', muscle: 'quads', sets: 3, reps: '6-8', rest: '3 min' }],
     type: 'strength',
   },
 ];
@@ -103,6 +103,7 @@ function makeProps(overrides: Record<string, any> = {}) {
   return {
     profile: {
       name: 'Alex',
+      experience: 'intermediate',
       startDate: '2025-01-01',
       cardioSchedule: [],
       splitType: 'PPL',
@@ -206,6 +207,7 @@ describe('HomeTab', () => {
     const props = makeProps({
       profile: {
         name: 'Alex',
+        experience: 'intermediate',
         startDate,
         cardioSchedule: [],
         splitType: 'PPL',
@@ -239,6 +241,7 @@ describe('HomeTab', () => {
     const props = makeProps({
       profile: {
         name: 'Alex',
+        experience: 'intermediate',
         startDate,
         cardioSchedule: [],
         splitType: 'PPL',

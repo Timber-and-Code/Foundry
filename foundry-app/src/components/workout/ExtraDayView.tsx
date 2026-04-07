@@ -447,11 +447,11 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
 
   const handleSetLogged = () => {};
 
-  const handleSwap = (newDbEx: Record<string, unknown>) => {
+  const handleSwap = (newDbEx: Exercise) => {
     if (swapTarget === null) return;
     const { exIdx } = swapTarget;
     const oldEx = exercises[exIdx];
-    const newEx = {
+    const newEx: Exercise = {
       id: newDbEx.id,
       name: newDbEx.name,
       muscle: newDbEx.muscle,
@@ -490,8 +490,8 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     setSwapTarget(null);
   };
 
-  const handleAddExercise = (dbEx: Record<string, unknown>) => {
-    const newEx = {
+  const handleAddExercise = (dbEx: Exercise) => {
+    const newEx: Exercise = {
       id: dbEx.id,
       name: dbEx.name,
       muscle: dbEx.muscle,
@@ -510,7 +510,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     };
     setExercises((prev: Exercise[]) => {
       const n = [...prev, newEx];
-      persistExercises(n as Exercise[]);
+      persistExercises(n);
       return n;
     });
     setShowAddExercise(false);
@@ -537,16 +537,16 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       totalVolume = 0;
     exercises.forEach((ex: Exercise, exIdx: number) => {
       const exData = (weekData as Record<string, Record<string, Record<string, string | number | boolean>>>)[exIdx] || {};
-      for (let s = 0; s < ex.sets; s++) {
+      for (let s = 0; s < Number(ex.sets ?? 0); s++) {
         const sd = exData[s] || {};
         if (!sd.reps || sd.reps === '') continue;
         totalSets++;
-        const reps = parseInt(sd.reps) || 0;
+        const reps = parseInt(String(sd.reps)) || 0;
         totalReps += reps;
-        const weight = parseFloat(sd.weight) || 0;
+        const weight = parseFloat(String(sd.weight)) || 0;
         if (weight > 0) totalVolume += weight * reps;
         else if (ex.bw) {
-          const bw = parseFloat(profile?.weight) || 0;
+          const bw = parseFloat(String(profile?.weight)) || 0;
           if (bw > 0) totalVolume += bw * reps;
         }
       }
@@ -558,12 +558,11 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     });
     haptic(sessionPRs.length > 0 ? 'victory' : 'complete');
     setWorkoutStats({
-      sets: totalSets,
-      reps: totalReps,
-      volume: Math.round(totalVolume),
-      exercises: exercises.length,
-      duration: durationMins,
-      prs: sessionPRs,
+      totalSets,
+      totalReps,
+      totalVolume: Math.round(totalVolume),
+      duration: durationMins !== null ? String(durationMins) : null,
+      prs: sessionPRs.map((pr) => ({ name: pr.name, weight: pr.newBest, reps: pr.prevBest })),
     });
     setShowWorkoutModal(true);
   };
@@ -1079,7 +1078,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
         <WorkoutCompleteModal
           dayLabel={day.label}
           dayTag={day.tag}
-          gender={profile?.gender}
+          gender={profile?.gender ?? ''}
           stats={workoutStats}
           weekIdx={(() => {
             const cd = loadCompleted(getMeso());
@@ -1264,7 +1263,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
               readOnly={readOnly}
               onSwapClick={!readOnly ? () => setSwapTarget({ exIdx: i }) : () => {}}
               onSetLogged={handleSetLogged}
-              bodyweight={parseFloat(profile?.weight || 0)}
+              bodyweight={parseFloat(String(profile?.weight ?? 0))}
               note={exNotes[i] || ''}
               onNoteChange={(val) => {
                 const next = { ...exNotes, [i]: val };

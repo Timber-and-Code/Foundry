@@ -100,7 +100,7 @@ function ExerciseCard({
   isFirst,
   isLast,
 }: ExerciseCardProps) {
-  const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression]?.[weekIdx];
+  const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression ?? '']?.[weekIdx];
   const goalColor =
     weekIdx < 2
       ? 'var(--text-muted)'
@@ -173,7 +173,7 @@ function ExerciseCard({
   const [doneSets, setDoneSets] = React.useState(() => {
     const exData = weekData[exIdx] || {};
     const restored = new Set();
-    for (let s = 0; s < exercise.sets; s++) {
+    for (let s = 0; s < Number(exercise.sets ?? 0); s++) {
       const sd = exData[s] || {};
       // Only restore as done if user explicitly confirmed — not from suggested reps
       if (sd.confirmed === true) restored.add(s);
@@ -258,13 +258,13 @@ function ExerciseCard({
   // Compute stall detection based on previous week's set data and this week's input
   const { stallWarning, stallTarget } = useMemo(() => {
     const curr = (weekData[exIdx] || {})[0] || {};
-    const reps = parseInt(curr.reps || 0);
-    const weight = parseFloat(curr.weight || 0);
+    const reps = parseInt(String(curr.reps || 0));
+    const weight = parseFloat(String(curr.weight || 0));
     const prevData = prevWeekRaw[exIdx] || {};
     // Default: match prev week's best
     let stallTarget: StallTarget | null = null,
       stallWarning = false;
-    for (let ps = 0; ps < (exercise.sets || 4); ps++) {
+    for (let ps = 0; ps < (Number(exercise.sets) || 4); ps++) {
       const psd = prevData[ps] || {};
       if (!psd.reps || !psd.weight || psd.warmup) continue;
       const pw = parseFloat(String(psd.weight));
@@ -328,18 +328,18 @@ function ExerciseCard({
 
   const workingWeight = useMemo(() => {
     const exData = weekData[exIdx] || {};
-    for (let s = 0; s < exercise.sets; s++) {
+    for (let s = 0; s < Number(exercise.sets ?? 0); s++) {
       const w = exData[s]?.weight;
-      if (w && !isNaN(parseFloat(w))) {
-        return parseFloat(w);
+      if (w && !isNaN(parseFloat(String(w)))) {
+        return parseFloat(String(w));
       }
     }
     // Fall back to previous week
     const psd = prevWeekRaw[exIdx] || {};
-    for (let s = 0; s < exercise.sets; s++) {
+    for (let s = 0; s < Number(exercise.sets ?? 0); s++) {
       const w = psd[s]?.weight;
-      if (w && !isNaN(parseFloat(w))) {
-        return parseFloat(w);
+      if (w && !isNaN(parseFloat(String(w)))) {
+        return parseFloat(String(w));
       }
     }
     return 185; // Default fallback
@@ -608,7 +608,7 @@ function ExerciseCard({
                 <div>Reps</div>
                 <div style={{ textAlign: 'center' }}>Done</div>
               </div>
-              {Array.from({ length: exercise.sets }).map((_, s) => {
+              {Array.from({ length: Number(exercise.sets ?? 0) }).map((_, s) => {
                 const sd = (weekData[exIdx] || {})[s] || {};
                 const isDone = doneSets.has(s);
                 const isSuggestedWeight = !!sd.suggested;

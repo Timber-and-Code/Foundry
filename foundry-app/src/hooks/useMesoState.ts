@@ -125,7 +125,8 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       snapshotData();
       let totalSets = 0;
       const _storedProg = store.get('foundry:storedProgram');
-      const prog = (_storedProg ? JSON.parse(_storedProg) : generateProgram(loadProfile(), EXERCISE_DB)).slice(
+      const prof = loadProfile();
+      const prog = (_storedProg ? JSON.parse(_storedProg) : prof ? generateProgram(prof, EXERCISE_DB) : []).slice(
         0,
         getMeso().days
       );

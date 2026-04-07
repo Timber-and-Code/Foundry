@@ -21,7 +21,7 @@ import Button from '../ui/Button';
 
 // Sub-components
 import HomeTab from './HomeTab';
-import ScheduleTab from './ScheduleTab';
+import ScheduleTab, { type NoteViewerData } from './ScheduleTab';
 import ProgressTab from './ProgressTab';
 import MesoOverview from './MesoOverview';
 import ExplorePage from '../explore/ExplorePage';
@@ -67,8 +67,8 @@ function HomeView({
 }: HomeViewProps) {
   // ── Tab navigation ─────────────────────────────────────────────────────
   const [tab, setTab] = useState('landing');
-  const goTo = (key: string) => {
-    setTab(key);
+  const goTo = (key: string | number) => {
+    setTab(String(key));
     window.scrollTo(0, 0);
   };
   const goBack = () => {
@@ -112,11 +112,11 @@ function HomeView({
   const [_addWorkoutDayType, setAddWorkoutDayType] = useState<string | null>(null);
 
   // ── Schedule tab state ──────────────────────────────────────────────────
-  const [expandedWeek, setExpandedWeek] = useState(null);
+  const [expandedWeek, setExpandedWeek] = useState<number | null>(null);
   const [calendarOffset, setCalendarOffset] = useState(0);
-  const [showRestDay, setShowRestDay] = useState(null);
+  const [showRestDay, setShowRestDay] = useState<{ dateStr: string; isPast?: boolean } | null>(null);
   const [showEditSchedule, setShowEditSchedule] = useState(false);
-  const [noteViewer, setNoteViewer] = useState(null);
+  const [noteViewer, setNoteViewer] = useState<NoteViewerData | null>(null);
 
   // ── Home tab UI state ───────────────────────────────────────────────────
   const [showNextSession, setShowNextSession] = useState(false);

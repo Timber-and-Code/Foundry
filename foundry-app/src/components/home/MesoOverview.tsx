@@ -6,9 +6,9 @@ import { getMeso, getWeekPhase, getMesoRows, getProgTargets, PHASE_COLOR } from 
 interface MesoOverviewProps {
   tab: string;
   goBack: () => void;
-  goTo: (tab: string) => void;
+  goTo: (tab: string | number) => void;
   activeDays: any[];
-  completedDays: any[];
+  completedDays: Set<string> | any[];
   profile: any;
 }
 

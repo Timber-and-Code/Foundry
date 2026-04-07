@@ -335,7 +335,7 @@ interface HomeTabProps {
   setReadinessOpen: (v: boolean) => void;
   updateReadiness: (key: keyof ReadinessEntry, val: string) => void;
   showRecoveryMorning: boolean;
-  setShowRecoveryMorning: (v: boolean) => void;
+  setShowRecoveryMorning: (v: boolean | ((prev: boolean) => boolean)) => void;
   showRecoveryTag: boolean;
   setShowRecoveryTag: (v: boolean) => void;
   showNextSession: boolean;
@@ -434,7 +434,7 @@ function HomeTab({
   const showDayWeek = isCalendarWorkoutDay ? calWeekIdx : activeWeek;
   const showDay = !isRestState && todayMesoDay ? todayMesoDay : nextDay;
   const showDayIdx = !isRestState && todayMesoDay ? calDayIdx : nextDayIdx;
-  const showDayAccent = showDay ? (TAG_ACCENT as Record<string, any>)[showDay.tag] : nextDayAccent;
+  const showDayAccent = showDay ? (TAG_ACCENT as Record<string, any>)[showDay.tag || ''] : nextDayAccent;
   const isToday = isCalendarWorkoutDay && !calendarSessionDone;
 
   // Detect if today is a workout day
@@ -562,7 +562,7 @@ function HomeTab({
             {activeDays.map((day, i) => {
               const done = completedDays.has(`${i}:${displayWeek}`);
               const isNext = !done && activeDays.slice(0, i).every((_, j) => completedDays.has(`${j}:${displayWeek}`));
-              const tc = (TAG_ACCENT as Record<string, any>)[day.tag];
+              const tc = (TAG_ACCENT as Record<string, any>)[day.tag || ''];
               const accent = '#E8651A';
               return (
                 <div
@@ -576,7 +576,7 @@ function HomeTab({
                   }}
                 >
                   <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', color: done ? tc : isNext ? accent : 'var(--text-muted)' }}>
-                    {({ PUSH: 'Push', PULL: 'Pull', LEGS: 'Legs', UPPER: 'Upper', LOWER: 'Lower', FULL: 'Full' } as Record<string, any>)[day.tag] || day.tag}
+                    {({ PUSH: 'Push', PULL: 'Pull', LEGS: 'Legs', UPPER: 'Upper', LOWER: 'Lower', FULL: 'Full' } as Record<string, any>)[day.tag || ''] || day.tag}
                   </div>
                   <div style={{ fontSize: 10, lineHeight: 1 }}>
                     {done ? <span style={{ color: tc }}>✓</span> : isNext ? <span style={{ color: accent }}>●</span> : <span style={{ color: 'var(--text-dim)' }}>·</span>}
@@ -648,7 +648,7 @@ function HomeTab({
                 {isToday ? 'TODAY' : 'NEXT SESSION'}
               </div>
               <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
-                {showDay.label}
+                {showDay!.label}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
                 Week {showDayWeek + 1} · Day {showDayIdx + 1}
@@ -690,9 +690,9 @@ function HomeTab({
                       {getWeekSets(Number(ex.sets) || 0, showDayWeek, getMeso().weeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
                     </div>
                   </div>
-                  {prevWeight && (
+                  {!!prevWeight && (
                     <div style={{ flexShrink: 0, marginLeft: 10, textAlign: 'right' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{prevWeight}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{String(prevWeight)}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>last wk</div>
                     </div>
                   )}

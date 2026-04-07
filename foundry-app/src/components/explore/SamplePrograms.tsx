@@ -71,10 +71,10 @@ const StartSampleProgramModal = ({
             marginBottom: 4,
           }}
         >
-          {prog.label}
+          {String(prog.label)}
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-          {prog.splitType} · {prog.daysPerWeek} days/wk · {prog.weeks} weeks
+          {String(prog.splitType)} · {String(prog.daysPerWeek)} days/wk · {String(prog.weeks)} weeks
         </div>
         {hasActiveMeso && (
           <div
@@ -503,7 +503,7 @@ function SamplePrograms({ profile, onBack, onStartProgram }: SampleProgramsProps
               goal: startModalProg.label,
               autoBuilt: false,
             };
-            saveProfile(newProfile);
+            saveProfile(newProfile as unknown as import('../../types').Profile);
             window.location.reload();
           }}
           onCancel={() => setStartModalProg(null)}
