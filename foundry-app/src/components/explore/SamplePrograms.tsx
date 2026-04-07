@@ -5,9 +5,9 @@ import { saveProfile } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
 
 const TAG_COLORS: Record<string, string> = {
-  PUSH: 'var(--push-accent,#5C1615)',
-  PULL: 'var(--pull-accent,#4A3020)',
-  LEGS: 'var(--legs-accent,#3D2A1A)',
+  PUSH: '#E8651A',
+  PULL: '#4EA8DE',
+  LEGS: '#6BCB77',
 };
 
 // Build AI days array from a sample program's day definitions
