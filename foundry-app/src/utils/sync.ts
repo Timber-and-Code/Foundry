@@ -1859,6 +1859,21 @@ export async function pullFromSupabase(): Promise<void> {
           try {
             const current = localRaw ? JSON.parse(localRaw) : {};
             const merged = { ...current, ...mesoFields };
+
+            // If the user is a member of a shared meso, pull the owner's
+            // workoutDays so getMeso() uses the right day count/schedule.
+            if (mesoRow.user_id !== user.id) {
+              const { data: ownerProf } = await supabase
+                .from('user_profiles')
+                .select('workout_days')
+                .eq('id', mesoRow.user_id)
+                .maybeSingle();
+              if (ownerProf && Array.isArray((ownerProf as { workout_days: number[] }).workout_days)) {
+                merged.workoutDays = (ownerProf as { workout_days: number[] }).workout_days;
+                merged.daysPerWeek = (merged.workoutDays as number[]).length;
+              }
+            }
+
             const remoteTs = mesoRow.updated_at ?? new Date().toISOString();
             store.setFromRemote(localKey, JSON.stringify(merged), remoteTs);
           } catch {
