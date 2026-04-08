@@ -354,7 +354,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 marginBottom: 6,
               }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Week {currentWeek + 1} of {totalWeeks}
+                  Week {currentWeek + 1} of {totalWeeks}{totalWeeks && ` (${totalWeeks - 1} + Deload)`}
                 </span>
                 {phase && (
                   <span style={{
