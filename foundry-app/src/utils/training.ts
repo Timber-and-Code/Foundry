@@ -452,6 +452,59 @@ export function ageFromDob(dob: Dob | null | undefined): number | null {
   return age >= 0 ? age : null;
 }
 
+// ─── ACCOUNT TIER RESOLUTION ────────────────────────────────────────────────
+
+interface TierResult {
+  tier: 'free' | 'pro' | 'trainer';
+  reason: 'student' | 'under_18' | 'senior' | 'subscription' | null;
+  qualifiesForFree: boolean;
+}
+
+/**
+ * Resolve the user's account tier from their profile.
+ * Free tier: students (.edu verified), under 18, or 62+.
+ * Pro/Trainer: future subscription (not yet implemented).
+ * Returns the effective tier and the reason for free qualification.
+ */
+export function resolveAccountTier(profile: {
+  birthdate?: string;
+  isStudent?: boolean;
+  studentEmail?: string;
+} | null | undefined): TierResult {
+  if (!profile) return { tier: 'free', reason: null, qualifiesForFree: false };
+
+  // Check age-based free tier
+  if (profile.birthdate) {
+    const parts = profile.birthdate.split('-');
+    if (parts.length === 3) {
+      const age = ageFromDob({ year: parts[0], month: parts[1], day: parts[2] });
+      if (age !== null) {
+        if (age < 18) return { tier: 'free', reason: 'under_18', qualifiesForFree: true };
+        if (age >= 62) return { tier: 'free', reason: 'senior', qualifiesForFree: true };
+      }
+    }
+  }
+
+  // Check student status
+  if (profile.isStudent && profile.studentEmail) {
+    return { tier: 'free', reason: 'student', qualifiesForFree: true };
+  }
+
+  // Default: free tier (no subscription system yet)
+  // When subscriptions are wired up, this will check payment status
+  // and return 'pro' or 'trainer' for paying users.
+  return { tier: 'free', reason: null, qualifiesForFree: false };
+}
+
+/**
+ * Validate a .edu email address for student verification.
+ * Returns true if the email ends with .edu (case-insensitive).
+ */
+export function isEduEmail(email: string): boolean {
+  const trimmed = email.trim().toLowerCase();
+  return trimmed.length > 4 && trimmed.endsWith('.edu');
+}
+
 export function getTimeGreeting(): string {
   const h = new Date().getHours();
   if (h >= 5 && h < 12) return 'Good morning';

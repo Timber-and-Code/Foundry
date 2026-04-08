@@ -74,6 +74,7 @@ interface ExerciseCardProps {
   onMoveDown?: (exIdx: number) => void;
   isFirst?: boolean;
   isLast?: boolean;
+  active?: boolean;
 }
 
 function ExerciseCard({
@@ -99,6 +100,7 @@ function ExerciseCard({
   onMoveDown,
   isFirst,
   isLast,
+  active,
 }: ExerciseCardProps) {
   const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression ?? '']?.[weekIdx];
   const goalColor =
@@ -349,11 +351,12 @@ function ExerciseCard({
     <div
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
+        border: active ? '1px solid var(--accent, #D4A03C)' : '1px solid var(--border)',
+        borderLeft: active ? '4px solid var(--accent, #D4A03C)' : '1px solid var(--border)',
         borderRadius: tokens.radius.lg,
         marginBottom: 12,
         overflow: 'hidden',
-        transition: 'border-color 0.2s',
+        transition: 'border-color 0.25s, border-left 0.25s',
       }}
     >
       {/* ── HEADER (clickable to expand) ── */}
@@ -1209,7 +1212,8 @@ function areExerciseCardsEqual(prev: ExerciseCardProps, next: ExerciseCardProps)
     prev.done !== next.done ||
     prev.readOnly !== next.readOnly ||
     prev.bodyweight !== next.bodyweight ||
-    prev.note !== next.note
+    prev.note !== next.note ||
+    prev.active !== next.active
   )
     return false;
 

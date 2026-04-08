@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { tokens } from '../../styles/tokens';
-import { store, ageFromDob } from '../../utils/store';
+import { store, ageFromDob, isEduEmail } from '../../utils/store';
 import { supabase } from '../../utils/supabase';
 import FoundryBanner from '../shared/FoundryBanner';
 import AutoBuilderFlow from './AutoBuilderFlow';
@@ -125,6 +125,22 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
+
+  // Student verification state
+  const [isStudent, setIsStudent] = useState(() => {
+    try {
+      const p = JSON.parse(store.get('foundry:profile') || '{}');
+      return !!p.isStudent;
+    } catch { return false; }
+  });
+  const [studentEmail, setStudentEmail] = useState(() => {
+    try {
+      const p = JSON.parse(store.get('foundry:profile') || '{}');
+      return (p.studentEmail as string) || '';
+    } catch { return ''; }
+  });
+  const [studentEmailError, setStudentEmailError] = useState('');
+
   const [aiLoading, setAiLoading] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
   const [, setAiCoachNote] = useState('');
@@ -150,7 +166,19 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
 
   // ── Shared callbacks ─────────────────────────────────────────────────────
   const maybePromptCardio = (built: Profile) => {
-    setPendingProfile(built);
+    // Inject student verification + birthdate into profile
+    const enriched = { ...built };
+    if (isStudent && studentEmail && isEduEmail(studentEmail)) {
+      enriched.isStudent = true;
+      enriched.studentEmail = studentEmail.trim().toLowerCase();
+      enriched.studentVerifiedAt = new Date().toISOString();
+    }
+    if (setupDob.year && setupDob.month && setupDob.day) {
+      const m = String(setupDob.month).padStart(2, '0');
+      const d = String(setupDob.day).padStart(2, '0');
+      enriched.birthdate = `${setupDob.year}-${m}-${d}`;
+    }
+    setPendingProfile(enriched);
     setShowCardioStep(true);
     window.scrollTo(0, 0);
   };
@@ -682,6 +710,102 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                             ? 'The Foundry is permanently free for users under 18.'
                             : 'The Foundry is permanently free for adults 62 and over.'}
                         </span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Student verification */}
+                  {(() => {
+                    const age = ageFromDob(setupDob);
+                    // Don't show student toggle if already qualifying via age
+                    if (age !== null && (age < 18 || age >= 62)) return null;
+                    return (
+                      <div style={{ marginTop: 12 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsStudent(!isStudent);
+                            if (isStudent) { setStudentEmail(''); setStudentEmailError(''); }
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: 0,
+                            width: '100%',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 20,
+                              height: 20,
+                              borderRadius: tokens.radius.sm,
+                              border: `2px solid ${isStudent ? 'var(--phase-accum)' : 'var(--border)'}`,
+                              background: isStudent ? 'var(--phase-accum)' : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {isStudent && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </div>
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                            I'm a student
+                          </span>
+                        </button>
+
+                        {isStudent && (
+                          <div style={{ marginTop: 10 }}>
+                            <input
+                              type="email"
+                              inputMode="email"
+                              placeholder="your.name@school.edu"
+                              value={studentEmail}
+                              onChange={(e) => {
+                                setStudentEmail(e.target.value);
+                                setStudentEmailError('');
+                              }}
+                              onBlur={() => {
+                                if (studentEmail.trim() && !isEduEmail(studentEmail)) {
+                                  setStudentEmailError('Enter a valid .edu email address');
+                                }
+                              }}
+                              style={{
+                                ...inputStyle,
+                                borderColor: studentEmailError ? '#e05252' : undefined,
+                              }}
+                            />
+                            {studentEmailError && (
+                              <div style={{ fontSize: 11, color: '#e05252', marginTop: 4 }}>
+                                {studentEmailError}
+                              </div>
+                            )}
+                            {studentEmail.trim() && isEduEmail(studentEmail) && (
+                              <div
+                                style={{
+                                  marginTop: 8,
+                                  padding: '10px 12px',
+                                  borderRadius: tokens.radius.md,
+                                  background: 'var(--phase-accum)12',
+                                  border: '1px solid var(--phase-accum)44',
+                                }}
+                              >
+                                <span style={{ fontSize: 12, color: 'var(--phase-accum)', fontWeight: 600, lineHeight: 1.4 }}>
+                                  The Foundry is free for students. Welcome aboard.
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })()}

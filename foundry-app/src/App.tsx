@@ -336,10 +336,14 @@ function App() {
         <div style={{ position: 'sticky', top: 0, zIndex: 50 }}>
           <FoundryBanner
             subtitle={(() => {
+              const trainingWeeks = getMeso().weeks - 1;
+              const firstName = profile.name ? profile.name.split(/\s+/)[0].toUpperCase() : '';
+              return `${firstName ? firstName + ' · ' : ''}${trainingWeeks}WK + DELOAD`;
+            })()}
+            subtitleLine2={(() => {
               const tags = [...new Set(activeDays.map((d: TrainingDay) => d.tag).filter(Boolean))];
               const splitLabel = tags.length > 0 ? tags.join(' / ') : (({ ppl: 'PPL', upper_lower: 'UPPER / LOWER', full_body: 'FULL BODY', push_pull: 'PUSH / PULL' } as Record<string, string>)[getMeso().splitType] || getMeso().splitType?.toUpperCase().replace(/_/g, ' ') || 'PPL');
-              const trainingWeeks = getMeso().weeks - 1;
-              return `${profile.name ? profile.name.toUpperCase() + ' · ' : ''}${trainingWeeks}WK + DELOAD ${splitLabel} · WEEK ${activeWeek + 1}`;
+              return `${splitLabel} · WEEK ${activeWeek + 1}`;
             })()}
             onProfileTap={isHome ? () => setShowProfileDrawer(true) : undefined}
             syncState={syncState}

@@ -47,7 +47,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
     'Exercise library + swap sheet',
     'Session notes + PR detection',
     'Meso history + retrospective',
-    'Permanently free under 18 and 62+',
+    'Permanently free for students, under 18, and 62+',
   ];
 
   const PRO_FEATURES = [
@@ -723,7 +723,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
             padding: '4px 0',
           }}
         >
-          Free tier is permanently free for users under 18 and adults 62+.
+          Free tier is permanently free for students, users under 18, and adults 62+.
           <br />
           No credit card required to get notified.
         </div>

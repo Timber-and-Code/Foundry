@@ -341,6 +341,15 @@ function DayView({
   }, [weekDay.exercises, dayIdx, weekIdx]);
   const [exercises, setExercises] = useState(resolveExercises);
 
+  // Active exercise: first exercise not yet completed (for highlight)
+  const activeExIdx = useMemo(() => {
+    if (isDone || isLocked) return -1;
+    for (let i = 0; i < exercises.length; i++) {
+      if (!doneExercises.has(i)) return i;
+    }
+    return -1; // all done
+  }, [exercises.length, doneExercises, isDone, isLocked]);
+
   // prevWeekNotes memo — reserved for previous week notes callout
 
   // ── Stalling detection — runs once per session open on active, non-deload sessions ──
@@ -1241,6 +1250,7 @@ function DayView({
             onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
             isFirst={i === 0}
             isLast={i === exercises.length - 1}
+            active={workoutStarted && activeExIdx === i}
           />
         </div>
       ))}

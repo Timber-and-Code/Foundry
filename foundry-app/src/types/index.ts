@@ -47,6 +47,12 @@ export interface TrainingDay {
   dayNum?: number;
 }
 
+// ─── ACCOUNT TIER ───────────────────────────────────────────────────────────
+
+export type AccountTier = 'free' | 'pro' | 'trainer';
+
+export type FreeTierReason = 'student' | 'under_18' | 'senior';
+
 // ─── PROFILE ─────────────────────────────────────────────────────────────────
 
 export interface WorkoutDaysHistoryEntry {
@@ -80,6 +86,9 @@ export interface Profile {
   pplLegBalance?: boolean;
   theme?: string;
   goalNote?: string;
+  isStudent?: boolean;
+  studentEmail?: string;
+  studentVerifiedAt?: string;
 }
 
 // ─── CARDIO ─────────────────────────────────────────────────────────────────

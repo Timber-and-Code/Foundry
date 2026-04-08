@@ -30,6 +30,8 @@ export {
   ensureWorkoutDaysHistory,
   ageFromDob,
   getTimeGreeting,
+  resolveAccountTier,
+  isEduEmail,
 } from './training';
 
 export * from './persistence';

@@ -1,7 +1,7 @@
 import React, { Suspense, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../contexts/AuthContext';
-import { store } from '../../utils/store';
+import { store, resolveAccountTier } from '../../utils/store';
 import { archiveMesocycleRemote } from '../../utils/sync';
 import { getMeso } from '../../data/constants';
 
@@ -474,8 +474,48 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             <AccountSection />
           </Suspense>
 
-          {/* Foundry Pro — premium CTA */}
+          {/* Foundry Pro / Tier Status */}
           {divider}
+          {(() => {
+            const tierResult = resolveAccountTier(saved);
+            if (tierResult.qualifiesForFree) {
+              const reasonLabel = tierResult.reason === 'student' ? 'Student'
+                : tierResult.reason === 'under_18' ? 'Under 18'
+                : tierResult.reason === 'senior' ? '62+' : '';
+              return (
+                <div
+                  style={{
+                    padding: '16px',
+                    borderRadius: tokens.radius.xl,
+                    border: '1px solid var(--phase-accum)44',
+                    background: 'var(--phase-accum)08',
+                    marginBottom: 2,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--phase-accum)', letterSpacing: '0.04em' }}>
+                      Free Tier
+                    </span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
+                      color: 'var(--phase-accum)', background: 'var(--phase-accum)22',
+                      border: '1px solid var(--phase-accum)44', borderRadius: tokens.radius.sm,
+                      padding: '1px 6px',
+                    }}>
+                      {reasonLabel.toUpperCase()}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500, marginTop: 3, display: 'block' }}>
+                    {tierResult.reason === 'student'
+                      ? `Verified via ${saved.studentEmail || '.edu email'}`
+                      : `The Foundry is permanently free for ${reasonLabel.toLowerCase()} users`}
+                  </span>
+                </div>
+              );
+            }
+            return null;
+          })()}
+          {!resolveAccountTier(saved).qualifiesForFree && (
           <button
             onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('foundry:showPricing')); }}
             style={{
@@ -515,6 +555,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               UPGRADE
             </span>
           </button>
+          )}
 
           {/* Support */}
           {divider}
