@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
 import { EXERCISE_DB } from '../../data/exercises';
 import HammerIcon from '../shared/HammerIcon';
@@ -172,30 +172,29 @@ function ExerciseBrowser({ onBack }: ExerciseBrowserProps) {
     });
   }, [libFilter]);
 
-  // Lazy loading: show 30 at a time, load more as user scrolls
-  const PAGE_SIZE = 30;
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-  // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [libFilter]);
-
-  const loadMore = useCallback(() => {
-    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredEx.length));
-  }, [filteredEx.length]);
-
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) loadMore(); },
-      { rootMargin: '200px' },
+  // Group filtered exercises by primary muscle
+  const groupedByMuscle = useMemo(() => {
+    const groups = new Map<string, typeof filteredEx>();
+    for (const ex of filteredEx) {
+      const key = ex.muscle || 'Other';
+      const list = groups.get(key) || [];
+      list.push(ex);
+      groups.set(key, list);
+    }
+    // Sort groups by the ALL_MUSCLES order (minus 'ALL')
+    const order = ALL_MUSCLES.filter((m) => m !== 'ALL');
+    return [...groups.entries()].sort(
+      (a, b) => (order.indexOf(a[0]) === -1 ? 999 : order.indexOf(a[0])) -
+                (order.indexOf(b[0]) === -1 ? 999 : order.indexOf(b[0])),
     );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [loadMore, visibleCount]);
+  }, [filteredEx]);
 
-  const visibleEx = filteredEx.slice(0, visibleCount);
+  // Accordion: one section open at a time. When searching, expand all.
+  const [expandedMuscle, setExpandedMuscle] = useState<string | null>(null);
+  const isSearching = libFilter.search.length > 0;
+
+  // Reset expanded section when filters change
+  useEffect(() => { setExpandedMuscle(null); }, [libFilter.tag, libFilter.equip, libFilter.muscle, libFilter.pattern]);
 
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
@@ -619,115 +618,137 @@ function ExerciseBrowser({ onBack }: ExerciseBrowserProps) {
           </div>
         </div>
       )}
-      {/* Exercise list */}
-      <div
-        style={{
-          padding: '10px 16px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        }}
-      >
+      {/* Exercise list — grouped by muscle */}
+      <div style={{ padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {filteredEx.length === 0 && (
-          <div
-            style={{
-              padding: '48px 20px',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              fontSize: 13,
-            }}
-          >
+          <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
             No exercises match that filter.
           </div>
         )}
-        {visibleEx.map((ex) => {
-          const tc = TAG_COLORS[ex.tag] || 'var(--accent)';
+        {groupedByMuscle.map(([muscle, exercises]) => {
+          const isOpen = isSearching || expandedMuscle === muscle;
           return (
-            <button
-              key={ex.id}
-              onClick={() => setShowHowTo(ex)}
+            <div
+              key={muscle}
               style={{
-                width: '100%',
-                textAlign: 'left',
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border)',
                 borderRadius: tokens.radius.lg,
-                padding: '12px 14px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                boxShadow: 'var(--shadow-xs)',
+                overflow: 'hidden',
               }}
             >
-              <div
+              {/* Section header */}
+              <button
+                onClick={() => {
+                  if (isSearching) return;
+                  setExpandedMuscle(isOpen ? null : muscle);
+                }}
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: tokens.radius.md,
-                  background: tc + '1a',
+                  width: '100%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
+                  justifyContent: 'space-between',
+                  padding: '14px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: isSearching ? 'default' : 'pointer',
+                  borderLeft: `3px solid ${isOpen ? 'var(--accent)' : 'transparent'}`,
+                  transition: 'border-color 0.15s',
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: tc,
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  {ex.tag}
+                <span style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: isOpen ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  letterSpacing: '0.01em',
+                  transition: 'color 0.15s',
+                }}>
+                  {muscleLabels[muscle] || muscle}
                 </span>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {ex.anchor && <HammerIcon size={14} style={{ marginRight: 3 }} />}
-                  {ex.name}
+                {!isSearching && (
+                  <span style={{
+                    fontSize: 16,
+                    color: 'var(--text-dim)',
+                    transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.15s',
+                    lineHeight: 1,
+                  }}>
+                    ›
+                  </span>
+                )}
+              </button>
+
+              {/* Expanded exercise list */}
+              {isOpen && (
+                <div style={{
+                  padding: '0 12px 10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}>
+                  {exercises.map((ex) => {
+                    const tc = TAG_COLORS[ex.tag] || 'var(--accent)';
+                    return (
+                      <button
+                        key={ex.id}
+                        onClick={() => setShowHowTo(ex)}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          background: 'var(--bg-inset)',
+                          border: '1px solid var(--border)',
+                          borderRadius: tokens.radius.md,
+                          padding: '10px 12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: tokens.radius.sm,
+                          background: tc + '1a',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            color: tc,
+                            letterSpacing: '0.04em',
+                          }}>
+                            {ex.tag}
+                          </span>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}>
+                            {ex.anchor && <HammerIcon size={13} style={{ marginRight: 3 }} />}
+                            {ex.name}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                            {ex.equipment} · {ex.sets}×{ex.reps}
+                          </div>
+                        </div>
+                        <span style={{ color: 'var(--text-dim)', fontSize: 16, flexShrink: 0 }}>›</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--text-secondary)',
-                    marginTop: 2,
-                  }}
-                >
-                  {ex.muscle} · {ex.equipment} · {ex.sets}×{ex.reps}
-                </div>
-              </div>
-              <span
-                style={{
-                  color: 'var(--text-dim)',
-                  fontSize: 18,
-                  flexShrink: 0,
-                }}
-              >
-                ›
-              </span>
-            </button>
+              )}
+            </div>
           );
         })}
-        {/* Lazy-load sentinel */}
-        {visibleCount < filteredEx.length && (
-          <div ref={sentinelRef} style={{ height: 1 }} />
-        )}
-        {filteredEx.length > 0 && (
-          <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-dim)', padding: '8px 0' }}>
-            Showing {Math.min(visibleCount, filteredEx.length)} of {filteredEx.length}
-          </div>
-        )}
       </div>
     </div>
   );
