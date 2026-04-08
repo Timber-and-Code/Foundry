@@ -2159,6 +2159,25 @@ export async function joinMesoByCode(code: string): Promise<{
       const localRaw = store.get('foundry:profile');
       const current = localRaw ? JSON.parse(localRaw) : {};
       const merged = { ...current, ...mesoFields };
+
+      // Also fetch the owner's workoutDays so the friend's schedule matches
+      // the shared meso. getMeso() uses workoutDays.length as the day count,
+      // so leaving the friend's old 3-day array would show 3 days even if
+      // the shared meso has 4.
+      const { data: ownerProfile } = await supabase
+        .from('user_profiles')
+        .select('workout_days')
+        .eq('id', mesoRow.user_id)
+        .maybeSingle();
+      if (ownerProfile && Array.isArray((ownerProfile as { workout_days: number[] }).workout_days)) {
+        merged.workoutDays = (ownerProfile as { workout_days: number[] }).workout_days;
+      } else {
+        // Fallback: generate a workoutDays array matching daysPerWeek
+        const dpw = mesoRow.days_per_week;
+        const defaults = [1, 2, 3, 4, 5, 6, 0]; // Mon-Sat, Sun
+        merged.workoutDays = defaults.slice(0, dpw);
+      }
+
       const remoteTs = mesoRow.updated_at ?? new Date().toISOString();
       store.setFromRemote('foundry:profile', JSON.stringify(merged), remoteTs);
     }
