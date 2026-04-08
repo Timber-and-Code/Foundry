@@ -494,7 +494,7 @@ function HomeTab({
           }}
         >
           {getTimeGreeting()},{' '}
-          <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{profile.name}</span>.
+          <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{profile.name?.split(/\s+/)[0] || profile.name}</span>.
         </div>
       )}
 
