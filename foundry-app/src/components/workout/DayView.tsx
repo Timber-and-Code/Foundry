@@ -24,6 +24,7 @@ import {
   saveExOverride,
   bwPromptShownThisWeek,
   getWeekSets,
+  detectSessionPRs,
 } from '../../utils/store';
 import {
   syncExerciseSwapRemote,
@@ -39,7 +40,9 @@ import { useRestTimer } from '../../contexts/RestTimerContext';
 import ExerciseCard from './ExerciseCard';
 import FriendsStrip from '../social/FriendsStrip';
 import FriendWorkoutModal from '../social/FriendWorkoutModal';
-import type { Profile, TrainingDay, Exercise, MesoMember } from '../../types';
+import WorkoutCompleteModal from './WorkoutCompleteModal';
+import type { WorkoutCompleteStats } from './WorkoutCompleteModal';
+import type { Profile, TrainingDay, Exercise, MesoMember, WorkoutSet } from '../../types';
 
 interface DayViewProps {
   dayIdx: number;
@@ -207,7 +210,11 @@ function DayView({
     return restored;
   });
   const [, setDialog] = useState<{ exIdx: number; exName?: string; restStr?: string; isLastSet?: boolean } | null>(null);
-  // showWorkoutModal, workoutStats, completionWeekIdx, showReadyDialog — reserved for workout completion modal
+  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
+  const [workoutStats, setWorkoutStats] = useState<WorkoutCompleteStats | null>(null);
+  const [showCardioPrompt, setShowCardioPrompt] = useState(false);
+  const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
+  const [completionWeekIdx, setCompletionWeekIdx] = useState<number | null>(null);
   const [showMesoOverlay, setShowMesoOverlay] = useState(() => {
     const freshDone = store.get(`foundry:done:d${dayIdx}:w${weekIdx}`) === '1';
     const alreadyStarted = !!store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
@@ -735,9 +742,102 @@ function DayView({
   const [showNoteReview, setShowNoteReview] = useState(false);
   const [sessionNote, setSessionNote] = useState(() => compileSessionNote());
 
-  // openNoteReview — reserved for end-of-session note review flow
+  const handleComplete = () => {
+    const allExDone = doneExercises.size === exercises.length;
+    if (!allExDone) {
+      setShowUnfinishedPrompt(true);
+      return;
+    }
+    openNoteReview();
+  };
 
-  const doComplete = () => {
+  const openNoteReview = () => {
+    const hasNotes = exercises.some((_: Exercise, i: number) => ((exNotes as Record<string, string>)[i] || '').trim()) || sessionNote.trim();
+    if (!hasNotes) {
+      doCompleteWithStats();
+      return;
+    }
+    setShowNoteReview(true);
+  };
+
+  const doCompleteWithStats = () => {
+    // Compute stats from weekData
+    let totalSets = 0;
+    let totalReps = 0;
+    let totalVolume = 0;
+    exercises.forEach((_ex: Exercise, i: number) => {
+      const exData = (weekData[i] || {}) as Record<string, WorkoutSet>;
+      Object.values(exData).forEach((s: WorkoutSet) => {
+        if (s.confirmed || (s.reps && String(s.reps).trim() !== '')) {
+          const r = parseInt(String(s.reps || 0), 10);
+          const w = parseFloat(String(s.weight || 0));
+          if (!s.warmup) {
+            totalSets++;
+            if (!isNaN(r)) totalReps += r;
+            if (!isNaN(w) && !isNaN(r)) totalVolume += w * r;
+          }
+        }
+      });
+    });
+
+    // Detect PRs
+    const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx, weekIdx });
+
+    // Anchor comparison: compare best weight on anchor lifts this week vs last week
+    const anchorComparison: { name: string; today: number; prev: number; delta: number }[] = [];
+    if (weekIdx > 0) {
+      exercises.forEach((ex: Exercise, i: number) => {
+        if (!ex.anchor) return;
+        const exData = (weekData[i] || {}) as Record<string, WorkoutSet>;
+        let todayBest = 0;
+        Object.values(exData).forEach((s: WorkoutSet) => {
+          const w = parseFloat(String(s.weight || 0));
+          if (!isNaN(w) && w > todayBest && s.reps) todayBest = w;
+        });
+        if (todayBest <= 0) return;
+        // Load last week data for comparison
+        try {
+          const rawPrev = store.get(`foundry:day${dayIdx}:week${weekIdx - 1}`);
+          if (rawPrev) {
+            const prevData = JSON.parse(rawPrev);
+            const prevExData = (prevData[i] || {}) as Record<string, WorkoutSet>;
+            let prevBest = 0;
+            Object.values(prevExData).forEach((s: WorkoutSet) => {
+              const w = parseFloat(String(s.weight || 0));
+              if (!isNaN(w) && w > prevBest && s.reps) prevBest = w;
+            });
+            if (prevBest > 0) {
+              anchorComparison.push({
+                name: ex.name,
+                today: todayBest,
+                prev: prevBest,
+                delta: Math.round(todayBest - prevBest),
+              });
+            }
+          }
+        } catch (_e) {
+          // ignore parse errors
+        }
+      });
+    }
+
+    // Compute duration
+    const durationSecs = sessionStartRef.current
+      ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
+      : elapsedSecs > 0 ? elapsedSecs : null;
+
+    setCompletionWeekIdx(weekIdx);
+    setWorkoutStats({
+      sets: totalSets,
+      reps: totalReps,
+      volume: totalVolume,
+      exercises: exercises.length,
+      duration: durationSecs,
+      prs,
+      anchorComparison,
+    });
+
+    // Save completion data
     const now = new Date();
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const completionData = {
@@ -763,7 +863,11 @@ function DayView({
       completedAt: now.toISOString(),
       isComplete: true,
     });
-    onComplete && onComplete(completionData);
+
+    // Show the workout complete modal — onComplete fires when user dismisses it
+    setShowWorkoutModal(true);
+    // Store completion data for when modal is dismissed
+    (window as unknown as Record<string, unknown>).__foundryPendingCompletion = completionData;
   };
 
 
@@ -1081,13 +1185,23 @@ function DayView({
         >
           {formatElapsed(elapsedSecs)}
         </div>
-        <div
+        <button
+          onClick={() => setShowEndEarlyConfirm(true)}
+          aria-label="End workout early"
           style={{
-            fontSize: 18,
+            fontSize: 11,
             fontWeight: 700,
-            color: 'var(--text-primary)',
+            background: 'none',
+            border: '1px solid var(--danger, #a03333)',
+            borderRadius: tokens.radius.sm,
+            cursor: 'pointer',
+            color: 'var(--danger, #a03333)',
+            padding: '4px 8px',
+            whiteSpace: 'nowrap',
           }}
-        />
+        >
+          End Early
+        </button>
       </div>
 
       {/* Friends Strip */}
@@ -1130,6 +1244,29 @@ function DayView({
           />
         </div>
       ))}
+
+      {/* Complete Workout Button */}
+      {!isDone && !isLocked && (
+        <div style={{ margin: '20px 0 12px' }}>
+          <button
+            onClick={handleComplete}
+            style={{
+              width: '100%',
+              padding: '18px',
+              borderRadius: tokens.radius.lg,
+              background: 'var(--btn-primary-bg)',
+              border: '1px solid var(--btn-primary-border)',
+              color: 'var(--btn-primary-text)',
+              fontSize: 15,
+              fontWeight: 800,
+              cursor: 'pointer',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Complete Workout ✓
+          </button>
+        </div>
+      )}
 
       {/* Bodyweight Modal */}
       {bwModal && (
@@ -1461,7 +1598,7 @@ function DayView({
             <button
               onClick={() => {
                 setShowNoteReview(false);
-                doComplete();
+                doCompleteWithStats();
               }}
               style={{
                 width: '100%',
@@ -1579,6 +1716,97 @@ function DayView({
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Workout Complete Modal */}
+      {showWorkoutModal && workoutStats && (
+        <WorkoutCompleteModal
+          dayLabel={day.label || day.name || ''}
+          dayTag={day.tag}
+          gender={profile?.gender}
+          stats={workoutStats}
+          weekIdx={completionWeekIdx !== null ? completionWeekIdx : weekIdx}
+          onOk={() => {
+            setShowWorkoutModal(false);
+            const pendingData = (window as unknown as Record<string, unknown>).__foundryPendingCompletion as Record<string, unknown> | undefined;
+            delete (window as unknown as Record<string, unknown>).__foundryPendingCompletion;
+            setShowCardioPrompt(true);
+            // Fire onComplete with the saved completion data
+            if (pendingData) {
+              onComplete && onComplete(pendingData);
+            }
+          }}
+        />
+      )}
+
+      {/* Cardio Prompt */}
+      {showCardioPrompt && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 210,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        }}>
+          <div style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: tokens.radius.xl, padding: '32px 24px', maxWidth: 340, width: '100%',
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', textAlign: 'center', marginBottom: 8 }}>
+              Add Cardio?
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.6, marginBottom: 28 }}>
+              Your lifting session is complete. Want to log a cardio session?
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button onClick={() => {
+                setShowCardioPrompt(false);
+                const d = new Date();
+                const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                onBack();
+                setTimeout(() => window.dispatchEvent(new CustomEvent('foundry:openCardio', { detail: { dateStr } })), 80);
+              }} style={{
+                padding: 16, borderRadius: tokens.radius.lg, cursor: 'pointer',
+                background: 'var(--phase-accum)22', border: '1px solid var(--phase-accum)',
+                color: 'var(--phase-accum)', fontSize: 14, fontWeight: 700,
+              }}>Log Cardio →</button>
+              <button onClick={() => { setShowCardioPrompt(false); onBack(); }} style={{
+                padding: 14, borderRadius: tokens.radius.lg, cursor: 'pointer',
+                background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600,
+              }}>Done for Today</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unfinished Workout Prompt */}
+      {showUnfinishedPrompt && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        }}>
+          <div style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: tokens.radius.lg, padding: '28px 24px', maxWidth: 340, width: '100%',
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center', marginBottom: 8 }}>
+              Not quite done
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>
+              Looks like this workout isn&apos;t finished yet. Do you still want to mark it complete?
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button onClick={() => setShowUnfinishedPrompt(false)} style={{
+                padding: 16, borderRadius: tokens.radius.md, cursor: 'pointer',
+                background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700,
+              }}>Keep Going</button>
+              <button onClick={() => { setShowUnfinishedPrompt(false); openNoteReview(); }} style={{
+                padding: 16, borderRadius: tokens.radius.md, cursor: 'pointer',
+                background: 'var(--btn-primary-bg)', border: '1px solid var(--btn-primary-border)',
+                color: 'var(--btn-primary-text)', fontSize: 13, fontWeight: 700,
+              }}>Mark Complete</button>
             </div>
           </div>
         </div>
