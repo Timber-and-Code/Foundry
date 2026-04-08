@@ -318,6 +318,16 @@ export async function ensureTrainingStructureRemote(
     const user = await getUser();
     if (!user) return;
 
+    // Members of a shared meso must not create their own training_days —
+    // the structure belongs to the owner.
+    const { data: membership } = await supabase
+      .from('mesocycle_members')
+      .select('role')
+      .eq('mesocycle_id', mesoId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (membership && (membership as { role: string }).role === 'member') return;
+
     // Skip if the structure already exists for this meso.
     const { data: existing, error: checkError } = await supabase
       .from('training_days')
@@ -1391,6 +1401,20 @@ export async function syncMesocycleToSupabase(profile: Profile): Promise<void> {
     const user = await getUser();
     if (!user) return;
     const mesoId = getOrCreateActiveMesoId();
+
+    // If the user is a MEMBER (not owner) of this meso, don't upsert — they
+    // don't own the mesocycle row and RLS would block the update anyway.
+    // Without this guard the upsert fails silently via reportSyncFailure,
+    // and on retries getOrCreateActiveMesoId can generate a brand new meso
+    // that shadows the shared one.
+    const { data: membership } = await supabase
+      .from('mesocycle_members')
+      .select('role')
+      .eq('mesocycle_id', mesoId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (membership && (membership as { role: string }).role === 'member') return;
+
     const row = appProfileToMesocycleRow(profile, user.id, mesoId);
     const { error } = await supabase
       .from('mesocycles')
