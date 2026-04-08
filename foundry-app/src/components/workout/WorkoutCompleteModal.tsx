@@ -45,8 +45,8 @@ function WorkoutCompleteModal({
   const phase = phases[weekIdx] || 'Accumulation';
   const phaseColor = PHASE_COLOR[phase] || '#E8E4DC';
 
-  const congrats = randomCongrats();
-  const quote = randomQuote(gender);
+  const [congrats] = useState(() => randomCongrats());
+  const [quote] = useState(() => randomQuote(gender));
 
   // Cooldown moves from tag
   const tag = (dayTag || 'FULL').toUpperCase();
