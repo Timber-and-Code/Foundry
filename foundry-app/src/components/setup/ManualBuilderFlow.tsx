@@ -443,6 +443,76 @@ export default function ManualBuilderFlow({
           </div>
         </div>
 
+        {/* Session Duration */}
+        <div style={sec}>
+          <label
+            style={{
+              ...sLabel,
+              fontSize: 15,
+              letterSpacing: '0.01em',
+              color: 'var(--text-primary)',
+            }}
+          >
+            Session length
+          </label>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5,1fr)',
+              gap: 8,
+              marginTop: 8,
+            }}
+          >
+            {([
+              [30, '30m'],
+              [45, '45m'],
+              [60, '60m'],
+              [75, '75m'],
+              [90, '90m'],
+            ] as [number, string][]).map(([n, label]) => {
+              const sel = form.sessionDuration === n;
+              return (
+                <button
+                  key={n}
+                  onClick={() => set('sessionDuration', n)}
+                  className="btn-toggle"
+                  style={{
+                    padding: '12px 4px',
+                    borderRadius: tokens.radius.md,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    background: sel ? 'rgba(var(--accent-rgb),0.14)' : 'var(--bg-card)',
+                    border: `1px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: sel ? 'var(--accent)' : 'var(--text-primary)',
+                    }}
+                  >
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div
+            style={{
+              fontSize: 12,
+              color: 'var(--text-muted)',
+              marginTop: 8,
+            }}
+          >
+            {form.sessionDuration <= 30 && 'Quick & focused — fewer exercises, higher sets each.'}
+            {form.sessionDuration === 45 && 'Efficient sessions — solid volume in limited time.'}
+            {form.sessionDuration === 60 && 'Standard session — balanced exercise count and sets.'}
+            {form.sessionDuration === 75 && 'Extended sessions — room for more variety.'}
+            {form.sessionDuration >= 90 && 'Full sessions — maximum exercise variety, moderate sets.'}
+          </div>
+        </div>
+
         {/* Equipment */}
         <div style={sec}>
           <label

@@ -974,37 +974,48 @@ function DayView({
         )}
 
         {/* Exercise Cards */}
-        {exercises.map((ex: Exercise, i: number) => (
-          <div key={i} id={`ex-${i}`} style={{ marginBottom: 12 }}>
-            <ExerciseCard
-              exercise={ex}
-              exIdx={i}
-              dayIdx={dayIdx}
-              weekIdx={weekIdx}
-              weekData={weekData}
-              onUpdateSet={handleUpdateSet}
-              onWeightAutoFill={handleWeightAutoFill}
-              onLastSetFilled={handleLastSetFilled}
-              expanded={expandedIdx === i}
-              onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
-              done={isDone}
-              readOnly={isLocked}
-              onSwapClick={(idx) => setSwapTarget({ exIdx: idx })}
-              onSetLogged={handleSetLogged}
-              bodyweight={profile?.weight}
-              note={exNotes[i] || ''}
-              onNoteChange={(idx: number, val: string) => {
-                const next = { ...exNotes, [idx]: val };
-                setExNotes(next);
-              }}
-              onAddSet={handleAddSet}
-              onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
-              onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
-              isFirst={i === 0}
-              isLast={i === exercises.length - 1}
-            />
-          </div>
-        ))}
+        {exercises.map((ex: Exercise, i: number) => {
+          // Resolve superset partner name
+          let supersetPartnerName: string | undefined;
+          if (ex.supersetWith != null) {
+            supersetPartnerName = exercises[ex.supersetWith]?.name;
+          } else {
+            const primary = exercises.find((e) => e.supersetWith === i);
+            if (primary) supersetPartnerName = primary.name;
+          }
+          return (
+            <div key={i} id={`ex-${i}`} style={{ marginBottom: 12 }}>
+              <ExerciseCard
+                exercise={ex}
+                exIdx={i}
+                dayIdx={dayIdx}
+                weekIdx={weekIdx}
+                weekData={weekData}
+                onUpdateSet={handleUpdateSet}
+                onWeightAutoFill={handleWeightAutoFill}
+                onLastSetFilled={handleLastSetFilled}
+                expanded={expandedIdx === i}
+                onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
+                done={isDone}
+                readOnly={isLocked}
+                onSwapClick={(idx) => setSwapTarget({ exIdx: idx })}
+                onSetLogged={handleSetLogged}
+                bodyweight={profile?.weight}
+                note={exNotes[i] || ''}
+                onNoteChange={(idx: number, val: string) => {
+                  const next = { ...exNotes, [idx]: val };
+                  setExNotes(next);
+                }}
+                onAddSet={handleAddSet}
+                onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
+                onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
+                isFirst={i === 0}
+                isLast={i === exercises.length - 1}
+                supersetPartnerName={supersetPartnerName}
+              />
+            </div>
+          );
+        })}
 
         {/* Add Exercise Button */}
         {!isDone && !isLocked && (
@@ -1222,38 +1233,48 @@ function DayView({
       )}
 
       {/* Exercise Cards */}
-      {exercises.map((ex: Exercise, i: number) => (
-        <div key={i} id={`ex-${i}`} style={{ marginBottom: 12 }}>
-          <ExerciseCard
-            exercise={ex}
-            exIdx={i}
-            dayIdx={dayIdx}
-            weekIdx={weekIdx}
-            weekData={weekData}
-            onUpdateSet={handleUpdateSet}
-            onWeightAutoFill={handleWeightAutoFill}
-            onLastSetFilled={handleLastSetFilled}
-            expanded={expandedIdx === i}
-            onToggle={() => handleExpandToggle(i)}
-            done={isDone}
-            readOnly={isLocked}
-            onSwapClick={(idx) => setSwapTarget({ exIdx: idx })}
-            onSetLogged={handleSetLogged}
-            bodyweight={profile?.weight}
-            note={exNotes[i] || ''}
-            onNoteChange={(idx: number, val: string) => {
-              const next = { ...exNotes, [idx]: val };
-              setExNotes(next);
-            }}
-            onAddSet={handleAddSet}
-            onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
-            onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
-            isFirst={i === 0}
-            isLast={i === exercises.length - 1}
-            active={workoutStarted && activeExIdx === i}
-          />
-        </div>
-      ))}
+      {exercises.map((ex: Exercise, i: number) => {
+        let supersetPartnerName2: string | undefined;
+        if (ex.supersetWith != null) {
+          supersetPartnerName2 = exercises[ex.supersetWith]?.name;
+        } else {
+          const primary = exercises.find((e) => e.supersetWith === i);
+          if (primary) supersetPartnerName2 = primary.name;
+        }
+        return (
+          <div key={i} id={`ex-${i}`} style={{ marginBottom: 12 }}>
+            <ExerciseCard
+              exercise={ex}
+              exIdx={i}
+              dayIdx={dayIdx}
+              weekIdx={weekIdx}
+              weekData={weekData}
+              onUpdateSet={handleUpdateSet}
+              onWeightAutoFill={handleWeightAutoFill}
+              onLastSetFilled={handleLastSetFilled}
+              expanded={expandedIdx === i}
+              onToggle={() => handleExpandToggle(i)}
+              done={isDone}
+              readOnly={isLocked}
+              onSwapClick={(idx) => setSwapTarget({ exIdx: idx })}
+              onSetLogged={handleSetLogged}
+              bodyweight={profile?.weight}
+              note={exNotes[i] || ''}
+              onNoteChange={(idx: number, val: string) => {
+                const next = { ...exNotes, [idx]: val };
+                setExNotes(next);
+              }}
+              onAddSet={handleAddSet}
+              onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
+              onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
+              isFirst={i === 0}
+              isLast={i === exercises.length - 1}
+              active={workoutStarted && activeExIdx === i}
+              supersetPartnerName={supersetPartnerName2}
+            />
+          </div>
+        );
+      })}
 
       {/* Complete Workout Button */}
       {!isDone && !isLocked && (

@@ -75,6 +75,7 @@ interface ExerciseCardProps {
   isFirst?: boolean;
   isLast?: boolean;
   active?: boolean;
+  supersetPartnerName?: string;
 }
 
 function ExerciseCard({
@@ -101,6 +102,7 @@ function ExerciseCard({
   isFirst,
   isLast,
   active,
+  supersetPartnerName,
 }: ExerciseCardProps) {
   const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression ?? '']?.[weekIdx];
   const goalColor =
@@ -440,6 +442,24 @@ function ExerciseCard({
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
               {exercise.reps} reps{exercise.rest ? ` · ${exercise.rest}` : ''}
             </div>
+            {supersetPartnerName && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  marginTop: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: 'var(--accent)',
+                  background: 'rgba(var(--accent-rgb),0.10)',
+                  padding: '2px 8px',
+                  borderRadius: tokens.radius.xs,
+                }}
+              >
+                Superset with {supersetPartnerName}
+              </div>
+            )}
           </div>
         </div>
 

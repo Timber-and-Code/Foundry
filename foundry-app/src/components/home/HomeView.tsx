@@ -829,9 +829,9 @@ function HomeView({
 
       {tab === 'explore' && (
         <ExplorePage
-          profile={profile}
+          profile={profile as unknown as Record<string, unknown> | null}
           onStartProgram={(newProfile) => {
-            saveProfile(newProfile);
+            saveProfile(newProfile as unknown as Profile);
             window.location.reload();
           }}
         />

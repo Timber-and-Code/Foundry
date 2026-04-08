@@ -15,7 +15,7 @@ import {
   loadDayWeek,
   loadSparklineData,
 } from '../../utils/store';
-import type { TrainingDay, Exercise, BodyWeightEntry } from '../../types';
+import type { TrainingDay, Exercise, BodyWeightEntry, WorkoutSet } from '../../types';
 // haptic import reserved for future UI feedback
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ function calcMuscleSetsByTag(activeDays: TrainingDay[], completedDays: Set<strin
       const wd = loadDayWeek(dayIdx, w);
       day.exercises.forEach((ex: Exercise, exIdx: number) => {
         const exData = wd[exIdx] || {};
-        const filledSets = Object.values(exData).filter((s: any) => s && s.reps && s.reps !== '').length;
+        const filledSets = Object.values(exData).filter((s: WorkoutSet) => s && s.reps && s.reps !== '').length;
         if (filledSets === 0) return;
         const cat = sessionTagToCategory(day.tag, ex.tag) || 'OTHER';
         if (!byTag[cat]) byTag[cat] = {};
@@ -1240,7 +1240,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             for (let w = currentWeek; w >= 0; w--) {
               const wd = loadDayWeek(dayIdx, w);
               const exData = wd[exIdx] || {};
-              const sw = Object.values(exData).find((sv: any) => sv && sv.weight && sv.weight !== '');
+              const sw = Object.values(exData).find((sv: WorkoutSet) => sv && sv.weight && sv.weight !== '');
               if (sw) {
                 weight = (sw as unknown as Record<string, string | number>).weight;
                 break;

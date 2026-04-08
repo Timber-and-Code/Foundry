@@ -86,7 +86,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       equipment: e.equipment,
       tag: e.tag,
       anchor: !!isAnchor,
-      sets: e.sets,
+      sets: exCount <= 3 ? 5 : exCount <= 4 ? 4 : (e.sets || 3),
       reps: goalReps(e),
       rest: e.rest,
       warmup: wu,

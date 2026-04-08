@@ -21,6 +21,7 @@ export interface AutoBuilderFlowProps {
     split: string | null;
     daysPerWeek: number | null;
     mesoLength: number | null;
+    sessionDuration?: number | null;
     equipment: string[];
     startDate: string;
   };
@@ -115,7 +116,7 @@ export default function AutoBuilderFlow({
       daysPerWeek: autoForm.daysPerWeek,
       workoutDays,
       mesoLength: autoForm.mesoLength,
-      sessionDuration: sessMap[autoForm.experience || ''] || 60,
+      sessionDuration: autoForm.sessionDuration || sessMap[autoForm.experience || ''] || 60,
       autoBuilt: true,
     };
     setAiLoading(true);
@@ -152,7 +153,7 @@ export default function AutoBuilderFlow({
         daysPerWeek: autoForm.daysPerWeek,
         workoutDays,
         mesoLength: autoForm.mesoLength,
-        sessionDuration: sessMap[autoForm.experience || ''] || 60,
+        sessionDuration: autoForm.sessionDuration || sessMap[autoForm.experience || ''] || 60,
         autoBuilt: true,
         aiDays: result.days,
         aiCoachNote: result.coachNote,
@@ -495,6 +496,63 @@ export default function AutoBuilderFlow({
                   className="btn-toggle"
                   style={{
                     flex: 1,
+                    padding: '12px 4px',
+                    borderRadius: tokens.radius.md,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    background: sel ? 'rgba(var(--accent-rgb),0.14)' : 'var(--bg-card)',
+                    border: `1px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: sel ? 'var(--accent)' : 'var(--text-primary)',
+                    }}
+                  >
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {/* SESSION DURATION */}
+        <div style={{ marginTop: 16 }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              color: 'var(--text-secondary)',
+              marginBottom: 8,
+            }}
+          >
+            SESSION LENGTH
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5,1fr)',
+              gap: 8,
+            }}
+          >
+            {([
+              [30, '30m'],
+              [45, '45m'],
+              [60, '60m'],
+              [75, '75m'],
+              [90, '90m'],
+            ] as [number, string][]).map(([n, label]) => {
+              const defaultDur = autoForm.experience === 'beginner' ? 60 : autoForm.experience === 'experienced' ? 90 : 75;
+              const sel = (autoForm.sessionDuration || defaultDur) === n;
+              return (
+                <button
+                  key={n}
+                  onClick={() => setAuto('sessionDuration', n)}
+                  className="btn-toggle"
+                  style={{
                     padding: '12px 4px',
                     borderRadius: tokens.radius.md,
                     cursor: 'pointer',

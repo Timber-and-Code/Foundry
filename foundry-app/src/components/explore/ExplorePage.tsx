@@ -40,8 +40,8 @@ const FEATURES = [
 ];
 
 interface ExplorePageProps {
-  profile: any;
-  onStartProgram?: (program: any) => void;
+  profile: Record<string, unknown> | null;
+  onStartProgram?: (program: Record<string, unknown>) => void;
 }
 
 function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
