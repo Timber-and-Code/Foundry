@@ -2169,17 +2169,32 @@ export async function joinMesoByCode(code: string): Promise<{
         .select('workout_days')
         .eq('id', mesoRow.user_id)
         .maybeSingle();
+      let ownerWorkoutDays: number[] | null = null;
       if (ownerProfile && Array.isArray((ownerProfile as { workout_days: number[] }).workout_days)) {
-        merged.workoutDays = (ownerProfile as { workout_days: number[] }).workout_days;
+        ownerWorkoutDays = (ownerProfile as { workout_days: number[] }).workout_days;
       } else {
         // Fallback: generate a workoutDays array matching daysPerWeek
         const dpw = mesoRow.days_per_week;
         const defaults = [1, 2, 3, 4, 5, 6, 0]; // Mon-Sat, Sun
-        merged.workoutDays = defaults.slice(0, dpw);
+        ownerWorkoutDays = defaults.slice(0, dpw);
       }
+      merged.workoutDays = ownerWorkoutDays;
+      merged.daysPerWeek = ownerWorkoutDays.length;
 
       const remoteTs = mesoRow.updated_at ?? new Date().toISOString();
       store.setFromRemote('foundry:profile', JSON.stringify(merged), remoteTs);
+
+      // Persist the owner's workoutDays + daysPerWeek to the friend's
+      // user_profiles row so pullFromSupabase on reload doesn't overwrite
+      // them with the friend's old schedule.
+      await supabase
+        .from('user_profiles')
+        .update({
+          workout_days: ownerWorkoutDays,
+          days_per_week: ownerWorkoutDays.length,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
     }
 
     // 2. Pull the owner's training structure → writes foundry:storedProgram
