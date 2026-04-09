@@ -11,6 +11,16 @@ const mockGetUser = vi.fn();
 const mockUpsert = vi.fn();
 const mockSelect = vi.fn();
 
+// Chainable query builder that supports .eq() and terminal methods
+const chainable = (terminal: Record<string, unknown> = { data: null, error: null }) => {
+  const chain: Record<string, unknown> = {};
+  chain.eq = () => chain;
+  chain.neq = () => chain;
+  chain.maybeSingle = () => Promise.resolve(terminal);
+  chain.single = () => Promise.resolve(terminal);
+  return chain;
+};
+
 vi.mock('../supabase.js', () => ({
   supabase: {
     auth: {
@@ -18,7 +28,11 @@ vi.mock('../supabase.js', () => ({
     },
     from: (_table: string) => ({
       upsert: (...args: unknown[]) => mockUpsert(...args),
-      select: (...args: unknown[]) => mockSelect(...args),
+      select: (...args: unknown[]) => {
+        mockSelect(...args);
+        return chainable();
+      },
+      update: () => chainable(),
     }),
   },
 }));

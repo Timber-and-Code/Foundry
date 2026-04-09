@@ -25,8 +25,8 @@ describe('parseRestSeconds', () => {
     expect(parseRestSeconds('2 min')).toBe(120);
   });
 
-  it('converts minutes — "3-4 min" → 180 (first number used)', () => {
-    expect(parseRestSeconds('3-4 min')).toBe(180);
+  it('converts minutes — "3-4 min" → 240 (last/upper number used for adequate rest)', () => {
+    expect(parseRestSeconds('3-4 min')).toBe(240);
   });
 
   it('converts seconds — "90 sec" → 90', () => {
@@ -37,8 +37,8 @@ describe('parseRestSeconds', () => {
     expect(parseRestSeconds('60 sec')).toBe(60);
   });
 
-  it('converts seconds — "60-90 sec" → 60 (first number used)', () => {
-    expect(parseRestSeconds('60-90 sec')).toBe(60);
+  it('converts seconds — "60-90 sec" → 90 (last/upper number used for adequate rest)', () => {
+    expect(parseRestSeconds('60-90 sec')).toBe(90);
   });
 
   it('returns 90 default when no unit keyword is present', () => {
