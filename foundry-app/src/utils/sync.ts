@@ -1750,7 +1750,8 @@ function readinessScoreFromEntry(r: ReadinessEntry | null | undefined): number |
   const o = ({ high: 0, moderate: 1, low: 2 } as Record<string, number>)[r.soreness ?? ''] ?? null;
   const e = ({ low: 0, moderate: 1, high: 2 } as Record<string, number>)[r.energy ?? ''] ?? null;
   if (s === null || o === null || e === null) return null;
-  return Math.max(s + o + e, 1);
+  // DB constraint: score BETWEEN 1 AND 5. App computes 0–6, so clamp.
+  return Math.max(1, Math.min(5, s + o + e));
 }
 
 /** Returns true if remote timestamp is newer than local, or local has no timestamp */
