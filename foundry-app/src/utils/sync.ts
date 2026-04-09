@@ -1251,6 +1251,9 @@ export async function flushDirty(): Promise<void> {
     const user = await getUser();
     if (!user) return;
 
+    const failedKeys: string[] = [];
+    let firstError: unknown = null;
+
     for (const key of dirty) {
       const raw = store.get(key);
       if (!raw) { clearDirty(key); continue; }
@@ -1321,15 +1324,25 @@ export async function flushDirty(): Promise<void> {
         // once the chunk lands. No error, no toast.
         continue;
       }
-      if (!succeeded && lastError) {
-        console.warn('[Foundry Sync] flushDirty key failed after retries:', key, lastError);
-        Sentry.captureException(lastError, { tags: { context: 'sync', operation: 'flushDirty', key } });
-      }
       if (succeeded) {
         clearDirty(key);
       } else {
-        emit('foundry:toast', { message: 'Sync failed — changes saved locally', type: 'warning' });
+        failedKeys.push(key);
+        if (!firstError) firstError = lastError;
+        console.warn('[Foundry Sync] flushDirty key failed after retries:', key, lastError);
+        Sentry.captureException(lastError, { tags: { context: 'sync', operation: 'flushDirty', key } });
       }
+    }
+
+    // Show a single toast for the entire flush cycle instead of per-key
+    if (failedKeys.length > 0) {
+      const errMsg = firstError instanceof Error ? firstError.message
+        : (firstError as Record<string, unknown>)?.message ?? 'unknown error';
+      const keyHint = failedKeys[0].replace('foundry:', '').split(':')[0];
+      emit('foundry:toast', {
+        message: `Sync failed (${keyHint}) — ${errMsg}. Saved locally.`,
+        type: 'warning',
+      });
     }
   } catch (e) {
     Sentry.captureException(e, { tags: { context: 'sync', operation: 'flushDirty' } });
