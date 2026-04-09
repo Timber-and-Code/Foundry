@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { store } from '../utils/storage';
 
 export type SyncState = 'idle' | 'syncing' | 'synced' | 'offline';
 
@@ -36,7 +37,7 @@ export function useSyncState(): SyncState {
 export function useSyncDirtyCount(): number {
   const read = () => {
     try {
-      const raw = localStorage.getItem('foundry:sync:dirty');
+      const raw = store.get('foundry:sync:dirty');
       if (!raw) return 0;
       const arr = JSON.parse(raw);
       return Array.isArray(arr) ? arr.length : 0;

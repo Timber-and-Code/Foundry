@@ -212,7 +212,7 @@ function App() {
   // Show tour if flagged (e.g. on reload after setup, or first visit)
   useEffect(() => {
     if (store.get('foundry:show_tour') === '1' && !store.get('foundry:toured')) {
-      localStorage.removeItem('foundry:show_tour');
+      store.remove('foundry:show_tour');
       setTimeout(() => setShowTour(true), 800);
     }
   }, [profile]);
@@ -261,7 +261,7 @@ function App() {
         <SetupPage
           onComplete={(p: Profile) => {
             saveProfile(p);
-            localStorage.removeItem('foundry:storedProgram');
+            store.remove('foundry:storedProgram');
             if (!store.get('foundry:toured')) store.set('foundry:show_tour', '1');
             resetMesoCache();
             setProfile(loadProfile());
@@ -296,7 +296,7 @@ function App() {
 
   const handleProfileUpdate = (updates: Partial<Profile>) => {
     if ('split' in updates || 'days' in updates) {
-      localStorage.removeItem('foundry:storedProgram');
+      store.remove('foundry:storedProgram');
     }
     const updated = { ...profile, ...updates };
     setProfile(updated);
@@ -511,7 +511,7 @@ function AuthGate() {
   // sign-out drops back to anonymous mode instead of re-gating on AuthPage.
   useEffect(() => {
     if (user && wantsAuth) {
-      localStorage.removeItem('foundry:wants_auth');
+      store.remove('foundry:wants_auth');
       setWantsAuth(false);
     }
   }, [user, wantsAuth]);

@@ -38,7 +38,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const meso = (() => {
     try { return getMeso(); } catch { /* no active meso */ return null; }
   })();
-  const currentWeek = parseInt(localStorage.getItem('foundry:currentWeek') || '0');
+  const currentWeek = parseInt(store.get('foundry:currentWeek') || '0');
   const totalWeeks = meso?.weeks || saved.mesoLength || null;
   const phase = meso?.phases?.[currentWeek] || '';
   const splitLabel = (() => {
@@ -112,35 +112,23 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
       'foundry:ts:foundry:completedDays',
       'foundry:ts:foundry:currentWeek',
     ];
-    fixedKeys.forEach((k) => localStorage.removeItem(k));
-    const dynamicKeys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (
-        k &&
-        (k.startsWith('foundry:completedSets:') ||
-          k.startsWith('foundry:setLog:') ||
-          k.startsWith('foundry:skipped:') ||
-          k.startsWith('foundry:sessionNotes:') ||
-          k.startsWith('foundry:exerciseNotes:'))
-      ) {
-        dynamicKeys.push(k);
-      }
-    }
-    dynamicKeys.forEach((k) => localStorage.removeItem(k));
+    fixedKeys.forEach((k) => store.remove(k));
+    const dynamicKeys = store.keys('foundry:').filter((k) =>
+      k.startsWith('foundry:completedSets:') ||
+      k.startsWith('foundry:setLog:') ||
+      k.startsWith('foundry:skipped:') ||
+      k.startsWith('foundry:sessionNotes:') ||
+      k.startsWith('foundry:exerciseNotes:')
+    );
+    dynamicKeys.forEach((k) => store.remove(k));
     onClose();
     window.dispatchEvent(new Event('foundry:resetToSetup'));
   };
 
   const deleteAllFoundryData = async () => {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('foundry:') && k !== 'foundry:welcomed') {
-        keys.push(k);
-      }
-    }
-    keys.forEach((k) => localStorage.removeItem(k));
+    store.keys('foundry:')
+      .filter((k) => k !== 'foundry:welcomed')
+      .forEach((k) => store.remove(k));
     try { await logout(); } catch { /* swallow */ }
     onClose();
     window.location.reload();
@@ -161,10 +149,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
 
   const handleExport = () => {
     const data: Record<string, string | null> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('foundry:')) data[k] = localStorage.getItem(k);
-    }
+    store.keys('foundry:').forEach((k) => { data[k] = store.get(k); });
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

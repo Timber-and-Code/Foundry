@@ -1,5 +1,5 @@
 import React from 'react';
-import { loadArchive } from '../../utils/store';
+import { loadArchive, store } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
 import { getMeso, getWeekPhase, getMesoRows, getProgTargets, PHASE_COLOR } from '../../data/constants';
 
@@ -67,7 +67,7 @@ function MesoOverviewContent() {
   const phases = getWeekPhase();
   const mesoRows = getMesoRows();
   const progTargets = getProgTargets();
-  const currentWeek = parseInt(localStorage.getItem('foundry:currentWeek') || '0');
+  const currentWeek = parseInt(store.get('foundry:currentWeek') || '0');
 
   const splitLabels: Record<string, string> = {
     ppl: 'Push / Pull / Legs',

@@ -38,6 +38,27 @@ export const store = {
       console.warn('[Foundry]', 'Failed to write from remote', e);
     }
   },
+  remove: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+      localStorage.removeItem('foundry:ts:' + key);
+    } catch (e) {
+      console.warn('[Foundry]', 'Failed to remove from localStorage', e);
+    }
+  },
+  /** Return all localStorage keys matching an optional prefix */
+  keys: (prefix?: string): string[] => {
+    try {
+      const result: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (!prefix || k.startsWith(prefix))) result.push(k);
+      }
+      return result;
+    } catch {
+      return [];
+    }
+  },
   getTimestamp: (key: string): string | null => {
     try {
       return localStorage.getItem('foundry:ts:' + key);

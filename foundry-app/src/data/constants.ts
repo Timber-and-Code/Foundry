@@ -1,4 +1,5 @@
 import type { MesoConfig, SplitType } from '../types';
+import { store } from '../utils/storage';
 
 // ─── PHASE COLORS ────────────────────────────────────────────────────────────
 // Maps training phases to their UI accent colors
@@ -572,7 +573,7 @@ let _mesoCache: MesoConfigResult | null = null;
 export function getMeso(): MesoConfigResult {
   if (_mesoCache) return _mesoCache;
   try {
-    const raw = localStorage.getItem('foundry:profile');
+    const raw = store.get('foundry:profile');
     const p = raw ? JSON.parse(raw) : null;
     if (p) {
       _mesoCache = buildMesoConfig(

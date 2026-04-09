@@ -154,7 +154,7 @@ function DayView({
   const isLocked = isFutureSession;
 
   // Train with Friends
-  const mesoId = typeof window !== 'undefined' ? localStorage.getItem('foundry:active_meso_id') : null;
+  const mesoId = store.get('foundry:active_meso_id');
   const [selectedFriend, setSelectedFriend] = React.useState<MesoMember | null>(null);
 
   // BW confirm modal — fires once per session per BW exercise
@@ -429,7 +429,7 @@ function DayView({
       saveExOverride(dayIdx, weekIdx, exIdx, newExId, scope);
       // Sync to Supabase for meso-wide swaps
       if (scope === 'meso') {
-        const mesoId = typeof window !== 'undefined' ? localStorage.getItem('foundry:active_meso_id') : null;
+        const mesoId = store.get('foundry:active_meso_id');
         if (mesoId) {
           const newDbEx = EXERCISE_DB.find((e: Exercise) => e.id === newExId);
           const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');

@@ -1,5 +1,6 @@
 import React from 'react';
 import { tokens } from '../../styles/tokens';
+import { store } from '../../utils/storage';
 
 const workerUrl = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 
@@ -23,7 +24,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
     setSubmitting(true);
     // Always write to localStorage as fallback
     try {
-      localStorage.setItem('foundry:pro_email', trimmed);
+      store.set('foundry:pro_email', trimmed);
     } catch (e) { console.warn('[Foundry] Failed to save email', e); }
     // POST to Worker — fire and move on; localStorage is the safety net
     try {

@@ -86,7 +86,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
       mesoLength: tp?.mesoLength || 6,
       sessionDuration: tp?.sessionDuration || 60,
       equipment: (tp?.equipment || []) as string[],
-      theme: localStorage.getItem('foundry:theme') || 'dark',
+      theme: store.get('foundry:theme') || 'dark',
       startDate: todayStr,
       splitType: tp?.splitType || 'ppl',
       workoutDays: (tp?.workoutDays || [1, 2, 3, 4, 5, 6]) as number[],

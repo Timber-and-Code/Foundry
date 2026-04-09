@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { getInviteCode, createMesoInvite } from '../../utils/sync';
+import { store } from '../../utils/storage';
 import { tokens } from '../../styles/tokens';
 
 interface ShareMesoModalProps {
@@ -20,7 +21,7 @@ export default function ShareMesoModal({ open, onClose }: ShareMesoModalProps) {
     setCopied(false);
     setLoading(true);
 
-    const mesoId = localStorage.getItem('foundry:active_meso_id');
+    const mesoId = store.get('foundry:active_meso_id');
     if (!mesoId) {
       setLoading(false);
       return;

@@ -309,8 +309,8 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
   const handleReset = () => {
     archiveCurrentMeso(profile, { generateProgram, EXERCISE_DB });
     resetMeso();
-    localStorage.removeItem('foundry:profile');
-    localStorage.removeItem('foundry:storedProgram');
+    store.remove('foundry:profile');
+    store.remove('foundry:storedProgram');
     resetMesoCache();
     setProfile(null);
     setCompletedDays(new Set());
