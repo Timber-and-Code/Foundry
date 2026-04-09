@@ -246,14 +246,14 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   const [exercises, setExercises] = React.useState(() => {
     try {
       return JSON.parse(store.get(extraKey) || 'null')?.exercises || [];
-    } catch {
+    } catch { /* JSON parse fallback */
       return [];
     }
   });
   const [day, _setDay] = React.useState(() => {
     try {
       return JSON.parse(store.get(extraKey) || 'null');
-    } catch {
+    } catch { /* JSON parse fallback */
       return null;
     }
   });
@@ -261,7 +261,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   const [weekData, setWeekData] = React.useState(() => {
     try {
       return JSON.parse(store.get(dataKey) || '{}');
-    } catch {
+    } catch { /* JSON parse fallback */
       return {};
     }
   });
@@ -390,7 +390,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
           const dayData = JSON.parse(raw);
           const w0 = (dayData[idx] || {})[0]?.weight;
           if (w0) return w0;
-        } catch {}
+        } catch { /* JSON parse fallback */ }
       }
     }
     return '';
@@ -479,7 +479,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       delete next[exIdx];
       try {
         store.set(dataKey, JSON.stringify(next));
-      } catch {}
+      } catch (e) { console.warn('[Foundry] Failed to save extra-day data', e); }
       return next;
     });
     setDoneExercises((prev) => {

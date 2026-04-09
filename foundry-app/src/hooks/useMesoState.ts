@@ -165,11 +165,11 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
                   const eff = ex.bw ? bw + w : w;
                   if (eff * r > priorBest) priorBest = eff * r;
                 });
-              } catch {}
+              } catch { /* JSON parse fallback — data optional */ }
             }
             if (thisBest > priorBest && priorBest > 0) prCount++;
           });
-        } catch {}
+        } catch { /* JSON parse fallback — data optional */ }
       });
 
       const isFinal = weekIdx === getMeso().weeks;
@@ -219,12 +219,12 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
                         const eff = ex.bw ? bw + weight : weight;
                         if (eff * reps > priorBest) priorBest = eff * reps;
                       });
-                    } catch {}
+                    } catch { /* JSON parse fallback — data optional */ }
                   }
                   if (thisBest > priorBest && priorBest > 0) mesoTotalPRs++;
                 }
               });
-            } catch {}
+            } catch { /* JSON parse fallback — data optional */ }
           });
         }
 
@@ -242,7 +242,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
                   const w = parseFloat(String(s.weight));
                   if (w > w1Best) w1Best = w;
                 });
-              } catch {}
+              } catch { /* JSON parse fallback — data optional */ }
             }
             let peakBest = 0;
             let peakWeek = 0;
@@ -259,7 +259,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
                     peakWeek = w;
                   }
                 });
-              } catch {}
+              } catch { /* JSON parse fallback — data optional */ }
             }
             const ovId = store.get(`foundry:exov:d${d}:ex${exIdx}`);
             const dbEx = ovId ? EXERCISE_DB.find((e) => e.id === ovId) : null;

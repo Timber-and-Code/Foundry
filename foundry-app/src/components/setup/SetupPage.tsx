@@ -67,12 +67,12 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     let saved: Record<string, unknown> = {};
     try {
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
-    } catch (e) {}
+    } catch { /* JSON parse fallback */ }
     const savedGoal = store.get('foundry:onboarding_goal') || '';
     let transition: { profile?: Partial<Profile> } | null = null;
     try {
       transition = JSON.parse(store.get('foundry:meso_transition') || 'null');
-    } catch {}
+    } catch { /* JSON parse fallback */ }
     const tp = transition?.profile || null;
     return {
       name: (saved.name as string) || tp?.name || '',
@@ -97,7 +97,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     let saved: Record<string, unknown> = {};
     try {
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
-    } catch (e) {}
+    } catch { /* JSON parse fallback */ }
     const savedDob = saved.dob as { month?: string; day?: string; year?: string } | undefined;
     if (savedDob && savedDob.month) {
       return {
@@ -118,7 +118,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
           };
         }
       }
-    } catch (e) {}
+    } catch { /* JSON parse fallback */ }
     return { month: '', day: '', year: '' };
   });
   const SETUP_MONTHS = [
@@ -153,7 +153,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     let saved: Record<string, unknown> = {};
     try {
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
-    } catch (e) {}
+    } catch { /* JSON parse fallback */ }
     return {
       experience: (saved.experience as string) || null as string | null,
       split: null as string | null,
@@ -493,7 +493,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
           let t = null;
           try {
             t = JSON.parse(store.get('foundry:meso_transition') || 'null');
-          } catch {}
+          } catch { /* JSON parse fallback */ }
           if (!t) return null;
           return (
             <div

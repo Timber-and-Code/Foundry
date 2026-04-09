@@ -36,7 +36,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
 
   // ── Meso context ──────────────────────────────────────────────────────────
   const meso = (() => {
-    try { return getMeso(); } catch { return null; }
+    try { return getMeso(); } catch { /* no active meso */ return null; }
   })();
   const currentWeek = parseInt(localStorage.getItem('foundry:currentWeek') || '0');
   const totalWeeks = meso?.weeks || saved.mesoLength || null;
@@ -50,7 +50,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
         const tags = [...new Set(days.map((d: any) => d.tag).filter(Boolean))];
         if (tags.length > 0) return tags.join(' / ');
       }
-    } catch {}
+    } catch { /* JSON parse fallback */ }
     return SPLIT_LABELS[meso?.splitType || saved.splitType] || (meso?.splitType || saved.splitType || '').toUpperCase().replace(/_/g, ' ');
   })();
 

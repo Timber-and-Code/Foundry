@@ -463,7 +463,7 @@ function HomeTab({
       if (raw)
         try {
           return JSON.parse(raw);
-        } catch {}
+        } catch { /* JSON parse fallback */ }
     }
     return {};
   })();

@@ -40,7 +40,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   const timerDayRef = useRef<TimerDayRef | null>(null);
 
   const fireTimerComplete = useCallback(() => {
-    try { haptic('done'); } catch {}
+    try { haptic('done'); } catch { /* haptic not available on desktop */ }
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new AudioCtx();
@@ -54,7 +54,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.6);
-    } catch {}
+    } catch { /* AudioContext not available */ }
   }, []);
 
   const startRestTimer = useCallback(

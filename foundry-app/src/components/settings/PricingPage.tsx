@@ -24,7 +24,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
     // Always write to localStorage as fallback
     try {
       localStorage.setItem('foundry:pro_email', trimmed);
-    } catch {}
+    } catch (e) { console.warn('[Foundry] Failed to save email', e); }
     // POST to Worker — fire and move on; localStorage is the safety net
     try {
       await fetch((workerUrl || '') + '/subscribe', {

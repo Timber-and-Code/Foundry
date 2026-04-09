@@ -126,7 +126,7 @@ function ExerciseCard({
     try {
       const raw = store.get(`foundry:day${dayIdx}:week${weekIdx - 1}`);
       return raw ? JSON.parse(raw) : {};
-    } catch {
+    } catch { /* JSON parse fallback */
       return {};
     }
   }, [dayIdx, weekIdx]);
@@ -169,7 +169,7 @@ function ExerciseCard({
         return `Last meso: ${bestWeight} lbs × ${bestReps}`;
       }
       return null;
-    } catch {
+    } catch { /* archive read fallback */
       return null;
     }
   }, [weekIdx, exIdx, exercise.name]);
@@ -315,7 +315,7 @@ function ExerciseCard({
         }
       }
       setHistoryRows(rows);
-    } catch {}
+    } catch { /* history load fallback */ }
   }, [expanded, weekIdx, exIdx, dayIdx]);
 
   const handleHistoryClick = () => {

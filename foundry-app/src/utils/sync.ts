@@ -912,7 +912,7 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
       // the same workout_sessions row.
       try {
         localStorage.setItem(`foundry:ws_id:d${session.day_number}:w${session.week_number}`, session.id);
-      } catch {}
+      } catch { /* non-critical cache write */ }
     }
   } catch (e) {
     reportSyncFailure('workout_history_pull', e);
@@ -1063,7 +1063,7 @@ async function pullNotes(userId: string): Promise<void> {
           if (id) sessionIdToDayWeek.set(id, { d: parseInt(m[1], 10), w: parseInt(m[2], 10) });
         }
       }
-    } catch {}
+    } catch { /* localStorage iteration fallback */ }
 
     sessionNotes.forEach((text, sessionId) => {
       const loc = sessionIdToDayWeek.get(sessionId);
@@ -1103,7 +1103,7 @@ async function pullNotes(userId: string): Promise<void> {
           try {
             const p = JSON.parse(localStorage.getItem('foundry:profile') || '{}') as { mesoLength?: number };
             if (p.mesoLength && p.mesoLength > 0) weeks = p.mesoLength;
-          } catch {}
+          } catch { /* JSON parse fallback — default 6 weeks */ }
 
           byDay.forEach((notesByEx, dayIdx) => {
             for (let w = 0; w <= weeks; w++) {
@@ -1203,14 +1203,14 @@ function readDirtySet(): Set<string> {
   try {
     const raw = localStorage.getItem(DIRTY_KEY);
     if (raw) return new Set(JSON.parse(raw) as string[]);
-  } catch {}
+  } catch { /* JSON parse fallback */ }
   return new Set();
 }
 
 function writeDirtySet(s: Set<string>): void {
   try {
     localStorage.setItem(DIRTY_KEY, JSON.stringify([...s]));
-  } catch {}
+  } catch (e) { console.warn('[Foundry] Failed to persist dirty queue', e); }
 }
 
 // ─── DEBOUNCED SYNC ─────────────────────────────────────────────────────────
@@ -1951,7 +1951,7 @@ export async function pushToSupabase(): Promise<void> {
               { onConflict: 'id' },
             ),
           );
-        } catch {}
+        } catch (e) { console.warn('[Foundry] Failed to build profile upsert', e); }
       }
     }
 
