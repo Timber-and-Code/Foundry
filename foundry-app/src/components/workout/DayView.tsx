@@ -35,12 +35,17 @@ import {
   debouncedSync,
 } from '../../utils/sync';
 import { useRestTimer } from '../../contexts/RestTimerContext';
+import { useWorkoutTimer, formatElapsed } from '../../hooks/useWorkoutTimer';
 
 // Components
 import ExerciseCard from './ExerciseCard';
 import FriendsStrip from '../social/FriendsStrip';
 import FriendWorkoutModal from '../social/FriendWorkoutModal';
 import WorkoutCompleteModal from './WorkoutCompleteModal';
+import CardioPromptModal from './CardioPromptModal';
+import UnfinishedPromptModal from './UnfinishedPromptModal';
+import NoteReviewSheet from './NoteReviewSheet';
+import SwapScopeSelector from './SwapScopeSelector';
 import type { WorkoutCompleteStats } from './WorkoutCompleteModal';
 import type { Profile, TrainingDay, Exercise, MesoMember, WorkoutSet } from '../../types';
 
@@ -236,55 +241,22 @@ function DayView({
     if (!showLeavePrompt) leaveQuoteRef.current = null;
   }, [showLeavePrompt]);
 
-  // Session duration tracking — timer starts explicitly on "Begin Workout", not on mount
-  const sessionStartRef = React.useRef<number | null>(null);
-  const strengthEndRef = React.useRef<number | null>(null);
-  const [workoutStarted, setWorkoutStarted] = useState(() => {
-    const saved = store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
-    return !!saved && !isDone && !isLocked;
+  // Session duration tracking — shared hook manages timer, start/end timestamps
+  const {
+    workoutStarted,
+    elapsedSecs,
+    sessionStartRef,
+    beginWorkout: startTimer,
+  } = useWorkoutTimer({
+    startKey: `foundry:sessionStart:d${dayIdx}:w${weekIdx}`,
+    strengthEndKey: `foundry:strengthEnd:d${dayIdx}:w${weekIdx}`,
+    isDone,
+    isLocked,
   });
-  const [elapsedSecs, setElapsedSecs] = useState(0);
-  const elapsedIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // On mount: restore sessionStart and strengthEnd from localStorage if workout was begun
-  React.useEffect(() => {
-    const savedStart = store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
-    if (savedStart && !isDone && !isLocked) {
-      sessionStartRef.current = parseInt(savedStart, 10);
-      const savedEnd = store.get(`foundry:strengthEnd:d${dayIdx}:w${weekIdx}`);
-      if (savedEnd) strengthEndRef.current = parseInt(savedEnd, 10);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Elapsed timer — runs while workout is active and not complete
-  React.useEffect(() => {
-    if (!workoutStarted || isDone) return;
-    const tick = () => {
-      if (sessionStartRef.current) {
-        setElapsedSecs(Math.floor((Date.now() - sessionStartRef.current) / 1000));
-      }
-    };
-    tick();
-    elapsedIntervalRef.current = setInterval(tick, 1000);
-    return () => { if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current); };
-  }, [workoutStarted, isDone]);
-
-  // Format elapsed seconds as M:SS or H:MM:SS
-  const formatElapsed = (secs: number) => {
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${m}:${String(s).padStart(2, '0')}`;
-  };
 
   // Begin workout — stamps localStorage, starts timer, dismisses overlay
   const beginWorkout = () => {
-    const now = Date.now();
-    sessionStartRef.current = now;
-    store.set(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`, String(now));
-    setWorkoutStarted(true);
+    startTimer();
     setShowMesoOverlay(false);
     if (!bwPromptShownThisWeek()) setShowBwCheckin(true);
     // Chunk 4a: create/upsert the remote workout_sessions row with
@@ -292,7 +264,7 @@ function DayView({
     const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
     upsertWorkoutSessionRemote(dayIdx, weekIdx, {
       sessionId,
-      startedAt: new Date(now).toISOString(),
+      startedAt: new Date().toISOString(),
       isComplete: false,
     });
   };
@@ -1085,85 +1057,12 @@ function DayView({
 
         {/* Swap Scope Selector (pre-workout) */}
         {swapPending && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.7)',
-              zIndex: 310,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 24,
-            }}
-            onClick={() => setSwapPending(null)}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: tokens.radius.xl,
-                padding: 24,
-                maxWidth: 320,
-                width: '100%',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-                Swap {exercises[swapPending.exIdx]?.name}
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
-                Apply this swap to...
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <button
-                  onClick={() => executeSwap('meso')}
-                  style={{
-                    padding: '14px 20px',
-                    borderRadius: tokens.radius.lg,
-                    background: 'var(--btn-primary-bg)',
-                    border: '1px solid var(--btn-primary-border)',
-                    color: 'var(--btn-primary-text)',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Entire Meso
-                </button>
-                <button
-                  onClick={() => executeSwap('week')}
-                  style={{
-                    padding: '14px 20px',
-                    borderRadius: tokens.radius.lg,
-                    background: 'var(--bg-inset)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-primary)',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  This Session Only
-                </button>
-                <button
-                  onClick={() => setSwapPending(null)}
-                  style={{
-                    padding: '10px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    marginTop: 4,
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+          <SwapScopeSelector
+            exerciseName={exercises[swapPending.exIdx]?.name || ''}
+            onMeso={() => executeSwap('meso')}
+            onWeek={() => executeSwap('week')}
+            onCancel={() => setSwapPending(null)}
+          />
         )}
       </div>
     );
@@ -1559,95 +1458,14 @@ function DayView({
 
       {/* Note Review Step */}
       {showNoteReview && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: tokens.colors.overlayHeavy,
-            zIndex: 220,
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
+        <NoteReviewSheet
+          note={sessionNote}
+          onChange={setSessionNote}
+          onFinish={() => {
+            setShowNoteReview(false);
+            doCompleteWithStats();
           }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="note-review-title"
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: `${tokens.radius.xxl}px ${tokens.radius.xxl}px 0 0`,
-              width: '100%',
-              maxWidth: 480,
-              padding: '24px 20px 36px',
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: '0.12em',
-                color: 'var(--text-muted)',
-                marginBottom: 10,
-              }}
-            >
-              SESSION NOTES
-            </div>
-            <div
-              id="note-review-title"
-              style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: 'var(--text-primary)',
-                marginBottom: 18,
-              }}
-            >
-              Anything to add before you go?
-            </div>
-            <textarea
-              value={sessionNote}
-              onChange={(e) => setSessionNote(e.target.value)}
-              aria-label="Session notes"
-              autoFocus
-              rows={5}
-              style={{
-                width: '100%',
-                background: 'var(--bg-inset)',
-                border: '1px solid var(--border-accent)',
-                borderRadius: tokens.radius.lg,
-                color: 'var(--text-primary)',
-                fontSize: 13,
-                padding: '12px 14px',
-                resize: 'none',
-                outline: 'none',
-                lineHeight: 1.6,
-                boxSizing: 'border-box',
-                fontFamily: 'inherit',
-                marginBottom: 16,
-              }}
-            />
-            <button
-              onClick={() => {
-                setShowNoteReview(false);
-                doCompleteWithStats();
-              }}
-              style={{
-                width: '100%',
-                padding: '16px',
-                borderRadius: tokens.radius.lg,
-                background: 'var(--btn-primary-bg)',
-                border: '1px solid var(--btn-primary-border)',
-                color: 'var(--btn-primary-text)',
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 700,
-              }}
-            >
-              Finish Session ✓
-            </button>
-          </div>
-        </div>
+        />
       )}
 
       {/* ── Exercise Swap Sheet ──────────────────────────────────────────── */}
@@ -1672,85 +1490,12 @@ function DayView({
 
       {/* Swap Scope Selector */}
       {swapPending && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.7)',
-            zIndex: 310,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 24,
-          }}
-          onClick={() => setSwapPending(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: tokens.radius.xl,
-              padding: 24,
-              maxWidth: 320,
-              width: '100%',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-              Swap {exercises[swapPending.exIdx]?.name}
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
-              Apply this swap to...
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button
-                onClick={() => executeSwap('meso')}
-                style={{
-                  padding: '14px 20px',
-                  borderRadius: tokens.radius.lg,
-                  background: 'var(--btn-primary-bg)',
-                  border: '1px solid var(--btn-primary-border)',
-                  color: 'var(--btn-primary-text)',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Entire Meso
-              </button>
-              <button
-                onClick={() => executeSwap('week')}
-                style={{
-                  padding: '14px 20px',
-                  borderRadius: tokens.radius.lg,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                This Session Only
-              </button>
-              <button
-                onClick={() => setSwapPending(null)}
-                style={{
-                  padding: '10px',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  marginTop: 4,
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <SwapScopeSelector
+          exerciseName={exercises[swapPending.exIdx]?.name || ''}
+          onMeso={() => executeSwap('meso')}
+          onWeek={() => executeSwap('week')}
+          onCancel={() => setSwapPending(null)}
+        />
       )}
 
       {/* Workout Complete Modal */}
@@ -1776,72 +1521,24 @@ function DayView({
 
       {/* Cardio Prompt */}
       {showCardioPrompt && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 210,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-        }}>
-          <div style={{
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: tokens.radius.xl, padding: '32px 24px', maxWidth: 340, width: '100%',
-          }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', textAlign: 'center', marginBottom: 8 }}>
-              Add Cardio?
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.6, marginBottom: 28 }}>
-              Your lifting session is complete. Want to log a cardio session?
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button onClick={() => {
-                setShowCardioPrompt(false);
-                const d = new Date();
-                const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                onBack();
-                setTimeout(() => window.dispatchEvent(new CustomEvent('foundry:openCardio', { detail: { dateStr } })), 80);
-              }} style={{
-                padding: 16, borderRadius: tokens.radius.lg, cursor: 'pointer',
-                background: 'var(--phase-accum)22', border: '1px solid var(--phase-accum)',
-                color: 'var(--phase-accum)', fontSize: 14, fontWeight: 700,
-              }}>Log Cardio →</button>
-              <button onClick={() => { setShowCardioPrompt(false); onBack(); }} style={{
-                padding: 14, borderRadius: tokens.radius.lg, cursor: 'pointer',
-                background: 'var(--bg-surface)', border: '1px solid var(--border)',
-                color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600,
-              }}>Done for Today</button>
-            </div>
-          </div>
-        </div>
+        <CardioPromptModal
+          onLogCardio={() => {
+            setShowCardioPrompt(false);
+            const d = new Date();
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            onBack();
+            setTimeout(() => window.dispatchEvent(new CustomEvent('foundry:openCardio', { detail: { dateStr } })), 80);
+          }}
+          onDismiss={() => { setShowCardioPrompt(false); onBack(); }}
+        />
       )}
 
       {/* Unfinished Workout Prompt */}
       {showUnfinishedPrompt && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-        }}>
-          <div style={{
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg, padding: '28px 24px', maxWidth: 340, width: '100%',
-          }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center', marginBottom: 8 }}>
-              Not quite done
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>
-              Looks like this workout isn&apos;t finished yet. Do you still want to mark it complete?
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button onClick={() => setShowUnfinishedPrompt(false)} style={{
-                padding: 16, borderRadius: tokens.radius.md, cursor: 'pointer',
-                background: 'var(--bg-surface)', border: '1px solid var(--border)',
-                color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700,
-              }}>Keep Going</button>
-              <button onClick={() => { setShowUnfinishedPrompt(false); openNoteReview(); }} style={{
-                padding: 16, borderRadius: tokens.radius.md, cursor: 'pointer',
-                background: 'var(--btn-primary-bg)', border: '1px solid var(--btn-primary-border)',
-                color: 'var(--btn-primary-text)', fontSize: 13, fontWeight: 700,
-              }}>Mark Complete</button>
-            </div>
-          </div>
-        </div>
+        <UnfinishedPromptModal
+          onKeepGoing={() => setShowUnfinishedPrompt(false)}
+          onMarkComplete={() => { setShowUnfinishedPrompt(false); openNoteReview(); }}
+        />
       )}
 
       {/* Friend Workout Modal */}

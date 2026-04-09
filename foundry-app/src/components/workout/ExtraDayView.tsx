@@ -13,7 +13,9 @@ import {
 } from '../../utils/store';
 import { haptic } from '../../utils/helpers';
 import { TAG_ACCENT, getMeso } from '../../data/constants';
+import { useWorkoutTimer, formatElapsed } from '../../hooks/useWorkoutTimer';
 import ExerciseCard from './ExerciseCard';
+import NoteReviewSheet from './NoteReviewSheet';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
 interface SwapModalProps {
@@ -274,10 +276,18 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   const [workoutStats, setWorkoutStats] = React.useState<{ totalSets: number; totalReps: number; totalVolume: number; duration: string | null; prs: { name: string; weight: number; reps: number }[] } | null>(null);
   const [swapTarget, setSwapTarget] = React.useState<{ exIdx: number } | null>(null);
   const [showAddExercise, setShowAddExercise] = React.useState(false);
-  const [workoutStarted, setWorkoutStarted] = React.useState(
-    () => !!store.get(startKey) && !store.get(doneKey)
-  );
-  const [elapsedSecs, setElapsedSecs] = React.useState(0);
+  const {
+    workoutStarted,
+    elapsedSecs,
+    sessionStartRef, strengthEndRef,
+    beginWorkout: startTimer,
+    stampStrengthEnd,
+    clearTimers,
+  } = useWorkoutTimer({
+    startKey,
+    strengthEndKey: strengthKey,
+    isDone: !!store.get(doneKey),
+  });
   const [showBwCheckin, setShowBwCheckin] = React.useState(false);
   const [bwCheckinInput, setBwCheckinInput] = React.useState(() => {
     const log = loadBwLog();
@@ -315,18 +325,6 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     setShowNoteReview(true);
   };
 
-  const sessionStartRef = React.useRef<number | null>(null);
-  const strengthEndRef = React.useRef<number | null>(null);
-  const elapsedRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // ── Restore timestamps from localStorage ────────────────────────────────────
-  React.useEffect(() => {
-    const s = store.get(startKey);
-    if (s) sessionStartRef.current = parseInt(s, 10);
-    const e = store.get(strengthKey);
-    if (e) strengthEndRef.current = parseInt(e, 10);
-  }, []);
-
   // ── Pre-populate carryover weights for new sessions ──────────────────────────
   React.useEffect(() => {
     if (completedDone) return; // don't overwrite logged data
@@ -348,27 +346,6 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ── Live elapsed timer ───────────────────────────────────────────────────────
-  React.useEffect(() => {
-    if (!workoutStarted || completedDone) return;
-    const tick = () => {
-      if (sessionStartRef.current)
-        setElapsedSecs(Math.floor((Date.now() - sessionStartRef.current) / 1000));
-    };
-    tick();
-    elapsedRef.current = setInterval(tick, 1000);
-    return () => { if (elapsedRef.current !== null) clearInterval(elapsedRef.current); };
-  }, [workoutStarted, completedDone]);
-
-  const formatElapsed = (s: number) => {
-    const h = Math.floor(s / 3600),
-      m = Math.floor((s % 3600) / 60),
-      sec = s % 60;
-    return h > 0
-      ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-      : `${m}:${String(sec).padStart(2, '0')}`;
-  };
 
   // ── Persist exercise list changes back to localStorage ──────────────────────
   const persistExercises = (exList: Exercise[]) => {
@@ -398,10 +375,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
 
   // ── Begin workout ────────────────────────────────────────────────────────────
   const beginWorkout = () => {
-    const now = Date.now();
-    sessionStartRef.current = now;
-    store.set(startKey, String(now));
-    setWorkoutStarted(true);
+    startTimer();
     if (!bwPromptShownThisWeek()) setShowBwCheckin(true);
   };
 
@@ -437,8 +411,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     setDoneExercises((prev) => {
       const next = new Set([...prev, exIdx]);
       if (next.size === exercises.length) {
-        strengthEndRef.current = Date.now();
-        store.set(strengthKey, String(strengthEndRef.current));
+        stampStrengthEnd();
         setShowPostStrengthPrompt(true);
       }
       return next;
@@ -519,7 +492,6 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   // ── Complete ─────────────────────────────────────────────────────────────────
   const doComplete = () => {
     setShowPostStrengthPrompt(false);
-    if (elapsedRef.current !== null) clearInterval(elapsedRef.current);
     store.set(doneKey, '1');
     setCompletedDone(true);
 
@@ -528,8 +500,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       const endTime = strengthEndRef.current || Date.now();
       durationMins = Math.round((endTime - sessionStartRef.current) / 60000);
       if (durationMins <= 0 || durationMins >= 300) durationMins = null;
-      store.set(startKey, '');
-      store.set(strengthKey, '');
+      clearTimers();
     }
 
     let totalSets = 0,
@@ -1327,89 +1298,14 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
 
       {/* ── NOTE REVIEW STEP ── */}
       {showNoteReview && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: tokens.colors.overlayHeavy,
-            zIndex: 220,
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
+        <NoteReviewSheet
+          note={notes}
+          onChange={handleNoteChange}
+          onFinish={() => {
+            setShowNoteReview(false);
+            doComplete();
           }}
-        >
-          <div
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: `${tokens.radius.xxl}px ${tokens.radius.xxl}px 0 0`,
-              width: '100%',
-              maxWidth: 480,
-              padding: '24px 20px 36px',
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: '0.12em',
-                color: 'var(--text-muted)',
-                marginBottom: 10,
-              }}
-            >
-              SESSION NOTES
-            </div>
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: 'var(--text-primary)',
-                marginBottom: 18,
-              }}
-            >
-              Anything to add before you go?
-            </div>
-            <textarea
-              value={notes}
-              onChange={(e) => handleNoteChange(e.target.value)}
-              autoFocus
-              rows={5}
-              style={{
-                width: '100%',
-                background: 'var(--bg-inset)',
-                border: '1px solid var(--border-accent)',
-                borderRadius: tokens.radius.lg,
-                color: 'var(--text-primary)',
-                fontSize: 13,
-                padding: '12px 14px',
-                resize: 'none',
-                outline: 'none',
-                lineHeight: 1.6,
-                boxSizing: 'border-box',
-                fontFamily: 'inherit',
-                marginBottom: 16,
-              }}
-            />
-            <button
-              onClick={() => {
-                setShowNoteReview(false);
-                doComplete();
-              }}
-              className="btn-primary"
-              style={{
-                width: '100%',
-                padding: '16px',
-                borderRadius: tokens.radius.lg,
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-              }}
-            >
-              Finish Session ✓
-            </button>
-          </div>
-        </div>
+        />
       )}
     </div>
   );
