@@ -227,6 +227,7 @@ function DayView({
   // editMode — reserved for edit-mode toggle
   const [showLeavePrompt] = useState(false);
   const [showEndEarlyConfirm, setShowEndEarlyConfirm] = useState(false);
+  const pendingCompletionRef = React.useRef<Record<string, unknown> | null>(null);
   const leaveQuoteRef = React.useRef<{ text: string; author: string } | null>(null);
   React.useEffect(() => {
     if (showLeavePrompt && !leaveQuoteRef.current) {
@@ -876,7 +877,7 @@ function DayView({
     // Show the workout complete modal — onComplete fires when user dismisses it
     setShowWorkoutModal(true);
     // Store completion data for when modal is dismissed
-    (window as unknown as Record<string, unknown>).__foundryPendingCompletion = completionData;
+    pendingCompletionRef.current = completionData;
   };
 
 
@@ -1762,8 +1763,8 @@ function DayView({
           weekIdx={completionWeekIdx !== null ? completionWeekIdx : weekIdx}
           onOk={() => {
             setShowWorkoutModal(false);
-            const pendingData = (window as unknown as Record<string, unknown>).__foundryPendingCompletion as Record<string, unknown> | undefined;
-            delete (window as unknown as Record<string, unknown>).__foundryPendingCompletion;
+            const pendingData = pendingCompletionRef.current;
+            pendingCompletionRef.current = null;
             setShowCardioPrompt(true);
             // Fire onComplete with the saved completion data
             if (pendingData) {
