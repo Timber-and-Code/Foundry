@@ -7,7 +7,7 @@ import {
   FOUNDRY_COOLDOWN,
 } from '../../data/constants';
 import { tokens } from '../../styles/tokens';
-import { EXERCISE_DB } from '../../data/exercises';
+import { findExercise } from '../../data/exerciseDB';
 import {
   store,
   loadCardioSession,
@@ -278,7 +278,7 @@ function RestStateCard({
               >
                 {nextDayForCollapse.exercises.map((ex: Exercise, ei: number) => {
                   const ovId = store.get(`foundry:exov:d${nextDayIdxForCollapse}:ex${ei}`) || null;
-                  const dbEx = ovId ? EXERCISE_DB.find((e) => e.id === ovId) : null;
+                  const dbEx = ovId ? findExercise(ovId) : null;
                   return (
                     <div key={ei} style={{ display: 'flex', padding: '8px 16px', borderBottom: ei < nextDayForCollapse.exercises.length - 1 ? '1px solid var(--border-subtle)' : 'none', textAlign: 'left' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -672,7 +672,7 @@ function HomeTab({
                 : [];
               const prevWeight = prevSets.length > 0 ? (prevSets[0] as Record<string, unknown>).weight : null;
               const ovId = store.get(`foundry:exov:d${showDayIdx}:ex${ei}`) || null;
-              const dbEx = ovId ? EXERCISE_DB.find((e) => e.id === ovId) : null;
+              const dbEx = ovId ? findExercise(ovId) : null;
               return (
                 <div
                   key={ei}

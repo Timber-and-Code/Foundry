@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { tokens } from '../../styles/tokens';
-import { SAMPLE_PROGRAMS } from '../../data/exercises';
+import { getSamplePrograms } from '../../data/exerciseDB';
 import { saveProfile } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
 
@@ -165,6 +165,7 @@ interface SampleProgramsProps {
 }
 
 function SamplePrograms({ profile, onBack, onStartProgram }: SampleProgramsProps) {
+  const SAMPLE_PROGRAMS = getSamplePrograms();
   const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
   const [startModalProg, setStartModalProg] = useState<(typeof SAMPLE_PROGRAMS)[number] | null>(
     null

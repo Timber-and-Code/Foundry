@@ -6,6 +6,11 @@ import './styles/theme.css';
 import './styles/global.css';
 import { _setMarkDirty } from './utils/storage';
 import { markDirty, flushDirty } from './utils/sync';
+import { preloadExerciseDB } from './data/exerciseDB';
+
+// Start loading the exercise DB immediately — it'll be ready by the time
+// components need it (~200ms), but won't block the critical render path.
+preloadExerciseDB();
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,

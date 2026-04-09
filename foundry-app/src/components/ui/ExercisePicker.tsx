@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
-import { EXERCISE_DB } from '../../data/exercises';
+import { findExercise } from '../../data/exerciseDB';
 import HammerIcon from '../shared/HammerIcon';
 
 /* ── types ─────────────────────────────────────────────────────────────────── */
@@ -247,7 +247,7 @@ export default function ExercisePicker({
             onPointerUp={handlePointerUp}
           >
             {selected.map((id, i) => {
-              const ex = EXERCISE_DB.find((e: ExerciseItem) => e.id === id);
+              const ex = findExercise(id);
               if (!ex) return null;
               const isAnchor = i === 0;
               const isDragging = dragIdx === i;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { tokens } from '../../styles/tokens';
-import { EXERCISE_DB, SAMPLE_PROGRAMS } from '../../data/exercises';
+import { useExerciseDB, getSamplePrograms } from '../../data/exerciseDB';
 import ExerciseBrowser from './ExerciseBrowser';
 import SamplePrograms from './SamplePrograms';
 import LearnSection from './LearnSection';
@@ -45,6 +45,7 @@ interface ExplorePageProps {
 }
 
 function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
+  const EXERCISE_DB = useExerciseDB();
   const [section, setSection] = useState('home'); // home | library | programs | learn
 
   // ── Sub-section routing ─────────────────────────────────────────────────
@@ -266,7 +267,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 lineHeight: 1.5,
               }}
             >
-              {SAMPLE_PROGRAMS.length} prebuilt mesos to browse
+              {getSamplePrograms().length} prebuilt mesos to browse
             </div>
           </button>
         </div>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
-import { EXERCISE_DB } from '../../data/exercises';
+import { useExerciseDB } from '../../data/exerciseDB';
 import HammerIcon from '../shared/HammerIcon';
 import ExerciseDetailModal from './ExerciseDetailModal';
 
@@ -140,6 +140,7 @@ interface ExerciseBrowserProps {
 }
 
 function ExerciseBrowser({ onBack }: ExerciseBrowserProps) {
+  const EXERCISE_DB = useExerciseDB();
   const [libFilter, setLibFilter] = useState({
     tag: 'ALL',
     equip: 'ALL',
@@ -687,7 +688,7 @@ function ExerciseBrowser({ onBack }: ExerciseBrowserProps) {
                   gap: 4,
                 }}>
                   {exercises.map((ex) => {
-                    const tc = TAG_COLORS[ex.tag] || 'var(--accent)';
+                    const tc = TAG_COLORS[ex.tag || ''] || 'var(--accent)';
                     return (
                       <button
                         key={ex.id}

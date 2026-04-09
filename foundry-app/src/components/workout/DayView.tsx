@@ -6,7 +6,7 @@ import {
   randomQuote,
   getMeso,
 } from '../../data/constants';
-import { EXERCISE_DB } from '../../data/exercises';
+import { getExerciseDB, findExercise, type ExerciseEntry } from '../../data/exerciseDB';
 
 // UI
 
@@ -276,7 +276,7 @@ function DayView({
     return (weekDay.exercises || []).map((ex: Exercise, i: number) => {
       const ovId = loadExOverride(dayIdx, weekIdx, i);
       if (!ovId) return ex;
-      const dbEx = EXERCISE_DB.find((e: Exercise) => e.id === ovId);
+      const dbEx = findExercise(ovId);
       // Check custom exercises if not in DB
       const customEx = !dbEx && ovId.startsWith('custom:') ? customExercises[ovId] : null;
       const resolved = dbEx || customEx;
@@ -337,9 +337,9 @@ function DayView({
     else if (tag === 'UPPER') tagFilter = ['PUSH', 'PULL'];
     else if (tag === 'LOWER') tagFilter = ['LEGS'];
     else tagFilter = ['PUSH', 'PULL', 'LEGS'];
-    const exs = EXERCISE_DB.filter((e: Exercise) => tagFilter.includes(e.tag || ''));
-    const groups: Record<string, typeof EXERCISE_DB[number][]> = {};
-    exs.forEach((e: typeof EXERCISE_DB[number]) => {
+    const exs = getExerciseDB().filter((e: Exercise) => tagFilter.includes(e.tag || ''));
+    const groups: Record<string, ExerciseEntry[]> = {};
+    exs.forEach((e: ExerciseEntry) => {
       if (!groups[e.muscle]) groups[e.muscle] = [];
       groups[e.muscle].push(e);
     });
@@ -397,7 +397,7 @@ function DayView({
       if (scope === 'meso') {
         const mesoId = store.get('foundry:active_meso_id');
         if (mesoId) {
-          const newDbEx = EXERCISE_DB.find((e: Exercise) => e.id === newExId);
+          const newDbEx = findExercise(newExId);
           const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');
           const customEx = !newDbEx && newExId.startsWith('custom:') ? customExercises[newExId] : null;
           const resolved = newDbEx || customEx;

@@ -16,7 +16,7 @@ interface AnchorGain {
   peakWeek: number;
 }
 import { getMeso, resetMesoCache } from '../data/constants';
-import { EXERCISE_DB } from '../data/exercises';
+import { getExerciseDB, findExercise } from '../data/exerciseDB';
 import {
   store,
   loadProfile,
@@ -57,7 +57,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
     const base = stored
       ? JSON.parse(stored)
       : (() => {
-          const result = generateProgram(profile, EXERCISE_DB);
+          const result = generateProgram(profile, getExerciseDB() as any);
           store.set('foundry:storedProgram', JSON.stringify(result));
           return result;
         })();
@@ -67,7 +67,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       const extraIds = (added as Record<string, any>)[dayIdx] || [];
       if (extraIds.length === 0) return day;
       const extraExs = extraIds
-        .map((id: string) => EXERCISE_DB.find((e: { id: string }) => e.id === id))
+        .map((id: string) => findExercise(id))
         .filter(Boolean)
         .map((e: Record<string, unknown>) => ({
           id: e.id,
@@ -113,7 +113,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       let totalSets = 0;
       const _storedProg = store.get('foundry:storedProgram');
       const prof = loadProfile();
-      const prog = (_storedProg ? JSON.parse(_storedProg) : prof ? generateProgram(prof, EXERCISE_DB) : []).slice(
+      const prog = (_storedProg ? JSON.parse(_storedProg) : prof ? generateProgram(prof, getExerciseDB() as any) : []).slice(
         0,
         getMeso().days
       );
@@ -249,7 +249,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
               } catch { /* JSON parse fallback — data optional */ }
             }
             const ovId = store.get(`foundry:exov:d${d}:ex${exIdx}`);
-            const dbEx = ovId ? EXERCISE_DB.find((e) => e.id === ovId) : null;
+            const dbEx = ovId ? findExercise(ovId) ?? null : null;
             const exName = dbEx ? dbEx.name : ex.name;
             if (w1Best > 0 && peakBest > 0) {
               mesoAnchorGains.push({
@@ -294,7 +294,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
   };
 
   const handleReset = () => {
-    archiveCurrentMeso(profile, { generateProgram, EXERCISE_DB });
+    archiveCurrentMeso(profile, { generateProgram, EXERCISE_DB: getExerciseDB() });
     resetMeso();
     store.remove('foundry:profile');
     store.remove('foundry:storedProgram');

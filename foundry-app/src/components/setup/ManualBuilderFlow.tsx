@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EXERCISE_DB } from '../../data/exercises';
+import { getExerciseDB, findExercise, type ExerciseEntry } from '../../data/exerciseDB';
 import { GOAL_OPTIONS, TAG_ACCENT } from '../../data/constants';
 import { tokens } from '../../styles/tokens';
 import HammerIcon from '../shared/HammerIcon';
@@ -156,7 +156,7 @@ export default function ManualBuilderFlow({
   };
 
   // ── Exercise picker helpers ──
-  const getExercisesForTag = (dayTag: string): Record<string, typeof EXERCISE_DB[number][]> => {
+  const getExercisesForTag = (dayTag: string): Record<string, ExerciseEntry[]> => {
     let tagFilter: string[];
     if (dayTag === 'PUSH') tagFilter = ['PUSH'];
     else if (dayTag === 'PULL') tagFilter = ['PULL'];
@@ -164,8 +164,8 @@ export default function ManualBuilderFlow({
     else if (dayTag === 'UPPER') tagFilter = ['PUSH', 'PULL'];
     else if (dayTag === 'LOWER') tagFilter = ['LEGS'];
     else tagFilter = ['PUSH', 'PULL', 'LEGS'];
-    const exs = EXERCISE_DB.filter((e) => tagFilter.includes(e.tag));
-    const groups: Record<string, typeof EXERCISE_DB[number][]> = {};
+    const exs = getExerciseDB().filter((e) => tagFilter.includes(e.tag as string));
+    const groups: Record<string, ExerciseEntry[]> = {};
     exs.forEach((e) => {
       if (!groups[e.muscle]) groups[e.muscle] = [];
       groups[e.muscle].push(e);
@@ -848,7 +848,7 @@ export default function ManualBuilderFlow({
                 }}
               >
                 {exIds.map((id, i) => {
-                  const ex = EXERCISE_DB.find((e) => e.id === id);
+                  const ex = findExercise(id);
                   if (!ex) return null;
                   const paired = isPaired(dayIdx, i);
                   const label = getPairLabel(dayIdx, i);
@@ -864,7 +864,7 @@ export default function ManualBuilderFlow({
                     const partnerIdx = pair ? (pair[0] === i ? pair[1] : pair[0]) : -1;
                     const partnerId = partnerIdx >= 0 ? exIds[partnerIdx] : null;
                     const partnerEx = partnerId
-                      ? EXERCISE_DB.find((e) => e.id === partnerId)
+                      ? findExercise(partnerId)
                       : null;
                     partnerName = partnerEx?.name || '';
                   }
