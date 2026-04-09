@@ -2,6 +2,7 @@ import React from 'react';
 import { tokens } from '../../styles/tokens';
 import { GOAL_OPTIONS } from '../../data/constants';
 import { store, importData } from '../../utils/store';
+import { emit } from '../../utils/events';
 import {
   FOUNDRY_IRON_IMG,
   FOUNDRY_STEEL_IMG,
@@ -40,7 +41,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
   const [goal, setGoal] = React.useState('');
   const [nameFocused, setNameFocused] = React.useState(false);
 
-  const goTo = (idx: any, dir = 1) => {
+  const goTo = (idx: number, dir = 1) => {
     if (animating) return;
     setError('');
     setAnimDir(dir);
@@ -83,11 +84,11 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
     if (screen > 0) goTo(screen - 1, -1);
   };
 
-  const touchStart = React.useRef(null);
-  const handleTouchStart = (e: any) => {
+  const touchStart = React.useRef<number | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => {
     touchStart.current = e.touches[0].clientX;
   };
-  const handleTouchEnd = (e: any) => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStart.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStart.current;
     touchStart.current = null;
@@ -370,7 +371,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
             <button
               onClick={() => {
                 store.set('foundry:wants_auth', '1');
-                window.dispatchEvent(new Event('foundry:wants_auth'));
+                emit('foundry:wants_auth');
               }}
               style={{
                 background: 'transparent',
@@ -529,7 +530,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    importData(file, (ok: any) => {
+                    importData(file, (ok: boolean) => {
                       if (ok) {
                         store.set('foundry:onboarded', '1');
                         window.location.reload();
@@ -674,7 +675,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                         style={{
                           width: 18,
                           height: 18,
-                          borderRadius: '50%',
+                          borderRadius: tokens.radius.full,
                           flexShrink: 0,
                           border: `2px solid ${sel ? '#E8651A' : 'rgba(232,101,26,0.35)'}`,
                           background: sel ? '#E8651A' : 'transparent',
@@ -845,7 +846,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                         style={{
                           width: 18,
                           height: 18,
-                          borderRadius: '50%',
+                          borderRadius: tokens.radius.full,
                           flexShrink: 0,
                           border: `2px solid ${sel ? '#E8651A' : 'rgba(232,101,26,0.35)'}`,
                           background: sel ? '#E8651A' : 'transparent',

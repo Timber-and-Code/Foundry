@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: foundry-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: foundry-app/package-lock.json
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test:coverage
+        env:
+          VITE_SUPABASE_URL: https://iwresyrdyalwkowyxxwr.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3cmVzeXJkeWFsd2tvd3l4eHdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDI5NDAsImV4cCI6MjA5MDcxODk0MH0.VNpTfui51QnB5UZ6fDZKTzI6oCXasEl8WGlNHZv0lc0
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://iwresyrdyalwkowyxxwr.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3cmVzeXJkeWFsd2tvd3l4eHdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDI5NDAsImV4cCI6MjA5MDcxODk0MH0.VNpTfui51QnB5UZ6fDZKTzI6oCXasEl8WGlNHZv0lc0
+
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: foundry-app
+    env:
+      VITE_SUPABASE_URL: https://iwresyrdyalwkowyxxwr.supabase.co
+      VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3cmVzeXJkeWFsd2tvd3l4eHdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDI5NDAsImV4cCI6MjA5MDcxODk0MH0.VNpTfui51QnB5UZ6fDZKTzI6oCXasEl8WGlNHZv0lc0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: foundry-app/package-lock.json
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npx playwright test
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:4173

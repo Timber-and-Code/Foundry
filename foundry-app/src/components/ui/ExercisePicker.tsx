@@ -9,7 +9,7 @@ interface ExerciseItem {
   name: string;
   muscle: string;
   equipment?: string | string[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface ExercisePickerProps {
@@ -364,7 +364,7 @@ export default function ExercisePicker({
                       style={{
                         width: 6,
                         height: 6,
-                        borderRadius: '50%',
+                        borderRadius: tokens.radius.full,
                         background: accent,
                       }}
                     />

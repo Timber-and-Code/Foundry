@@ -45,6 +45,9 @@ export interface TrainingDay {
   tag?: string;
   name?: string;
   dayNum?: number;
+  muscles?: string;
+  note?: string;
+  cardio?: unknown;
 }
 
 // ─── ACCOUNT TIER ───────────────────────────────────────────────────────────
@@ -83,6 +86,7 @@ export interface Profile {
   birthdate?: string;
   cardioSchedule?: CardioScheduleSlot[];
   addedDayExercises?: Record<string, Exercise[]>;
+  dayMuscleConfig?: Record<number, { primary: string[]; accessory: string[] }>;
   pplLegBalance?: boolean;
   theme?: string;
   goalNote?: string;

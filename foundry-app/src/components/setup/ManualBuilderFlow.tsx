@@ -40,7 +40,7 @@ export interface ManualBuilderFlowProps {
   inputStyle: React.CSSProperties;
   SPLIT_CONFIG: Record<string, SplitConfigEntry>;
   mesoEnd: string | null;
-  set: (k: string, v: any) => void;
+  set: (k: string, v: string | number | string[] | number[]) => void;
   setSplit: (split: string) => void;
   setDayCount: (n: number) => void;
   toggleEquipment: (item: string) => void;
@@ -51,6 +51,7 @@ export interface ManualBuilderFlowProps {
   setDayPairs: React.Dispatch<React.SetStateAction<Record<number, [number, number][]>>>;
   setCardioDays: React.Dispatch<React.SetStateAction<Set<number>>>;
   setError: (v: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   maybePromptCardio: (profile: any) => void;
 }
 
@@ -133,7 +134,7 @@ export default function ManualBuilderFlow({
 
   const numDays = form.workoutDays?.length || form.daysPerWeek || 6;
   const dayTemplates =
-    (splitDayTemplates as Record<string, any>)[form.splitType]?.[numDays] ||
+    (splitDayTemplates as Record<string, Record<number, [string, string][]>>)[form.splitType]?.[numDays] ||
     Array.from({ length: numDays }, (_, i) => [`Day ${i + 1}`, 'FULL']);
 
   const tagColors: Record<string, string> = {
@@ -184,7 +185,7 @@ export default function ManualBuilderFlow({
   };
 
   const allDaysValid = dayTemplates.every(
-    (_: any, i: number) => cardioDays.has(i) || (dayExercises[i] || []).length >= 3
+    (_: unknown, i: number) => cardioDays.has(i) || (dayExercises[i] || []).length >= 3
   );
 
   // ── Pairing helpers ──
@@ -251,7 +252,7 @@ export default function ManualBuilderFlow({
               ['ppl', 'Push / Pull / Legs', 'Classic 3-way split. 3, 5, or 6 days/week.'],
             ].map(([key, label, desc]) => {
               const sel = form.splitType === key;
-              const validDaysForSplit = (SPLIT_CONFIG as Record<string, any>)[key]?.validDays || [];
+              const validDaysForSplit = (SPLIT_CONFIG as Record<string, SplitConfigEntry>)[key]?.validDays || [];
               return (
                 <button
                   key={key}
@@ -330,7 +331,7 @@ export default function ManualBuilderFlow({
             }}
           >
             {[2, 3, 4, 5, 6].map((n) => {
-              const validDays = (SPLIT_CONFIG as Record<string, any>)[form.splitType]?.validDays || [2, 3, 4, 5, 6];
+              const validDays = (SPLIT_CONFIG as Record<string, SplitConfigEntry>)[form.splitType]?.validDays || [2, 3, 4, 5, 6];
               const valid = validDays.includes(n);
               const active = form.workoutDays.length === n;
               return (
@@ -714,10 +715,10 @@ export default function ManualBuilderFlow({
               setError('Select at least one equipment type.');
               return;
             }
-            const splitValidDays = (SPLIT_CONFIG as Record<string, any>)[form.splitType]?.validDays;
+            const splitValidDays = (SPLIT_CONFIG as Record<string, SplitConfigEntry>)[form.splitType]?.validDays;
             if (splitValidDays && !splitValidDays.includes(form.workoutDays.length)) {
               setError(
-                `${(SPLIT_CONFIG as Record<string, any>)[form.splitType]?.label || form.splitType} needs ${splitValidDays.join(' or ')} training days — you have ${form.workoutDays.length} selected.`
+                `${(SPLIT_CONFIG as Record<string, SplitConfigEntry>)[form.splitType]?.label || form.splitType} needs ${splitValidDays.join(' or ')} training days — you have ${form.workoutDays.length} selected.`
               );
               return;
             }
@@ -775,9 +776,9 @@ export default function ManualBuilderFlow({
           Don't pair two heavy compounds.
         </div>
 
-        {dayTemplates.map(([dayLabel, dayTag]: any, dayIdx: any) => {
+        {dayTemplates.map(([dayLabel, dayTag]: [string, string], dayIdx: number) => {
           const exIds = dayExercises[dayIdx] || [];
-          const accent = (tagColorsPair as Record<string, any>)[dayTag] || 'var(--accent)';
+          const accent = (tagColorsPair as Record<string, string>)[dayTag] || 'var(--accent)';
           const pairs = dayPairs[dayIdx] || [];
 
           return (
@@ -1087,10 +1088,10 @@ export default function ManualBuilderFlow({
         <HammerIcon size={14} style={{ marginLeft: 2 }} />. Select at least 3 per day.
       </div>
 
-      {dayTemplates.map(([dayLabel, dayTag]: any, dayIdx: any) => {
+      {dayTemplates.map(([dayLabel, dayTag]: [string, string], dayIdx: number) => {
         const selected = dayExercises[dayIdx] || [];
         const isCardio = cardioDays.has(dayIdx);
-        const accent = isCardio ? cardioColor : (tagColors as Record<string, any>)[dayTag] || 'var(--accent)';
+        const accent = isCardio ? cardioColor : (tagColors as Record<string, string>)[dayTag] || 'var(--accent)';
         const exGroups = getExercisesForTag(dayTag);
         const count = selected.length;
         const countColor =

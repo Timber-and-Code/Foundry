@@ -1,17 +1,18 @@
 import { getReadinessScore, getReadinessLabel } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
+import type { ReadinessEntry } from '../../types';
 
 interface ReadinessCardProps {
-  readiness: any;
+  readiness: ReadinessEntry | null;
   readinessOpen: boolean;
-  setReadinessOpen: (v: any) => void;
-  updateReadiness: (key: any, val: any) => void;
+  setReadinessOpen: (v: boolean) => void;
+  updateReadiness: (key: keyof ReadinessEntry, val: string) => void;
 }
 
 function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadiness }: ReadinessCardProps) {
   const score = getReadinessScore(readiness);
   const rl = getReadinessLabel(score);
-  const SIGNALS = [
+  const SIGNALS: { key: keyof ReadinessEntry; label: string; opts: { val: string; label: string }[] }[] = [
     {
       key: 'sleep',
       label: 'Sleep',
@@ -52,7 +53,7 @@ function ReadinessCard({ readiness, readinessOpen, setReadinessOpen, updateReadi
       }}
     >
       <button
-        onClick={() => setReadinessOpen((o: any) => !o)}
+        onClick={() => setReadinessOpen(!readinessOpen)}
         aria-expanded={readinessOpen}
         aria-controls="readiness-panel"
         style={{

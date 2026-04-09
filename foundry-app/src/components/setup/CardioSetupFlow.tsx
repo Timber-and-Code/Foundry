@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { store } from '../../utils/store';
 import { GOAL_OPTIONS, CARDIO_WORKOUTS, TAG_ACCENT } from '../../data/constants';
 import { tokens } from '../../styles/tokens';
+import type { Profile } from '../../types';
 
 export interface CardioSetupFlowProps {
-  pendingProfile: any;
+  pendingProfile: Profile | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onComplete: (profile: any) => void;
 }
 
@@ -27,7 +29,7 @@ export default function CardioSetupFlow({
   ];
 
   const liftingDows = new Set(
-    (pendingProfile?.workoutDays || []).map((d: any) => (d - 1 + 7) % 7)
+    (pendingProfile?.workoutDays || []).map((d: number) => (d - 1 + 7) % 7)
   );
 
   const profileGoal = pendingProfile?.goal || '';
@@ -52,7 +54,7 @@ export default function CardioSetupFlow({
     setCardioSchedule((prev) => prev.map((s) => (s.dayOfWeek === dow ? { ...s, protocol } : s)));
   };
 
-  const applyRecommendation = (proto: any) => {
+  const applyRecommendation = (proto: { id: string }) => {
     const allDows = [1, 2, 3, 4, 5, 6, 0];
     const available = allDows.filter((d) => !liftingDows.has(d));
     const candidates =

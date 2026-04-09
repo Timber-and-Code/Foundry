@@ -29,8 +29,8 @@ export default function SaveProgressSheet({ onDismiss }: SaveProgressSheetProps)
         showToast('Account created! Your data will sync.', 'success');
         onDismiss();
       }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setLoading(false);
     }

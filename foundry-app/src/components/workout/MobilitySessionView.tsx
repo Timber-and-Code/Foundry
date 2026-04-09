@@ -3,11 +3,35 @@ import { loadMobilitySession, saveMobilitySession } from '../../utils/store';
 import { MOBILITY_PROTOCOLS } from '../../data/constants';
 import { haptic } from '../../utils/helpers';
 import { tokens } from '../../styles/tokens';
+import type { Profile } from '../../types';
+
+interface MobilityExercise {
+  name: string;
+  duration: number;
+  sides?: boolean;
+  note?: string;
+  hold?: number;
+  cue?: string;
+  feel?: string;
+  videoUrl?: string;
+}
+
+interface MobilityProtocol {
+  id: string;
+  name: string;
+  exercises: MobilityExercise[];
+  durationMins?: number;
+  difficulty?: string;
+  description?: string;
+  emoji?: string;
+  duration?: number;
+  category?: string;
+}
 
 interface MobilitySessionViewProps {
   dateStr: string;
   onBack: () => void;
-  profile: any;
+  profile: Profile;
 }
 
 function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySessionViewProps) {
@@ -55,8 +79,8 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
   const [showComplete, setShowComplete] = React.useState(false);
   const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const proto: any = session.protocolId
-    ? MOBILITY_PROTOCOLS.find((p: any) => p.id === session.protocolId)
+  const proto = session.protocolId
+    ? (MOBILITY_PROTOCOLS as unknown as MobilityProtocol[]).find((p) => p.id === session.protocolId) ?? null
     : null;
 
   // ── Timer tick ────────────────────────────────────────────────────────────
@@ -80,9 +104,9 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
   }, [timerActive]);
 
   // ── Start a hold (user tapped "I'm Ready") ────────────────────────────────
-  const startHold = (ex: { hold: number }) => {
+  const startHold = (ex: MobilityExercise) => {
     if (intervalRef.current !== null) clearInterval(intervalRef.current);
-    setRemaining(ex.hold);
+    setRemaining(ex.hold ?? 30);
     setTimerActive(true);
     setHoldPhase('holding');
     haptic('tap');
@@ -127,7 +151,7 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
   };
 
   // ── Ring math (mirrors rest timer) ───────────────────────────────────────
-  const holdTotal = proto && exerciseIdx !== null ? proto.exercises[exerciseIdx].hold : 1;
+  const holdTotal = proto && exerciseIdx !== null ? (proto.exercises[exerciseIdx].hold ?? 1) : 1;
   const R = 72;
   const CIRC = 2 * Math.PI * R;
   const pct = holdTotal > 0 ? remaining / holdTotal : 0;
@@ -245,9 +269,9 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
     const ex = proto.exercises[exerciseIdx];
     const sideLabel = ex.sides ? (sidePhase === 'left' ? 'LEFT SIDE' : 'RIGHT SIDE') : null;
     // Progress dots
-    const totalSteps = proto.exercises.reduce((acc: any, e: any) => acc + (e.sides ? 2 : 1), 0);
+    const totalSteps = proto.exercises.reduce((acc: number, e: MobilityExercise) => acc + (e.sides ? 2 : 1), 0);
     const doneSteps =
-      proto.exercises.slice(0, exerciseIdx).reduce((acc: any, e: any) => acc + (e.sides ? 2 : 1), 0) +
+      proto.exercises.slice(0, exerciseIdx).reduce((acc: number, e: MobilityExercise) => acc + (e.sides ? 2 : 1), 0) +
       (ex.sides && sidePhase === 'right' ? 1 : 0);
     const progressLabel = `${exerciseIdx + 1} of ${proto.exercises.length}`;
 
@@ -834,7 +858,7 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
         >
           CHOOSE A PROTOCOL
         </div>
-        {MOBILITY_PROTOCOLS.map((p: any) => (
+        {(MOBILITY_PROTOCOLS as unknown as MobilityProtocol[]).map((p) => (
           <button
             key={p.id}
             onClick={() => {

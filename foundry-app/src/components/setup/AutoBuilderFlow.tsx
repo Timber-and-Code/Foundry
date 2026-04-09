@@ -30,11 +30,12 @@ export interface AutoBuilderFlowProps {
   sLabel: React.CSSProperties;
   sec: React.CSSProperties;
   inputStyle: React.CSSProperties;
-  setAuto: (k: string, v: any) => void;
+  setAuto: (k: string, v: string | number | string[] | null) => void;
   toggleAutoEquip: (item: string) => void;
   setAiLoading: (v: boolean) => void;
   setAiCoachNote: (v: string) => void;
   setError: (v: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   maybePromptLegBalance: (built: any) => void;
 }
 
@@ -162,9 +163,9 @@ export default function AutoBuilderFlow({
       if (result.coachNote) setAiCoachNote(result.coachNote);
       setAiLoading(false);
       maybePromptLegBalance(aiBuilt);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAiLoading(false);
-      const isTimeout = err.name === 'AbortError';
+      const isTimeout = err instanceof DOMException && err.name === 'AbortError';
       setError(
         isTimeout
           ? 'The Foundry took too long to respond — using a program built from your selections instead.'
@@ -198,7 +199,7 @@ export default function AutoBuilderFlow({
               style={{
                 width: 64,
                 height: 64,
-                borderRadius: '50%',
+                borderRadius: tokens.radius.full,
                 border: '3px solid var(--border)',
                 borderTopColor: 'var(--accent)',
                 animation: 'spin 1s linear infinite',
@@ -320,7 +321,7 @@ export default function AutoBuilderFlow({
                       style={{
                         width: 8,
                         height: 8,
-                        borderRadius: '50%',
+                        borderRadius: tokens.radius.full,
                         background: 'var(--accent)',
                         flexShrink: 0,
                       }}

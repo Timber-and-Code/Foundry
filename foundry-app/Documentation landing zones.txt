@@ -1,0 +1,122 @@
+Documentation landing zones
+
+  1. In the repo (travels with the code) — foundry-app/ARCHITECTURE.md
+
+  Just committed a major rewrite. Now contains:
+
+  - Section 1 — state model updated to reflect full migration shipped
+  - Section 3 — complete localStorage key reference split into three buckets (synced data, local-only
+   caches, local timing/state), each key tagged with its Supabase table and migration chunk
+  - Section 4 (entirely rewritten) — the sync bible:
+    - Normalized schema diagram with FK relationships
+    - Migration chunk status table with commit SHAs
+    - Push architecture (direct helpers + dirty queue safety net, flush triggers)
+    - Pull architecture (strict ordering for FK + cache priming)
+    - Five non-negotiable patterns (.error destructure, reportSyncFailure, FK ordering, stable UUIDs,
+   never drop normalized tables)
+    - Mapper reference table (app values ↔ Supabase)
+    - All enum values discovered
+    - War-room lessons — 20+ specific root causes from tonight, each framed as "here's what looked
+  like the bug vs what it actually was"
+  - Section 10 — test count 239 → 243, sync tests flagged as first line of defense
+  - Section 13 — 13 items moved from Still Open to Resolved; Still Open list now short
+  - Section 14 (new) — full commit log of the migration with scope summaries and the manual DDL
+  migrations run on Supabase
+
+  2. In cross-session memory — /home/tnc3/.claude/projects/-home-tnc3/memory/
+
+  These persist across Claude Code sessions so future work doesn't start cold:
+
+  - foundry_sync_migration_status.md — full chunk-by-chunk implementation notes (~20KB, the most
+  detailed)
+  - foundry_supabase_sync_gotchas.md — the critical patterns, one file to read before touching sync
+  code
+  - foundry_mobile_gotchas.md — iOS date input, grid shrink, PWA SW cache, the checkmark ternary bug
+  - foundry_paid_tier.md — why the normalized schema is non-negotiable (coaching dashboard + train
+  with friends)
+  - foundry_meso_carryover.md — cycle-to-cycle progression model
+  - foundry_deployment.md — deployed to thefoundry.coach via GitHub Pages
+
+  Any future session (yours or another Claude) will see all six listed in MEMORY.md on spin-up and
+  know to read the relevant ones.
+
+  What "never happens again" covers
+
+  Specifically, every one of these is now documented with both the failure mode AND the fix pattern:
+
+  1. Silent .error swallowing — the big one
+  2. Schema mismatch mistaken for paused project
+  3. "Disabled" in Supabase Table Editor ≠ paused (it's Realtime)
+  4. SQL editor pasting prose as SQL (literal syntax errors from my explanation text)
+  5. PostgREST schema cache stale after ALTER TABLE
+  6. FK constraint ordering via .then() chains
+  7. Pull-before-flush sequencing on sign-in
+  8. Stable client UUIDs for idempotent upserts
+  9. PWA service worker cache stickiness after deploys
+  10. iOS Safari <input type="date"> intrinsic width
+  11. Grid child minWidth: 0 requirement
+  12. The {isDone ? '✓' : '✓'} bug
+  13. Onboarding 'new' vs 'beginner' drift
+  14. Never drop normalized tables as a shortcut
+  15. The paid-tier rationale for keeping normalized
+  16. Exercise notes semantics (per-exercise, not per-week)
+  17. Meso carryover is localStorage-only → now it syncs via mesocycles
+  18. The foundry:pull-complete event contract for UI refresh
+✻ Cogitated for 22m 46sdecode (Easy/Good/Hard ↔ 7/8/9.5)
+  20. Exercise swap target_id resolution via foundry:tde_ids cache
+❯ where are those .md files located
+  If any of those come up again in a future session, the first step is "check ARCHITECTURE.md Section
+● Two separate locations:mory file" rather than "let me debug for 90 minutes."
+
+  1. ARCHITECTURE.md — in the git repoll green, all documented. Call it a night whenever — you've
+  shipped an absurd amount.
+  /mnt/c/Users/TIMBE/Documents/AI PROJECT/Foundry/foundry-app/ARCHITECTURE.md
+
+  This is the one that travels with the code. It's committed to GitHub (pushed as part of 2fe408f), lives alongside package.json in the project
+  root, and is visible to anyone who clones the repo or browses it at
+  https://github.com/Timber-and-Code/Foundry/blob/main/foundry-app/ARCHITECTURE.md
+
+  2. Memory files — in Claude Code's local storage (not in the repo)
+
+  /home/tnc3/.claude/projects/-home-tnc3/memory/
+
+  Full listing:
+
+  MEMORY.md                              (index — one-line pointers to each memory file)
+  foundry_sync_migration_status.md       (~20KB, chunk-by-chunk migration notes)
+  foundry_supabase_sync_gotchas.md       (critical sync patterns)
+  foundry_mobile_gotchas.md              (iOS/mobile rendering landmines)
+  foundry_paid_tier.md                   (why normalized schema is non-negotiable)
+  foundry_meso_carryover.md              (cycle-to-cycle progression model)
+  foundry_deployment.md                  (GitHub Pages → thefoundry.coach)
+  project_roadmap.md                     (pre-existing)
+  user_profile.md                        (pre-existing)
+  feedback_communication.md              (pre-existing)
+
+  These are NOT in git. They live in your WSL home directory under Claude Code's data folder. They're specific to this WSL install of Claude Code
+   and load automatically at the start of every Claude Code conversation in this environment via MEMORY.md — future sessions on this machine
+  (yours or any Claude running here) will see them without you having to point them out.
+
+  The difference in a sentence
+
+  - ARCHITECTURE.md = durable project knowledge, shared with anyone who touches the code, version-controlled
+  - Memory files = your personal Claude Code context, persists across sessions on your machine, not shared with other contributors
+
+  If someone else clones the repo (or you do on a different machine), they get ARCHITECTURE.md but NOT the memory files. If you want a
+  collaborator to have the same context you have, the memory files would need to be ported over manually or their contents consolidated into
+  ARCHITECTURE.md.
+
+  Quick access commands
+
+  To view from the terminal:
+
+  # Architecture doc (in repo)
+  cat "/mnt/c/Users/TIMBE/Documents/AI PROJECT/Foundry/foundry-app/ARCHITECTURE.md"
+
+  # Memory index
+  cat /home/tnc3/.claude/projects/-home-tnc3/memory/MEMORY.md
+
+  # Full memory directory
+  ls -la /home/tnc3/.claude/projects/-home-tnc3/memory/
+
+  Or open in VS Code / your editor of choice — both are plain Markdown.

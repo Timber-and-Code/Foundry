@@ -22,6 +22,7 @@ import {
 
 // Utils
 import { migrateKeys } from './utils/storage';
+import { on } from './utils/events';
 import {
   store,
   loadProfile,
@@ -181,14 +182,13 @@ function App() {
 
   // Listen for cardio open requests from DayView
   useEffect(() => {
-    const handler = (e: Event) => {
-      const { dateStr, protocolId } = (e as CustomEvent).detail || {};
+    const unsub = on('foundry:openCardio', (detail) => {
+      const { dateStr, protocolId } = detail;
       if (dateStr) {
         navigate(`/cardio/${dateStr}/${protocolId || 'none'}`);
       }
-    };
-    window.addEventListener('foundry:openCardio', handler);
-    return () => window.removeEventListener('foundry:openCardio', handler);
+    });
+    return unsub;
   }, [navigate]);
 
   // Listen for "delete current meso" requests from SettingsView. The drawer
@@ -197,16 +197,15 @@ function App() {
   // gate below routes the user straight to SetupPage with their onboarding
   // fallbacks (name, goal, experience) still intact.
   useEffect(() => {
-    const handler = () => {
+    const unsub = on('foundry:resetToSetup', () => {
       resetMesoCache();
       setProfile(null);
       setCompletedDays(new Set());
       setCurrentWeek(0);
       setShowSetup(true);
       navigate('/');
-    };
-    window.addEventListener('foundry:resetToSetup', handler);
-    return () => window.removeEventListener('foundry:resetToSetup', handler);
+    });
+    return unsub;
   }, [navigate, setProfile, setCompletedDays, setCurrentWeek]);
 
   // Show tour if flagged (e.g. on reload after setup, or first visit)
@@ -244,7 +243,7 @@ function App() {
         <NoMesoShell
           onSetup={() => setShowSetup(true)}
           onStartProgram={(newProfile) => {
-            saveProfile(newProfile);
+            saveProfile(newProfile as unknown as Profile);
             resetMesoCache();
             setProfile(loadProfile());
             setCompletedDays(loadCompleted(getMeso()));
@@ -361,7 +360,7 @@ function App() {
                 onClose={() => setShowProfileDrawer(false)}
                 onSave={(updated) => {
                   store.set('foundry:profile', JSON.stringify(updated));
-                  setProfile(updated);
+                  setProfile(updated as Profile);
                 }}
               />
             );
@@ -497,13 +496,11 @@ function AuthGate() {
   const [wantsAuth, setWantsAuth] = useState(() => store.get('foundry:wants_auth') === '1');
 
   useEffect(() => {
-    const onWelcomed = () => setWelcomed(true);
-    const onWantsAuth = () => setWantsAuth(true);
-    window.addEventListener('foundry:welcomed', onWelcomed);
-    window.addEventListener('foundry:wants_auth', onWantsAuth);
+    const unsubWelcomed = on('foundry:welcomed', () => setWelcomed(true));
+    const unsubWantsAuth = on('foundry:wants_auth', () => setWantsAuth(true));
     return () => {
-      window.removeEventListener('foundry:welcomed', onWelcomed);
-      window.removeEventListener('foundry:wants_auth', onWantsAuth);
+      unsubWelcomed();
+      unsubWantsAuth();
     };
   }, []);
 

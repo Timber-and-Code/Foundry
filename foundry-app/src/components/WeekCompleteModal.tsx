@@ -1,9 +1,26 @@
 import { getMeso } from '../data/constants';
 import { tokens } from '../styles/tokens';
+import type { Profile } from '../types';
+
+export interface WeekCompleteModalData {
+  isFinal: boolean;
+  week?: number;
+  weekIdx: number;
+  volume: number;
+  sets: number;
+  sessions: number;
+  totalSessions: number;
+  prs: number;
+  mesoTotalVolume: number;
+  mesoCompletedSessions: number;
+  mesoTotalSessions: number;
+  mesoTotalPRs: number;
+  anchorGains: { name: string; delta: number; start?: number; peak?: number }[];
+}
 
 interface WeekCompleteModalProps {
-  modal: { isFinal?: boolean; week?: number; [key: string]: any };
-  profile: any;
+  modal: WeekCompleteModalData;
+  profile: Profile;
   onDismiss: () => void;
   onViewSummary?: () => void;
   onReset?: () => void;
@@ -102,7 +119,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
                 </div>
               </div>
               <div style={{ padding: '6px 0' }}>
-                {modal.anchorGains.map((g: any, i: any) => (
+                {modal.anchorGains.map((g, i) => (
                   <div
                     key={i}
                     style={{

@@ -411,7 +411,7 @@ function SamplePrograms({ profile, onBack, onStartProgram }: SampleProgramsProps
                                 style={{
                                   width: 4,
                                   height: 4,
-                                  borderRadius: '50%',
+                                  borderRadius: tokens.radius.full,
                                   background: ei === 0 ? tc : 'var(--border)',
                                   flexShrink: 0,
                                 }}

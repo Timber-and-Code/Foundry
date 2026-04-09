@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { WorkoutSet, TrainingDay, Exercise } from '../types';
+import type { WeekCompleteModalData } from '../components/WeekCompleteModal';
+import { on } from '../utils/events';
 
 interface UseMesoStateParams {
   setView: (view: string) => void;
@@ -12,21 +14,6 @@ interface AnchorGain {
   peak: number;
   delta: number;
   peakWeek: number;
-}
-
-interface WeekCompleteModalData {
-  weekIdx: number;
-  sessions: number;
-  totalSessions: number;
-  sets: number;
-  volume: number;
-  prs: number;
-  isFinal: boolean;
-  anchorGains: AnchorGain[];
-  mesoTotalVolume: number;
-  mesoTotalPRs: number;
-  mesoCompletedSessions: number;
-  mesoTotalSessions: number;
 }
 import { getMeso, resetMesoCache } from '../data/constants';
 import { EXERCISE_DB } from '../data/exercises';
@@ -60,8 +47,8 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       setCompletedDays(loadCompleted(getMeso()));
       setCurrentWeek(loadCurrentWeek());
     };
-    window.addEventListener('foundry:pull-complete', handlePullComplete);
-    return () => window.removeEventListener('foundry:pull-complete', handlePullComplete);
+    const unsub = on('foundry:pull-complete', handlePullComplete);
+    return unsub;
   }, []);
 
   const activeDays = useMemo(() => {

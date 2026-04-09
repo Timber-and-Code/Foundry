@@ -1,0 +1,48 @@
+<svg width="192" height="192" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ironGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E8651A"/>
+      <stop offset="35%" stop-color="#D4983C"/>
+      <stop offset="65%" stop-color="#E8651A"/>
+      <stop offset="100%" stop-color="#C0885A"/>
+    </linearGradient>
+    <filter id="ember" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0
+                0 0.4 0 0 0
+                0 0 0.1 0 0
+                0 0 0 0.5 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="#0A0A0C"/>
+  <circle cx="96" cy="98" r="60" fill="#E8651A" opacity="0.06"/>
+  <text
+    x="96"
+    y="138"
+    font-size="128"
+    text-anchor="middle"
+    font-family="'Bebas Neue', 'Impact', 'Arial Black', sans-serif"
+    font-weight="bold"
+    fill="url(#ironGrad)"
+    filter="url(#ember)"
+    letter-spacing="-2"
+  >F</text>
+  <text
+    x="96"
+    y="138"
+    font-size="128"
+    text-anchor="middle"
+    font-family="'Bebas Neue', 'Impact', 'Arial Black', sans-serif"
+    font-weight="bold"
+    fill="none"
+    stroke="#D4983C"
+    stroke-width="0.5"
+    opacity="0.3"
+    letter-spacing="-2"
+  >F</text>
+</svg>

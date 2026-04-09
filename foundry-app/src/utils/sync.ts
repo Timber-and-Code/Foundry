@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react';
 import { supabase } from './supabase.js';
 import { store } from './storage.js';
+import { emit } from './events';
 import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData } from '../types';
 // validateDayData + validateProfile are imported by other modules; sync.ts
 // will use them again once workouts/readiness chunks migrate to the
@@ -1189,11 +1190,11 @@ async function getUser() {
 let _inflight = 0;
 function syncStart() {
   _inflight++;
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('foundry:sync', { detail: { inflight: _inflight } }));
+  emit('foundry:sync', { inflight: _inflight });
 }
 function syncEnd() {
   _inflight = Math.max(0, _inflight - 1);
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('foundry:sync', { detail: { inflight: _inflight } }));
+  emit('foundry:sync', { inflight: _inflight });
 }
 
 // ─── DIRTY KEY QUEUE ────────────────────────────────────────────────────────
@@ -1327,11 +1328,7 @@ export async function flushDirty(): Promise<void> {
       if (succeeded) {
         clearDirty(key);
       } else {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('foundry:toast', {
-            detail: { message: 'Sync failed — changes saved locally', type: 'warning' },
-          }));
-        }
+        emit('foundry:toast', { message: 'Sync failed — changes saved locally', type: 'warning' });
       }
     }
   } catch (e) {
@@ -1359,14 +1356,10 @@ let _lastSyncFailureToast = 0;
 function reportSyncFailure(operation: string, err: unknown): void {
   console.warn(`[Foundry Sync] ${operation} failed`, err);
   Sentry.captureException(err, { tags: { context: 'sync', operation } });
-  if (typeof window !== 'undefined') {
-    const now = Date.now();
-    if (now - _lastSyncFailureToast > 30_000) {
-      _lastSyncFailureToast = now;
-      window.dispatchEvent(new CustomEvent('foundry:toast', {
-        detail: { message: `Cloud sync failed (${operation}). Saved locally — will retry.`, type: 'warning' },
-      }));
-    }
+  const now = Date.now();
+  if (now - _lastSyncFailureToast > 30_000) {
+    _lastSyncFailureToast = now;
+    emit('foundry:toast', { message: `Cloud sync failed (${operation}). Saved locally — will retry.`, type: 'warning' });
   }
 }
 
@@ -1926,9 +1919,7 @@ export async function pullFromSupabase(): Promise<void> {
     // Notify listeners (App/useMesoState) that local storage has been
     // refreshed from the remote, so they can re-read profile + derived state
     // without requiring a page reload.
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('foundry:pull-complete'));
-    }
+    emit('foundry:pull-complete');
   } catch (e) { console.warn('[Foundry Sync] Pull from Supabase failed', e); Sentry.captureException(e, { tags: { context: 'sync', operation: 'pull' } }); } finally { syncEnd(); }
 }
 
@@ -2240,9 +2231,7 @@ export async function joinMesoByCode(code: string): Promise<{
     }
 
     // 4. Dispatch pull-complete so useMesoState re-reads from localStorage
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('foundry:pull-complete'));
-    }
+    emit('foundry:pull-complete');
 
     return { success: true, mesoName, ownerName };
   } catch (e) {

@@ -3,14 +3,14 @@ import { haptic } from '../../utils/helpers';
 import { tokens } from '../../styles/tokens';
 
 interface CardioIntervalTimerProps {
-  protocol: any;
+  protocol: { label: string; intervals?: { workSecs: number; restSecs: number; rounds: number } };
   onComplete: () => void;
   onDismiss: () => void;
 }
 
 function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioIntervalTimerProps) {
   const { intervals, label } = protocol;
-  const { workSecs, restSecs, rounds } = intervals;
+  const { workSecs, restSecs, rounds } = intervals!;
 
   const [phase, setPhase] = React.useState('work'); // "work" | "rest" | "done"
   const [round, setRound] = React.useState(1);
@@ -41,7 +41,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
       return;
     }
     intervalRef.current = setInterval(() => {
-      setRemaining((prev: any) => {
+      setRemaining((prev: number) => {
         if (prev <= 1) {
           if (phase === 'work') {
             haptic('tap');
@@ -343,7 +343,7 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
               style={{
                 width: 8,
                 height: 8,
-                borderRadius: '50%',
+                borderRadius: tokens.radius.full,
                 background:
                   i < round - 1
                     ? DONE_COLOR

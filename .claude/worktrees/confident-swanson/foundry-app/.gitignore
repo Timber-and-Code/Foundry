@@ -1,0 +1,11 @@
+node_modules
+.env
+.DS_Store
+*.local
+# NOTE: foundry-app/dist/ is intentionally NOT ignored. GitHub Pages
+# serves from the built dist/ folder, so the pre-built bundle must be
+# committed for the deploy to reflect source changes. Historically the
+# `dist` line here blocked new build artifacts (e.g. new hash-named JS
+# chunks) from being tracked while dist/index.html referenced them —
+# producing a permanently broken deploy. Run `npm run build` before
+# committing whenever src/ changes.

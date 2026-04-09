@@ -5,7 +5,7 @@ import { tokens } from '../../styles/tokens';
 
 interface NoMesoShellProps {
   onSetup: () => void;
-  onStartProgram: (programId: any) => void;
+  onStartProgram: (program: Record<string, unknown>) => void;
 }
 
 function NoMesoShell({ onSetup, onStartProgram }: NoMesoShellProps) {

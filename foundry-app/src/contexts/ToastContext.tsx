@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { ToastContainer } from '../components/ui/Toast';
+import { on } from '../utils/events';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -34,12 +35,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   // Listen for toasts dispatched from non-React modules (e.g. sync.ts)
   useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ message?: string; type?: ToastType }>).detail;
+    const unsub = on('foundry:toast', (detail) => {
       showToast(detail?.message ?? 'Something went wrong', detail?.type ?? 'warning');
-    };
-    window.addEventListener('foundry:toast', handler);
-    return () => window.removeEventListener('foundry:toast', handler);
+    });
+    return unsub;
   }, [showToast]);
 
   return (

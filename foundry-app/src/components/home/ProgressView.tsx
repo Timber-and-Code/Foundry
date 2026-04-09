@@ -15,7 +15,8 @@ import {
   loadDayWeek,
   loadSparklineData,
 } from '../../utils/store';
-import type { TrainingDay, Exercise, BodyWeightEntry, WorkoutSet } from '../../types';
+import { loadCardioSession } from '../../utils/persistence';
+import type { TrainingDay, Exercise, BodyWeightEntry, WorkoutSet, CardioSession } from '../../types';
 // haptic import reserved for future UI feedback
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -389,6 +390,7 @@ interface ProgressViewProps {
 
 export default function ProgressView({ currentWeek, completedDays, activeDays, goBack, goTo }: ProgressViewProps) {
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
+  const [showCardioHistory, setShowCardioHistory] = useState(false);
   const weekByTag = calcMuscleSetsByTag(activeDays, completedDays, currentWeek);
 
   const workoutsThisWeek = activeDays.filter((_, i) =>
@@ -1403,6 +1405,88 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             </div>
           );
         })}
+
+        {/* Cardio History */}
+        {(() => {
+          const cardioKeys = store.keys('foundry:cardio:session:');
+          if (cardioKeys.length === 0) return null;
+          const sessions: { date: string; session: CardioSession }[] = [];
+          if (showCardioHistory) {
+            cardioKeys
+              .map((k) => k.replace('foundry:cardio:session:', ''))
+              .sort((a, b) => b.localeCompare(a))
+              .slice(0, 20)
+              .forEach((dateStr) => {
+                const s = loadCardioSession(dateStr);
+                if (s) sessions.push({ date: dateStr, session: s });
+              });
+          }
+          return (
+            <div style={{ marginTop: 16, marginBottom: 8 }}>
+              <button
+                onClick={() => setShowCardioHistory(!showCardioHistory)}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.lg,
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Cardio History ({cardioKeys.length})
+                </span>
+                <span style={{
+                  color: 'var(--text-dim)',
+                  fontSize: 20,
+                  transform: showCardioHistory ? 'rotate(90deg)' : 'none',
+                  transition: 'transform 0.2s',
+                }}>
+                  ›
+                </span>
+              </button>
+              {showCardioHistory && sessions.length > 0 && (
+                <div style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderTop: 'none',
+                  borderRadius: `0 0 ${tokens.radius.lg}px ${tokens.radius.lg}px`,
+                  overflow: 'hidden',
+                }}>
+                  {sessions.map(({ date, session }) => (
+                    <div
+                      key={date}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 16px',
+                        borderBottom: '1px solid var(--bg-surface)',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {date}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          {session.type || 'Cardio'}{session.intensity ? ` · ${session.intensity}` : ''}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: tokens.colors.gold, textAlign: 'right' }}>
+                        {session.duration ? `${session.duration} min` : '—'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Quick links */}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>

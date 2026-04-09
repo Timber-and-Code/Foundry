@@ -93,6 +93,7 @@ export const tokens = {
     xxl:  14,
     round: 20,
     pill: 999,
+    full: '50%',
   },
 
   fontSize: {

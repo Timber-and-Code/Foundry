@@ -1,4 +1,5 @@
 import { store } from '../../utils/store';
+import { emit } from '../../utils/events';
 import { tokens } from '../../styles/tokens';
 
 /**
@@ -15,7 +16,7 @@ import { tokens } from '../../styles/tokens';
 export default function WelcomeScreen() {
   const handleGetStarted = () => {
     store.set('foundry:welcomed', '1');
-    window.dispatchEvent(new Event('foundry:welcomed'));
+    emit('foundry:welcomed');
   };
 
   return (

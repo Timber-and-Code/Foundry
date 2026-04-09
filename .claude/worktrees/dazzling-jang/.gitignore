@@ -1,0 +1,28 @@
+# Dependencies
+foundry-app/node_modules/
+
+# Build output
+foundry-app/dist/
+
+# Native platforms (built locally, not needed in repo)
+foundry-app/android/
+foundry-app/ios/
+
+# Environment files
+foundry-app/.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Large image files at root
+*.png
+# Allow PWA icons
+!foundry-app/public/icon-*.png
+!foundry-app/public/apple-touch-icon.png
+
+# Old anchor icon option files
+anchor_icon_options*.html

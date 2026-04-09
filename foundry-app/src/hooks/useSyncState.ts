@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { store } from '../utils/storage';
+import { on } from '../utils/events';
 
 export type SyncState = 'idle' | 'syncing' | 'synced' | 'offline';
 
@@ -9,17 +10,16 @@ export function useSyncState(): SyncState {
   );
 
   useEffect(() => {
-    const onSync = (e: any) => {
+    const unsubSync = on('foundry:sync', (detail) => {
       if (!navigator.onLine) return;
-      setState(e.detail.inflight > 0 ? 'syncing' : 'synced');
-    };
+      setState(detail.inflight > 0 ? 'syncing' : 'synced');
+    });
     const onOnline = () => setState('idle');
     const onOffline = () => setState('offline');
-    window.addEventListener('foundry:sync', onSync);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
     return () => {
-      window.removeEventListener('foundry:sync', onSync);
+      unsubSync();
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
@@ -47,9 +47,8 @@ export function useSyncDirtyCount(): number {
   const [count, setCount] = useState(read);
 
   useEffect(() => {
-    const handler = () => setCount(read());
-    window.addEventListener('foundry:sync', handler);
-    return () => window.removeEventListener('foundry:sync', handler);
+    const unsub = on('foundry:sync', () => setCount(read()));
+    return unsub;
   }, []);
 
   return count;

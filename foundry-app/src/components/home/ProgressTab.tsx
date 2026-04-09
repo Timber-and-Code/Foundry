@@ -1,9 +1,10 @@
 import ProgressView from './ProgressView';
+import type { TrainingDay } from '../../types';
 
 interface ProgressTabProps {
   displayWeek: number;
   completedDays: Set<string>;
-  activeDays: any[];
+  activeDays: TrainingDay[];
   goBack: () => void;
   goTo: (week: number | string) => void;
 }

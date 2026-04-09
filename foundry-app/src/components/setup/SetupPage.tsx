@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { store, ageFromDob, isEduEmail } from '../../utils/store';
+import { emit } from '../../utils/events';
 import { supabase } from '../../utils/supabase';
 import FoundryBanner from '../shared/FoundryBanner';
 import AutoBuilderFlow from './AutoBuilderFlow';
@@ -901,7 +902,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                     type="button"
                     onClick={() => {
                       store.set('foundry:wants_auth', '1');
-                      window.dispatchEvent(new Event('foundry:wants_auth'));
+                      emit('foundry:wants_auth');
                     }}
                     style={{
                       background: 'none',

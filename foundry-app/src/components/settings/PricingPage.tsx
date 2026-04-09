@@ -689,7 +689,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
               style={{
                 width: 40,
                 height: 40,
-                borderRadius: '50%',
+                borderRadius: tokens.radius.full,
                 flexShrink: 0,
                 background: 'linear-gradient(135deg, #2E2418 0%, #1A1410 100%)',
                 border: '1px solid var(--border-accent)',

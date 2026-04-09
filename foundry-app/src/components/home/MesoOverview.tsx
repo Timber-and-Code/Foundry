@@ -2,14 +2,15 @@ import React from 'react';
 import { loadArchive, store } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
 import { getMeso, getWeekPhase, getMesoRows, getProgTargets, PHASE_COLOR } from '../../data/constants';
+import type { Profile, TrainingDay } from '../../types';
 
 interface MesoOverviewProps {
   tab: string;
   goBack: () => void;
   goTo: (tab: string | number) => void;
-  activeDays: any[];
-  completedDays: Set<string> | any[];
-  profile: any;
+  activeDays: TrainingDay[];
+  completedDays: Set<string>;
+  profile: Profile;
 }
 
 // ── SubHeader ─────────────────────────────────────────────────────────────
@@ -413,7 +414,7 @@ function MesoHistory({ goBack }: { goBack: () => void }) {
 
 // ── Weekly Summary ────────────────────────────────────────────────────────
 
-function WeeklySummary({ goBack }: { activeDays: any; completedDays: any; goBack: any; profile: any }) {
+function WeeklySummary({ goBack }: { activeDays: TrainingDay[]; completedDays: Set<string>; goBack: () => void; profile: Profile }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px' }}>

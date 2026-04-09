@@ -211,7 +211,8 @@ interface ScheduleTabProps {
   onOpenCardio: (dateStr: string, protocolId: string | null) => void;
   setCurrentWeek: (v: number) => void;
   onProfileUpdate: (v: Profile) => void;
-  setAddWorkoutModal: (v: string | null) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setAddWorkoutModal: (v: any) => void;
   setAddWorkoutStep: (v: string) => void;
   setAddWorkoutType: (v: string | null) => void;
   setAddWorkoutDayType: (v: string | null) => void;
@@ -616,7 +617,7 @@ function ScheduleTab({
                       style={{
                         width: 5,
                         height: 5,
-                        borderRadius: '50%',
+                        borderRadius: tokens.radius.full,
                         background: 'var(--accent)',
                         opacity: 0.9,
                         position: 'absolute',
@@ -630,7 +631,7 @@ function ScheduleTab({
                       style={{
                         width: 5,
                         height: 5,
-                        borderRadius: '50%',
+                        borderRadius: tokens.radius.full,
                         background: cardioDone ? tokens.colors.gold : TAG_ACCENT['CARDIO'],
                         opacity: 0.9,
                         position: 'absolute',
@@ -742,7 +743,7 @@ function ScheduleTab({
                   style={{
                     width: 5,
                     height: 5,
-                    borderRadius: '50%',
+                    borderRadius: tokens.radius.full,
                     background: 'var(--accent)',
                   }}
                 />
@@ -753,7 +754,7 @@ function ScheduleTab({
                   style={{
                     width: 5,
                     height: 5,
-                    borderRadius: '50%',
+                    borderRadius: tokens.radius.full,
                     background: tokens.colors.gold,
                   }}
                 />

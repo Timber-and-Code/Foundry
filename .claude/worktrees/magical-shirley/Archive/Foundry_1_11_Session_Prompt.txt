@@ -1,0 +1,221 @@
+──────────────────────────────────────────────────────────────────────────────
+THE FOUNDRY — SESSION RELOAD PROMPT  |  v1.11  |  March 2026
+──────────────────────────────────────────────────────────────────────────────
+
+You are picking up active development of The Foundry, a single-file React PWA
+strength training app. Read this entire prompt before responding. Then proceed
+with the Light Mode QA interview described at the end.
+
+
+── PROJECT IDENTITY ──────────────────────────────────────────────────────────
+
+App:         The Foundry
+Owner:       James (IT Specialist, VA Dublin OH; side hustle in remote IT)
+File:        Foundry_1_11.html (~9,600 lines, single file, NO build step)
+Stack:       React 18 via Babel CDN, localStorage, Anthropic API (AI builder)
+Methodology: Renaissance Periodization mesocycle periodization
+Store target: iOS App Store + Google Play, end of April 2026
+
+
+── HARD RULES — NEVER BREAK THESE ───────────────────────────────────────────
+
+1. Single file always. No splitting, no imports, no bundler until Capacitor.
+2. Warmup sets are excluded from ALL calculations (volume, PRs, progression).
+3. Babel transpiles JSX at runtime — no build step, no npm run dev.
+4. All localStorage keys under ppl: namespace.
+5. Export/import backup must remain functional at all times.
+6. Letters and formal docs always output as .docx files.
+7. Peer tone — direct, no fluff, no excessive formality.
+
+
+── ARCHITECTURE SUMMARY ──────────────────────────────────────────────────────
+
+NAVIGATION
+  App layer:        view state → "home" | "day"
+  HomeView layer:   tab state → "landing" | "progress" | "schedule" | "explore"
+  Bottom tab bar:   Home | Progress | Schedule | Explore (fixed, visible on 4 main tabs only)
+  Sub-pages:        goTo("overview" | "weekly" | "history" | "profile" | "datamgmt")
+                    — tab bar hides on sub-pages, SubHeader shows ‹ back button
+
+DATA LAYER (localStorage, ppl: namespace)
+  ppl:profile               JSON profile object
+  ppl:day{d}:week{w}        set data per session
+  ppl:notes:d{d}:w{w}       session notes
+  ppl:exov:d{d}:w{w}:ex{e}  this-week exercise override
+  ppl:exov:d{d}:ex{e}       full-meso exercise override
+  ppl:completed             stringified Set of "dayIdx:weekIdx"
+  ppl:currentWeek           active week cursor
+  ppl:archive               JSON array, max 10 meso snapshots
+  ppl:onboarded             flag to skip intro after first run
+  ppl:snapshot              auto-backup written on week complete
+  ppl:theme                 "dark" | "light"
+
+KEY COMPONENTS
+  App                       Root — onboarding → setup → home/day
+  HomeView                  4-tab shell + bottom nav bar
+  DayView                   Full session logging view
+  ExerciseCard              Per-exercise: weight/reps, checkmark, history, swap, warmup, how-to
+  SwapModal                 Exercise substitution — week or full meso scope
+  PRTracker                 PRs across all weeks — sparklines, trend arrows, BW-aware
+  ProgressPage              Progress tab shell
+  VolumeLandmarksCard       MEV/MAV/MRV bands
+  MesoMuscleCard            Week-by-week muscle volume heatmap
+  WeekSection/DeloadSection Collapsible week rows in Schedule tab
+  MesoOverview              Phase strip + exercise/set list per week
+  MesoHistory               Archive viewer — completed cycles, PRs
+  WeeklySummary             Weekly volume and session stats
+  ExplorePage               3-section: home/about, exercise library, sample programs
+  SetupPage                 Profile builder (manual + AI path)
+  OnboardingFlow            3-screen first-run intro (revamp pending)
+  FoundryBanner             Sticky top banner with meso/week subtitle
+  buildMesoConfig()         Computes MESO config from mesoLen + split type
+  generateProgram()         Maps profile → exercise list from EXERCISE_DB
+  archiveCurrentMeso()      Snapshots cycle before reset
+  exportData()/importData() Full localStorage JSON backup/restore
+
+
+── EXERCISE DATABASE ─────────────────────────────────────────────────────────
+
+  159 exercises total. Fields per exercise:
+    id, name, tag (PUSH/PULL/LEGS), muscle, equipment, pattern (compound/isolation),
+    anchor (bool), splits[], sets, reps, rest, warmup, description, videoUrl
+  videoUrl = YouTube search URL (not hardcoded video ID — stays current)
+  Bodyweight exercises: isBw flag, PRTracker uses effective weight (BW + added load)
+
+
+── DESIGN SYSTEM ─────────────────────────────────────────────────────────────
+
+  CSS variable system with data-theme="dark" | "light" on <html>
+  Phase colors: --phase-accum (#3aaba3), --phase-intens (#5b9bd5),
+                --phase-peak (#7aabcc), --phase-deload (#9b8ea8)
+  Dark mode: primary, fully QA'd
+  Light mode: variables defined, QA pass NOT YET DONE (next priority)
+
+  Dark mode key values:
+    --bg-root #0d0e10, --bg-card #1a1c1e, --bg-deep #111214
+    --text-primary #e8eaec, --text-secondary #9ea2a6, --accent #5b9bd5
+
+
+── COMPLETED FEATURES (v1.11) ────────────────────────────────────────────────
+
+  ✓ AI program builder (Anthropic API) + manual setup path
+  ✓ PPL, Upper/Lower, Full Body splits — 4 to 8 week meso lengths
+  ✓ Day View — set logging, weight/reps inputs, checkmark completion
+  ✓ Rest timer — auto-fires, visual countdown, AudioContext beep, vibrate
+  ✓ Exercise swap — week or full-meso scope via SwapModal
+  ✓ Bodyweight load model — BW + added weight, surfaced in PRTracker
+  ✓ PR Tracker — actual weight×reps comparison, sparklines, BW-aware
+  ✓ Volume Landmarks — MEV/MAV/MRV color bands per muscle group
+  ✓ Meso History — 10-cycle archive, PRs surfaced, snapshot on week complete
+  ✓ Export/import backup — full localStorage JSON
+  ✓ Phase-aware color system — Accumulation / Intensification / Peak / Deload
+  ✓ 159-exercise DB — descriptions, YouTube links, BW flags
+  ✓ Exercise How To modal + YouTube button
+  ✓ Schedule tab — month calendar + Meso Overview card + week-by-week sessions
+  ✓ Explore tab — exercise library (filterable), sample programs, about section
+  ✓ Bottom tab bar — 4 tabs, SVG icons, active state, hides on sub-pages
+  ✓ Dark mode — fully implemented and QA'd
+  ✓ Warmup protocols per exercise (WarmupCard)
+  ✓ Week Complete modal + auto-advance
+  ✓ Meso Complete modal + archive trigger
+
+
+── PRIORITY ROADMAP ──────────────────────────────────────────────────────────
+
+  1. Light mode QA pass          (ship blocker — variables exist, never QA'd)
+  2. No-meso state → Explore     (low effort — open Explore when no active meso)
+  3. Weight auto-suggest         (pre-fill suggested weight from prior week)
+  4. Onboarding revamp           (Explore-first, kill static text dump)
+  5. Supersets                   (paired exercises, shared rest timer — large feature)
+  6. Export backup nudge         (prompt after first workout complete)
+  7. Cardio logging              (session type, duration, notes, optional HR)
+  8. Capacitor migration         (Week 3 of April — native wrapper)
+  9. Push notifications          (post-Capacitor)
+  10. App icon / splash / store  (Week 4 of April)
+
+
+── KNOWN ISSUES ──────────────────────────────────────────────────────────────
+
+  - CalendarStrip component (~line 3482) is defined but not rendered anywhere.
+    Vestigial or reserved — should be removed or documented.
+  - Light mode colors set by estimation, not testing. Expected contrast failures.
+  - Rest timer AudioContext beep: setInterval callback may not count as a user
+    gesture on iOS — needs device testing. Capacitor will solve this properly.
+  - icons object previously scoped inside landing IIFE — moved to HomeView scope
+    in 1.11. Confirm no lingering IIFE references.
+
+
+──────────────────────────────────────────────────────────────────────────────
+LIGHT MODE QA — YOUR FIRST TASK THIS SESSION
+──────────────────────────────────────────────────────────────────────────────
+
+Light mode is the #1 priority — it's a ship blocker. The CSS variables are
+defined under [data-theme="light"] but have never been systematically tested.
+
+Your job: walk James through every screen and sub-screen and collect his
+feedback using the ask_user_input_v0 tool (multiple choice options). After
+all screens are reviewed, apply all fixes in one focused code pass.
+
+Run the screens in this order, one question set per screen. For each screen,
+present the options below. James will open the app, switch to light mode
+(Profile → Display → Light), navigate to that screen, and report back.
+
+─ SCREENS TO COVER IN ORDER ──────────────────────────────────────────────────
+
+Present these as multi-select option questions. James can pick multiple issues.
+After each screen, note the feedback and move to the next.
+
+OPTION SET A — General visual quality (use for most screens):
+  a) Looks good — no changes needed
+  b) Cards don't have enough contrast against the background
+  c) Text is hard to read (too light or too low contrast)
+  d) Background layers are too similar / hard to distinguish
+  e) Buttons are hard to see or don't look tappable
+  f) Input fields blend into the background
+  g) Accent / phase colors look washed out or wrong in light mode
+  h) Something specific looks broken (describe it)
+
+OPTION SET B — Navigation specific:
+  a) Tab bar looks good
+  b) Active tab indicator is hard to see
+  c) Tab bar blends into page content (no visible separation)
+  d) Icons are too dark or too light
+  e) Tab labels are hard to read
+
+SCREEN LIST:
+  Screen 1:  Home tab (landing) — meso ring, week card, next session CTA
+  Screen 2:  Home tab — this-week volume mini-bar card
+  Screen 3:  Bottom tab bar — all 4 tabs visible
+  Screen 4:  Progress tab — volume landmarks card
+  Screen 5:  Progress tab — PR tracker (tap "View All PRs")
+  Screen 6:  Schedule tab — month calendar card
+  Screen 7:  Schedule tab — Meso Overview nav card + weekly session rows
+  Screen 8:  Explore tab — home/about section (hero + feature cards)
+  Screen 9:  Explore tab — exercise library (search + filter + list)
+  Screen 10: Explore tab — sample programs (expand one)
+  Screen 11: Day View — exercise cards (collapsed state)
+  Screen 12: Day View — exercise card expanded (sets, inputs, checkmarks)
+  Screen 13: Day View — rest timer bar (after logging a set)
+  Screen 14: Workout Complete modal
+  Screen 15: Meso Overview sub-page
+  Screen 16: Weekly Summary sub-page
+  Screen 17: Meso History sub-page
+  Screen 18: Profile sub-page
+  Screen 19: Data Management sub-page
+  Screen 20: Setup / Onboarding (if accessible — or skip)
+
+After all screens: compile all feedback and apply all light mode fixes in a
+single code pass to the working file. Then output a new Foundry_1_11.html.
+
+─ HOW TO START ───────────────────────────────────────────────────────────────
+
+Begin by acknowledging the project reload and asking James to:
+  1. Open Foundry_1_11.html in his browser
+  2. Go to Profile → Display → switch to Light
+  3. Confirm when ready
+
+Then start Screen 1 immediately using ask_user_input_v0.
+
+──────────────────────────────────────────────────────────────────────────────
+END OF SESSION PROMPT
+──────────────────────────────────────────────────────────────────────────────

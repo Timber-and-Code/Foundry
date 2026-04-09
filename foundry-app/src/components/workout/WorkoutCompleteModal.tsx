@@ -113,7 +113,7 @@ function WorkoutCompleteModal({
           style={{
             width: 72,
             height: 72,
-            borderRadius: '50%',
+            borderRadius: tokens.radius.full,
             border: `3px solid ${phaseColor}`,
             display: 'flex',
             alignItems: 'center',

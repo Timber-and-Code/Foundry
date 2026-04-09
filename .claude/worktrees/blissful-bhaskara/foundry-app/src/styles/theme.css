@@ -1,0 +1,62 @@
+/* ── Dark theme: The Foundry – Forge Palette ── */
+:root, [data-theme="dark"] {
+  --bg-root:       #0A0A0C;
+  --bg-deep:       #060608;
+  --bg-surface:    #141416;
+  --bg-card:       #1A1814;
+  --bg-inset:      #0A0A0C;
+  --bg-input:      #161618;
+  --border:        #2E2A24;
+  --border-subtle: #1E1E24;
+  --border-accent: #3D3528;
+  --text-primary:  #E8E4DC;
+  --text-secondary:#A8A4A0;
+  --text-muted:    #9A8A78;
+  --text-dim:      #8A8580;
+  --accent:        #E8651A;
+  --accent-blue:   #E8651A;
+  --accent-rgb:    232,101,26;
+  --selected-bg:   #1F1208;
+  --selected-border:#E8651A;
+  --phase-accum:   #E8E4DC;
+  --phase-intens:  #E8651A;
+  --phase-peak:    #D4983C;
+  --phase-deload:  #5B8FA8;
+  --tag-push:      #E8651A;
+  --tag-pull:      #C87D4A;
+  --tag-legs:      #D4983C;
+  --danger:        #961D11;
+  --danger-bg:     #1A0808;
+  --success:       #8A7A30;
+  --success-bg:    #14120A;
+  --btn-primary-bg: #C0392B;
+  --btn-primary-border: #E8651A;
+  --btn-primary-text: #E8E4DC;
+  --timer-mini-bg: #2A2A30;
+  --timer-mini-text: #E8E4DC;
+
+  /* Warm gold / mobility / cardio-rest */
+  --gold:          #D4983C;
+  --gold-dim:      #D4983C20;
+  --gold-border:   #D4983C55;
+  --gold-subtle:   #D4983C10;
+
+  /* Amber / hover accent */
+  --amber:         #F29A52;
+
+  /* Cardio intensity */
+  --cardio-hard:   #E75831;
+
+  /* Overlays */
+  --overlay:       rgba(0,0,0,0.82);
+  --overlay-light: rgba(0,0,0,0.6);
+  --overlay-heavy: rgba(0,0,0,0.88);
+  --overlay-med:   rgba(0,0,0,0.75);
+
+  /* Shadow scale */
+  --shadow-xs:  0 1px 3px rgba(0,0,0,0.3);
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.35);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.5);
+  --shadow-xl:  0 16px 48px rgba(0,0,0,0.6);
+}

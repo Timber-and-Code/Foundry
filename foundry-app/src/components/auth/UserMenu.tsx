@@ -82,7 +82,7 @@ export default function AccountSection() {
             style={{
               width: 6,
               height: 6,
-              borderRadius: '50%',
+              borderRadius: tokens.radius.full,
               background: statusColor,
               flexShrink: 0,
               transition: 'background 0.4s',

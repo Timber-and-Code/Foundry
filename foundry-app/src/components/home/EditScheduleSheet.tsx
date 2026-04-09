@@ -2,12 +2,14 @@ import React from 'react';
 import { getWorkoutDaysForWeek, ensureWorkoutDaysHistory, saveProfile } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
 import Sheet from '../ui/Sheet';
+import type { Profile } from '../../types';
 
 interface EditScheduleSheetProps {
   showEditSchedule: boolean;
   setShowEditSchedule: (v: boolean) => void;
-  profile: any;
+  profile: Profile;
   currentWeek: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onProfileUpdate: (profile: any) => void;
 }
 
@@ -30,7 +32,7 @@ function EditScheduleSheet({
     const [pendingDays, setPendingDays] = React.useState<number[] | null>(null);
     const countOk = selected.length === requiredCount;
 
-    const toggleDay = (dow: any) => {
+    const toggleDay = (dow: number) => {
       setSelected((prev) =>
         prev.includes(dow)
           ? prev.filter((d) => d !== dow).sort((a, b) => a - b)
@@ -38,7 +40,7 @@ function EditScheduleSheet({
       );
     };
 
-    const applyRemap = (scope: any) => {
+    const applyRemap = (scope: 'week' | 'meso') => {
       const p = ensureWorkoutDaysHistory(profile);
       const history = [...(p.workoutDaysHistory || [])];
       const priorDays = getWorkoutDaysForWeek(p, currentWeek);
@@ -59,7 +61,7 @@ function EditScheduleSheet({
       if (onProfileUpdate)
         onProfileUpdate({
           workoutDaysHistory: pruned,
-          workoutDays: pendingDays,
+          workoutDays: pendingDays ?? undefined,
         });
       setShowEditSchedule(false);
     };
@@ -265,7 +267,7 @@ function EditScheduleSheet({
         >
           Select {requiredCount} day{requiredCount !== 1 ? 's' : ''} per week. Currently:{' '}
           <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-            {currentDays.map((d: any) => DOW_FULL[d]).join(', ')}
+            {currentDays.map((d: number) => DOW_FULL[d]).join(', ')}
           </span>
         </div>
         <div

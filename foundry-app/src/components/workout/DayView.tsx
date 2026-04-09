@@ -9,10 +9,9 @@ import {
 import { EXERCISE_DB } from '../../data/exercises';
 
 // UI
-import Sheet from '../ui/Sheet';
-import ExercisePicker from '../ui/ExercisePicker';
 
 // Utils
+import { emit } from '../../utils/events';
 import {
   store,
   loadDayWeek,
@@ -24,7 +23,6 @@ import {
   saveExOverride,
   bwPromptShownThisWeek,
   getWeekSets,
-  detectSessionPRs,
 } from '../../utils/store';
 import {
   syncExerciseSwapRemote,
@@ -36,6 +34,7 @@ import {
 } from '../../utils/sync';
 import { useRestTimer } from '../../contexts/RestTimerContext';
 import { useWorkoutTimer, formatElapsed } from '../../hooks/useWorkoutTimer';
+import { useCompletionFlow } from '../../hooks/useCompletionFlow';
 
 // Components
 import ExerciseCard from './ExerciseCard';
@@ -45,9 +44,8 @@ import WorkoutCompleteModal from './WorkoutCompleteModal';
 import CardioPromptModal from './CardioPromptModal';
 import UnfinishedPromptModal from './UnfinishedPromptModal';
 import NoteReviewSheet from './NoteReviewSheet';
-import SwapScopeSelector from './SwapScopeSelector';
-import type { WorkoutCompleteStats } from './WorkoutCompleteModal';
-import type { Profile, TrainingDay, Exercise, MesoMember, WorkoutSet } from '../../types';
+import SwapSheet from './SwapSheet';
+import type { Profile, TrainingDay, Exercise, MesoMember } from '../../types';
 
 interface DayViewProps {
   dayIdx: number;
@@ -195,10 +193,10 @@ function DayView({
   );
   const [notes] = useState(() => loadNotes(dayIdx, weekIdx));
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
-  const [doneExercises, setDoneExercises] = useState(() => {
-    if (isFutureSession) return new Set(); // future — nothing is done
+  const [doneExercises, setDoneExercises] = useState<Set<number>>(() => {
+    if (isFutureSession) return new Set<number>(); // future — nothing is done
     const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile);
-    const restored = new Set();
+    const restored = new Set<number>();
     weekDay.exercises.forEach((ex: Exercise, i: number) => {
       const exData = (saved as unknown as Record<string, Record<string, Record<string, unknown>>>)[i] || {};
       let allFilled = true;
@@ -215,11 +213,6 @@ function DayView({
     return restored;
   });
   const [, setDialog] = useState<{ exIdx: number; exName?: string; restStr?: string; isLastSet?: boolean } | null>(null);
-  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
-  const [workoutStats, setWorkoutStats] = useState<WorkoutCompleteStats | null>(null);
-  const [showCardioPrompt, setShowCardioPrompt] = useState(false);
-  const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
-  const [completionWeekIdx, setCompletionWeekIdx] = useState<number | null>(null);
   const [showMesoOverlay, setShowMesoOverlay] = useState(() => {
     const freshDone = store.get(`foundry:done:d${dayIdx}:w${weekIdx}`) === '1';
     const alreadyStarted = !!store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
@@ -232,7 +225,6 @@ function DayView({
   // editMode — reserved for edit-mode toggle
   const [showLeavePrompt] = useState(false);
   const [showEndEarlyConfirm, setShowEndEarlyConfirm] = useState(false);
-  const pendingCompletionRef = React.useRef<Record<string, unknown> | null>(null);
   const leaveQuoteRef = React.useRef<{ text: string; author: string } | null>(null);
   React.useEffect(() => {
     if (showLeavePrompt && !leaveQuoteRef.current) {
@@ -355,6 +347,7 @@ function DayView({
   }, [day?.tag]);
 
   const swapMuscle = swapTarget !== null ? exercises[swapTarget.exIdx]?.muscle : undefined;
+  const userEquipment = Array.isArray(profile?.equipment) ? profile.equipment : profile?.equipment ? [profile.equipment] : undefined;
 
   const handleSwap = useCallback(
     (newExId: string) => {
@@ -705,153 +698,28 @@ function DayView({
 
   // handleNoteChange — reserved for note editing
 
-  // Compile per-exercise notes + existing session note into a single string.
-  // Used to pre-populate the end-of-session note textarea.
-  const compileSessionNote = () => {
-    const parts: string[] = [];
-    exercises.forEach((ex: Exercise, i: number) => {
-      const exNote = (exNotes as Record<string, string>)[i];
-      if (exNote && exNote.trim()) {
-        parts.push(`${ex.name}: ${exNote}`);
-      }
-    });
-    if (notes && notes.trim()) {
-      parts.push(notes);
-    }
-    return parts.join('\n\n');
-  };
-
-  const [showNoteReview, setShowNoteReview] = useState(false);
-  const [sessionNote, setSessionNote] = useState(() => compileSessionNote());
-
-  const handleComplete = () => {
-    const allExDone = doneExercises.size === exercises.length;
-    if (!allExDone) {
-      setShowUnfinishedPrompt(true);
-      return;
-    }
-    openNoteReview();
-  };
-
-  const openNoteReview = () => {
-    const hasNotes = exercises.some((_: Exercise, i: number) => ((exNotes as Record<string, string>)[i] || '').trim()) || sessionNote.trim();
-    if (!hasNotes) {
-      doCompleteWithStats();
-      return;
-    }
-    setShowNoteReview(true);
-  };
-
-  const doCompleteWithStats = () => {
-    // Compute stats from weekData
-    let totalSets = 0;
-    let totalReps = 0;
-    let totalVolume = 0;
-    exercises.forEach((_ex: Exercise, i: number) => {
-      const exData = (weekData[i] || {}) as Record<string, WorkoutSet>;
-      Object.values(exData).forEach((s: WorkoutSet) => {
-        if (s.confirmed || (s.reps && String(s.reps).trim() !== '')) {
-          const r = parseInt(String(s.reps || 0), 10);
-          const w = parseFloat(String(s.weight || 0));
-          if (!s.warmup) {
-            totalSets++;
-            if (!isNaN(r)) totalReps += r;
-            if (!isNaN(w) && !isNaN(r)) totalVolume += w * r;
-          }
-        }
-      });
-    });
-
-    // Detect PRs
-    const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx, weekIdx });
-
-    // Anchor comparison: compare best weight on anchor lifts this week vs last week
-    const anchorComparison: { name: string; today: number; prev: number; delta: number }[] = [];
-    if (weekIdx > 0) {
-      exercises.forEach((ex: Exercise, i: number) => {
-        if (!ex.anchor) return;
-        const exData = (weekData[i] || {}) as Record<string, WorkoutSet>;
-        let todayBest = 0;
-        Object.values(exData).forEach((s: WorkoutSet) => {
-          const w = parseFloat(String(s.weight || 0));
-          if (!isNaN(w) && w > todayBest && s.reps) todayBest = w;
-        });
-        if (todayBest <= 0) return;
-        // Load last week data for comparison
-        try {
-          const rawPrev = store.get(`foundry:day${dayIdx}:week${weekIdx - 1}`);
-          if (rawPrev) {
-            const prevData = JSON.parse(rawPrev);
-            const prevExData = (prevData[i] || {}) as Record<string, WorkoutSet>;
-            let prevBest = 0;
-            Object.values(prevExData).forEach((s: WorkoutSet) => {
-              const w = parseFloat(String(s.weight || 0));
-              if (!isNaN(w) && w > prevBest && s.reps) prevBest = w;
-            });
-            if (prevBest > 0) {
-              anchorComparison.push({
-                name: ex.name,
-                today: todayBest,
-                prev: prevBest,
-                delta: Math.round(todayBest - prevBest),
-              });
-            }
-          }
-        } catch (_e) {
-          // ignore parse errors
-        }
-      });
-    }
-
-    // Compute duration
-    const durationSecs = sessionStartRef.current
-      ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
-      : elapsedSecs > 0 ? elapsedSecs : null;
-
-    setCompletionWeekIdx(weekIdx);
-    setWorkoutStats({
-      sets: totalSets,
-      reps: totalReps,
-      volume: totalVolume,
-      exercises: exercises.length,
-      duration: durationSecs,
-      prs,
-      anchorComparison,
-    });
-
-    // Save completion data
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const completionData = {
-      date: dateStr,
-      dayIdx: dayIdx,
-      weekIdx: weekIdx,
-      exercises: exercises.map((ex: Exercise, i: number) => ({
-        name: ex.name,
-        sets: ex.sets,
-        data: weekData[i] || {},
-      })),
-      sessionNote: sessionNote,
-      duration: elapsedSecs,
-      completedAt: Date.now(),
-    };
-    store.set(`foundry:done:d${dayIdx}:w${weekIdx}`, '1');
-    store.set(`foundry:sessionNote:d${dayIdx}:w${weekIdx}`, sessionNote);
-    // Chunk 4a: mark the remote workout_sessions row complete with
-    // completed_at. Fire-and-forget.
-    const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
-    upsertWorkoutSessionRemote(dayIdx, weekIdx, {
-      sessionId,
-      completedAt: now.toISOString(),
-      isComplete: true,
-    });
-
-    // Show the workout complete modal — onComplete fires when user dismisses it
-    setShowWorkoutModal(true);
-    // Store completion data for when modal is dismissed
-    pendingCompletionRef.current = completionData;
-  };
-
+  // Completion flow — state + logic extracted to hook
+  const {
+    showNoteReview, setShowNoteReview,
+    sessionNote, setSessionNote,
+    showUnfinishedPrompt, setShowUnfinishedPrompt,
+    showWorkoutModal, setShowWorkoutModal,
+    workoutStats,
+    showCardioPrompt, setShowCardioPrompt,
+    completionWeekIdx,
+    pendingCompletionRef,
+    handleComplete, openNoteReview, doCompleteWithStats,
+  } = useCompletionFlow({
+    exercises,
+    weekData,
+    exNotes,
+    notes,
+    doneExercises,
+    dayIdx,
+    weekIdx,
+    sessionStartRef,
+    elapsedSecs,
+  });
 
   if (!workoutStarted) {
     return (
@@ -1034,36 +902,21 @@ function DayView({
           </div>
         )}
 
-        {/* ── Exercise Swap Sheet (pre-workout-start) ──────────────────── */}
-        <Sheet open={swapTarget !== null} onClose={() => setSwapTarget(null)}>
-          <div style={{ padding: '8px 16px 4px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-            Swap Exercise
-          </div>
-          <div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--text-muted)' }}>
-            {swapTarget !== null && exercises[swapTarget.exIdx]
-              ? `Replacing: ${exercises[swapTarget.exIdx].name}`
-              : 'Select a replacement'}
-          </div>
-          <ExercisePicker
-            exercises={swapExGroups}
-            selected={[]}
-            onToggle={handleSwap}
-            onReorder={() => {}}
-            userEquipment={Array.isArray(profile?.equipment) ? profile.equipment : profile?.equipment ? [profile.equipment] : undefined}
-            autoExpandMuscle={swapMuscle}
-            onCustomExercise={handleCustomExercise}
-          />
-        </Sheet>
-
-        {/* Swap Scope Selector (pre-workout) */}
-        {swapPending && (
-          <SwapScopeSelector
-            exerciseName={exercises[swapPending.exIdx]?.name || ''}
-            onMeso={() => executeSwap('meso')}
-            onWeek={() => executeSwap('week')}
-            onCancel={() => setSwapPending(null)}
-          />
-        )}
+        {/* ── Exercise Swap (pre-workout) ──────────────────────────── */}
+        <SwapSheet
+          open={swapTarget !== null}
+          onClose={() => setSwapTarget(null)}
+          replacingName={swapTarget !== null ? exercises[swapTarget.exIdx]?.name || '' : ''}
+          exerciseGroups={swapExGroups}
+          autoExpandMuscle={swapMuscle}
+          userEquipment={userEquipment}
+          onSelect={handleSwap}
+          onCustomExercise={handleCustomExercise}
+          scopePending={swapPending ? { exerciseName: exercises[swapPending.exIdx]?.name || '' } : null}
+          onScopeMeso={() => executeSwap('meso')}
+          onScopeWeek={() => executeSwap('week')}
+          onScopeCancel={() => setSwapPending(null)}
+        />
       </div>
     );
   }
@@ -1468,35 +1321,20 @@ function DayView({
         />
       )}
 
-      {/* ── Exercise Swap Sheet ──────────────────────────────────────────── */}
-      <Sheet open={swapTarget !== null} onClose={() => setSwapTarget(null)}>
-        <div style={{ padding: '8px 16px 4px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-          Swap Exercise
-        </div>
-        <div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--text-muted)' }}>
-          {swapTarget !== null && exercises[swapTarget.exIdx]
-            ? `Replacing: ${exercises[swapTarget.exIdx].name}`
-            : 'Select a replacement'}
-        </div>
-        <ExercisePicker
-          exercises={swapExGroups}
-          selected={[]}
-          onToggle={handleSwap}
-          onReorder={() => {}}
-          userEquipment={Array.isArray(profile?.equipment) ? profile.equipment : profile?.equipment ? [profile.equipment] : undefined}
-          autoExpandMuscle={swapMuscle}
-        />
-      </Sheet>
-
-      {/* Swap Scope Selector */}
-      {swapPending && (
-        <SwapScopeSelector
-          exerciseName={exercises[swapPending.exIdx]?.name || ''}
-          onMeso={() => executeSwap('meso')}
-          onWeek={() => executeSwap('week')}
-          onCancel={() => setSwapPending(null)}
-        />
-      )}
+      {/* ── Exercise Swap (in-workout) ──────────────────────────────── */}
+      <SwapSheet
+        open={swapTarget !== null}
+        onClose={() => setSwapTarget(null)}
+        replacingName={swapTarget !== null ? exercises[swapTarget.exIdx]?.name || '' : ''}
+        exerciseGroups={swapExGroups}
+        autoExpandMuscle={swapMuscle}
+        userEquipment={userEquipment}
+        onSelect={handleSwap}
+        scopePending={swapPending ? { exerciseName: exercises[swapPending.exIdx]?.name || '' } : null}
+        onScopeMeso={() => executeSwap('meso')}
+        onScopeWeek={() => executeSwap('week')}
+        onScopeCancel={() => setSwapPending(null)}
+      />
 
       {/* Workout Complete Modal */}
       {showWorkoutModal && workoutStats && (
@@ -1527,7 +1365,7 @@ function DayView({
             const d = new Date();
             const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             onBack();
-            setTimeout(() => window.dispatchEvent(new CustomEvent('foundry:openCardio', { detail: { dateStr } })), 80);
+            setTimeout(() => emit('foundry:openCardio', { dateStr }), 80);
           }}
           onDismiss={() => { setShowCardioPrompt(false); onBack(); }}
         />

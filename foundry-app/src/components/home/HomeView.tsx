@@ -13,6 +13,7 @@ import {
   saveProfile,
 } from '../../utils/store';
 import { syncReadinessToSupabase } from '../../utils/sync';
+import { on } from '../../utils/events';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Shared UI
@@ -100,9 +101,8 @@ function HomeView({
 
   // Allow pricing modal to be triggered from anywhere via custom event
   useEffect(() => {
-    const handler = () => setShowPricing(true);
-    window.addEventListener('foundry:showPricing', handler);
-    return () => window.removeEventListener('foundry:showPricing', handler);
+    const unsub = on('foundry:showPricing', () => setShowPricing(true));
+    return unsub;
   }, []);
   const [showSkipConfirm, setShowSkipConfirm] = useState<{ dayIdx: number; weekIdx: number } | null>(null);
   const [skipVersion, setSkipVersion] = useState(0);
@@ -899,7 +899,7 @@ function HomeView({
                         right: -3,
                         width: 7,
                         height: 7,
-                        borderRadius: '50%',
+                        borderRadius: tokens.radius.full,
                         background: 'var(--phase-peak)',
                         boxShadow: '0 0 5px var(--phase-peak)',
                         animation: 'livePulse 1.6s ease-in-out infinite',

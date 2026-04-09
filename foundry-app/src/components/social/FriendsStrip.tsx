@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { tokens } from '../../styles/tokens';
 import { fetchMesoMembers } from '../../utils/sync';
 import type { MesoMember } from '../../types';
 
@@ -69,7 +70,7 @@ export default function FriendsStrip({ mesoId, onSelectFriend }: FriendsStripPro
                 position: 'relative',
                 width: 38,
                 height: 38,
-                borderRadius: '50%',
+                borderRadius: tokens.radius.full,
                 background: 'var(--bg-inset)',
                 border: trainedToday ? '2px solid var(--accent)' : '2px solid var(--border)',
                 display: 'flex',
@@ -90,7 +91,7 @@ export default function FriendsStrip({ mesoId, onSelectFriend }: FriendsStripPro
                     right: -1,
                     width: 10,
                     height: 10,
-                    borderRadius: '50%',
+                    borderRadius: tokens.radius.full,
                     background: '#4CAF50',
                     border: '2px solid var(--bg-card)',
                   }}

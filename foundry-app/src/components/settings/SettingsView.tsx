@@ -2,8 +2,10 @@ import React, { Suspense, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../contexts/AuthContext';
 import { store, resolveAccountTier } from '../../utils/store';
+import { emit } from '../../utils/events';
 import { archiveMesocycleRemote } from '../../utils/sync';
 import { getMeso } from '../../data/constants';
+import type { Profile, WorkoutSet, TrainingDay } from '../../types';
 
 const AccountSection = React.lazy(() => import('../auth/UserMenu'));
 
@@ -19,9 +21,9 @@ const SPLIT_LABELS: Record<string, string> = {
 };
 
 interface ProfileDrawerProps {
-  saved: any;
+  saved: Profile;
   onClose: () => void;
-  onSave: (data: any) => void;
+  onSave: (data: Partial<Profile>) => void;
 }
 
 export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
@@ -47,11 +49,12 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
       const raw = store.get('foundry:storedProgram');
       if (raw) {
         const days = JSON.parse(raw);
-        const tags = [...new Set(days.map((d: any) => d.tag).filter(Boolean))];
+        const tags = [...new Set(days.map((d: TrainingDay) => d.tag).filter(Boolean))];
         if (tags.length > 0) return tags.join(' / ');
       }
     } catch { /* JSON parse fallback */ }
-    return SPLIT_LABELS[meso?.splitType || saved.splitType] || (meso?.splitType || saved.splitType || '').toUpperCase().replace(/_/g, ' ');
+    const st = meso?.splitType || saved.splitType || '';
+    return SPLIT_LABELS[st] || st.toUpperCase().replace(/_/g, ' ');
   })();
 
   // ── Training stats ────────────────────────────────────────────────────────
@@ -70,8 +73,8 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             const raw = store.get(`foundry:day${d}:week${w}`);
             if (raw) {
               const dayData = JSON.parse(raw);
-              Object.values(dayData).forEach((exSets: any) => {
-                Object.values(exSets || {}).forEach((s: any) => {
+              Object.values(dayData).forEach((exSets) => {
+                Object.values((exSets as Record<string, WorkoutSet>) || {}).forEach((s: WorkoutSet) => {
                   if (s && s.confirmed && !s.warmup) totalSets++;
                 });
               });
@@ -122,7 +125,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     );
     dynamicKeys.forEach((k) => store.remove(k));
     onClose();
-    window.dispatchEvent(new Event('foundry:resetToSetup'));
+    emit('foundry:resetToSetup');
   };
 
   const deleteAllFoundryData = async () => {
@@ -160,7 +163,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   };
 
   const handleWeightSave = () => {
-    const val = parseFloat(weight);
+    const val = parseFloat(String(weight));
     if (!isNaN(val) && val > 0) {
       onSave({ ...saved, weight });
     }
@@ -264,7 +267,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             style={{
               background: 'var(--bg-inset)',
               border: '1px solid var(--border)',
-              borderRadius: '50%',
+              borderRadius: tokens.radius.full,
               cursor: 'pointer',
               width: 36,
               height: 36,
@@ -287,7 +290,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: '50%',
+                borderRadius: tokens.radius.full,
                 background: 'var(--accent)',
                 display: 'flex',
                 alignItems: 'center',
@@ -502,7 +505,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           })()}
           {!resolveAccountTier(saved).qualifiesForFree && (
           <button
-            onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('foundry:showPricing')); }}
+            onClick={() => { onClose(); emit('foundry:showPricing'); }}
             style={{
               cursor: 'pointer',
               padding: '16px',

@@ -32,8 +32,8 @@ export default function AuthPage() {
       } else {
         showToast('Welcome back!', 'success');
       }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setLoading(false);
     }
@@ -53,8 +53,8 @@ export default function AuthPage() {
       } else {
         setInfo('Password reset email sent.');
       }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setLoading(false);
     }

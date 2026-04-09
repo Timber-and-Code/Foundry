@@ -41,7 +41,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
   const splitType = profile?.splitType || 'ppl';
   const numDays = profile?.workoutDays?.length || profile?.daysPerWeek || 6;
   const dayMuscleConfig: Record<number, DayMuscleConfigEntry> =
-    (profile as any).dayMuscleConfig || {};
+    profile.dayMuscleConfig || {};
   const shortWarmup = Number(duration) <= 30;
   const exCount =
     Number(duration) <= 30 ? 3 : Number(duration) <= 45 ? 4 : Number(duration) <= 60 ? 5 : Number(duration) <= 75 ? 6 : 7;
@@ -166,7 +166,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
     const exercises = anchor
       ? [toEx(anchor, true), ...accessories.map((a) => toEx(a, false))]
       : accessories.map((a) => toEx(a, false));
-    return { dayNum: num, label, tag, muscles, note, cardio: null, exercises } as any;
+    return { dayNum: num, label, tag, muscles, note, cardio: null, exercises };
   }
 
   const anchorNotes: Record<string, Record<string, string>> = {

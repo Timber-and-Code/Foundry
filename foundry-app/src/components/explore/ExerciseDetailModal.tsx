@@ -1,6 +1,7 @@
 import React from 'react';
 import { tokens } from '../../styles/tokens';
 import HammerIcon from '../shared/HammerIcon';
+import type { Exercise } from '../../types';
 
 const TAG_COLORS: Record<string, string> = {
   PUSH: '#E8651A',
@@ -9,7 +10,7 @@ const TAG_COLORS: Record<string, string> = {
 };
 
 interface ExerciseDetailModalProps {
-  ex: any;
+  ex: Exercise;
   onClose: () => void;
 }
 
@@ -63,7 +64,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({ ex, onClose }
           <div
             style={{
               fontSize: 12,
-              color: TAG_COLORS[ex.tag] || 'var(--accent)',
+              color: TAG_COLORS[ex.tag || ''] || 'var(--accent)',
               marginTop: 2,
               fontWeight: 700,
               letterSpacing: '0.06em',
@@ -136,7 +137,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({ ex, onClose }
               borderRadius: tokens.radius.sm,
             }}
           >
-            {ex.equipment?.toUpperCase()}
+            {(Array.isArray(ex.equipment) ? ex.equipment.join(', ') : ex.equipment)?.toUpperCase()}
           </span>
           <span
             style={{

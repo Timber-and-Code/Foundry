@@ -2,16 +2,18 @@ import { REST_QUOTES, FOUNDRY_MOBILITY, FOUNDRY_COOLDOWN, getMeso } from '../../
 import { getWorkoutDaysForWeek } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
 import Sheet from '../ui/Sheet';
+import type { Profile, TrainingDay } from '../../types';
 
 interface RestDaySheetProps {
   showRestDay: { dateStr: string; isPast?: boolean } | null;
   setShowRestDay: (v: null) => void;
-  profile: any;
-  activeDays: any[];
+  profile: Profile;
+  activeDays: TrainingDay[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setAddWorkoutModal: (v: any) => void;
   setAddWorkoutStep: (v: string) => void;
-  setAddWorkoutType: (v: any) => void;
-  setAddWorkoutDayType: (v: any) => void;
+  setAddWorkoutType: (v: string | null) => void;
+  setAddWorkoutDayType: (v: string | null) => void;
 }
 
 function RestDaySheet({
