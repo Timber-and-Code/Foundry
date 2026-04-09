@@ -1,81 +1,82 @@
 # Claude Code Pickup V2 — Foundry Path to 10/10
 
 **Last updated:** 2026-04-08
-**Score:** 9.2 → ~9.7 (after V1 work) → targeting 10/10
+**Score:** 9.2 → ~9.8 after all V2 work
 
 ---
 
 ## ✅ DONE (do not redo)
 
+### Session 1 (pickup doc)
+| Item | Commit | Notes |
+|------|--------|-------|
+| Session duration picker | `bcaa00f` | 30/45/60/75/90m in both AutoBuilder + ManualBuilder |
+| Superset partner badge | `bcaa00f` | ExerciseCard shows superset indicator |
+| `:any` narrowing (partial) | `bcaa00f` | ProgressView, ExplorePage |
+
+### Session 2 (path to 10/10)
 | Item | Commit | Notes |
 |------|--------|-------|
 | 6 failing tests fixed | `61405ad` | 248/248 pass — sync mock chain + parseRestSeconds |
 | Empty catches annotated | `96e9987` | console.warn for save failures, comments for parse fallbacks |
-| localStorage routed through store | `72b2a28` | store.remove + store.keys added; infra files (sync/persistence/archive) intentionally direct |
+| localStorage routed through store | `72b2a28` | store.remove + store.keys added; infra files intentionally direct |
 | window.__foundryPendingCompletion removed | `d9fd832` | Replaced with React ref in DayView |
 | DayView partial split | `22aa0f5` | Extracted: CardioPromptModal, UnfinishedPromptModal, NoteReviewSheet, SwapScopeSelector, useWorkoutTimer |
-| `:any` narrowing | `bcaa00f` + `22aa0f5` | 0 remaining (only `anyLogged` variable name, not a type annotation) |
-| Session duration picker | `bcaa00f` | 30/45/60/75/90m in both AutoBuilder + ManualBuilder |
-| Superset partner badge | `bcaa00f` | ExerciseCard shows superset indicator |
-| Service Worker | Already existed | VitePWA/Workbox (review incorrectly flagged as missing) |
+
+### Session 3 (this session — V2 completion)
+| Item | Notes |
+|------|-------|
+| Typed event emitter | `src/utils/events.ts` — emit() + on() with FoundryEventMap. All 8 events typed, all 12+ dispatch/listen sites migrated |
+| SwapSheet extraction | `src/components/workout/SwapSheet.tsx` — Sheet+ExercisePicker+SwapScopeSelector UI |
+| Completion flow extraction | `src/hooks/useCompletionFlow.ts` — all completion state + logic (stats, PRs, anchors, remote sync) |
+| Zod removed | Deleted `schemas.ts` (imported by zero files), uninstalled `zod` dependency |
+| borderRadius token | `tokens.radius.full = '50%'` — all 19 instances across 12 files replaced |
+| Cardio history view | ProgressView now shows expandable cardio session history (loads from `foundry:cardio:session:*` keys) |
+| `:any` narrowing complete | 0 remaining type-annotation `:any` in codebase |
+
+### Already resolved (don't redo)
+- Service Worker: EXISTS via VitePWA/Workbox (review incorrectly said missing)
+- borderRadius "376 values": actually only 19, all `'50%'` for circles — now tokenized
+- Sync tests: ALL passing (218/218)
+- Empty catches: ALL annotated
+- window hack: REMOVED
+- localStorage routing: Component layer done, infrastructure files (sync/persistence/archive) intentionally direct
 
 ---
 
-## 🔨 REMAINING WORK
+## DayView status
 
-### 1. DayView split — finish extraction (HIGH)
-**File:** `src/components/workout/DayView.tsx` (1559 lines → target ~800)
+**Before:** 1559 lines
+**After:** 1397 lines (−162)
 
-Already extracted: CardioPromptModal, UnfinishedPromptModal, NoteReviewSheet, SwapScopeSelector, useWorkoutTimer
+**Extracted components/hooks:**
+- `CardioPromptModal.tsx` — post-workout cardio prompt
+- `UnfinishedPromptModal.tsx` — incomplete workout warning
+- `NoteReviewSheet.tsx` — session note editing
+- `SwapScopeSelector.tsx` — week vs meso scope picker
+- `SwapSheet.tsx` — exercise swap picker + scope selector
+- `useWorkoutTimer.ts` — session timer logic
+- `useCompletionFlow.ts` — completion state + stats + remote sync
 
-Still need:
+**Not extracted (intentionally):**
+- `useWorkoutSession` — remaining session state (weekData, expandedIdx, BW modal, exercise cards) is too tightly coupled to render logic. Extracting would just shuffle state into a hook with 20+ return values without improving clarity. DayView at 1397 lines is manageable.
 
-- **SwapSheet** → `src/components/workout/SwapSheet.tsx`
-  - State: `swapTarget`, `swapPending`, `swapExGroups` memo, `swapMuscle`
-  - Logic: `handleSwap()`, `handleCustomExercise()`, `executeSwap()`
-  - Render: Sheet + ExercisePicker (appears twice: pre-workout ~L1037-1066, in-workout ~L1471-1499)
-  - Also includes SwapScopeSelector render
+---
 
-- **useWorkoutSession** → `src/hooks/useWorkoutSession.ts`
-  - Session lifecycle: beginWorkout, completion flow
-  - Completion logic: compileSessionNote, handleComplete, openNoteReview, doCompleteWithStats
-  - State: showWorkoutModal, workoutStats, completionWeekIdx, pendingCompletionRef, sessionNote, showNoteReview, showUnfinishedPrompt, showCardioPrompt, showEndEarlyConfirm
+## Remaining work for 10/10
 
-### 2. Typed event emitter (HIGH)
-**Create:** `src/utils/events.ts` (~50 lines)
+### Low priority
+1. **Lazy-import sync.ts** — 2403 LOC, 484KB bundle contribution. SKIPPED in session 2 because sync.ts is deeply imported by persistence/training/store chain. Would need dynamic import + loading state in multiple callsites.
+2. **`loadCardioLog()` unused** — `persistence.ts:138` — only used in archive.ts. The new cardio history uses `loadCardioSession()` which is the date-keyed version. `loadCardioLog()` (day/week-keyed) may be dead code — verify before removing.
 
-8 custom events across the codebase — all use untyped `window.dispatchEvent(new CustomEvent(...))`:
-
-| Event | Detail type | Dispatchers | Listeners |
-|-------|-------------|-------------|-----------|
-| `foundry:sync` | `{ inflight: number }` | sync.ts ×2 | useSyncState.ts ×2 |
-| `foundry:toast` | `{ message: string, type: ToastType }` | sync.ts ×2 | ToastContext.tsx |
-| `foundry:pull-complete` | none | sync.ts ×2 | useMesoState.ts |
-| `foundry:openCardio` | `{ dateStr: string }` | DayView.tsx | App.tsx |
-| `foundry:showPricing` | none | SettingsView.tsx | HomeView.tsx |
-| `foundry:wants_auth` | none | OnboardingFlow.tsx, SetupPage.tsx | App.tsx |
-| `foundry:welcomed` | none | WelcomeScreen.tsx | App.tsx |
-| `foundry:resetToSetup` | none | SettingsView.tsx | App.tsx |
-
-**Plan:** Create typed `emit()` and `on()` wrappers. Replace all dispatch/listen sites.
-
-### 3. Cardio history view (MEDIUM)
-**Problem:** `loadCardioLog()` in persistence.ts exists but is never called. `loadCardioSession()` / `saveCardioSession()` also exist.
-**Plan:** Add a cardio history tab/section in ProgressView (1430 lines) that loads and displays past cardio sessions.
-
-### 4. Zod cleanup (MEDIUM)
-**Problem:** `zod` (^4.3.6) is a dependency but `schemas.ts` is imported by **zero** files.
-**Plan:** Delete `src/utils/schemas.ts`, remove `zod` from package.json, run `npm install`.
-
-### 5. borderRadius token (LOW)
-**Problem:** 19 instances of `borderRadius: '50%'` across 12 files for circular elements.
-**Plan:** Add `tokens.radius.full = '50%'` to tokens.ts, replace all 19 instances.
+### Nice to have
+3. **Bundle splitting** — exercise DB is 241KB (55KB gzip). Could lazy-load on first gym visit.
+4. **E2E tests** — no Playwright/Cypress coverage yet.
 
 ---
 
 ## Architecture notes
 
-- **DayView** has two render paths: pre-workout (showMesoOverlay, begin workout button) and in-workout (timer, exercise cards, complete button). Both share swap/completion logic.
-- **Swap Sheet** appears in both render paths with slightly different props (pre-workout has `onCustomExercise`, in-workout doesn't).
+- **DayView** has two render paths: pre-workout (showMesoOverlay, begin workout) and in-workout (timer, cards, complete button). Both share swap logic via SwapSheet.
 - **Completion flow**: handleComplete → unfinished check → note review → doCompleteWithStats → WorkoutCompleteModal → cardio prompt → onBack
-- **Event bus**: All events flow through `window.dispatchEvent` — no event bus library. Typed wrappers should be a drop-in replacement.
+- **Event bus**: All 8 events flow through typed `emit()`/`on()` in `src/utils/events.ts`. Zero raw `window.dispatchEvent` calls remain for Foundry events.
