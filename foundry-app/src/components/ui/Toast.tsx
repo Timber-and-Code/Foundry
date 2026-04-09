@@ -3,26 +3,26 @@ import type { Toast, ToastType } from '../../contexts/ToastContext';
 
 const TYPE_STYLES: Record<ToastType, { bg: string; border: string; icon: string; iconColor: string }> = {
   success: {
-    bg: 'rgba(76, 175, 80, 0.12)',
-    border: 'rgba(76, 175, 80, 0.35)',
+    bg: '#1a2e1a',
+    border: 'rgba(76, 175, 80, 0.5)',
     icon: '✓',
     iconColor: tokens.colors.success,
   },
   error: {
-    bg: tokens.colors.dangerBg,
-    border: tokens.colors.dangerBorder,
+    bg: '#2e1a1a',
+    border: 'rgba(220, 38, 38, 0.5)',
     icon: '✕',
     iconColor: tokens.colors.dangerText,
   },
   warning: {
-    bg: 'rgba(255, 152, 0, 0.12)',
-    border: 'rgba(255, 152, 0, 0.35)',
+    bg: '#2e2614',
+    border: 'rgba(255, 152, 0, 0.5)',
     icon: '⚠',
     iconColor: tokens.colors.warning,
   },
   info: {
-    bg: tokens.colors.accentSubtle,
-    border: tokens.colors.accentBorder,
+    bg: '#1e1810',
+    border: 'rgba(232, 101, 26, 0.5)',
     icon: 'ℹ',
     iconColor: tokens.colors.accentDim,
   },
