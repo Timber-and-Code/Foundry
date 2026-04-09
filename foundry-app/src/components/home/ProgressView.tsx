@@ -12,97 +12,22 @@ import {
   store,
   loadBwLog,
   loadSessionDuration,
-  loadDayWeek,
   loadSparklineData,
+  loadDayWeek,
 } from '../../utils/store';
 import { loadCardioSession } from '../../utils/persistence';
+import {
+  calcMuscleSetsByTag,
+  flattenMuscleSets,
+  getLandmarkStatus,
+  VOLUME_LEGEND,
+  BAND_MV,
+  BAND_OPT,
+  BAND_EXCEED,
+  TICK_COLOR,
+} from '../../utils/analyticsData';
 import type { TrainingDay, Exercise, BodyWeightEntry, WorkoutSet, CardioSession } from '../../types';
 // haptic import reserved for future UI feedback
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function sessionTagToCategory(sessionTag: string | undefined, exTag: string | undefined) {
-  if (sessionTag === 'UPPER' || sessionTag === 'LOWER' || sessionTag === 'FULL') return exTag;
-  return sessionTag;
-}
-
-function flattenMuscleSets(byTag: Record<string, Record<string, number>>) {
-  const result: Record<string, number> = {};
-  Object.values(byTag).forEach((muscleMap: Record<string, number>) => {
-    Object.entries(muscleMap || {}).forEach(([muscle, sets]) => {
-      result[muscle] = (result[muscle] || 0) + sets;
-    });
-  });
-  return result;
-}
-
-function getLandmarkStatus(sets: number, lm: { mev: number; mavLow: number; mavHigh: number; mrv: number } | undefined) {
-  if (!lm) return null;
-  if (sets < lm.mev)
-    return {
-      label: 'MV',
-      fill: '#8A6030',
-      color: tokens.colors.gold,
-      bg: 'rgba(138,96,48,0.12)',
-      border: 'rgba(138,96,48,0.3)',
-    };
-  if (sets < lm.mavLow)
-    return {
-      label: 'Building',
-      fill: '#c9a227',
-      color: '#d4a83a',
-      bg: 'rgba(201,162,39,0.12)',
-      border: 'rgba(201,162,39,0.3)',
-    };
-  if (sets <= lm.mavHigh)
-    return {
-      label: 'Optimal',
-      fill: '#B8901C',
-      color: 'var(--phase-accum)',
-      bg: 'rgba(45,212,168,0.12)',
-      border: 'rgba(45,212,168,0.3)',
-    };
-  if (sets <= lm.mrv)
-    return {
-      label: 'High',
-      fill: '#c9a227',
-      color: '#d4a83a',
-      bg: 'rgba(201,162,39,0.12)',
-      border: 'rgba(201,162,39,0.3)',
-    };
-  return {
-    label: 'Exceeded',
-    fill: '#c0392b',
-    color: '#e07070',
-    bg: 'rgba(192,57,43,0.12)',
-    border: 'rgba(192,57,43,0.3)',
-  };
-}
-
-function calcMuscleSetsByTag(activeDays: TrainingDay[], completedDays: Set<string>, weekFilter: number | null) {
-  const byTag: Record<string, Record<string, number>> = { PUSH: {}, PULL: {}, LEGS: {} };
-  activeDays.forEach((day: TrainingDay, dayIdx: number) => {
-    for (let w = 0; w <= getMeso().weeks; w++) {
-      if (weekFilter !== null && w !== weekFilter) continue;
-      if (!completedDays.has(`${dayIdx}:${w}`)) continue;
-      const wd = loadDayWeek(dayIdx, w);
-      day.exercises.forEach((ex: Exercise, exIdx: number) => {
-        const exData = wd[exIdx] || {};
-        const filledSets = Object.values(exData).filter((s: WorkoutSet) => s && s.reps && s.reps !== '').length;
-        if (filledSets === 0) return;
-        const cat = sessionTagToCategory(day.tag, ex.tag) || 'OTHER';
-        if (!byTag[cat]) byTag[cat] = {};
-        let primaryMuscle = ex.muscle || (ex.muscles && ex.muscles[0]);
-        if (primaryMuscle === 'Lats') primaryMuscle = 'Back';
-        if (primaryMuscle === 'Abductors') primaryMuscle = 'Glutes';
-        if (primaryMuscle === 'Adductors') return;
-        if (primaryMuscle) {
-          byTag[cat][primaryMuscle] = (byTag[cat][primaryMuscle] || 0) + filledSets;
-        }
-      });
-    }
-  });
-  return byTag;
-}
 
 // ── Volume Landmarks Card ────────────────────────────────────────────────────
 function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<string, number>>; title: string }) {
@@ -113,15 +38,11 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
       const sa = getLandmarkStatus(a[1], (VOLUME_LANDMARKS as Record<string, { mev: number; mavLow: number; mavHigh: number; mrv: number }>)[a[0]]);
       const sb = getLandmarkStatus(b[1], (VOLUME_LANDMARKS as Record<string, { mev: number; mavLow: number; mavHigh: number; mrv: number }>)[b[0]]);
       const priority = (s: NonNullable<ReturnType<typeof getLandmarkStatus>>) =>
-        s.label === 'Exceeded' ? 0 : s.label === 'MV' ? 1 : s.label === 'High' ? 2 : 3;
+        s.label === 'Exceeding' ? 0 : s.label === 'MV' ? 1 : 2;
       return priority(sa!) - priority(sb!) || (b[1] as number) - (a[1] as number);
     });
   if (entries.length === 0) return null;
 
-  const BAND_DANGER = 'rgba(192,57,43,0.20)';
-  const BAND_WARN = 'rgba(201,162,39,0.22)';
-  const BAND_OPT = 'rgba(45,212,168,0.25)';
-  const TICK = 'rgba(255,255,255,0.22)';
   const lblOpt = 'var(--phase-accum)';
 
   return (
@@ -151,13 +72,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
           {title || 'Volume check'}
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          {[
-            ['#8A6030', 'MV'],
-            ['#c9a227', 'Building'],
-            ['#D4A03C', 'Optimal'],
-            ['#c9a227', 'High'],
-            ['#c0392b', 'Exceeded'],
-          ].map(([c, label], i) => (
+          {VOLUME_LEGEND.map(([c, label], i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div
                 style={{
@@ -180,12 +95,10 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
           const status = getLandmarkStatus(sets as number, lm)!;
           const scale = lm.mrv + 5;
           const mevPct = (lm.mev / scale) * 100;
-          const mavLPct = (lm.mavLow / scale) * 100;
-          const mavHPct = (lm.mavHigh / scale) * 100;
           const mrvPct = (lm.mrv / scale) * 100;
           const fillPct = Math.min(((sets as number) / scale) * 100, 99);
           const isLast = idx === entries.length - 1;
-          const optMid = (mavLPct + mavHPct) / 2;
+          const optMid = (mevPct + mrvPct) / 2;
           return (
             <div
               key={muscle}
@@ -252,6 +165,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                   background: 'var(--bg-inset)',
                 }}
               >
+                {/* MV zone: 0 → MEV */}
                 <div
                   style={{
                     position: 'absolute',
@@ -259,39 +173,21 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                     top: 0,
                     height: '100%',
                     width: `${mevPct}%`,
-                    background: BAND_DANGER,
+                    background: BAND_MV,
                   }}
                 />
+                {/* Optimal zone: MEV → MRV */}
                 <div
                   style={{
                     position: 'absolute',
                     left: `${mevPct}%`,
                     top: 0,
                     height: '100%',
-                    width: `${mavLPct - mevPct}%`,
-                    background: BAND_WARN,
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mavLPct}%`,
-                    top: 0,
-                    height: '100%',
-                    width: `${mavHPct - mavLPct}%`,
+                    width: `${mrvPct - mevPct}%`,
                     background: BAND_OPT,
                   }}
                 />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mavHPct}%`,
-                    top: 0,
-                    height: '100%',
-                    width: `${mrvPct - mavHPct}%`,
-                    background: BAND_WARN,
-                  }}
-                />
+                {/* Exceeding zone: MRV → end */}
                 <div
                   style={{
                     position: 'absolute',
@@ -299,9 +195,10 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                     top: 0,
                     height: '100%',
                     right: 0,
-                    background: BAND_DANGER,
+                    background: BAND_EXCEED,
                   }}
                 />
+                {/* MEV tick */}
                 <div
                   style={{
                     position: 'absolute',
@@ -309,29 +206,10 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                     top: 0,
                     width: 1,
                     height: '100%',
-                    background: TICK,
+                    background: TICK_COLOR,
                   }}
                 />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mavLPct}%`,
-                    top: 0,
-                    width: 1,
-                    height: '100%',
-                    background: TICK,
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mavHPct}%`,
-                    top: 0,
-                    width: 1,
-                    height: '100%',
-                    background: TICK,
-                  }}
-                />
+                {/* MRV tick */}
                 <div
                   style={{
                     position: 'absolute',
@@ -339,7 +217,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                     top: 0,
                     width: 1,
                     height: '100%',
-                    background: TICK,
+                    background: TICK_COLOR,
                   }}
                 />
                 <div
@@ -368,7 +246,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {lm.mavLow}–{lm.mavHigh} optimal
+                  {lm.mev}–{lm.mrv} optimal
                 </span>
               </div>
             </div>
@@ -1242,7 +1120,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             for (let w = currentWeek; w >= 0; w--) {
               const wd = loadDayWeek(dayIdx, w);
               const exData = wd[exIdx] || {};
-              const sw = Object.values(exData).find((sv: WorkoutSet) => sv && sv.weight && sv.weight !== '');
+              const sw = (Object.values(exData) as WorkoutSet[]).find((sv) => sv && sv.weight && sv.weight !== '');
               if (sw) {
                 weight = (sw as unknown as Record<string, string | number>).weight;
                 break;
@@ -1490,6 +1368,23 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
 
         {/* Quick links */}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button
+            onClick={() => goTo('analytics')}
+            style={{
+              flex: 1,
+              padding: '14px',
+              borderRadius: tokens.radius.lg,
+              cursor: 'pointer',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--accent)',
+              color: 'var(--accent)',
+              fontSize: 13,
+              fontWeight: 700,
+              textAlign: 'center',
+            }}
+          >
+            Analytics Dashboard
+          </button>
           <button
             onClick={() => goTo('history')}
             style={{

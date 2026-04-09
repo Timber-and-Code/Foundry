@@ -25,6 +25,7 @@ import HomeTab from './HomeTab';
 import ScheduleTab, { type NoteViewerData } from './ScheduleTab';
 import ProgressTab from './ProgressTab';
 import MesoOverview from './MesoOverview';
+import AnalyticsView from '../analytics/AnalyticsView';
 import ExplorePage from '../explore/ExplorePage';
 import { PricingPage } from '../settings/PricingPage';
 import ShareMesoModal from '../social/ShareMesoModal';
@@ -779,6 +780,14 @@ function HomeView({
           activeDays={activeDays}
           goBack={goBack}
           goTo={goTo}
+        />
+      )}
+
+      {tab === 'analytics' && (
+        <AnalyticsView
+          completedDays={completedDays}
+          activeDays={activeDays}
+          goBack={() => goTo('progress')}
         />
       )}
 
