@@ -997,11 +997,13 @@ function ExerciseCard({
                   style={{
                     marginTop: 16,
                     width: '100%',
-                    padding: '8px',
+                    padding: '10px',
                     borderRadius: tokens.radius.sm,
                     background: 'var(--bg-inset)',
                     border: '1px solid var(--border)',
-                    color: 'var(--text-primary)',
+                    color: 'var(--text-accent)',
+                    fontSize: 15,
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
@@ -1108,11 +1110,13 @@ function ExerciseCard({
                   onClick={() => setShowHowTo(false)}
                   style={{
                     width: '100%',
-                    padding: '8px',
+                    padding: '10px',
                     borderRadius: tokens.radius.sm,
                     background: 'var(--bg-inset)',
                     border: '1px solid var(--border)',
-                    color: 'var(--text-primary)',
+                    color: 'var(--text-accent)',
+                    fontSize: 15,
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
@@ -1205,11 +1209,13 @@ function ExerciseCard({
                   onClick={() => setShowWarmupModal(false)}
                   style={{
                     width: '100%',
-                    padding: '8px',
+                    padding: '10px',
                     borderRadius: tokens.radius.sm,
                     background: 'var(--bg-inset)',
                     border: '1px solid var(--border)',
-                    color: 'var(--text-primary)',
+                    color: 'var(--text-accent)',
+                    fontSize: 15,
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
