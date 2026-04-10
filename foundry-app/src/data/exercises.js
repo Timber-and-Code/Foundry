@@ -19,7 +19,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: 'Full protocol',
     description:
-      "Set up with your eyes directly under the bar, feet flat on the floor, and a slight natural arch in your lower back — not an exaggerated one. Grip the bar just outside shoulder width, unrack it, and lower it to your mid-chest with your elbows tracking at about 45–60 degrees from your body. Press the bar back up in a slight diagonal path toward your upper chest rather than straight up. The most common mistake is letting the elbows flare wide, which puts your shoulder joint in a compromised position and shifts load off the chest. Think about squeezing the bar like you're trying to bend it in half — this cues a stronger, safer press.",
+      "Eyes under the bar, feet flat, slight natural arch. Grip just outside shoulder width, lower to mid-chest with elbows at 45–60 degrees, then press in a slight diagonal toward your upper chest. Don't let your elbows flare wide — squeeze the bar like you're bending it in half for a stronger, safer press.",
   },
   {
     id: 'db_flat_bench',
@@ -40,7 +40,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: '2 ramp sets',
     description:
-      'Start seated at the end of a bench with the dumbbells on your thighs, then kick them up as you lie back — this protects your shoulders on heavier sets. Lower the dumbbells to chest level with your elbows at roughly 45 degrees, feeling a full stretch across the chest before pressing back up. Dumbbells give you a longer range of motion than a barbell and let each side work independently, which is great for fixing strength imbalances. A common mistake is letting the weights drift too far out to the sides or rushing the lowering phase — control the descent for two full seconds to maximize chest activation. Squeeze hard at the top without locking out completely.',
+      'Sit at the end of the bench with dumbbells on your thighs, kick them up as you lie back. Lower to chest level with elbows at 45 degrees, get a full stretch, then press back up. Each side works independently, so you will expose imbalances fast. Control the descent for two full seconds and squeeze hard at the top without fully locking out.',
   },
   {
     id: 'bb_incline_bench',
@@ -61,7 +61,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: 'Full protocol',
     description:
-      "Set the bench to 30–45 degrees — anything steeper shifts the work to your front delts instead of your upper chest. Grip the bar just outside shoulder width and lower it to your upper chest, keeping your elbows at 45–60 degrees from your torso. You should feel the stretch at the top of your chest near the collarbone; if you don't feel it there, the angle is probably too steep. Press the bar up and slightly back, not straight toward the ceiling. The incline press is harder to load than the flat bench, so don't be surprised if your numbers here are significantly lower — that's normal.",
+      "Bench at 30–45 degrees — steeper shifts work to front delts. Grip just outside shoulder width, lower to your upper chest with elbows at 45–60 degrees. You should feel the stretch near your collarbone; if not, the angle is too steep. Press up and slightly back, not straight at the ceiling. Expect lower numbers than flat bench — that's normal.",
   },
   {
     id: 'db_incline_bench',
@@ -81,7 +81,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: '2 ramp sets',
     description:
-      "Set the bench to 30–45 degrees and sit at the end with dumbbells on your thighs, then kick them up into position as you lie back. Lower the weights to the upper portion of your chest with elbows tracking at about 45 degrees — not flared straight out to the sides. You should feel a strong stretch in the upper chest at the bottom of each rep; if you don't, the bench angle may be too steep. Press back up in a smooth arc, bringing the dumbbells slightly toward each other at the top without letting them touch. Control the descent — rushing it is one of the most common ways people shortchange this movement.",
+      "Bench at 30–45 degrees, kick the dumbbells up from your thighs as you lie back. Lower to your upper chest with elbows at 45 degrees — not flared wide. Feel a strong stretch in the upper chest at the bottom; if you don't, the angle is too steep. Press up in a smooth arc, bringing the dumbbells slightly together at the top. Control the descent — don't rush it.",
   },
   {
     id: 'db_decline_bench',
@@ -101,7 +101,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Hook your feet under the pads, lie back, and kick the dumbbells up into position before you begin. The decline angle targets the lower portion of your chest and reduces shoulder involvement compared to flat or incline pressing. Lower the dumbbells to your lower chest with elbows at 45 degrees, then press back up with control. Because you're locked in by your feet, you don't need as much core tension as other pressing variations — focus entirely on the chest squeeze at the top. Keep the weights from drifting toward your hips at the bottom; they should track straight down to your chest.",
+      "Hook your feet under the pads, lie back, kick the dumbbells up. The decline angle hits the lower chest and takes the shoulders out of it. Lower to your lower chest with elbows at 45 degrees, press back up with control. You're locked in, so focus entirely on the chest squeeze at the top. Don't let the weights drift toward your hips — they should track straight down to your chest.",
   },
   {
     id: 'machine_chest_press',
@@ -121,7 +121,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Adjust the seat so the handles are at mid-chest height and your feet are flat on the floor. The machine guides your path, so you can focus entirely on squeezing the chest rather than stabilizing the weight — this makes it excellent for higher rep work or when you're training without a spotter. Don't let the weight stack touch down between reps; keep constant tension on the chest throughout the set. A common mistake is setting the seat too high, which shifts the load onto your front delts. At the top of each rep, think about trying to push your hands together even though they can't move.",
+      "Seat adjusted so handles hit mid-chest, feet flat on the floor. The machine guides the path, so focus on squeezing the chest hard. Don't let the stack touch down between reps — keep constant tension. If it's hitting your front delts more than your chest, the seat is too high. At the top, think about pushing your hands together.",
   },
   {
     id: 'machine_incline_press',
@@ -141,7 +141,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Adjust the seat so the handles start at upper-chest height and you can press in a slightly upward angle. This machine locks you into an incline pressing pattern, letting you focus on the upper chest without needing to balance the weight. Keep your chest tall and avoid letting your upper back round forward as you push — you want tension in the chest, not momentum from the trunk. Don't slam the weight back at the bottom; control it and feel the stretch across the upper chest before each rep. The machine allows for safe failure, so don't be afraid to push a few reps harder than you would with a barbell.",
+      "Seat set so handles start at upper-chest height, pressing at a slight upward angle. Keep your chest tall — don't let your upper back round forward. Control the weight back at the bottom and feel the stretch across the upper chest before each rep. The machine is safe to push to failure, so make those last reps genuinely hard.",
   },
   {
     id: 'cable_fly_mid',
@@ -161,7 +161,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      "Set both pulleys at chest height, grab a handle in each hand, and step forward so there's tension on the cables before you start. Stand with a slight forward lean and a soft bend in your elbows — this arm position stays fixed throughout the set. Bring your hands together in a wide arc in front of you, as if you're hugging a large tree, and squeeze the chest hard at the peak of the contraction. Slowly return your arms back to the start with full control, feeling the chest stretch on the way out. This is an isolation movement — keep the weight light enough that you're feeling it in the chest, not straining through your shoulders or biceps.",
+      "Both pulleys at chest height, step forward until there's tension before you start. Slight forward lean, soft fixed bend in your elbows. Bring your hands together in a wide arc — like hugging a tree — and squeeze the chest hard at the peak. Return with full control, feeling the stretch on the way out. Keep it light enough that your chest does the work, not your shoulders.",
   },
   {
     id: 'cable_fly_low_high',
@@ -181,7 +181,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      "Set both pulleys to the lowest position and grab a handle in each hand. Stand with a slight forward lean and bring your hands up and together in a wide arc — finishing at roughly chin or upper-chest height. This angle specifically targets the upper chest and sternal fibers, making it a great complement to flat pressing. Keep a soft, fixed bend in your elbows and avoid letting them bend more as you pull — this isn't a curl. Squeeze hard at the top where the upper chest is fully contracted, then lower with control to get the full stretch at the bottom.",
+      "Both pulleys at the lowest position. Slight forward lean, bring your hands up and together in a wide arc finishing at chin or upper-chest height. This angle targets the upper chest and sternal fibers. Keep a soft, fixed elbow bend — don't let them bend more as you pull. Squeeze hard at the top, then lower with control for the full stretch.",
   },
   {
     id: 'cable_fly_high_low',
@@ -201,7 +201,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      'Set both pulleys high — above head height — and grab a handle in each hand. Step forward to create cable tension, then bring your hands down and together in a sweeping arc, finishing at waist or lower-chest level. This angle hits the lower chest and the sternal fibers that flat pressing can sometimes miss. Keep a slight forward lean and avoid hunching your shoulders forward at the finish; the movement comes from the chest, not momentum. Elbows stay slightly bent and fixed — control the return all the way back up to feel the full stretch at the top.',
+      'Both pulleys above head height. Step forward for tension, then sweep your hands down and together, finishing at waist or lower-chest level. This angle hits the lower chest that flat pressing can miss. Slight forward lean, don\'t hunch your shoulders at the finish. Elbows stay slightly bent and fixed — control the return all the way back up for the full stretch.',
   },
   {
     id: 'db_chest_fly',
@@ -221,7 +221,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      'Lie flat on a bench with a dumbbell in each hand, arms extended above your chest with palms facing each other and a slight bend in your elbows. Lower the weights out and down in a wide arc until you feel a deep stretch across your chest — your elbows should stay at roughly the same angle throughout. Bring the dumbbells back together along the same arc, squeezing the chest at the top. This is a stretch-focused isolation movement, so keep the weights light enough that you can genuinely feel the chest working, not your shoulder joints straining. The most common mistake is bending the elbows more and more as the weight gets heavy — that turns it into a press.',
+      'Lie flat, dumbbells above your chest, palms facing each other, slight bend in your elbows. Lower in a wide arc until you feel a deep chest stretch — elbows stay at the same angle throughout. Bring the dumbbells back together, squeezing at the top. Keep it light enough to feel the chest, not your shoulder joints. Don\'t bend the elbows more as the weight gets heavy — that turns it into a press.',
   },
   {
     id: 'pushup',
@@ -242,7 +242,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '10 easy bodyweight push-ups',
     description:
-      "Start in a high plank with hands slightly wider than shoulder width, body forming a straight line from head to heels. Lower your chest to just above the floor with elbows tracking at 45–60 degrees from your torso — not flaring straight out. Your whole body should move as one rigid unit; if your hips sag or your butt rises, you've lost the position. Press back up explosively and squeeze your chest at the top. If you can do more than 20 clean reps, add a weight plate to your back or elevate your feet to keep the challenge honest.",
+      "High plank, hands slightly wider than shoulder width, straight line from head to heels. Lower your chest to just above the floor with elbows at 45–60 degrees. Move as one rigid unit — if your hips sag or butt rises, you've lost it. Press up explosively, squeeze your chest at the top. Over 20 clean reps? Add a plate on your back or elevate your feet.",
   },
   {
     id: 'weighted_dips',
@@ -263,7 +263,7 @@ export const EXERCISE_DB = [
     rest: '2-3 min',
     warmup: 'BW ramp: 10, 5',
     description:
-      "Attach a weight belt or hold a dumbbell between your feet, then grip parallel bars with straight arms and your body hanging freely. Lean your torso forward slightly — this shifts emphasis toward the chest; staying upright keeps it more on the triceps. Lower yourself until your upper arms are roughly parallel to the floor, feeling a stretch in the chest and front of the shoulder, then press back up to just short of full lockout. Don't dip below parallel under heavy load — it puts unnecessary stress on the shoulder joint. Control the descent on every rep; bouncing out of the bottom cheats the movement and risks injury.",
+      "Weight belt or dumbbell between your feet, grip parallel bars with straight arms. Lean forward slightly to target the chest — staying upright keeps it on triceps. Lower until your upper arms are parallel to the floor, then press back up just short of lockout. Don't go below parallel under heavy load — it stresses the shoulders. Control the descent; no bouncing out of the bottom.",
   },
   {
     id: 'close_grip_bench',
@@ -283,7 +283,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: 'Full protocol',
     description:
-      'Grip the bar at roughly shoulder width — closer than your normal bench grip but not so narrow that your wrists feel strained. Unrack and lower the bar to your lower chest or upper abs with your elbows staying tight to your sides throughout the movement. This keeps the emphasis squarely on the triceps rather than spreading it across the chest. Press the bar back up in a straight line and feel the triceps fully contract at the top. A common mistake is going too narrow — a grip less than six inches apart shifts stress to the wrists and reduces leverage without actually improving tricep activation.',
+      'Grip at roughly shoulder width — closer than normal bench but not so narrow your wrists strain. Lower to your lower chest or upper abs with elbows tight to your sides the whole time. Press back up in a straight line, feeling the triceps contract fully at the top. Don\'t go too narrow — less than six inches apart just stresses your wrists without improving tricep activation.',
   },
 
   // ─── PUSH — SHOULDERS ────────────────────────────────────────────────────────
@@ -305,7 +305,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: 'Full protocol',
     description:
-      'Stand with feet shoulder-width apart, bar resting on your upper chest with a grip just outside shoulder width. Brace your core hard, squeeze your glutes, and press the bar straight up — moving your head slightly back as the bar passes your face, then driving it back forward so it finishes directly over your mid-foot. Lock out fully at the top with your biceps near your ears. The most common mistake is pressing in front of the body rather than over it, which puts excessive load on the front delts and limits how much weight you can move. Keep every rep in a vertical path.',
+      'Feet shoulder-width, bar on your upper chest, grip just outside shoulder width. Brace hard, squeeze your glutes, press straight up — head moves slightly back as the bar passes your face, then forward so it finishes over your mid-foot. Lock out fully, biceps near your ears. Don\'t press in front of your body — keep every rep in a vertical path or you overload the front delts.',
   },
   {
     id: 'db_ohp',
@@ -325,7 +325,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Stand or sit with dumbbells at shoulder height, palms facing forward, elbows slightly in front of the body. Press both dumbbells straight up until your arms are fully extended overhead, keeping the weights moving in a controlled vertical path. Avoid arching your lower back as you press — that's a sign the weight is too heavy or your core isn't braced. Lower the dumbbells back to the starting position under control, letting your elbows track slightly forward rather than flaring straight out to the sides. Dumbbells require more stabilization than a barbell, so your stabilizer muscles will work harder — this is a feature, not a flaw.",
+      "Dumbbells at shoulder height, palms forward, elbows slightly in front. Press straight up to full extension in a controlled vertical path. If your lower back is arching, the weight is too heavy or your core isn't braced. Lower under control, elbows tracking slightly forward rather than flaring out. More stabilization demand than a barbell — that's the point.",
   },
   {
     id: 'seated_db_press',
@@ -346,7 +346,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Sit on a bench with back support set upright or at a very slight recline — avoid reclining past about 80 degrees or it becomes a chest exercise. Start with dumbbells at ear height, elbows bent at 90 degrees, and press straight up until arms are extended. The back support lets you handle more weight safely compared to standing, making this a reliable anchor for shoulder volume. Keep your lower back against the pad throughout — if you're leaning forward at the top, the weight is too heavy. Lower the dumbbells back to the start position in a smooth, controlled arc.",
+      "Bench upright or very slight recline — past 80 degrees it becomes a chest exercise. Start with dumbbells at ear height, elbows at 90 degrees, press straight up to full extension. The back support lets you handle more weight safely than standing. Keep your lower back against the pad — if you're leaning forward at the top, it's too heavy. Lower in a smooth, controlled arc.",
   },
   {
     id: 'db_arnold_press',
@@ -366,7 +366,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Start with dumbbells in front of your face at chin height, palms facing toward you and elbows pointing forward. As you press up, rotate your palms outward so they face forward at the top of the movement — the reverse of a hammer curl. This rotation engages the front and side delts through a fuller range of motion than a standard press. Lower the weights by reversing the rotation, bringing palms back toward you at the bottom. Don't rush the rotation — the whole point is the smooth transition through that range of motion, not just the pressing part.",
+      "Dumbbells at chin height, palms facing you, elbows forward. As you press up, rotate your palms outward to face forward at the top. This rotation works the front and side delts through a fuller range than a standard press. Reverse the rotation on the way down. Don't rush it — the smooth transition through that range of motion is the whole point.",
   },
   {
     id: 'machine_shoulder_press',
@@ -386,7 +386,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Adjust the seat so the handles are at roughly ear height when you sit upright. Press straight up until your arms are extended without fully locking out your elbows, then lower under control. The machine provides a fixed path, so you can push closer to failure safely without a spotter — take advantage of that by really grinding out the last rep or two of each set. Don't let the weight stack crash down between reps; maintain continuous tension on the delts. If the machine feels awkward on your shoulders, try adjusting the seat height by one notch — small changes can make a big difference in how it feels.",
+      "Seat set so handles are at ear height. Press up without fully locking out, lower under control. The fixed path lets you push close to failure safely — grind out those last reps. Don't let the stack crash down between reps; keep continuous tension on the delts. If it feels awkward on your shoulders, adjust the seat one notch — small changes make a big difference.",
   },
   {
     id: 'db_lateral_raise',
@@ -406,7 +406,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Stand with dumbbells at your sides, palms facing your hips, with a slight forward lean at the waist and a soft bend in your elbows. Raise both arms out to your sides until they're roughly parallel to the floor — no higher, no lower. Lead with your elbows rather than your hands; think about pouring water out of a pitcher as you raise. The most common mistake is using too much weight and turning this into a shrug-and-swing, which takes the work out of the delts. Keep the movement strict and controlled — even at light weights this should burn by rep 12.",
+      "Dumbbells at your sides, slight forward lean, soft bend in your elbows. Raise both arms out to parallel — no higher, no lower. Lead with your elbows, not your hands; think about pouring water from a pitcher. Don't use too much weight and turn it into a shrug-and-swing. Keep it strict — even light weights should burn by rep 12.",
   },
   {
     id: 'cable_lateral_raise',
@@ -426,7 +426,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      "Set the pulley to the lowest position and stand sideways to the cable stack, grabbing the handle with the arm furthest from the machine. Keep a slight lean away from the stack and raise your arm out to your side until it's roughly parallel to the floor. Cable tension is constant throughout the range of motion — unlike dumbbells, which get easier at the top — so this variation is excellent for training the mid-range and end range of delt contraction. Perform all reps on one side, then switch. Keep the movement controlled and avoid shrugging your shoulder up as you raise.",
+      "Pulley at the lowest position, stand sideways, grab the handle with the far arm. Slight lean away from the stack, raise your arm out to parallel. Cable gives constant tension through the full range — unlike dumbbells that get easier at the top. All reps on one side, then switch. Keep it controlled and don't shrug your shoulder up as you raise.",
   },
   {
     id: 'machine_lateral_raise',
@@ -446,7 +446,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      'Sit in the machine with the pads resting just above your elbows — not on your wrists or hands. Raise both arms out to the sides against the pads until your arms are roughly parallel to the floor, then lower slowly. The machine keeps your form honest by preventing cheating reps, making it ideal for strict, high-rep delt isolation work. Focus on driving your elbows up and out, not just lifting the weight. Keep the eccentric — the lowering phase — controlled and deliberate; two seconds down is the target.',
+      'Pads resting just above your elbows — not on your wrists. Raise both arms out to parallel, then lower slowly. The machine prevents cheating, so it is ideal for strict high-rep delt work. Focus on driving your elbows up and out, not just lifting the weight. Two seconds down on every rep is the target.',
   },
   {
     id: 'db_front_raise',
@@ -466,7 +466,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Stand holding dumbbells in front of your thighs, palms facing down or at a slight angle toward each other. Raise one or both arms in front of you to shoulder height — no higher — keeping a slight bend in the elbow throughout. Lower slowly and with control before starting the next rep. The front delt already gets a lot of work from any pressing you do, so this exercise doesn't need to be a staple — it's best used as an accessory when you specifically want more front delt volume. Avoid rocking your body backward to swing the weight up; if that's happening, drop the weight.",
+      "Dumbbells in front of your thighs, palms down. Raise one or both arms to shoulder height — no higher — with a slight elbow bend throughout. Lower slowly before the next rep. Your front delts already get plenty of work from pressing, so this is an accessory for when you want extra front delt volume. If you're rocking backward to swing the weight up, drop the weight.",
   },
   {
     id: 'cable_front_raise',
@@ -486,7 +486,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Stand facing away from a low pulley with the handle in one or both hands, arms hanging in front of your thighs. Raise your arm(s) forward to shoulder height while keeping your core braced and your body still. The cable keeps constant tension on the front delt through the entire range — unlike dumbbells, which get heavier as your arm rises — making it a cleaner stimulus for isolation. Perform one side at a time for better focus and balance. Keep the motion strict; if your torso is swinging, you're cheating the front delt out of the work.",
+      "Face away from a low pulley, handle in one or both hands. Raise to shoulder height, core braced, body still. The cable keeps constant tension through the entire range for a cleaner stimulus than dumbbells. One side at a time for better focus. Keep the motion strict — if your torso is swinging, you're cheating the front delt out of the work.",
   },
 
   // ─── PUSH — TRICEPS ──────────────────────────────────────────────────────────
@@ -508,7 +508,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      "Set the pulley high and grab the rope with both hands, thumbs pointing up. Stand close to the stack with your elbows pinned tight to your sides — they stay there the whole set. Push the rope down and slightly out at the bottom, separating your hands at the end of the rep to fully extend and contract the triceps. The elbows must not move; if they drift forward, you're using your lats and shoulders to assist. Squeeze hard at full extension for a beat before returning with control. The rope allows that outward flare at the bottom that a straight bar can't, which gives a slightly better tricep contraction.",
+      "Pulley high, grab the rope, thumbs up. Elbows pinned to your sides — they don't move the whole set. Push down and slightly out, separating your hands at the bottom to fully extend the triceps. If your elbows drift forward, you're using lats and shoulders to cheat. Squeeze hard at full extension before returning with control. The rope lets you flare out at the bottom for a better contraction.",
   },
   {
     id: 'cable_pushdown_bar',
@@ -528,7 +528,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      "Attach a straight or EZ bar to a high pulley and grip it with an overhand hold, hands about shoulder width apart. Stand close to the machine, pin your elbows to your sides, and push the bar down until your arms are fully extended. The bar keeps your wrists in a neutral position throughout and allows you to use slightly more weight than the rope. Don't let your elbows flare out or creep forward as the weight gets heavy — that's a sign you're recruiting shoulder and chest to compensate. Pause at full extension and feel the triceps squeeze before allowing the bar to rise back under control.",
+      "Straight or EZ bar on a high pulley, overhand grip at shoulder width. Stand close, elbows pinned to your sides, push the bar down to full extension. The bar lets you go slightly heavier than the rope. Don't let your elbows flare or creep forward — that means shoulders and chest are taking over. Pause at full extension, squeeze the triceps, then control it back up.",
   },
   {
     id: 'db_overhead_tri_ext',
@@ -549,7 +549,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      'Sit or stand and hold a single dumbbell with both hands, gripping the inner plate above your head. Keep your upper arms vertical and close to your ears, then lower the dumbbell behind your head by bending only at the elbows. The long head of the tricep is stretched and loaded in this position, which is where the most growth stimulus comes from. Press back up to full extension, squeezing the triceps at the top. The most common mistake is letting the elbows flare wide as the weight descends — keep them pointed straight up at the ceiling throughout the movement.',
+      'Hold a single dumbbell with both hands above your head, gripping the inner plate. Upper arms vertical and close to your ears — lower behind your head by bending only at the elbows. This stretched position is where the long head gets the most growth stimulus. Press back up, squeeze at the top. Don\'t let your elbows flare wide — keep them pointed straight at the ceiling.',
   },
   {
     id: 'cable_overhead_tri_ext',
@@ -570,7 +570,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      "Attach a rope to a high pulley, grab it with both hands, and step away from the stack until there's tension on the cable. Hinge slightly at the hips and lean forward, keeping your upper arms pointed forward and close to your head. Extend your arms forward and out until fully locked out, contracting the triceps at full extension. The cable provides constant tension through the stretched position of the tricep — an advantage over dumbbells for this movement. Keep your core braced to prevent your lower back from rounding under the load.",
+      "Rope on a high pulley, step away until there's tension. Hinge slightly and lean forward, upper arms close to your head. Extend your arms forward to full lockout, contracting the triceps hard. The cable keeps constant tension through the stretched position — an advantage over dumbbells here. Brace your core so your lower back doesn't round under the load.",
   },
   {
     id: 'skull_crushers',
@@ -590,7 +590,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Lie flat on a bench and hold the EZ bar with an overhand grip, arms extended straight above your chest. Lower the bar toward your forehead by bending only at the elbows — your upper arms should remain mostly vertical throughout. Stop just short of the bar touching your forehead, then press back up to the start. The name explains what happens if you lose control, so use a weight you can handle with strict form and a spotter if possible. A slight backward angle on the upper arms — so the bar travels just behind the head — can actually reduce elbow joint stress and improve tricep stretch.',
+      'Lie flat, EZ bar above your chest with an overhand grip. Lower toward your forehead by bending only at the elbows — upper arms stay mostly vertical. Stop just short of your forehead, press back up. The name says it all, so use a weight you can control and spot if possible. Angling the bar slightly behind your head reduces elbow stress and improves the tricep stretch.',
   },
   {
     id: 'db_skull_crushers',
@@ -610,7 +610,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      "Lie on a bench and hold a dumbbell in each hand, arms extended above your chest with palms facing each other. Lower the dumbbells toward either side of your head by bending at the elbows, keeping your upper arms vertical and pointing straight up. Extend back to the start and repeat. Using dumbbells instead of a bar allows each arm to move independently, which can reduce wrist and elbow strain for people who find the straight bar uncomfortable. Keep the movement controlled — especially on the way down — and make sure your upper arms don't drift back or forward as you fatigue.",
+      "Lie back, dumbbells above your chest, palms facing each other. Lower toward either side of your head by bending at the elbows, upper arms pointing straight up. Extend and repeat. Dumbbells let each arm move independently, reducing wrist and elbow strain compared to a bar. Keep it controlled on the way down and don't let your upper arms drift as you fatigue.",
   },
   {
     id: 'machine_dip_tri_press',
@@ -631,7 +631,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Sit in the machine with your back flat against the pad and grip the handles at chest level. Press down and forward until your arms are fully extended, then control the weight back to the start. This machine replicates the dip movement in a controlled path — it's more shoulder-friendly than bar dips and lets you easily adjust load. For maximum tricep emphasis, keep your elbows close to your body and your torso upright throughout. The machine is safe to push to near-failure without a spotter, so use that advantage and make the last one or two reps genuinely hard.",
+      "Back flat against the pad, grip handles at chest level. Press down and forward to full extension, control back to the start. This replicates the dip in a controlled path — more shoulder-friendly than bar dips. Keep elbows close and torso upright for maximum tricep emphasis. Safe to push near failure, so make those last reps genuinely hard.",
   },
 
   // ─── PULL — BACK ─────────────────────────────────────────────────────────────
@@ -653,7 +653,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: 'Full protocol',
     description:
-      "Stand with feet hip-width apart, hinge at the hips until your torso is roughly 45 degrees from vertical, and grip the bar just outside shoulder width with an overhand grip. Keep your back flat — not rounded — and row the bar toward your lower ribcage, driving your elbows back and up. The bar should travel in a straight vertical line, not swing in an arc. Squeeze the back hard at the top before lowering with control. The most common mistake is letting the lower back round under heavy load — if that's happening, reduce the weight and focus on keeping your core braced and your chest up throughout every rep.",
+      "Feet hip-width, hinge until your torso is about 45 degrees from vertical, overhand grip just outside shoulder width. Back flat, row the bar toward your lower ribcage, driving elbows back and up in a straight vertical line. Squeeze the back hard at the top. If your lower back is rounding, reduce the weight — brace your core and keep your chest up on every rep.",
   },
   {
     id: 'db_bent_row',
@@ -673,7 +673,7 @@ export const EXERCISE_DB = [
     rest: '2-3 min',
     warmup: '1 feeler set',
     description:
-      "Hold a dumbbell in each hand, hinge forward at the hips until your torso is close to parallel with the floor, and let the weights hang straight down. Row both dumbbells toward your hips simultaneously, driving your elbows straight back. Dumbbells allow a more natural hand position than a barbell and let you feel each side working independently. Keep your lower back flat — brace your core like you're about to take a punch before every set. Avoid jerking the weights up with momentum; the contraction at the top should feel deliberate, with your shoulder blades squeezing together.",
+      "Dumbbell in each hand, hinge forward until your torso is near parallel, weights hanging straight down. Row both toward your hips, driving elbows straight back. Each side works independently so you'll feel imbalances. Brace your core like you're about to take a punch. Don't jerk the weights — the contraction at the top should be deliberate, shoulder blades squeezing together.",
   },
   {
     id: 'db_single_arm_row',
@@ -693,7 +693,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Place one knee and the same-side hand on a bench for support, with your opposite foot flat on the floor. Hold a dumbbell in your free hand with your arm hanging straight down. Row the dumbbell toward your hip, keeping your elbow close to your body and your torso parallel to the floor. The supported position lets you focus entirely on the working side without your lower back having to stabilize a bent-over position — this is why single arm rows often allow heavier weight than bilateral rows. Think about leading the movement with your elbow, not your hand, and hold the contraction at the top for a beat before lowering.',
+      'One knee and same-side hand on a bench, opposite foot on the floor, dumbbell hanging straight down. Row toward your hip, elbow close to your body, torso parallel to the floor. The support lets you focus on the working side without taxing your lower back — you can often go heavier than bilateral rows. Lead with your elbow, not your hand, and hold the contraction at the top for a beat.',
   },
   {
     id: 'tbar_row',
@@ -713,7 +713,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: 'Full protocol',
     description:
-      "Straddle the barbell or use a dedicated T-bar machine with a close neutral grip handle. Hinge forward until your torso is at roughly 45 degrees, keep your chest up, and pull the bar toward your lower chest. The neutral close grip takes some of the bicep out of the movement and places more emphasis on the mid-back and lats. This is a high-tension compound row that can be loaded heavily — treat it with the same respect as a barbell bent-over row. Lower the weight with control on every rep; don't let gravity do the work for you on the way down.",
+      "Straddle the barbell or use a T-bar machine with a close neutral grip. Hinge forward to about 45 degrees, chest up, pull toward your lower chest. The neutral grip shifts emphasis to mid-back and lats while taking some bicep out. This is a heavy compound row — treat it with the same respect as barbell rows. Lower with control; don't let gravity do the work on the way down.",
   },
   {
     id: 'cable_lat_pulldown',
@@ -733,7 +733,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Sit with your thighs locked under the pad and grip the bar slightly wider than shoulder width with an overhand grip. Lean back slightly — about 10–15 degrees — and pull the bar down toward your upper chest, leading with your elbows and thinking about pulling your shoulder blades down and together. The bar should touch or come very close to your chest at the bottom. Don't pull behind your neck — it puts your cervical spine in a bad position without any benefit to lat development. On the way up, let your arms extend fully overhead to get the complete lat stretch before each rep.",
+      "Thighs locked under the pad, overhand grip slightly wider than shoulder width. Lean back 10–15 degrees and pull the bar to your upper chest, leading with your elbows, pulling shoulder blades down and together. Never pull behind your neck — no lat benefit, just spine risk. Let your arms extend fully overhead on the way up for the complete lat stretch before each rep.",
   },
   {
     id: 'cable_pulldown_wide',
@@ -753,7 +753,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Use a long straight bar and grip it well outside shoulder width with an overhand grip. Sit tall with your thighs locked under the pad and lean back slightly before pulling the bar to your upper chest. The wide grip shortens the range of motion compared to a standard grip, but puts the lats in a mechanically stretched starting position and shifts emphasis to the outer lat fibers. Initiate every rep by depressing your shoulder blades downward before bending your elbows — this ensures the lats are doing the work, not just your arms. Control the bar back up to a full overhead stretch before the next rep.',
+      'Long bar, grip well outside shoulder width, overhand. Sit tall, thighs locked, slight lean back, pull to your upper chest. The wide grip puts the lats in a stretched starting position and shifts emphasis to the outer fibers. Start every rep by depressing your shoulder blades before bending your elbows — lats first, arms second. Full overhead stretch at the top before the next rep.',
   },
   {
     id: 'cable_pulldown_neutral',
@@ -773,7 +773,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Attach a parallel neutral-grip handle to the cable and sit with thighs locked under the pad. Pull the handle toward your upper chest with a palms-facing-each-other grip, elbows driving down and back. The neutral grip is typically the most elbow-friendly option of the pulldown variations and allows the biceps to contribute more to the pull. This version tends to feel the most natural to most people and is a great starting point if overhead pulling has ever caused elbow discomfort. Let your arms extend fully at the top for the complete lat stretch before each rep.',
+      'Neutral-grip handle, thighs locked under the pad. Pull toward your upper chest, palms facing each other, elbows driving down and back. This is the most elbow-friendly pulldown option and lets the biceps contribute more. A great starting point if overhead pulling has ever bothered your elbows. Arms fully extended at the top for the complete lat stretch before each rep.',
   },
   {
     id: 'seated_cable_row',
@@ -793,7 +793,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Sit at the cable station with your feet on the platform, knees slightly bent, and grip the close-grip handle with palms facing each other. Sit upright — not leaning back — and pull the handle toward your lower ribcage while keeping your elbows tight to your body. Squeeze your shoulder blades together at the end of the pull before extending your arms forward under control. Don't use your lower back to swing the weight — the torso should stay still throughout the set. A common mistake is leaning too far forward on the return; a small forward lean to get a lat stretch is fine, but don't round the back.",
+      "Feet on the platform, knees slightly bent, close-grip handle with palms facing each other. Sit upright and pull toward your lower ribcage, elbows tight to your body. Squeeze your shoulder blades together at the end, then extend forward under control. Don't swing with your lower back — the torso stays still. A small forward lean for a lat stretch is fine, but don't round the back.",
   },
   {
     id: 'cable_row_wide',
@@ -813,7 +813,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Use a long bar attachment and grip it significantly wider than shoulder width with an overhand or neutral grip. Sit tall and row the bar toward your upper chest or collarbone, letting your elbows flare out to the sides rather than staying tucked. This elbow path targets the upper back — rear delts, rhomboids, and middle traps — rather than the lats. It's a different movement from a close-grip row and should feel it in a higher, more between-the-shoulder-blades position. Keep your torso upright and don't lean back to assist the pull; let the upper back do the work.",
+      "Long bar, grip wide with overhand or neutral grip. Sit tall and row toward your upper chest or collarbone, elbows flaring out to the sides. This targets upper back — rear delts, rhomboids, mid traps — not the lats. You should feel it between your shoulder blades, not lower. Stay upright and don't lean back to assist the pull.",
   },
   {
     id: 'machine_row',
@@ -833,7 +833,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Adjust the seat so the handles are at mid-chest height and your chest rests against the pad. Pull the handles toward your torso, driving your elbows straight back and squeezing your shoulder blades together at the peak. The chest pad stabilizes you and eliminates lower back involvement, letting you focus purely on the back muscles. This makes it an excellent choice when you want high-rep back work without taxing your spinal erectors. Don't let the weight stack slam down between reps — control the return and maintain tension on the back throughout the set.",
+      "Seat adjusted so handles hit mid-chest, chest against the pad. Pull toward your torso, driving elbows straight back, squeezing your shoulder blades at the peak. The chest pad eliminates lower back involvement, so you can focus purely on the back. Great for high-rep work without taxing your spinal erectors. Don't let the stack slam down — control the return and keep tension throughout.",
   },
   {
     id: 'cable_straight_arm_pulldown',
@@ -854,7 +854,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 light feeler set',
     description:
-      "Stand facing a high pulley with a rope or straight bar attachment, arms extended forward at shoulder height. Keeping your arms straight — a very slight bend in the elbows is fine — pull the bar or rope down toward your thighs in a sweeping arc. This is one of the only exercises that isolates the lat without involving the biceps, since your elbows don't bend. You should feel a deep contraction in the muscles under your armpits at the bottom of each rep. Keep your torso still and your core tight — if your body is rocking backward, you're using too much weight.",
+      "Face a high pulley, arms extended forward at shoulder height. Keep your arms straight — slight elbow bend is fine — and pull down toward your thighs in a sweeping arc. One of the only lat isolations that takes biceps out of it since your elbows don't bend. Feel the contraction under your armpits at the bottom. If your body is rocking backward, the weight is too heavy.",
   },
   {
     id: 'db_pullover',
@@ -874,7 +874,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Lie perpendicular across a bench with your upper back supported and your hips dropped below bench height. Hold a single dumbbell with both hands above your chest, then lower it back and over your head in a wide arc until you feel a strong stretch in your lats and ribcage. Pull the dumbbell back up to the starting position along the same arc. Keep a soft bend in your elbows throughout — this isn't a tricep extension. The stretch at the bottom is the point of this exercise, so don't shortchange it by limiting range of motion. It's a uniquely effective movement for expanding the lat through a long, loaded stretch.",
+      "Lie perpendicular across a bench, upper back supported, hips dropped below bench height. Hold a dumbbell with both hands above your chest, then lower back over your head in a wide arc until you feel a strong lat and ribcage stretch. Pull back up along the same arc. Soft elbow bend — this isn't a tricep extension. The stretch at the bottom is the whole point, so don't cut it short.",
   },
   {
     id: 'pullups_bw',
@@ -895,7 +895,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: 'BW ramp: 5, 3',
     description:
-      'Grip the bar slightly wider than shoulder width with an overhand grip, arms fully extended, and hang with your body straight. Pull yourself up by driving your elbows down toward your hips — think about putting your shoulder blades in your back pockets — until your chin clears the bar. Lower yourself slowly and with full control until your arms are completely extended before the next rep. A partial rep at the top is better than a partial rep at the bottom; always start from a dead hang. The most common mistake is kipping or swinging — this turns it into a momentum exercise and removes the back from the movement entirely.',
+      'Overhand grip slightly wider than shoulder width, dead hang start. Drive your elbows down toward your hips — think shoulder blades into your back pockets — until your chin clears the bar. Lower slowly to full extension before the next rep. Always start from a dead hang; a partial at the bottom cheats you more than a partial at the top. No kipping or swinging — that removes the back entirely.',
   },
   {
     id: 'pullups_weighted',
@@ -916,7 +916,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: 'BW ramp: 5, 3, 1',
     description:
-      "Attach weight via a belt, vest, or dumbbell held between your feet, and perform the pull-up with the same technique as the bodyweight version — overhand grip, dead hang start, chin over bar at the top, full extension on the way down. The added load turns this into one of the most effective lat and upper back mass-builders you can do. Don't sacrifice your range of motion or tempo for extra weight; a slow, controlled rep with less weight beats a partial sloppy rep with more. Track the added weight carefully each session — this is a lift that responds very well to consistent progressive loading.",
+      "Add weight via belt, vest, or dumbbell between your feet. Same technique as bodyweight — overhand grip, dead hang, chin over bar, full extension down. Don't sacrifice range of motion for extra weight; a slow, controlled rep with less weight beats a partial sloppy rep with more. Track added weight each session — this lift responds very well to progressive loading.",
   },
   {
     id: 'chinups_bw',
@@ -937,7 +937,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: 'BW ramp: 5, 3',
     description:
-      'Grip the bar at roughly shoulder width with an underhand grip — palms facing you — and hang with arms fully extended. Pull yourself up until your chin clears the bar, then lower under full control to a dead hang. The underhand grip puts the biceps in a stronger mechanical position compared to a pull-up, which is why most people can do more reps here. It also tends to feel more natural on the elbows. The lats still do the majority of the work — think about pulling your elbows toward your hips to keep the focus there rather than letting it become an all-bicep movement.',
+      'Shoulder-width underhand grip — palms facing you — dead hang start. Pull until your chin clears the bar, lower under full control to a dead hang. The underhand grip puts your biceps in a stronger position, so most people get more reps than pull-ups. Lats still do the majority of the work — pull your elbows toward your hips to keep the focus there, not all biceps.',
   },
   {
     id: 'chinups_weighted',
@@ -958,7 +958,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: 'BW ramp: 5, 3, 1',
     description:
-      "Add load via a belt, vest, or dumbbell and use the same underhand shoulder-width grip as bodyweight chin-ups. Hang from a dead arm position and pull yourself up until your chin clears the bar, then lower with full control. The combination of heavy load and underhand grip produces intense bicep and lat involvement — it's one of the best bang-for-your-buck upper body pulling exercises you can do. Warm up thoroughly and ramp into your working sets; the elbow joints need more preparation under added load. Keep the tempo honest — no bouncing out of the bottom.",
+      "Add load via belt, vest, or dumbbell. Same underhand shoulder-width grip as bodyweight chin-ups, dead hang start, chin over bar, full control down. Heavy load plus underhand grip means intense bicep and lat work. Warm up thoroughly — elbows need more prep under added load. Keep the tempo honest, no bouncing out of the bottom.",
   },
 
   {
@@ -981,7 +981,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: '1 light feeler set at high assist',
     description:
-      'Set the counterweight stack on the assisted pull-up machine — this is your ASSIST weight, not added weight. More weight on the stack = easier. The machine subtracts this from your bodyweight, so you are only lifting the difference. Use an overhand grip slightly wider than shoulder width. From a dead hang, drive your elbows down toward your hips until your chin clears the bar. Lower under full control. As you get stronger, reduce the assist weight across sessions — the goal is to eventually need no assist at all. Log the assist weight you used so you can track it decreasing over time.',
+      'Set the counterweight — this is ASSIST weight, not added weight. More weight = easier. The machine subtracts it from your bodyweight. Overhand grip slightly wider than shoulder width, dead hang, drive elbows down until chin clears the bar, lower with control. Reduce the assist weight each session — the goal is eventually needing none. Log it so you can track it going down.',
   },
   {
     id: 'chinups_assisted',
@@ -1003,7 +1003,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: '1 light feeler set at high assist',
     description:
-      'Set the counterweight stack on the assisted chin-up machine — this is your ASSIST weight, not added weight. More weight on the stack = easier. The machine subtracts this from your bodyweight. Use an underhand shoulder-width grip. Pull until your chin clears the bar, then lower with full control to a dead hang. The underhand grip recruits more bicep than a pull-up grip, making this slightly easier for most people. Reduce the assist weight each week as you get stronger — progress is tracked by the number going down, not up.',
+      'Set the counterweight — ASSIST weight, not added weight. More weight = easier. Underhand shoulder-width grip. Pull until chin clears the bar, lower with full control to a dead hang. The underhand grip recruits more bicep, making this slightly easier for most people. Reduce the assist weight each week — progress means the number goes down, not up.',
   },
 
   // ─── PULL — REAR DELTS ───────────────────────────────────────────────────────
@@ -1025,7 +1025,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Hinge forward at the hips until your torso is nearly parallel to the floor, holding light dumbbells with your arms hanging down and a slight bend in your elbows. Raise both arms out to your sides in a wide arc until they're roughly parallel to the floor, squeezing your rear delts and upper back at the top. Lower slowly and repeat. This is a lightweight isolation movement — people consistently use too much weight and turn it into a full-body swing. The rear delts are a small muscle; they don't need heavy loading, they need proper tension and a genuine contraction at the top of each rep.",
+      "Hinge forward until your torso is nearly parallel, light dumbbells hanging down, slight elbow bend. Raise both arms out in a wide arc to parallel, squeezing rear delts and upper back at the top. Lower slowly. People consistently go too heavy and turn this into a full-body swing. Rear delts are small — they need proper tension and a real contraction, not heavy loading.",
   },
   {
     id: 'cable_face_pull',
@@ -1045,7 +1045,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Set the cable at face height or slightly above and grab a rope attachment with both hands, palms facing each other. Step back a few feet and pull the rope toward your face, separating your hands as you do and finishing with your elbows flared out at shoulder height and your fists near your ears. This movement trains the rear delts and external rotators of the shoulder — the muscles most people neglect and most people need. It's also a great tool for shoulder health. Keep the weight light enough that you feel it specifically in the rear delts and upper back, not your traps. Every serious training program should have face pulls in it somewhere.",
+      "Cable at face height or slightly above, rope attachment. Step back and pull toward your face, separating your hands and finishing with elbows flared at shoulder height, fists near your ears. This trains rear delts and external rotators — the muscles most people neglect and most people need. Keep it light enough to feel in the rear delts, not your traps. Every good program should have these.",
   },
   {
     id: 'machine_rear_delt_fly',
@@ -1065,7 +1065,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Sit facing the machine's chest pad with your arms extended and gripping the handles at shoulder height — you may need to reverse the setting from the chest fly position. Push your arms back in a wide arc, squeezing your rear delts and upper back at the end of the movement, then return with control. The machine is ideal for rear delt isolation because it keeps the path consistent and removes stabilization from the equation. Adjust the seat height until the arc of the handles aligns naturally with your shoulder joint — an inch or two makes a significant difference in how effective this feels. Control the negative on every rep.",
+      "Sit facing the chest pad, arms extended, handles at shoulder height — you may need to reverse the machine from its chest fly setting. Push your arms back in a wide arc, squeezing rear delts and upper back at the end. The machine keeps the path consistent for strict isolation. Adjust seat height until the arc aligns with your shoulder joint — an inch makes a big difference. Control the negative.",
   },
   {
     id: 'band_pull_apart',
@@ -1085,7 +1085,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'First set as feeler — no dedicated warm-up needed',
     description:
-      "Hold a resistance band at shoulder height in front of you with both hands, arms extended and palms facing down, hands about shoulder width apart. Pull the band apart by moving both arms out to your sides simultaneously, squeezing your shoulder blades together as the band stretches across your chest. Return slowly and repeat. This is a shoulder health and rear delt exercise — it trains the external rotators and rear delts without load on your joints. Use a band light enough that you can get a real squeeze at full extension; if it's too heavy, you lose the contraction. Can be done for high reps as a warm-up or as a finisher at the end of a pull session.",
+      "Band at shoulder height, arms extended, palms down, hands shoulder-width apart. Pull the band apart, squeezing your shoulder blades together as it stretches across your chest. Return slowly, repeat. This trains external rotators and rear delts without loading your joints. Use a light enough band to get a real squeeze at full extension. Great as a warm-up or finisher on pull day.",
   },
 
   // ─── PULL — BICEPS ───────────────────────────────────────────────────────────
@@ -1107,7 +1107,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 light feeler set',
     description:
-      "Stand or sit with dumbbells at your sides, palms facing forward. Curl both weights up toward your shoulders by bending at the elbows, keeping your upper arms stationary at your sides the entire time. Squeeze the bicep hard at the top, then lower slowly back to full extension. You can do both arms simultaneously or alternate — alternating allows slightly better focus on each arm. The most common mistake is swinging the body backward to get the weight up; if you're doing that, drop the weight and keep the reps strict. A slow two-second lowering phase dramatically improves the quality of each rep.",
+      "Dumbbells at your sides, palms forward. Curl toward your shoulders, upper arms stationary the whole time. Squeeze the bicep hard at the top, lower slowly to full extension. Alternate or do both at once — alternating gives better focus per arm. If you're swinging backward to get the weight up, it's too heavy. A slow two-second lowering phase makes each rep dramatically better.",
   },
   {
     id: 'bb_bicep_curl',
@@ -1127,7 +1127,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Stand with a straight bar using an underhand grip at roughly shoulder width, arms fully extended. Curl the bar up toward your chin by bending at the elbows — your upper arms stay locked at your sides throughout. The barbell allows heavier loading than dumbbells and trains both arms together, which is why it's a staple for bicep size and strength. If a straight bar causes wrist discomfort, switch to an EZ bar. Lower the bar fully on every rep — stopping short at the bottom is one of the most common errors and removes the important stretched position where a lot of muscle growth stimulus happens.",
+      "Underhand grip at shoulder width, arms fully extended. Curl toward your chin, upper arms locked at your sides throughout. The barbell lets you load heavier and trains both arms together. If a straight bar hurts your wrists, switch to an EZ bar. Lower fully on every rep — stopping short at the bottom removes the stretched position where a lot of muscle growth happens.",
   },
   {
     id: 'ez_bar_curl',
@@ -1147,7 +1147,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 light feeler set',
     description:
-      "Grip the angled portion of the EZ bar with both hands so your palms face slightly toward each other — this is the semi-supinated position. Curl the bar up by bending at the elbows, keeping your upper arms stationary, and squeeze at the top before lowering with control. The angled grip reduces the strain on your wrists and forearms compared to a straight bar, which makes it easier to focus on the curl itself rather than fighting discomfort. It's not quite as effective as a straight bar for fully supinating the forearm, but it's close — and for many people, the comfort trade-off is well worth it.",
+      "Grip the angled portion so your palms face slightly toward each other — semi-supinated position. Curl up, upper arms stationary, squeeze at the top, lower with control. The angled grip reduces wrist and forearm strain compared to a straight bar. Not quite as effective for full supination, but close — and for many people the comfort trade-off is well worth it.",
   },
   {
     id: 'db_hammer_curl',
@@ -1167,7 +1167,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Hold dumbbells at your sides with a neutral grip — thumbs up, palms facing your body — and curl them up while keeping that neutral position throughout. Unlike a standard curl, you don't rotate your forearm. This version targets the brachialis and brachioradialis more than a supinated curl, and the brachialis in particular sits underneath the bicep and pushes it up — developing it adds thickness and peak to the arm. Upper arms stay pinned at your sides; if they're drifting forward, you're using too much weight. Can be done alternating or both arms at once.",
+      "Neutral grip — thumbs up, palms facing your body — curl up while keeping that position throughout. No forearm rotation. This targets the brachialis and brachioradialis more; the brachialis sits under the bicep and pushes it up, adding arm thickness. Upper arms pinned at your sides — if they drift forward, it's too heavy. Alternate or do both at once.",
   },
   {
     id: 'cable_curl_rope',
@@ -1187,7 +1187,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      'Attach a rope to a low pulley, grip both ends with palms facing up, and stand a short step back from the stack. Curl the rope toward your shoulders, keeping your upper arms stationary and supinating your hands outward at the top for maximum bicep contraction. The cable provides constant tension through the entire range of motion — particularly at the bottom where a dumbbell gets lighter — making each rep more demanding than it looks. Lower slowly, letting your arms extend fully before the next rep. The rope also allows some natural wrist rotation, which some people find more comfortable than a fixed bar.',
+      'Rope on a low pulley, palms up, stand a short step back. Curl toward your shoulders, upper arms stationary, supinate your hands outward at the top for maximum contraction. The cable keeps constant tension through the full range — especially at the bottom where dumbbells get lighter. Lower slowly to full extension before the next rep. The rope allows natural wrist rotation, which many people find more comfortable.',
   },
   {
     id: 'cable_curl_ez',
@@ -1207,7 +1207,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Attach an EZ bar to a low pulley and grip it with the semi-supinated underhand position, standing close to the stack. Curl the bar toward your chin with elbows staying at your sides, then lower with control to full arm extension. The cable EZ bar curl combines the constant tension of a cable with the wrist-friendly angle of the EZ bar — it's an effective option if you want to load the curl with more volume without the joint stress of a straight barbell. Keep the movement strict; the cable makes it tempting to lean back and turn it into a row.",
+      "EZ bar on a low pulley, semi-supinated grip, stand close. Curl toward your chin, elbows at your sides, lower with control to full extension. Combines cable's constant tension with the EZ bar's wrist-friendly angle — more volume without joint stress. Keep it strict; the cable makes it tempting to lean back and turn it into a row.",
   },
   {
     id: 'incline_db_curl',
@@ -1227,7 +1227,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 light feeler set',
     description:
-      "Set a bench to 45–60 degrees, sit back against it, and let the dumbbells hang at your sides with arms fully extended behind your torso. This stretched starting position puts the long head of the bicep under load from a lengthened position before you even start the rep — that's what makes this variation special. Curl both weights up toward your shoulders, squeeze, and lower slowly back to the full stretched hang. Don't rush the eccentric; a slow two or three second lowering phase maximizes the stimulus in this stretched position. Use lighter weight than you would standing — the stretch makes this harder than it looks.",
+      "Bench at 45–60 degrees, sit back, dumbbells hanging with arms extended behind your torso. This stretched starting position loads the long head of the bicep from a lengthened position — that's what makes it special. Curl up, squeeze, lower slowly to the full stretch. Two to three seconds down to maximize the stimulus. Go lighter than standing — the stretch makes this harder than it looks.",
   },
   {
     id: 'concentration_curl',
@@ -1247,7 +1247,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Sit on the edge of a bench, lean forward, and brace your working arm's elbow against the inside of your thigh. Let the dumbbell hang, then curl it up toward your chin, supinating the wrist at the top for a full bicep squeeze. The thigh acts as a fixed brace that completely eliminates cheating — your upper arm can't move, so the bicep has to do every bit of the work. This is one of the best exercises for isolating the bicep and feeling the contraction clearly. Lower all the way to full extension before each rep, and don't rush it — slow, deliberate reps are the whole point here.",
+      "Sit on a bench edge, lean forward, brace your working elbow against the inside of your thigh. Curl toward your chin, supinating at the top for a full squeeze. The thigh eliminates all cheating — the bicep does every bit of the work. Lower to full extension before each rep. Slow, deliberate reps are the whole point.",
   },
   {
     id: 'preacher_curl_bb',
@@ -1267,7 +1267,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Sit at the preacher bench and rest your upper arms on the angled pad, gripping the bar with an underhand grip at roughly shoulder width. Lower the bar to near full extension — stop just short of hyperextending the elbow — then curl it back up to the peak contraction. The pad locks your upper arms in place, removing any possibility of cheating with body English. The bottom of the movement is the most demanding position here, so control the descent carefully. This is one of the few curl variations that seriously loads the bicep in the stretched position, which is valuable for muscle development.',
+      'Upper arms on the angled pad, underhand grip at shoulder width. Lower to near full extension — just short of hyperextending — then curl to peak contraction. The pad locks your arms in place, eliminating all cheating. The bottom is the hardest position, so control the descent carefully. One of the few curls that seriously loads the stretched position, which is valuable for growth.',
   },
   {
     id: 'machine_preacher_curl',
@@ -1287,7 +1287,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 feeler set',
     description:
-      "Adjust the seat so your upper arms rest flat on the pad and your elbows align with the machine's pivot point. Curl the handle up toward your shoulders, squeeze at the top, then lower slowly to a near-full extension. The machine version provides consistent tension through the full range and is especially safe for working close to failure — no risk of the weight dropping on you at the bottom like with a free weight preacher curl. Set a weight you can control fully on the way down; the eccentric is just as important as the concentric on this one. If the machine feels awkward on your elbows, adjust the seat height before changing the weight.",
+      "Seat set so your upper arms rest flat on the pad, elbows aligned with the machine's pivot. Curl up, squeeze at the top, lower slowly to near-full extension. Consistent tension through the full range and safe to push to failure — no weight dropping on you. Control the descent; the eccentric matters as much as the concentric. If it feels awkward on your elbows, adjust seat height first.",
   },
 
   // ─── LEGS — QUADS / SQUAT PATTERN ───────────────────────────────────────────
@@ -1309,7 +1309,7 @@ export const EXERCISE_DB = [
     rest: '3-5 min',
     warmup: 'Full protocol',
     description:
-      'Set the bar across your upper traps, step back from the rack with feet roughly shoulder-width apart and toes turned out 15–30 degrees. Take a deep breath into your belly, brace your core hard, and sit back and down until your hip crease passes below your knee — full depth is the standard. Drive your knees out in the direction your toes point and press the floor away to stand. The most common mistake is the knees caving inward as you rise from the hole — focus on spreading the floor with your feet to keep them tracking properly. This is the king of lower body exercises; respect the warm-up protocol before loading it.',
+      'Bar across your upper traps, feet shoulder-width, toes out 15–30 degrees. Deep belly breath, brace hard, sit back and down until your hip crease passes below your knee — full depth is the standard. Drive knees out in the direction your toes point and press the floor away to stand. If your knees cave inward on the way up, focus on spreading the floor with your feet. Respect the warm-up protocol.',
   },
   {
     id: 'bb_front_squat',
@@ -1329,7 +1329,7 @@ export const EXERCISE_DB = [
     rest: '3-5 min',
     warmup: 'Full protocol',
     description:
-      'Rest the bar across the front of your shoulders in the rack position — elbows driven up high to keep the bar from rolling forward — or use a cross-arm grip as an alternative. Feet are roughly shoulder-width with toes slightly out. Brace your core, stay tall through the torso, and squat straight down, keeping your elbows up the entire way so the bar stays in position. The front load forces a more upright torso than the back squat, making it extremely quad-dominant. Wrist and lat flexibility will limit you early on — this is a skill that takes time to develop, so be patient with the mobility work.',
+      'Bar across the front of your shoulders, elbows driven high — or use a cross-arm grip. Feet shoulder-width, toes slightly out. Brace hard, stay tall, squat straight down keeping elbows up so the bar stays put. The front load forces a more upright torso than back squats, making it extremely quad-dominant. Wrist and lat flexibility will limit you early — be patient with the mobility work.',
   },
   {
     id: 'machine_hack_squat',
@@ -1349,7 +1349,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      'Place your feet shoulder-width apart on the platform with toes slightly out, shoulder pads resting on your shoulders. Unlock the safety handles, lower yourself by bending at the knees until your thighs reach parallel or just below, then drive through your heels to return. Foot position matters a lot here — placing your feet lower on the platform increases quad emphasis, while higher increases glute involvement. The hack squat lets you squat heavy without the balance and mobility demands of a barbell, making it an excellent anchor movement for quad development. Keep your lower back pressed against the pad and avoid letting your heels come up.',
+      'Feet shoulder-width on the platform, toes slightly out, shoulder pads on. Unlock the safeties, lower until thighs hit parallel or just below, drive through your heels. Feet lower on the platform = more quad; higher = more glute. You can squat heavy here without the balance demands of a barbell. Keep your lower back against the pad and don\'t let your heels come up.',
   },
   {
     id: 'leg_press',
@@ -1369,7 +1369,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Sit in the machine with your back flat against the pad and feet placed shoulder-width apart at the middle of the platform. Lower the sled by bending your knees until your thighs reach 90 degrees or slightly below — don't let your lower back round off the pad at the bottom. Press through your heels and midfoot to return, stopping just short of locking out your knees. Foot placement changes the emphasis: higher targets more glute and hamstring, lower targets more quad. The leg press is one of the safest ways to move heavy lower body volume — use that advantage and push the reps with genuine effort.",
+      "Back flat against the pad, feet shoulder-width at mid-platform. Lower until your thighs reach 90 degrees or slightly below — don't let your lower back round off the pad. Press through heels and midfoot, stopping just short of knee lockout. Higher foot placement = more glute/hamstring, lower = more quad. Safe to push hard, so make every rep count.",
   },
   {
     id: 'belt_squat',
@@ -1389,7 +1389,7 @@ export const EXERCISE_DB = [
     rest: '2-3 min',
     warmup: '1 feeler set',
     description:
-      "Attach the belt around your hips and stand on the platform with feet shoulder-width apart and toes slightly out. The load hangs from your hips rather than your spine, which makes this a uniquely spine-friendly way to squat heavy. Squat straight down, keeping your torso as upright as possible, until your hips reach parallel depth or below, then drive up through your midfoot. Because there's no axial load compressing your spine, you can often squat pain-free here when a barbell squat is uncomfortable. Focus on a controlled descent and keep your knees tracking over your toes throughout.",
+      "Belt around your hips, feet shoulder-width, toes slightly out. The load hangs from your hips instead of your spine — uniquely spine-friendly. Squat straight down, torso upright, to parallel or below, then drive up through your midfoot. If barbell squats bother your back, you can often squat pain-free here. Controlled descent, knees tracking over your toes.",
   },
   {
     id: 'db_goblet_squat',
@@ -1409,7 +1409,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Hold a dumbbell vertically at chest height with both hands cupping the top plate — the goblet position. Stand with feet shoulder-width apart, toes out slightly, and squat straight down while keeping the dumbbell close to your chest and your torso upright. The front-loaded weight naturally encourages a tall torso and makes it easier to hit depth, which is why this is an excellent teaching tool for squat mechanics. Drive your knees outward as you descend and press the floor away to stand. It won't replace a heavy barbell squat for loading, but it's a solid volume tool that's easy on the lower back.",
+      "Cup the top plate of a dumbbell at chest height, feet shoulder-width apart, toes out slightly. Squat straight down keeping the weight close and your torso tall — the front load naturally helps you stay upright and hit depth. Drive your knees out as you descend, then press the floor away to stand. Great volume tool that's easy on the lower back.",
   },
   {
     id: 'db_bulgarian_split_squat',
@@ -1430,7 +1430,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Place the top of your rear foot on a bench, step your front foot forward far enough that your shin is vertical when your knee is bent. Hold a dumbbell in each hand and lower your rear knee toward the floor, keeping your torso upright. Drive through your front heel to return to the start. Step distance is critical — too close and your front knee travels far over your toes; too far and you lean excessively forward. Most people hate this exercise. That's because it works. It's one of the best single-leg strength builders available and will expose any strength imbalances between sides.",
+      "Rear foot on a bench, front foot far enough forward that your shin stays vertical at the bottom. Hold a dumbbell in each hand, lower your rear knee toward the floor, torso upright, then drive through your front heel. Step distance is critical — too close and your knee drifts forward, too far and you lean. Most people hate this exercise. That's because it works.",
   },
   {
     id: 'bb_bulgarian_split_squat',
@@ -1451,7 +1451,7 @@ export const EXERCISE_DB = [
     rest: '2-3 min',
     warmup: '1 feeler set',
     description:
-      'Set up like the dumbbell version but with a barbell across your upper traps. The barbell significantly increases the loading potential but also raises the demand on balance and core stability — get very comfortable with the dumbbell version before adding a bar. Rear foot on the bench, front foot stepped forward enough for a vertical shin at the bottom, then lower under full control before driving back up through your front heel. Keep your torso upright and your core braced the entire set. Use a squat rack with safeties set appropriately in case you need to bail.',
+      'Same setup as the dumbbell version but with a barbell across your upper traps. Much heavier loading potential but far more demanding on balance and core — master the dumbbell version first. Rear foot on bench, vertical shin at the bottom, lower with control and drive up through your front heel. Keep your core braced and use a rack with safeties in case you need to bail.',
   },
   {
     id: 'walking_lunges',
@@ -1471,7 +1471,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '10 bodyweight walking lunges',
     description:
-      'Hold a dumbbell in each hand at your sides and step forward with one foot, lowering your rear knee until it nearly touches the floor, then drive off that front foot and bring your rear leg forward into the next step. Keep your torso upright and your front shin close to vertical as you descend. Step length matters — too short and the movement becomes quad-dominant, too long puts excessive strain on the hip flexors. Walking lunges build unilateral leg strength while also training balance and coordination, and the accumulation of steps creates significant metabolic demand. Do all your steps on one continuous pass rather than stopping between reps.',
+      'Dumbbells at your sides, step forward and lower your rear knee until it nearly touches the floor, then drive off your front foot into the next step. Keep your torso upright and front shin close to vertical. Step length matters — too short is quad-dominant, too long strains the hip flexors. Do all your steps in one continuous pass; the accumulation creates serious metabolic demand.',
   },
   {
     id: 'step_ups',
@@ -1491,7 +1491,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '10 bodyweight step-ups each side',
     description:
-      "Hold a dumbbell in each hand and stand in front of a box or bench at knee height. Step one foot fully onto the box and drive through that heel to stand up on the box — don't push off your back foot. Step back down with control and repeat. The key is driving exclusively through the working leg; using your trailing leg to push off defeats the purpose. Box height is important — knee height is a good target, higher increases glute involvement, lower shifts emphasis to the quads. Complete all reps on one leg before switching for better focus and fatigue accumulation.",
+      "Dumbbells in hand, stand in front of a knee-height box. Step one foot fully onto the box and drive through that heel to stand — don't push off your back foot. Step down with control. The key is driving exclusively through the working leg. Higher box means more glute, lower means more quad. Complete all reps on one leg before switching.",
   },
 
   // ─── LEGS — HAMSTRINGS / HINGE PATTERN ──────────────────────────────────────
@@ -1514,7 +1514,7 @@ export const EXERCISE_DB = [
     rest: '3-5 min',
     warmup: 'Full protocol',
     description:
-      "Stand with the bar over your mid-foot, grip just outside your legs with an overhand or mixed grip, and hinge your hips back until your shins touch the bar. Take a deep breath, brace your core, set your back flat, and drive the floor away with your legs while keeping the bar dragging up your shins and thighs. Lock out by squeezing your glutes at the top — don't hyperextend your lower back. Lower the weight under control by pushing your hips back first, then bending the knees once the bar passes them. The deadlift is the most total-body strength test in the gym — treat the setup like a ritual and never skip it.",
+      "Bar over mid-foot, grip just outside your legs, hinge back until shins touch the bar. Deep breath, brace hard, back flat, then drive the floor away keeping the bar dragging up your legs. Lock out with a glute squeeze — don't hyperextend. Lower by pushing hips back first, bend knees once the bar passes them. Treat the setup like a ritual and never skip it.",
   },
   {
     id: 'bb_sumo_deadlift',
@@ -1534,7 +1534,7 @@ export const EXERCISE_DB = [
     rest: '3-5 min',
     warmup: 'Full protocol',
     description:
-      "Take a wide stance — 1.5 to 2x shoulder width — with toes pointed out significantly, grip the bar inside your legs with both hands. Push your knees out hard in the direction your toes point before the bar leaves the floor. Drive the floor apart with your legs and pull the bar straight up, finishing with hips locked out and glutes squeezed. The wider stance reduces the range of motion and places more emphasis on the glutes and adductors compared to the conventional pull. Hip anatomy plays a big role in how this movement feels — for some people it's immediately more natural than conventional, for others it takes longer to click.",
+      "Wide stance — 1.5 to 2x shoulder width — toes pointed out, grip inside your legs. Push your knees out hard before the bar leaves the floor. Drive the floor apart and pull the bar straight up, finishing with hips locked and glutes squeezed. The wider stance shifts emphasis to glutes and adductors. Hip anatomy matters a lot here — for some people this clicks immediately, for others it takes time.",
   },
   {
     id: 'trap_bar_deadlift',
@@ -1554,7 +1554,7 @@ export const EXERCISE_DB = [
     rest: '3-5 min',
     warmup: 'Full protocol',
     description:
-      "Step inside the trap bar and grip the handles with a neutral grip at your sides. Push your hips back, keep your chest up and back flat, then drive through the floor to stand. The trap bar's neutral grip and center-of-mass positioning makes this easier to learn than a straight bar deadlift and tends to be significantly more comfortable on the lower back — it's often described as a hybrid between a squat and a deadlift. For people who find conventional deadlifts irritating on their lower back, this is a direct substitute that allows similar or greater loading. Lock out by squeezing your glutes at the top, not by hyperextending your spine.",
+      "Step inside the trap bar, grip the handles at your sides. Hips back, chest up, back flat, then drive through the floor to stand. The neutral grip and centered load makes this easier to learn and much friendlier on the lower back than a straight bar — a squat-deadlift hybrid. Great substitute if conventional pulls bother your back. Lock out with a glute squeeze, not by hyperextending your spine.",
   },
   {
     id: 'bb_rdl',
@@ -1575,7 +1575,7 @@ export const EXERCISE_DB = [
     rest: '2-3 min',
     warmup: 'Full protocol',
     description:
-      "Stand holding a barbell at hip height with a shoulder-width overhand grip. Push your hips back while keeping the bar dragging close to your legs, lowering it until you feel a strong hamstring stretch — typically around mid-shin depending on your flexibility. The knees stay slightly bent and fixed throughout; this is not a squat. Drive your hips forward to return to standing, squeezing your glutes at the top. The RDL is one of the most effective hamstring exercises you can do — the key is feeling the stretch in the hamstrings on the way down, not just bending forward. If you feel it in your lower back, you're rounding your spine rather than hinging from the hips.",
+      "Barbell at hip height, shoulder-width overhand grip. Push your hips back, bar dragging close to your legs, until you feel a strong hamstring stretch — typically around mid-shin. Knees stay slightly bent and fixed; this is not a squat. Drive hips forward, squeeze glutes at the top. The key is feeling the hamstring stretch on the way down. If you feel it in your lower back, you're rounding instead of hinging.",
   },
   {
     id: 'db_rdl',
@@ -1596,7 +1596,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Hold a dumbbell in each hand in front of your thighs, palms facing your body. Push your hips back and lower the dumbbells along your legs until you feel a deep stretch in your hamstrings. Keep your back flat and your core braced throughout — the moment your lower back rounds, you've gone too far. Drive your hips forward to return to standing. Dumbbells allow the weights to track along the natural contour of your legs, and some people find this more comfortable than a barbell. This is an excellent option if a barbell RDL causes lower back discomfort, as the lighter load reduces spinal stress.",
+      "Dumbbells in front of your thighs, palms facing you. Push your hips back, lower the weights along your legs until you feel a deep hamstring stretch. Keep your back flat — the moment your lower back rounds, you've gone too far. Drive hips forward to stand. Dumbbells track your legs naturally and some people find this more comfortable than a barbell, especially if the barbell version bothers your lower back.",
   },
   {
     id: 'machine_leg_curl_lying',
@@ -1616,7 +1616,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Lie face down on the machine with the pad resting just above your heels and your knees just off the edge of the bench. Curl your heels toward your glutes by contracting the hamstrings, hold the peak contraction briefly, then lower with full control. Avoid lifting your hips off the pad as you curl — that's a sign the weight is too heavy or you're using hip flexor momentum. The lying position puts the hamstring in a stretched starting position, which is excellent for loading the muscle through a long range. Plantarflex your feet — point your toes — during the curl to increase the contraction quality in the gastrocnemius.",
+      "Face down, pad just above your heels, knees just off the bench edge. Curl your heels toward your glutes, hold the peak briefly, then lower with full control. Don't let your hips lift off the pad — that means it's too heavy. Point your toes during the curl to boost the contraction. The lying position stretches the hamstring at the start, loading it through a longer range.",
   },
   {
     id: 'machine_leg_curl_seated',
@@ -1636,7 +1636,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Sit in the machine with your back against the pad, the roller resting on your lower shins, and the thigh pad snug across your quads. Curl your heels down and back toward the seat by contracting the hamstrings, pause briefly at the bottom of the movement, then return with control. The seated position is unique in that it trains the hamstring with the hip in a flexed position — this lengthens the hamstring from the top, creating a different stimulus than the lying curl. Research suggests this hip-flexed position may be superior for hamstring development. Control the eccentric on every rep; the hamstrings respond very well to slow lowering.',
+      'Back against the pad, roller on your lower shins, thigh pad snug across your quads. Curl your heels down and back toward the seat, pause briefly, then return with control. The seated position trains hamstrings with the hip flexed — a different and potentially superior stimulus compared to lying curls. Control the eccentric on every rep; hamstrings respond really well to slow lowering.',
   },
   {
     id: 'nordic_hamstring_curl',
@@ -1657,7 +1657,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '3 slow eccentric-only reps',
     description:
-      "Kneel on a pad with your ankles secured under a barbell, rack, or held by a partner. Starting from upright, slowly lower your body toward the floor by extending your knees — your hamstrings are working eccentrically to control the descent. Lower as slowly as possible; use your hands to catch yourself at the bottom and push back up to the start. Most people can't do a full concentric rep at first — that's normal and expected. This is one of the most demanding hamstring exercises in existence and has strong evidence behind it for both hamstring development and injury prevention. Work the eccentric until the concentric becomes possible.",
+      "Kneel on a pad, ankles secured under a barbell or rack. From upright, slowly lower yourself toward the floor — your hamstrings control the descent eccentrically. Lower as slowly as possible, catch yourself at the bottom, push back up. Most people can't do a full concentric rep at first — that's normal. This is brutally demanding but has strong evidence for both growth and injury prevention. Work the eccentric until you earn the concentric.",
   },
   {
     id: 'cable_pull_through',
@@ -1677,7 +1677,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      "Attach a rope to a low pulley, face away from the stack, and reach back between your legs to grab the rope with both hands. Step forward a few steps so there's tension on the cable, then hinge at the hips — pushing your hips back and letting the rope pull between your legs — until you feel your hamstrings load. Drive your hips forward aggressively to return to standing, squeezing your glutes hard at the top. This is an excellent teaching exercise for the hip hinge pattern because the cable provides feedback — if you're not hinging from the hips, you'll feel it immediately. Keep your back flat and your core tight throughout.",
+      "Rope on a low pulley, face away, reach back between your legs to grab it. Step forward for tension, then hinge — push hips back and let the rope pull between your legs until your hamstrings load. Drive hips forward aggressively, squeeze glutes hard at lockout. The cable gives you instant feedback on your hinge — if you're not hinging from the hips, you'll feel it. Keep your back flat throughout.",
   },
   {
     id: 'good_morning',
@@ -1697,7 +1697,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Set a barbell across your upper traps like a back squat, but use a lighter weight. Push your hips back while keeping your back flat and your knees slightly bent — this is a pure hip hinge, not a squat. Lower your torso until it's roughly parallel to the floor or you feel a strong hamstring stretch, then drive your hips forward to return to standing. Keep the bar path close to vertical. This movement directly strengthens the hamstrings and lower back in the hinge pattern, making it excellent accessory work for the deadlift. Start conservatively — this exercise is very sensitive to rounding in the lower back, which must be avoided.",
+      "Bar across your upper traps with a lighter weight than you'd squat. Push hips back, back flat, knees slightly bent — pure hip hinge, not a squat. Lower until your torso is roughly parallel or you feel a strong hamstring stretch, then drive hips forward. Great deadlift accessory work. Start conservatively — this movement is very sensitive to lower back rounding, which you must avoid.",
   },
 
   // ─── LEGS — GLUTES ───────────────────────────────────────────────────────────
@@ -1719,7 +1719,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Sit with your upper back against a bench, roll the barbell over your hips with a pad for comfort, and plant your feet flat on the floor at about knee-width apart. Drive your hips up by squeezing your glutes hard, finishing with your torso parallel to the floor and your shins vertical. Hold the top position for a full second to feel the glute contraction before lowering. Your chin should be tucked — looking at the ceiling puts your spine in extension and reduces glute activation. The hip thrust is the most glute-dominant exercise available; if you're not feeling it there, your feet may be too close or too far from your body.",
+      "Upper back against a bench, barbell across your hips with a pad, feet flat at about knee-width. Drive your hips up squeezing your glutes hard — finish with torso parallel, shins vertical. Hold the top for a full second before lowering. Keep your chin tucked; looking up reduces glute activation. If you don't feel it in your glutes, adjust your foot distance from your body.",
   },
   {
     id: 'machine_hip_thrust',
@@ -1739,7 +1739,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Sit in the machine with the pad positioned across your hips and your upper back resting against the support. Plant your feet on the platform at about shoulder-width and drive your hips up by squeezing your glutes until your body forms a straight line from shoulders to knees. Pause at the top to feel the contraction, then lower with control. The machine version requires no setup time and keeps constant tension through the movement, making it ideal for high-rep glute work. Adjust the seat position until the resistance feels centered on the hips — not the lower back or thighs. Keep your chin tucked to maintain a neutral spine throughout.',
+      'Pad across your hips, upper back against the support, feet shoulder-width on the platform. Drive hips up by squeezing your glutes until you form a straight line from shoulders to knees. Pause at the top, lower with control. The machine keeps constant tension and needs no setup, making it ideal for high-rep glute work. Adjust the seat until resistance feels centered on the hips, not your lower back. Chin tucked.',
   },
   {
     id: 'cable_kickback',
@@ -1759,7 +1759,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Attach an ankle cuff to a low pulley and stand facing the stack, holding it lightly for balance. With a slight forward lean at the hips, drive the working leg back and up in a smooth arc by squeezing the glute — not by swinging your leg with momentum. At the top, your leg should be extended and slightly above parallel to the floor; hold there briefly before returning. The key is feeling the glute contract at the end range, not just moving your leg back and forth. This is a small, controlled isolation movement — keep the weight light enough that you can feel each contraction clearly and don't need to compensate with your lower back.",
+      "Ankle cuff on a low pulley, face the stack, hold it lightly for balance. Lean slightly forward and drive the working leg back by squeezing the glute — no swinging. Hold briefly at the top with your leg just above parallel, then return. Feel the glute contract at end range, not just your leg moving. Keep it light enough that you don't compensate with your lower back.",
   },
   {
     id: 'glute_bridge',
@@ -1779,7 +1779,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '10 bodyweight glute bridges',
     description:
-      "Lie on your back with a barbell across your hip crease — use a pad for comfort. Feet are flat on the floor at about hip width, knees bent at roughly 90 degrees. Drive your hips up by squeezing your glutes hard until your body forms a straight line from shoulders to knees, hold for a full second at the top, then lower slowly. Unlike the hip thrust, your upper back stays on the floor the whole time, which shortens the range of motion but also makes it easier to set up and control. A great option when you don't have access to a bench or want to use lighter loads with higher reps for glute activation or pump work.",
+      "Lie back with a barbell across your hip crease (use a pad), feet flat at hip width, knees at 90 degrees. Drive hips up by squeezing your glutes until you form a straight line from shoulders to knees, hold a full second, lower slowly. Your upper back stays on the floor — shorter range than a hip thrust but easier to set up. Great for lighter load, higher rep glute work.",
   },
 
   // ─── LEGS — CALVES ───────────────────────────────────────────────────────────
@@ -1801,7 +1801,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '10 bodyweight calf raises',
     description:
-      'Place the balls of your feet on the platform edge with your heels hanging off, and position the shoulder pads across your traps. Lower your heels as far as possible to get a full stretch in the calves, then rise up onto your toes as high as you can and hold the peak contraction for a full second. The full range of motion — deep stretch at the bottom and full contraction at the top — is what makes calf training effective. Most people rush through calf raises and never feel them; slow down and prioritize the stretch and squeeze on every single rep. The gastrocnemius (the outer, visible calf muscle) is most active with the leg straight, which is why standing raises target it best.',
+      "Balls of your feet on the platform edge, heels hanging off, shoulder pads across your traps. Lower your heels as far as possible for a full stretch, then rise onto your toes and hold the peak contraction for a full second. The full range — deep stretch to full squeeze — is what makes calf work effective. Don't rush these; slow and deliberate on every rep. Standing hits the gastrocnemius best because the leg is straight.",
   },
   {
     id: 'machine_calf_raise_seated',
@@ -1821,7 +1821,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '10 bodyweight seated raises',
     description:
-      'Sit in the machine with the pad resting on your lower thighs just above the knees, balls of your feet on the platform and heels hanging off. Lower your heels as far as possible for a full calf stretch, then raise up onto your toes as high as possible and hold the contraction for a second. The seated position bends the knee, which relaxes the gastrocnemius and shifts the work to the soleus — the deeper, flatter calf muscle underneath. The soleus actually makes up a significant portion of calf size and is often undertrained because people only do standing raises. Use both variations regularly for complete calf development.',
+      'Pad on your lower thighs above the knees, balls of feet on the platform, heels hanging off. Lower your heels as far as possible, then raise onto your toes and hold the contraction for a second. The bent knee relaxes the gastrocnemius and shifts work to the soleus — the deeper calf muscle underneath. The soleus is a big part of calf size and often undertrained. Use both seated and standing for complete development.',
   },
   {
     id: 'db_calf_raise',
@@ -1842,7 +1842,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '10 bodyweight calf raises each leg',
     description:
-      'Hold a dumbbell in one hand, place the ball of that same-side foot on a step or platform edge, and use your free hand for light balance support. Lower your heel as far as possible, then rise onto your toes as high as you can, holding the peak contraction for a beat. Working one leg at a time means each calf is handling your bodyweight plus the dumbbell — significantly more load per leg than both bilateral versions. It also exposes any strength imbalances between sides. Control the descent on every rep; the stretch at the bottom is where much of the training stimulus comes from.',
+      'Dumbbell in one hand, ball of that foot on a step edge, free hand for balance. Lower your heel as far as possible, then rise onto your toes and hold the contraction briefly. Single-leg means each calf handles bodyweight plus the dumbbell — way more load per leg than bilateral versions. Control the descent; the stretch at the bottom is where most of the stimulus comes from.',
   },
   {
     id: 'leg_press_calf_raise',
@@ -1862,7 +1862,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '10 reps at minimal sled pressure',
     description:
-      'After your leg press work or separately, place just the balls of your feet at the bottom edge of the leg press platform with your legs extended. Allow your heels to drop toward you as far as the range allows for a full calf stretch, then push through the balls of your feet to plantar flex fully. Hold the peak contraction for a second before the next rep. The leg press position allows you to load the calf with significant weight through a very controlled range of motion with no balance demand. Slow the rep tempo down — calf raises done quickly are mostly wasted effort. Two seconds down, one up, one second hold at the top.',
+      'Balls of your feet at the bottom edge of the platform, legs extended. Let your heels drop toward you for a full stretch, then push through the balls of your feet to full plantar flexion. Hold the contraction for a second. The leg press lets you load heavy with zero balance demand. Slow the tempo — two seconds down, one up, one second hold. Calf raises done fast are mostly wasted.',
   },
 
   // ─── CORE ─────────────────────────────────────────────────────────────────────
@@ -1884,7 +1884,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      "Get into a push-up position and lower onto your forearms, elbows directly under your shoulders. Your body should form a perfectly straight line from your heels to the back of your head — hips not sagging, not piked up. Squeeze your glutes, brace your abs like you're about to take a punch, and breathe through the hold. If you can hold longer than 60 seconds with perfect form, make it harder by adding a weight plate on your back or elevating your feet — time under tension with good position beats sloppy endurance every time. The plank isn't about how long you can last; it's about how well you can maintain true anti-extension tension.",
+      "Forearms down, elbows under shoulders, body in a straight line from heels to head — no sagging, no piking. Squeeze glutes, brace abs like you're about to take a punch, breathe through it. If you can hold 60 seconds with perfect form, add a plate on your back or elevate your feet. It's not about how long you last — it's about maintaining true anti-extension tension.",
   },
   {
     id: 'ab_wheel_rollout',
@@ -1904,7 +1904,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '3–5 partial rollouts',
     description:
-      "Kneel on a pad with the ab wheel in front of you, arms extended. Roll the wheel forward while keeping your core braced and your hips from sagging — your body should stay rigid as a plank as the wheel extends in front of you. Roll out as far as you can maintain that rigid position, then use your abs and lats together to pull the wheel back to the start. The mistake most people make is letting their lower back arch excessively on the way out, which turns it into a spine extension exercise rather than an anti-extension core drill. If you can't maintain position past 12 inches, work shorter range until you build the strength. This is genuinely hard — respect the progression.",
+      "Kneel on a pad, wheel in front, arms extended. Roll forward keeping your body rigid as a plank — no sagging or arching. Go as far as you can hold position, then pull back using your abs and lats together. Don't let your lower back arch on the way out — that turns it into a spine exercise, not a core drill. If you lose position past 12 inches, work shorter range. This is genuinely hard — respect the progression.",
   },
   {
     id: 'cable_crunch',
@@ -1924,7 +1924,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Attach a rope to a high pulley and kneel facing the stack, holding the rope behind your head or at your ears. Flex your spine by crunching your elbows toward your knees — the movement comes from your abs shortening, not your hips bending. Your hips should stay fixed throughout; if they're rocking forward to help move the weight, you're using your hip flexors and taking the abs out of the equation. The cable provides adjustable, consistent loading that makes this one of the few ways to progressively overload the abs like any other muscle group. Use a weight you can feel in your abs, not your neck or shoulders.",
+      "Rope on a high pulley, kneel facing the stack, hold the rope at your ears. Crunch your elbows toward your knees by flexing your spine — the movement comes from your abs, not your hips bending. If your hips rock forward, you're using hip flexors instead. The cable lets you progressively overload the abs like any other muscle. Use a weight you feel in your abs, not your neck.",
   },
   {
     id: 'hanging_leg_raise',
@@ -1944,7 +1944,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '5 hanging knee raises',
     description:
-      'Hang from a pull-up bar with a firm grip, body straight. Raise your legs by flexing your hips and curling your pelvis upward — the key is the pelvic tilt at the top, which engages the lower abs rather than just the hip flexors. Lift until your legs are at least parallel to the floor, then lower with control. Swinging or kipping removes the abs from the movement entirely — control is everything here. If straight legs are too difficult, bend your knees to shorten the lever arm and work up from there. Grip endurance often fails before the abs do; use straps if needed so the limiting factor is always the core.',
+      'Hang from a bar, body straight. Raise your legs by flexing your hips and curling your pelvis upward — the pelvic tilt at the top is what engages your lower abs, not just hip flexors. Lift to at least parallel, lower with control. No swinging or kipping. If straight legs are too hard, bend your knees. Use straps if grip fails before your abs do.',
   },
   {
     id: 'decline_crunch',
@@ -1964,7 +1964,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      "Hook your feet under the pads of a decline bench and lie back with your hands lightly behind your head — fingertips only, not pulling on your neck. Crunch your upper body upward by flexing your spine, bringing your chest toward your knees, then lower under control back to the declined position. The decline angle increases the range of motion compared to a flat crunch, loading the abs through a longer arc. Don't use momentum to jerk yourself up — initiate each rep with a deliberate contraction of the abs. If bodyweight becomes easy, hold a plate to your chest to add progressive overload.",
+      "Feet hooked under the pads, lie back with fingertips lightly behind your head — don't pull your neck. Crunch up by flexing your spine, chest toward knees, then lower with control. The decline angle increases range of motion compared to a flat crunch. Initiate each rep with a deliberate ab contraction, no momentum. If bodyweight gets easy, hold a plate to your chest.",
   },
   {
     id: 'russian_twist',
@@ -1984,7 +1984,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      'Sit on the floor with your knees bent, feet slightly raised, and torso leaned back at roughly 45 degrees. Hold your hands together or hold a weight at your chest. Rotate your torso from side to side, touching the floor — or weight — beside each hip on every rep. The rotation must come from your waist and obliques, not just your arms swinging. Keep your lower back from rounding — a flat-back lean is the target position throughout. Adding a dumbbell or medicine ball increases the challenge significantly; even a light weight at this angle is harder than it looks.',
+      'Knees bent, feet slightly raised, torso leaned back at about 45 degrees. Hold a weight at your chest or hands together. Rotate side to side, touching beside each hip per rep. The rotation must come from your waist and obliques, not just your arms swinging. Keep a flat-back lean throughout. Even a light dumbbell at this angle is harder than it looks.',
   },
   {
     id: 'cable_woodchop',
@@ -2004,7 +2004,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      'Set the cable to a high position and stand sideways to the stack. Grip the handle with both hands and pull it diagonally across your body — high to low — by rotating your torso, finishing with the handle near your opposite hip. The power comes from your core rotating, not your arms pulling. Keep your arms relatively straight throughout and let the obliques do the driving. Return to the start with control and repeat for all reps before switching sides. This is one of the best exercises for training the obliques through a functional rotational pattern — the diagonal cable path replicates real-world movements far better than most isolation ab exercises.',
+      'Stand sideways to a high cable, grip the handle with both hands. Pull diagonally across your body — high to low — by rotating your torso, finishing near your opposite hip. The power comes from your core rotating, not your arms pulling. Keep arms relatively straight and let the obliques drive. Complete all reps before switching sides. One of the best rotational core exercises you can do.',
   },
   {
     id: 'farmer_carry',
@@ -2024,7 +2024,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: 'None needed — go straight in',
     description:
-      'Pick up a heavy dumbbell in each hand, stand tall with your shoulders pulled back, and walk for the prescribed distance at a steady, controlled pace. Your core must work continuously to resist lateral bending and maintain upright posture under load — this is anti-lateral-flexion training that transfers directly to every other lift you do. Keep your grip firm, your shoulders packed down, and your gait smooth — no waddling or excessive trunk sway. Go heavy; this exercise responds best to serious loading. If grip fails before your distance is done, use straps and focus on the core and trap work. Farmer carries build the kind of functional, all-over strength that shows up everywhere.',
+      'Heavy dumbbell in each hand, stand tall, shoulders back, and walk at a steady controlled pace. Your core works continuously to resist lateral bending under load — this transfers directly to every lift you do. Keep shoulders packed, gait smooth, no waddling. Go heavy; this responds best to serious loading. If grip fails first, use straps. Farmer carries build the kind of strength that shows up everywhere.',
   },
   {
     id: 'landmine_rotation',
@@ -2044,7 +2044,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      "Stand in front of a landmine with feet shoulder-width apart and hold the end of the bar with both hands at chest height, arms extended. Rotate the bar from side to side in a wide arc by rotating your entire torso — hips and shoulders moving together — letting the bar travel to hip height on each side. This is a full-body rotational movement, not just an arm swing; your feet can pivot to allow natural rotation. The landmine's arc provides a smooth resistance curve that challenges the obliques and rotational core throughout the range. Keep the tempo controlled — slow and intentional, not swinging — and brace your core on every rep.",
+      "Feet shoulder-width, hold the end of the bar at chest height with both hands, arms extended. Rotate the bar side to side in a wide arc by rotating your entire torso — hips and shoulders together, feet pivoting naturally. This is a full-body rotational movement, not an arm swing. The landmine's arc provides smooth resistance through the range. Keep it slow and intentional, brace your core on every rep.",
   },
   {
     id: 'suitcase_carry',
@@ -2064,7 +2064,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      "Hold a heavy dumbbell in one hand at your side — like a suitcase — and walk for the prescribed distance while keeping your torso perfectly upright. The single-sided load creates a strong pull to one side; resisting that pull is the entire point of the exercise. Your obliques on the opposite side of the weight are working hard to keep you from leaning. Don't let your shoulder hike up on the loaded side or your hip drop on the unloaded side — stay tall, neutral, and controlled throughout. Switch sides each set. This is one of the simplest and most effective oblique and lateral core exercises you can do.",
+      "Heavy dumbbell in one hand at your side, walk for the prescribed distance keeping your torso perfectly upright. The single-sided load pulls you sideways — resisting that pull is the entire point. Don't let your shoulder hike on the loaded side or your hip drop on the other. Stay tall, neutral, controlled. Switch sides each set. One of the simplest and most effective lateral core exercises.",
   },
 
   // ─── PUSH — additional ───────────────────────────────────────────────────
@@ -2086,7 +2086,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: 'Full protocol',
     description:
-      "Lie flat on the floor under a barbell set in a rack or on safeties, with your knees bent and feet flat. Unrack the bar and lower it toward your mid-chest — your elbows will touch the floor before your chest gets a full stretch, which is the point. Pause briefly with elbows on the floor, then press back up. The floor contact eliminates any leg drive and removes the bottom portion of the range of motion, making this a great way to overload the lockout and tricep-dominant portion of the press. It's also easier on the shoulder than full ROM pressing, making it a smart choice if you're managing any shoulder discomfort.",
+      "Lie on the floor under a racked barbell, knees bent, feet flat. Unrack and lower to mid-chest — your elbows hit the floor before you get a full stretch, which is the point. Pause briefly on the floor, then press up. Eliminates leg drive and the bottom ROM, letting you overload the lockout and triceps. Also easier on the shoulders than full-range pressing.",
   },
   {
     id: 'cable_chest_press',
@@ -2106,7 +2106,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Set both pulleys to chest height, grab a handle in each hand, and take a staggered stance facing away from the cable stack. Press both hands forward and together in front of your chest until your arms are extended, then return with control. The cable keeps constant tension across the entire range — something a barbell or dumbbell press can't do — and the staggered stance keeps you stable. You can stagger one foot forward for balance or use a bench for support. This is a solid pressing variation when you want chest work with less spinal loading than a heavy barbell bench.",
+      "Both pulleys at chest height, handle in each hand, staggered stance facing away. Press both hands forward and together until arms are extended, return with control. The cable keeps constant tension across the full range — something free weights can't do. Stagger one foot forward for balance or use a bench. Solid pressing option when you want chest work with less spinal loading.",
   },
   {
     id: 'landmine_press',
@@ -2126,7 +2126,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Anchor a barbell in a landmine attachment or a corner, and hold the end of the bar at shoulder height with one hand. Stand in a staggered stance and press the bar up and forward in an arc — the movement naturally follows the angle of the bar, landing somewhere between a shoulder press and an incline press. This angled path is very shoulder-friendly and makes the landmine press a great option for lifters who find overhead pressing uncomfortable. Press with one arm at a time and keep your core tight to resist rotation. The arc means the top of the movement is where the bar is closest to vertical — that's where you feel the peak contraction.",
+      "Bar anchored in a landmine or corner, hold the end at shoulder height with one hand. Staggered stance, press up and forward in an arc — it naturally lands between a shoulder press and incline press. Very shoulder-friendly for lifters who find overhead pressing uncomfortable. One arm at a time, core tight to resist rotation. Peak contraction is at the top where the bar is closest to vertical.",
   },
   {
     id: 'db_seated_lateral_raise',
@@ -2147,7 +2147,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Sit at the edge of a bench with dumbbells hanging at your sides. The seated position removes the ability to lean back or use momentum, making this a stricter version of the standing lateral raise. Raise your arms out to your sides to shoulder height, leading with your elbows, then lower under full control. Because you can't cheat, you'll likely need to use less weight than the standing version — and that's fine. The quality of the contraction matters more than the number on the dumbbell. Keep your traps relaxed and focus on feeling the side delts do the work.",
+      "Sit at the edge of a bench, dumbbells hanging at your sides. Raise your arms out to shoulder height leading with your elbows, then lower with full control. The seated position removes all momentum — you'll probably need less weight than standing, and that's fine. Quality of contraction matters more than the number on the dumbbell. Keep your traps relaxed and feel the side delts working.",
   },
   {
     id: 'bb_upright_row',
@@ -2167,7 +2167,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Stand holding a barbell with an overhand grip, hands slightly narrower than shoulder width. Pull the bar straight up toward your chin, driving your elbows up and out to the sides until the bar reaches upper-chest height. Lower under control and repeat. This movement hits the side delts and upper traps together — it's a compound isolation exercise that bridges the gap between a press and a shrug. A wider grip puts less stress on the shoulder joint and is generally better tolerated. If you feel pinching or pain in the shoulder at the top of the motion, try widening your grip or swapping to a cable or EZ bar variation.",
+      "Overhand grip slightly narrower than shoulder width. Pull the bar straight up toward your chin, elbows driving up and out, until it reaches upper-chest height. Lower with control. Hits side delts and upper traps together. A wider grip puts less stress on the shoulder and is generally better tolerated. If you feel pinching at the top, widen your grip or swap to a cable or EZ bar.",
   },
   {
     id: 'diamond_pushup',
@@ -2188,7 +2188,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '10 bodyweight diamond push-ups',
     description:
-      "Get into a push-up position and place your hands together under your chest with thumbs and index fingers forming a diamond shape. Lower your chest toward your hands while keeping your elbows tracking close to your sides, not flaring out. This hand position puts your triceps in a mechanically disadvantaged position — that's the point — making them work much harder than in a standard push-up. Press back up until arms are fully extended and the triceps are squeezed. If the diamond position is uncomfortable on your wrists, bring your hands slightly closer together under your chest without worrying about the exact shape.",
+      "Push-up position, hands together under your chest forming a diamond with thumbs and index fingers. Lower toward your hands with elbows tracking close to your sides, not flaring. The narrow position forces the triceps to work much harder than a standard push-up. Press back up to full extension and squeeze. If the diamond position bothers your wrists, just bring your hands close together without worrying about exact shape.",
   },
 
   // ─── PULL — additional ───────────────────────────────────────────────────
@@ -2210,7 +2210,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Sit or stand at a low cable with a single handle attachment. Grip it with one hand and row it toward your hip, allowing your shoulder to reach forward slightly at the start for a better lat stretch. Pull your elbow back past your torso and squeeze the back hard at the peak. Working one arm at a time lets you focus on each side individually and naturally allows a greater range of motion than a bilateral cable row. Keep your torso relatively still — a slight rotation is natural and acceptable, but don't twist your whole body to move the weight. Perform all reps on one side before switching.",
+      "Single handle on a low cable, grip with one hand. Let your shoulder reach forward slightly for a stretch, then row toward your hip, pulling your elbow back past your torso and squeezing hard. One arm at a time gives you better range and lets you focus on each side individually. A slight rotation is fine, but don't twist your whole body to move the weight. All reps one side, then switch.",
   },
   {
     id: 'inverted_row',
@@ -2231,7 +2231,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '5 easy bodyweight rows',
     description:
-      "Set a bar in a rack at about waist height, grip it with both hands outside shoulder width, and hang underneath it with your body forming a straight line and your heels on the floor. Pull your chest up to the bar by driving your elbows back, squeezing your shoulder blades together at the top, then lower under control. The more horizontal your body, the harder this becomes — walk your feet forward to increase difficulty, backward to decrease it. This is a highly underrated row variation that trains the upper back through a natural horizontal pulling motion. Keep your body rigid like a plank from head to heels; don't let your hips sag.",
+      "Bar in a rack at waist height, grip outside shoulder width, hang underneath with your body straight and heels on the floor. Pull your chest to the bar by driving elbows back, squeeze shoulder blades at the top, lower with control. More horizontal = harder — walk feet forward to increase difficulty. Highly underrated row variation. Keep your body rigid like a plank; don't let your hips sag.",
   },
   {
     id: 'bb_shrug',
@@ -2251,7 +2251,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Hold a barbell in front of you with an overhand grip at shoulder width, arms extended and standing tall. Shrug your shoulders straight up toward your ears as high as they'll go — no rolling forward or backward, just straight up. Hold the peak contraction for a beat, then lower slowly. The upper traps respond well to heavy weight and a deliberate squeeze at the top; there's no benefit to rolling the shoulders and doing so increases injury risk. If grip is a limiting factor before your traps fatigue, use straps. Focus on the quality of the contraction — a set of 10 strict reps beats a set of 15 sloppy ones every time.",
+      "Barbell in front, overhand grip at shoulder width, standing tall. Shrug straight up toward your ears — no rolling forward or backward, just up. Hold the peak for a beat, lower slowly. Upper traps respond well to heavy weight and a deliberate squeeze. Don't roll the shoulders — no benefit and it adds injury risk. Use straps if grip fails before your traps do. 10 strict reps beats 15 sloppy ones.",
   },
   {
     id: 'db_shrug',
@@ -2271,7 +2271,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Hold a dumbbell in each hand at your sides with arms straight and stand tall. Shrug both shoulders straight up simultaneously — not forward, not in a circle, just up — and hold the peak for a full second before lowering. Dumbbells sit at your sides rather than in front of you, which can feel more natural for some people and allows a slightly better position for the upper trap. Keep the movement slow and controlled; there's no benefit to bouncing. If you find your traps cramping during or after the set, that's a sign you're doing it right.",
+      "Dumbbells at your sides, arms straight, standing tall. Shrug both shoulders straight up — not forward, not in a circle — and hold the peak for a full second before lowering. Dumbbells at the sides can feel more natural and gives a slightly better trap position than a barbell. Keep it slow and controlled; no bouncing. If your traps cramp during or after the set, you're doing it right.",
   },
   {
     id: 'spider_curl',
@@ -2291,7 +2291,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Set an incline bench to about 45 degrees and lie chest-down against it, letting your arms hang straight toward the floor. Curl the dumbbells up toward your shoulders while your upper arms remain hanging vertically — the bench supports your chest and removes your body from the equation entirely. The hanging position puts the bicep in a shortened starting point, which is the opposite of the incline curl; together, these two variations complement each other well. Squeeze hard at the top, then lower with full control back to the hanging position. Keep the pace slow — there's no way to cheat this one, and you shouldn't try to.",
+      "Incline bench at about 45 degrees, lie chest-down, arms hanging straight toward the floor. Curl up toward your shoulders while your upper arms stay vertical — the bench removes all momentum. The hanging position starts the bicep shortened, the opposite of an incline curl — they complement each other well. Squeeze hard at the top, lower with full control. Keep it slow; you can't cheat this one.",
   },
   {
     id: 'cable_reverse_curl',
@@ -2311,7 +2311,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Attach a straight bar or EZ bar to a low pulley and grip it with an overhand grip — palms facing the floor. Curl the bar up while keeping your upper arms stationary at your sides, and feel the contraction primarily in your brachialis and forearms rather than the biceps. The reverse grip removes the biceps from its strongest position, transferring work to the brachialis and brachioradialis. This builds the arm thickness that shows from the side and helps balance out all the supinated curling you do. Keep the movement strict and don't let your wrists flex to complete the rep.",
+      "Straight bar or EZ bar on a low pulley, overhand grip — palms facing the floor. Curl up keeping your upper arms stationary and feel the contraction in your brachialis and forearms. The reverse grip shifts work away from the biceps to the brachialis and brachioradialis, building arm thickness from the side. Keep it strict and don't let your wrists flex to finish the rep.",
   },
 
   // ─── LEGS — additional ───────────────────────────────────────────────────
@@ -2333,7 +2333,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 feeler set',
     description:
-      "Sit in the machine with your knees aligned to the pivot point and the roller pad resting just above your ankles. Extend your legs until they're straight, hold the peak contraction briefly with the quads fully squeezed, then lower with full control. This is the only exercise that trains the quads through knee extension isolation — all other quad exercises are compound movements. It's excellent for adding finishing volume to the quads after heavy compound work. There's been debate about its safety for the knee; for most healthy people it's fine, but if you have knee issues, start light and pay attention to how it feels. Slow the eccentric to two seconds for better quad stimulus.",
+      "Knees aligned with the pivot point, roller pad above your ankles. Extend your legs fully, squeeze the quads at the top, then lower with full control. The only pure knee-extension isolation exercise — great for finishing volume after heavy compound work. Fine for most healthy knees, but if yours are cranky, start light and pay attention. Slow the eccentric to two seconds for better stimulus.",
   },
   {
     id: 'machine_adductor',
@@ -2353,7 +2353,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 feeler set',
     description:
-      "Sit in the machine with the pads resting against the inside of your knees, legs spread apart. Squeeze your thighs together against the pads, hold the peak contraction briefly, then let the pads return your legs to the starting position with control. The adductors — the inner thigh muscles — play a significant role in hip stability and contribute to squatting mechanics, making this more functional than it looks. Start conservatively; the adductors are easy to strain if you load too aggressively too quickly, especially after a lay-off. The soreness after your first few sessions here will confirm they've been undertrained.",
+      "Pads against the inside of your knees, legs spread apart. Squeeze your thighs together, hold the peak briefly, then let the pads return with control. The adductors contribute to hip stability and squat mechanics — more functional than it looks. Start conservatively; they're easy to strain if you load too aggressively, especially after time off. The soreness will confirm they've been undertrained.",
   },
   {
     id: 'machine_abductor',
@@ -2373,7 +2373,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 feeler set',
     description:
-      "Sit in the machine with the pads resting against the outside of your knees, legs together. Push your legs apart against the pads as wide as the machine allows, squeeze at the end range, then return with control. The abductors — glute medius and minimus on the outer hip — stabilize the pelvis during walking, running, and squatting, making this accessory work carry over to every leg exercise you do. Lean forward slightly in the seat to shift more work onto the glute medius rather than the tensor fascia latae. Don't just let the machine push your legs back together — control the return.",
+      "Pads against the outside of your knees, legs together. Push apart as wide as the machine allows, squeeze at end range, then return with control. The glute medius and minimus stabilize your pelvis during every leg movement, so this carries over broadly. Lean forward slightly to shift more work to the glute medius. Don't just let the machine push your legs back — control the return.",
   },
   {
     id: 'bb_reverse_lunge',
@@ -2393,7 +2393,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      'Set a barbell across your upper traps and stand upright. Step one foot back and lower your rear knee toward the floor, keeping your front shin vertical and your torso upright. Drive through your front heel to return to standing. The reverse lunge is more knee-friendly than a forward lunge because the step direction reduces shear force on the front knee. The barbell version adds significant loading potential but requires balance — practice with dumbbells or bodyweight first if the movement is new to you. Complete all reps on one leg before switching, or alternate legs per rep, depending on your preference.',
+      'Bar across your upper traps, stand upright. Step one foot back, lower your rear knee toward the floor, front shin vertical, torso upright. Drive through your front heel to stand. More knee-friendly than forward lunges because the step direction reduces shear force. The barbell adds serious loading but demands balance — practice with dumbbells first if this is new. Alternate or complete one side first, your call.',
   },
   {
     id: 'db_reverse_lunge',
@@ -2413,7 +2413,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '10 bodyweight reverse lunges each side',
     description:
-      "Hold a dumbbell in each hand at your sides, stand tall, and step one foot backward, lowering your rear knee toward the floor while keeping your front shin close to vertical. Push back up to standing through your front heel. Reverse lunges are significantly more stable and predictable than forward lunges because you're stepping back into a known position rather than forward into an uncertain landing. Keep your torso upright throughout — leaning forward shifts load to the lower back. This is an accessible and effective single-leg movement that works well at higher reps for glute and quad volume.",
+      "Dumbbells at your sides, stand tall, step one foot back and lower your rear knee toward the floor, front shin close to vertical. Push up through your front heel. More stable than forward lunges because you're stepping back into a known position. Keep your torso upright — leaning forward shifts load to your lower back. Works well at higher reps for glute and quad volume.",
   },
   {
     id: 'single_leg_rdl',
@@ -2434,7 +2434,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '5 bodyweight single-leg RDLs each side',
     description:
-      'Hold a dumbbell in one or both hands and stand on one leg with a slight bend in your working knee. Hinge at the hip, letting your free leg drift back as a counterbalance, and lower the weight toward the floor while keeping your back flat. You should feel a deep stretch in the hamstring of the standing leg. Return to standing by driving your hip forward. Balance is the primary challenge early on — use a wall or rack for light support until you build stability. The single leg version exposes side-to-side strength and flexibility imbalances in the hamstring and hip that bilateral movements often mask.',
+      'Dumbbell in one or both hands, stand on one leg with a slight knee bend. Hinge at the hip, free leg drifting back as counterbalance, lower the weight keeping your back flat until you feel a deep hamstring stretch. Drive your hip forward to stand. Balance is the main challenge early on — use a wall for support until you build stability. This exposes side-to-side imbalances that bilateral movements hide.',
   },
   {
     id: 'box_jump',
@@ -2454,7 +2454,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '3 low box jumps at reduced height',
     description:
-      "Stand in front of a plyo box at an appropriate height — start conservatively, typically knee height. Dip into a quarter squat, swing your arms back, then explosively jump onto the box, landing softly with both feet flat in an athletic position and your knees slightly bent. Step down rather than jumping down to protect your joints. Box jumps train explosive lower body power — they're not a conditioning drill, they're a power exercise. Each rep should be fully maximal effort with full recovery between reps; don't rush them. If you land with your knees collapsing inward or feel unstable, reduce the box height until you're landing in a controlled athletic position every time.",
+      "Start with a knee-height box. Dip into a quarter squat, swing your arms, then explode onto the box — land softly with both feet flat, knees slightly bent. Step down, don't jump down. These are a power exercise, not conditioning — max effort every rep with full recovery between. If your knees collapse inward on landing, lower the box until you're landing in a controlled athletic position.",
   },
   {
     id: 'sissy_squat',
@@ -2475,7 +2475,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '5 assisted sissy squats',
     description:
-      'Stand holding a rack or wall for light balance support. Rise onto your toes and lean your body back while bending your knees forward — your body should stay in a straight line from knees to shoulders as you descend. Lower until your quads are parallel to the floor or you feel maximum quad stretch, then drive back up. This is one of the only exercises that loads the rectus femoris — the quad that crosses the hip — in a fully lengthened position, which makes it unique for quad development. It looks unusual and feels unusual but the quad contraction is unlike anything else. Ease into this movement; the patellar tendon takes time to adapt to the demands.',
+      'Hold a rack for balance, rise onto your toes, and lean back while bending your knees forward — keep a straight line from knees to shoulders. Lower until quads are parallel or you feel max stretch, then drive back up. One of the only exercises that loads the rectus femoris fully lengthened — the quad contraction is unlike anything else. Ease in slowly; the patellar tendon takes time to adapt.',
   },
   {
     id: 'glute_ham_raise',
@@ -2495,7 +2495,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '3 assisted GHR reps using your hands',
     description:
-      'Set up in the GHR machine with your feet secured and your knees resting just behind the knee pad. Lower your torso toward the floor by extending at the knee — hamstrings working eccentrically — then reverse by curling your body back up using both the hamstrings and glutes. This movement is unique in that it trains the hamstring at both the knee and the hip simultaneously, making it arguably the most complete hamstring exercise available. It is also highly demanding — most people need to build up to full bodyweight reps and may use band assistance initially. If full reps are not yet possible, work the eccentric lowering phase only.',
+      'Feet secured, knees just behind the knee pad. Lower toward the floor by extending at the knee — hamstrings working eccentrically — then curl back up using hamstrings and glutes together. This trains the hamstring at both the knee and hip simultaneously, making it arguably the most complete hamstring exercise. Highly demanding — use band assistance or work eccentric-only until full reps are possible.',
   },
   {
     id: 'tibialis_raise',
@@ -2515,7 +2515,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      'Stand with your heels on a platform or step, or simply stand with your back against a wall and your feet a few inches out. Dorsiflex your feet — pull your toes up toward your shins — as far as possible and hold briefly, then lower. The tibialis anterior runs along the front of your shin and is the direct antagonist to your calf muscles. Strengthening it improves ankle stability, reduces shin splints, and helps balance the development between front and back of the lower leg. This is one of the most neglected muscles in training and one of the most worth training. High reps and a genuine burn are the goal here.',
+      'Heels on a platform, or back against a wall with feet a few inches out. Pull your toes up toward your shins as far as possible, hold briefly, lower. The tibialis anterior runs along your shin and is the direct antagonist to your calves. Strengthening it improves ankle stability and reduces shin splints. One of the most neglected and most worth-training muscles. High reps and a genuine burn are the goal.',
   },
 
   // ─── CORE — additional ───────────────────────────────────────────────────
@@ -2537,7 +2537,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      'Kneel facing a high pulley with a rope attachment, holding the ends beside your head. Crunch your elbows toward your knees by flexing your spine — curling your ribcage toward your pelvis — while keeping your hips stationary. The kneeling position fixes your lower body and forces all the movement to come from your trunk flexion. Return slowly to the start, feeling the abs stretch at the top of each rep. This is the same movement as the standard cable crunch but with a slightly different body angle that some people find easier to feel in the abs. Avoid pulling with your arms — the rope is just an anchor; your abs are what move you.',
+      "Kneel facing a high pulley, rope beside your head. Crunch your elbows toward your knees by curling your ribcage toward your pelvis — hips stay still. The kneeling position forces all movement from trunk flexion. Return slowly, feeling the abs stretch at the top. Same as a standard cable crunch but a slightly different angle some people feel better. Don't pull with your arms — the rope is just an anchor.",
   },
   {
     id: 'bicycle_crunch',
@@ -2557,7 +2557,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      "Lie on your back with hands lightly behind your head and legs raised with knees bent at 90 degrees. Bring one knee toward your chest while rotating your opposite elbow toward that knee, simultaneously extending the other leg out low. Alternate sides in a controlled pedaling motion. The rotation toward the bent knee engages the obliques — the key is that the rotation comes from your trunk, not just your elbow moving. Don't rush; fast, sloppy bicycle crunches are mostly neck strain and momentum. Slow the movement down so you can feel each contraction clearly on the working side.",
+      "Hands lightly behind your head, legs raised, knees at 90 degrees. Bring one knee in while rotating the opposite elbow toward it, extending the other leg out low. Alternate in a controlled pedaling motion. The rotation must come from your trunk, not just your elbow moving. Don't rush — fast sloppy reps are mostly neck strain and momentum. Slow down and feel each contraction clearly.",
   },
   {
     id: 'side_plank',
@@ -2577,7 +2577,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      "Lie on your side and prop yourself up on one forearm with your elbow directly under your shoulder. Stack your feet or stagger them for stability, and lift your hips off the floor until your body forms a straight line from head to feet. Hold the position by squeezing your obliques and glutes — don't let your hips sag or rotate forward. The side plank trains lateral core stability, which is distinct from the anti-extension work of a regular plank and essential for overall trunk strength. To progress, elevate your feet or add a hip dip — lowering and raising your hips through a small range of motion — rather than just holding longer.",
+      "On your side, forearm down, elbow under your shoulder. Stack or stagger your feet and lift your hips until your body is a straight line. Hold by squeezing obliques and glutes — don't let hips sag or rotate. This trains lateral core stability, distinct from a regular plank's anti-extension work. To progress, elevate your feet or add hip dips rather than just holding longer.",
   },
   {
     id: 'toe_touches',
@@ -2597,7 +2597,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Lie on your back with your legs raised straight up in the air and a cable handle in both hands, the cable running from a low pulley. Crunch your upper body upward, reaching your hands toward your toes by flexing your spine, then lower with control. The cable adds resistance to the top of the crunch where bodyweight alone provides very little load, making this an effective way to progressively overload the upper abs. Keep your lower back flat on the floor throughout — if it arches, you've lost the contraction. Exhale fully at the top of each rep to enhance the abdominal squeeze.",
+      "Legs raised straight up, cable handle in both hands from a low pulley. Crunch up reaching toward your toes, then lower with control. The cable adds resistance at the top where bodyweight provides almost none, making this an effective way to progressively overload the abs. Keep your lower back flat — if it arches, you've lost the contraction. Exhale fully at the top to enhance the squeeze.",
   },
   // ─── CORE — NEW ADDITIONS ─────────────────────────────────────────────────
   {
@@ -2618,7 +2618,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      "Lie on your back with knees bent and feet flat on the floor. Cross your arms over your chest or place fingertips lightly behind your ears — don't pull on your neck. Drive your torso all the way up until your chest meets your knees, then lower under control back to the floor. The full range of motion here — floor to fully upright — is what separates the sit-up from the crunch and why it trains the hip flexors in addition to the abs. Keep the motion smooth and deliberate; momentum-driven reps are wasted reps. To add resistance, hold a plate to your chest.",
+      "Knees bent, feet flat, arms crossed over your chest or fingertips behind your ears — don't pull your neck. Drive all the way up until chest meets knees, lower with control. The full range is what separates sit-ups from crunches and why they also train the hip flexors. Keep it smooth and deliberate; momentum-driven reps are wasted. Hold a plate to your chest for added resistance.",
   },
   {
     id: 'crunch',
@@ -2638,7 +2638,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      'Lie on your back with knees bent, feet flat, and fingertips lightly behind your ears. Curl only your upper back off the floor by contracting your abs — your lower back stays on the floor throughout, which is what distinguishes a crunch from a sit-up. The range of motion is small but the contraction is intense if done correctly. At the top, squeeze your abs hard for a full second before lowering. Avoid pulling your neck or using momentum. High reps with full control beat sloppy fast reps every time.',
+      'Knees bent, feet flat, fingertips behind your ears. Curl only your upper back off the floor — lower back stays down, which is what makes this a crunch and not a sit-up. Small range of motion but intense contraction if done right. Squeeze hard at the top for a full second. No neck pulling, no momentum. High reps with full control beats sloppy fast reps every time.',
   },
   {
     id: 'weighted_crunch',
@@ -2658,7 +2658,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light set bodyweight',
     description:
-      "Lie on your back with knees bent, holding a weight plate flat against your chest with both hands. Curl your upper back off the floor by contracting your abs while pressing the plate firmly to your chest — don't let it swing forward. The added load makes even a modest range of motion significantly more demanding. Squeeze hard at the top and lower with control. This is the simplest way to apply progressive overload to the crunch pattern — increase plate weight as you build strength.",
+      "Knees bent, weight plate pressed flat against your chest with both hands. Curl your upper back off the floor — don't let the plate swing forward. The added load makes even a short range of motion significantly harder. Squeeze hard at the top, lower with control. Simplest way to progressively overload the crunch — increase plate weight as you get stronger.",
   },
   {
     id: 'v_up',
@@ -2678,7 +2678,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '5 tuck-ups to warm the hip flexors',
     description:
-      "Lie flat on your back with arms extended overhead and legs straight. Simultaneously raise your legs and torso off the floor, reaching your hands toward your toes at the top to form a V-shape. Your core has to contract hard from both ends at once to coordinate this movement. Lower back down with control — don't crash into the floor. This is a significantly harder movement than a crunch because it requires both upper and lower ab activation in the same rep. If the full version is too difficult, bend your knees to shorten the lever arm.",
+      "Arms overhead, legs straight, lying flat. Raise your legs and torso simultaneously, reaching hands toward toes to form a V. Your core has to fire hard from both ends at once. Lower with control — don't crash into the floor. Much harder than a crunch because it demands upper and lower ab activation in one rep. Bend your knees to scale it down if needed.",
   },
   {
     id: 'toe_touch_crunch',
@@ -2698,7 +2698,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      'Lie on your back and raise your legs straight up toward the ceiling, perpendicular to the floor. Keeping your legs stationary, reach your hands up toward your toes by crunching your upper body off the floor. The vertical leg position removes hip flexor involvement and places the load directly on the rectus abdominis. Touch or near-touch your toes at the top, then lower your shoulders back to the floor. Keep your legs as vertical as possible throughout — letting them drop reduces the effectiveness significantly.',
+      'Legs straight up toward the ceiling, perpendicular to the floor. Keeping legs stationary, crunch your upper body up and reach toward your toes. The vertical position removes hip flexor involvement and puts the load directly on the rectus abdominis. Touch or near-touch your toes, then lower shoulders back down. Keep your legs as vertical as possible — letting them drop reduces effectiveness significantly.',
   },
   {
     id: 'jackknife_sit_up',
@@ -2718,7 +2718,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '5 crunches',
     description:
-      'Lie flat with arms extended overhead and legs straight. In one coordinated movement, bring your knees to your chest while simultaneously crunching your upper body up, reaching your arms toward your feet. Your body folds like a jackknife at the top — upper body and lower body meeting in the middle. Extend back out to the flat starting position with control before the next rep. This movement trains the full length of the rectus abdominis by contracting both ends simultaneously, similar to a V-up but with a bent-knee modification that makes the hip flexor demand more manageable.',
+      'Arms overhead, legs straight, lying flat. In one movement, bring knees to chest while crunching up, reaching arms toward your feet — your body folds like a jackknife in the middle. Extend back to flat with control. Trains the full rectus abdominis by contracting both ends at once, similar to a V-up but the bent knees make the hip flexor demand more manageable.',
   },
   {
     id: 'lying_leg_raise',
@@ -2738,7 +2738,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      'Lie flat on your back with legs straight and hands placed under your glutes or flat beside your hips for support. Keeping your legs straight and together, raise them to vertical — or as close as your hamstring flexibility allows — then lower slowly back toward the floor, stopping just before your heels touch. The lowering phase is where the lower abs work hardest, so resist the urge to just drop your legs. The key to making this an ab exercise and not just hip flexors is a posterior pelvic tilt — flatten your lower back into the floor as you lower, which forces your abs to control the descent.',
+      "Legs straight, hands under your glutes for support. Raise your legs to vertical, then lower slowly, stopping just before your heels touch the floor. The lowering phase is where the lower abs work hardest — don't just drop them. The key: maintain a posterior pelvic tilt by pressing your lower back into the floor as you lower. That's what makes this an ab exercise instead of just hip flexors.",
   },
   {
     id: 'flutter_kicks',
@@ -2758,7 +2758,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      "Lie on your back with your hands under your glutes and your legs raised about 6 inches off the floor. Alternate raising each leg in a small, rapid kicking motion — like a shallow flutter in water — while keeping both legs mostly straight. Your lower back should remain pressed into the floor throughout; if it arches, you've lost tension. The isometric hold of the legs just above the floor is what drives the lower ab work. Keep breathing — don't hold your breath. If 6 inches is too difficult, raise the legs slightly higher until you build the strength to lower them.",
+      "Hands under your glutes, legs about 6 inches off the floor. Alternate small rapid kicks — like fluttering in water — keeping legs mostly straight. Your lower back must stay pressed into the floor; if it arches, you've lost tension. The isometric hold near the floor is what drives the lower ab work. Keep breathing. If 6 inches is too hard, raise them slightly higher until you build strength.",
   },
   {
     id: 'scissor_kicks',
@@ -2778,7 +2778,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      'Lie on your back with hands under your glutes and legs raised about 6 inches off the floor. Cross your legs over each other in alternating directions — left over right, then right over left — in a slow, controlled scissoring motion. Keep your lower back pressed flat into the floor and your core braced throughout. This movement is similar to flutter kicks but the lateral crossing pattern recruits the hip adductors alongside the lower abs, giving it a slightly different stimulus. Slow and controlled beats fast and sloppy — make each cross deliberate.',
+      'Hands under your glutes, legs about 6 inches off the floor. Cross your legs over each other in alternating directions in a slow, controlled scissoring motion. Keep your lower back pressed flat and core braced. Similar to flutter kicks but the lateral crossing recruits hip adductors alongside lower abs for a different stimulus. Slow and controlled beats fast and sloppy — make each cross deliberate.',
   },
   {
     id: 'reverse_crunch',
@@ -2798,7 +2798,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'None needed — go straight in',
     description:
-      'Lie on your back with hands flat on the floor beside your hips or gripping a bench above your head. Bring your knees to your chest, then curl your hips off the floor by driving your knees toward your face — the pelvis tilts backward and lifts slightly. This pelvic tilt at the top is the key movement; just swinging the knees up and down with no hip lift makes it a hip flexor exercise, not an ab exercise. Lower slowly and with control. The reverse crunch targets the lower portion of the rectus abdominis through the same principle as a crunch but approached from the other direction.',
+      'Hands flat beside your hips or gripping a bench overhead. Bring knees to chest, then curl your hips off the floor by driving knees toward your face — the pelvis tilts and lifts. That pelvic tilt is the key; just swinging knees up and down with no hip lift turns this into a hip flexor exercise. Lower slowly with control. Targets the lower abs by crunching from the other direction.',
   },
   {
     id: 'dead_bug',
@@ -2958,7 +2958,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '5 hanging knee raises',
     description:
-      "Hang from a pull-up bar with a firm overhand grip. From a dead hang, raise your legs by flexing your hips and curling your pelvis backward — your lats and core work together to bring your toes all the way up to touch the bar. This requires a strong posterior pelvic tilt and significant hip flexor and ab strength simultaneously. Lower under control back to the dead hang; avoid swinging. If you can't reach the bar yet, work hanging leg raises to parallel as your progression exercise. Unlike kipping toes-to-bar used in CrossFit, strict toes-to-bar with no momentum is a true test of raw core strength.",
+      "Hang from a pull-up bar, overhand grip. From a dead hang, raise your legs by curling your pelvis backward — lats and core work together to bring your toes all the way to the bar. Lower under control; avoid swinging. If you can't reach the bar yet, work hanging leg raises to parallel as your progression. Strict toes-to-bar with no momentum is a true test of raw core strength.",
   },
   {
     id: 'l_sit_hold',
@@ -2978,7 +2978,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '5 tuck compression holds',
     description:
-      'Sit on the floor with your legs extended in front of you and place your hands flat on the floor beside your hips. Press into the floor and lift your entire body off the ground, holding your legs straight and parallel to the floor in an L-shape. Your arms stay locked, your core is braced hard, and your hip flexors are under continuous isometric tension holding the legs up. This is an extremely demanding static hold that requires both pressing strength and extreme core and hip flexor endurance. Work up from tuck holds (knees bent) before attempting the full straight-leg version.',
+      'Legs extended, hands flat beside your hips. Press into the floor and lift your entire body off the ground, legs straight and parallel to the floor in an L-shape. Arms locked, core braced hard, hip flexors under constant tension. This is brutally demanding — work up from tuck holds with knees bent before attempting the full straight-leg version.',
   },
   {
     id: 'weighted_sit_up',
@@ -2998,7 +2998,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '5 bodyweight reps',
     description:
-      'Perform a standard sit-up while holding a weight plate flat on your chest or extended overhead for added difficulty. The overhead position creates a longer lever arm and increases the demand significantly compared to the plate-to-chest version — choose based on your strength level. All the same cues apply: controlled movement, full range of motion from floor to fully upright, and smooth return. Use a weight that allows clean reps without your feet pulling off the floor or your lower back rounding excessively on the way down.',
+      "Standard sit-up holding a weight plate on your chest or extended overhead for more difficulty. Overhead creates a longer lever arm and is significantly harder — choose based on your strength level. Controlled movement, full range from floor to upright, smooth return. Don't go so heavy that your feet pull off the floor or your lower back rounds on the way down.",
   },
   {
     id: 'dumbbell_side_bend',
@@ -3018,7 +3018,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Stand holding a dumbbell in one hand at your side, feet shoulder-width apart. Bend laterally to the weighted side, allowing the dumbbell to slide down your thigh, then contract your oblique on the opposite side to return upright. Don't bend forward or rotate — this is pure lateral flexion. The oblique on the side opposite the weight does the work of pulling you back. Complete all reps on one side before switching. Avoid the trap of going too heavy and compensating with rotation or momentum — controlled range of motion beats heavy sloppy reps here.",
+      "Stand with a dumbbell in one hand, feet shoulder-width. Bend laterally to the weighted side, letting the dumbbell slide down your thigh, then contract the opposite oblique to return upright. Don't bend forward or rotate — pure lateral flexion only. All reps on one side before switching. Don't go too heavy and compensate with rotation; controlled reps beat sloppy heavy ones.",
   },
   {
     id: 'pallof_press',
@@ -3038,7 +3038,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Set a cable at chest height and stand sideways to the stack. Hold the handle with both hands at your chest, feet shoulder-width. Press the handle straight out in front of you and hold for a second — the cable will try to rotate your torso toward the stack, and your entire core must resist that pull. Return to your chest and repeat. This is an anti-rotation exercise: the goal is to produce zero rotation while the cable creates a constant rotational force. The further you stand from the stack, the harder it becomes. Switch sides after your set. The Pallof press trains the deep core stabilizers in a way that most crunching movements don't touch.",
+      "Cable at chest height, stand sideways to the stack. Hold the handle at your chest with both hands, feet shoulder-width. Press straight out and hold — the cable tries to rotate you toward the stack, and your core must resist. Return and repeat. This is anti-rotation: produce zero rotation while the cable pulls. The further from the stack, the harder it gets. Switch sides each set.",
   },
   {
     id: 'landmine_twist',
@@ -3058,7 +3058,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 light feeler set',
     description:
-      "Anchor one end of a barbell in a landmine attachment or corner. Stand facing the loaded end, holding the bar with both hands extended at chest height. Rotate your torso and sweep the bar from one side of your body to the other in a controlled arc, pivoting your feet as needed. The weight at the end of the bar creates a significant rotational load that your obliques must control. Don't rush — slow rotations with full range of motion and controlled breathing beat fast sloppy swings. This is one of the best loaded rotational exercises available and translates directly to athletic movement.",
+      "Anchor a barbell in a landmine or corner. Stand facing the loaded end, both hands extended at chest height. Rotate your torso and sweep the bar side to side in a controlled arc, pivoting your feet as needed. The weight creates a significant rotational load your obliques must control. Don't rush — slow rotations with full range of motion beat fast sloppy swings every time.",
   },
   {
     id: 'med_ball_slam',
@@ -3078,7 +3078,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '3 easy slams',
     description:
-      'Stand with feet shoulder-width apart holding a medicine ball with both hands. Raise the ball fully overhead, extend your body, then slam it into the floor as hard as you can by flexing your entire core, hips, and arms simultaneously. Catch the bounce — or pick it up — and repeat. The key is full extension at the top followed by a maximal contraction through the slam: your abs, lats, and hip flexors all fire together in an explosive concentric effort. Ball slams develop power endurance in the core rather than pure strength, making them an excellent finisher. Use a non-bounce dead ball if you want to eliminate the catch and maximize each slam.',
+      'Feet shoulder-width, medicine ball in both hands. Raise it fully overhead, extend your body, then slam it into the floor as hard as you can — core, hips, and arms all firing together. Catch the bounce or pick it up and repeat. Full extension at the top, maximal contraction through the slam. Use a non-bounce dead ball to eliminate the catch and maximize each rep.',
   },
   {
     id: 'dumbbell_dead_bug',
@@ -3098,7 +3098,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '5 bodyweight dead bugs',
     description:
-      'Perform the standard dead bug with a light dumbbell held in each hand, arms extended toward the ceiling. As you lower one arm overhead and the opposite leg toward the floor, the dumbbell in the moving arm adds a longer lever arm that increases the demand on your core to resist extension. The stationary arm also works harder to maintain position. All the same rules apply: lower back pressed flat against the floor at all times, slow deliberate movement, full exhale as you lower. Start very light — even a 5 lb dumbbell makes this significantly harder than the bodyweight version.',
+      'Standard dead bug with a light dumbbell in each hand, arms extended toward the ceiling. As you lower one arm overhead and the opposite leg, the dumbbell adds a longer lever that increases the anti-extension demand on your core. Same rules: lower back flat at all times, slow movement, full exhale as you lower. Start very light — even 5 lbs makes this significantly harder than bodyweight.',
   },
   {
     id: 'weighted_hanging_leg_raise',
@@ -3118,7 +3118,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '5 bodyweight hanging leg raises',
     description:
-      'Hang from a pull-up bar and secure a light dumbbell between your feet, or wear ankle weights. Raise your legs by flexing your hips and curling your pelvis upward — same cues as the bodyweight version, but the added load makes the lower ab and hip flexor demand significantly greater. Lower under control; do not let gravity snap your legs down. Only progress to added weight once you can do 15+ clean reps of the bodyweight version. Use straps if grip is limiting — the goal is loading the core, not testing grip endurance.',
+      "Hang from a pull-up bar with a light dumbbell between your feet or ankle weights. Raise your legs by curling your pelvis upward — same cues as bodyweight, but the added load makes the demand significantly greater. Lower under control; don't let gravity snap your legs down. Only add weight once you can do 15+ clean bodyweight reps. Use straps if grip is limiting.",
   },
   // ─── KETTLEBELL EXERCISES ─────────────────────────────────────────────────
   // PUSH ── Shoulders · Chest · Triceps
@@ -3140,7 +3140,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: '2 ramp sets',
     description:
-      'Clean the kettlebell to the rack position — bell resting against the back of your wrist, elbow tucked tight to your ribs. Brace your core, squeeze your glutes, and press straight overhead until your arm is fully locked out with your bicep beside your ear. The offset weight of the kettlebell demands more stability than a barbell, making the shoulder stabilizers work harder on every rep. Lower under control back to the rack position. Keep your wrist straight — a bent wrist under load is a common KB injury mechanism.',
+      'Clean the bell to rack — resting against the back of your wrist, elbow tucked to your ribs. Brace your core, squeeze your glutes, press straight overhead until your arm locks out with bicep beside your ear. Lower under control to rack. The offset KB weight demands more stability than a barbell. Keep your wrist straight — a bent wrist under load is a fast track to injury.',
   },
   {
     id: 'kb_push_press',
@@ -3159,7 +3159,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: '2 ramp sets',
     description:
-      'Start in the rack position. Dip your knees slightly — about a quarter squat — then explosively drive through your legs to generate momentum and press the bell overhead. Lock out at the top, then lower under control back to rack. The leg drive lets you move more weight than a strict press, making this a great strength builder. Keep the dip shallow and vertical — forward lean kills the drive. This is the bridge between raw pressing strength and full Olympic-style lifting.',
+      'Start in rack position. Dip your knees slightly — about a quarter squat — then explosively drive through your legs and press the bell overhead. Lock out at the top, lower under control to rack. The leg drive lets you move more weight than a strict press. Keep the dip shallow and vertical — forward lean kills the drive.',
   },
   {
     id: 'kb_floor_press',
@@ -3178,7 +3178,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      'Lie on your back with knees bent, feet flat. Clean the kettlebell to your chest, then press straight up until your arm locks out. Lower until your upper arm touches the floor, pause briefly, then press again. The floor eliminates the stretch reflex at the bottom, forcing your chest and triceps to generate force from a dead stop. The neutral wrist position reduces shoulder stress compared to a barbell floor press. Great for building pressing strength without loading the spine.',
+      'Lie on your back, knees bent, feet flat. Clean the bell to your chest, press straight up until lockout. Lower until your upper arm touches the floor, pause briefly, press again. The floor eliminates the stretch reflex, forcing your chest and triceps to generate force from a dead stop. Neutral wrist position reduces shoulder stress compared to a barbell floor press.',
   },
   {
     id: 'kb_arnold_press',
@@ -3197,7 +3197,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Start with the bell at chin height, palm facing you, elbow bent. As you press overhead, rotate your palm to face forward — finishing with the bell overhead and your palm away from you. Reverse the rotation on the way down. This rotation recruits the anterior, medial, and posterior heads of the deltoid across the full range of motion, making it one of the most complete shoulder exercises. Keep the rotation smooth — don't rush it. Control the descent as much as the press.",
+      "Bell at chin height, palm facing you, elbow bent. As you press overhead, rotate your palm to face forward — finishing with the bell overhead, palm away from you. Reverse on the way down. The rotation recruits all three delt heads across the full range of motion. Keep the rotation smooth — don't rush it. Control the descent as much as the press.",
   },
   {
     id: 'kb_lateral_raise',
@@ -3217,7 +3217,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      'Hold the kettlebell by the handle with a slight bend in your elbow. Raise your arm out to the side until it reaches shoulder height, leading with your elbow rather than your hand. At the top, your thumb should be slightly lower than your pinky — this internal rotation keeps the supraspinatus clear of impingement. Lower slowly. The offset weight of a kettlebell shifts the load profile slightly compared to a dumbbell, providing a different stimulus at the bottom range.',
+      "Hold the bell by the handle, slight bend in your elbow. Raise your arm out to the side to shoulder height, leading with your elbow rather than your hand. At the top, thumb slightly lower than pinky — this keeps the supraspinatus clear of impingement. Lower slowly. The KB's offset weight shifts the load profile compared to a dumbbell, hitting differently at the bottom range.",
   },
   {
     id: 'kb_bottoms_up_press',
@@ -3237,7 +3237,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      'Hold the kettlebell upside down — bottom facing up — by gripping the handle tightly. Press overhead while maintaining the bell in the vertical position. This demands extreme grip strength and wrist stability; any loss of tension and the bell tips over. The irradiation effect from gripping hard transfers stability through your entire pressing chain, making this a powerful shoulder health exercise and a diagnostic for pressing weaknesses. Use a much lighter weight than your normal press.',
+      'Hold the bell upside down — bottom facing up — gripping the handle hard. Press overhead while keeping the bell vertical. Any loss of tension and it tips over. The irradiation from gripping hard transfers stability through your entire pressing chain, making this great for shoulder health and diagnosing pressing weaknesses. Use much lighter weight than your normal press.',
   },
   {
     id: 'kb_overhead_tricep_ext',
@@ -3257,7 +3257,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      'Hold the kettlebell by the bell — not the handle — with both hands clasped around it. Press it overhead, then lower it behind your head by bending only at the elbows. Keep your upper arms vertical and elbows pointed at the ceiling throughout. Extend back to lockout. The long head of the triceps crosses the shoulder joint and gets a full stretch at the bottom of this movement, making it one of the best exercises for tricep mass. Keep the weight moderate — going too heavy forces the elbows to flare.',
+      'Hold the bell by the bell — not the handle — both hands clasped around it. Press overhead, then lower behind your head by bending at the elbows only. Upper arms vertical, elbows pointed at the ceiling throughout. Extend to lockout. The long head of the triceps gets a full stretch at the bottom here. Keep it moderate — going too heavy forces the elbows to flare.',
   },
 
   // PULL ── Back · Biceps · Rear Delts
@@ -3279,7 +3279,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Place one hand on a bench for support, hinge forward at the hips so your torso is roughly parallel to the floor. Let the kettlebell hang at full arm extension, then row it toward your hip — driving your elbow back and up. At the top, squeeze your shoulder blade in toward your spine before lowering under control. The unilateral nature eliminates the ability to compensate with your stronger side, making this a great tool for identifying and correcting strength imbalances. Don't rotate your torso to get the weight up — that's a bicep and momentum cheat, not a back row.",
+      "One hand on a bench, hinge forward so your torso is roughly parallel to the floor. Let the bell hang at full extension, then row toward your hip — elbow driving back and up. Squeeze your shoulder blade in at the top before lowering. The unilateral work exposes and corrects strength imbalances. Don't rotate your torso to get the weight up — that's momentum cheating, not rowing.",
   },
   {
     id: 'kb_renegade_row',
@@ -3298,7 +3298,7 @@ export const EXERCISE_DB = [
     rest: '2-3 min',
     warmup: '1 feeler set',
     description:
-      'Start in a push-up position with hands gripping two kettlebells shoulder-width apart. Keeping your hips square to the floor — no rotation — row one bell up to your hip while your other arm supports your body weight. Lower it and repeat on the other side. The anti-rotation demand is the whole point: your core works overtime to prevent your hips from twisting while you row. Use flat-bottom kettlebells on a hard floor for safety. This is an advanced movement — nail the plank position before adding load.',
+      'Push-up position, hands gripping two kettlebells shoulder-width apart. Keeping hips square — no rotation — row one bell to your hip while the other arm supports you. Lower and repeat on the other side. The anti-rotation demand is the whole point: your core prevents hip twisting while you row. Use flat-bottom bells on a hard floor. Nail the plank before adding load.',
   },
   {
     id: 'kb_high_pull',
@@ -3317,7 +3317,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Stand with the kettlebell on the floor between your feet. Hinge to grab the handle, then drive your hips forward explosively and pull the bell high — elbow leading, bell tracking up your centerline to chin height. This is a hybrid of a deadlift hinge and an upright row, combining hip power with upper back pulling strength. It's a great precursor to learning the clean. Keep the bell close to your body on the way up. Don't yank with your arms — the power comes from your hips.",
+      "Bell on the floor between your feet. Hinge to grab the handle, then drive your hips forward explosively and pull high — elbow leading, bell tracking up your centerline to chin height. This is a hybrid deadlift-hinge and upright row, combining hip power with upper back strength. Keep the bell close on the way up. Don't yank with your arms — the power comes from your hips.",
   },
   {
     id: 'kb_upright_row',
@@ -3336,7 +3336,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Hold the kettlebell by the handle with both hands in front of your thighs. Pull it straight up along your body, leading with your elbows until they reach shoulder height and the bell is at chin level. Lower under control. The grip width on a KB is narrower than a barbell, which reduces the impingement risk that makes barbell upright rows controversial. Keep the bell close to your body and don't shrug excessively at the top — the traps and medial delts do the work.",
+      "Hold the bell with both hands in front of your thighs. Pull straight up along your body, elbows leading, until they reach shoulder height and the bell is at chin level. Lower under control. The narrow KB grip reduces the impingement risk that makes barbell upright rows controversial. Keep the bell close and don't shrug excessively at the top — traps and medial delts do the work.",
   },
   {
     id: 'kb_bicep_curl',
@@ -3355,7 +3355,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      'Hold a kettlebell in each hand with arms fully extended. Curl both bells up by bending at the elbows, keeping your upper arms pinned at your sides. At the top, fully supinate your palms — turn your pinkies out — to maximize bicep contraction. Lower fully on every rep; stopping short eliminates the stretched position where significant growth stimulus occurs. The asymmetric weight distribution of a kettlebell shifts the load slightly as you curl, changing the strength curve compared to a dumbbell.',
+      "Bell in each hand, arms fully extended. Curl both up, keeping upper arms pinned at your sides. At the top, fully supinate — turn your pinkies out — to maximize bicep contraction. Lower fully every rep; stopping short eliminates the stretched position where growth stimulus occurs. The KB's asymmetric weight shifts the load as you curl, changing the strength curve versus a dumbbell.",
   },
   {
     id: 'kb_hammer_curl',
@@ -3374,7 +3374,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      'Hold the kettlebells with a neutral grip — palms facing each other — and curl them up without rotating your wrists. The neutral position shifts emphasis to the brachialis (the muscle under the bicep that pushes it up) and the brachioradialis in the forearm, giving you more arm thickness than a standard curl. Keep your upper arms stationary and lower fully. These can also be done alternating or with one bell at a time for more time under tension.',
+      'Neutral grip — palms facing each other — curl up without rotating your wrists. The neutral position shifts emphasis to the brachialis and brachioradialis, building arm thickness more than a standard curl. Upper arms stationary, lower fully every rep. Can also be done alternating or one bell at a time for more time under tension.',
   },
   {
     id: 'kb_face_pull_row',
@@ -3394,7 +3394,7 @@ export const EXERCISE_DB = [
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
-      'Hinge forward at the hips to about 45 degrees with a bell in each hand. Let the bells hang directly below your shoulders. Row both bells up and out — elbows flaring wide to the sides, not tucked in — until your upper arms are parallel to the floor. Squeeze your rear delts at the top. This wide-elbow rowing pattern targets the posterior deltoid and upper traps far more effectively than a close-grip row. It directly addresses the muscle imbalances created by heavy pressing.',
+      'Hinge forward to about 45 degrees, bell in each hand hanging below your shoulders. Row both bells up and out — elbows flaring wide, not tucked — until your upper arms are parallel to the floor. Squeeze your rear delts at the top. This wide-elbow pattern targets posterior delts and upper traps far better than close-grip rows. Great for balancing out heavy pressing.',
   },
 
   // LEGS ── Quads · Hamstrings · Glutes · Calves
@@ -3415,7 +3415,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: 'BW hinge practice: 10 reps',
     description:
-      "Stand with the kettlebell between your feet. Hike the bell back between your legs with a sharp hinge — hips back, chest up, lats engaged. Explosively drive your hips forward, squeezing your glutes hard at the top, which projects the bell forward to chest height. The bell floats — you're not lifting it with your arms. Let it fall back between your legs and immediately hike into the next rep. The swing is a ballistic hip hinge, not a squat or a front raise. Common errors: squatting instead of hinging, yanking with the arms, not finishing the hip lockout. The bell should feel weightless at the top.",
+      "Bell between your feet. Hike it back between your legs — sharp hinge, hips back, chest up, lats engaged. Explosively drive hips forward, squeeze glutes hard at the top, and the bell floats to chest height. You're not lifting it with your arms. Let it fall back and immediately hike into the next rep. This is a ballistic hip hinge, not a squat. Don't yank with arms or cut the lockout short.",
   },
   {
     id: 'kb_goblet_squat',
@@ -3434,7 +3434,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: 'BW squat: 10 reps',
     description:
-      "Hold the kettlebell by the bell at chest height with both hands cupped around it — like you're holding a goblet. Feet slightly wider than hip-width, toes out 15-30 degrees. Squat down as deep as possible while keeping your chest up and knees tracking over your toes. The front-loaded weight acts as a counterbalance, making it easier to achieve depth than with a back squat. At the bottom, your elbows should be inside your knees — use them to push your knees out if they cave. Drive through the floor to stand.",
+      "Hold the bell at chest height, both hands cupped around it like a goblet. Feet slightly wider than hip-width, toes out 15-30 degrees. Squat as deep as possible — chest up, knees tracking over toes. The front load acts as a counterbalance, making depth easier than a back squat. At the bottom, elbows inside your knees — use them to push knees out if they cave. Drive through the floor.",
   },
   {
     id: 'kb_romanian_deadlift',
@@ -3454,7 +3454,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Hold a kettlebell in each hand at your thighs. Hinge at the hips — pushing them back, not bending at the waist — while keeping your spine neutral and the bells close to your legs. Lower until you feel a strong hamstring stretch (typically when the bells reach mid-shin), then drive your hips forward to return to standing, squeezing your glutes at the top. The RDL keeps a slight knee bend throughout — this is not a straight-leg deadlift. The hamstring stretch at the bottom is the whole point; don't cut the range short.",
+      "Bell in each hand at your thighs. Hinge at the hips — push them back, don't bend at the waist — spine neutral, bells close to your legs. Lower until you feel a strong hamstring stretch (typically mid-shin), then drive hips forward to standing, squeezing glutes at top. Keep a slight knee bend throughout. The hamstring stretch at the bottom is the whole point — don't cut range short.",
   },
   {
     id: 'kb_sumo_deadlift',
@@ -3474,7 +3474,7 @@ export const EXERCISE_DB = [
     rest: '2-3 min',
     warmup: '2 ramp sets',
     description:
-      'Stand with feet wide — wider than shoulder-width — and toes pointed out 45 degrees. The kettlebell sits between your feet. Hinge down and grip the handle with both hands, keeping your chest up and back flat. Drive through the floor to stand, keeping the bell between your legs. The wide stance puts your glutes in a position of mechanical advantage and takes some demand off the lower back compared to a conventional deadlift. Think about spreading the floor apart with your feet as you pull — this activates your hips and keeps your knees tracking over your toes.',
+      'Feet wide — wider than shoulder-width — toes out 45 degrees, bell between your feet. Hinge down, grip the handle with both hands, chest up, back flat. Drive through the floor to stand. The wide stance gives your glutes mechanical advantage and takes demand off the lower back versus conventional. Think about spreading the floor apart with your feet as you pull.',
   },
   {
     id: 'kb_front_rack_squat',
@@ -3494,7 +3494,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Clean two kettlebells to the rack position — bells resting on your forearms, elbows pointing forward and up, upper arms roughly parallel to the floor. This front-loaded rack position forces an upright torso throughout the squat or the bells fall forward. Squat to depth, drive through the floor, maintain the rack position on the way up. The upper back and core demand is significantly higher than a goblet squat. It's also an excellent diagnostic for thoracic mobility — if your elbows drop when you squat, your upper back is the limiting factor.",
+      "Clean two bells to rack — resting on your forearms, elbows forward and up, upper arms roughly parallel to floor. This front load forces an upright torso or the bells fall forward. Squat to depth, drive through the floor, maintain rack on the way up. Much more demanding on upper back and core than a goblet squat. If your elbows drop when you squat, thoracic mobility is the limiter.",
   },
   {
     id: 'kb_split_squat',
@@ -3513,7 +3513,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Hold a kettlebell in each hand at your sides. Step one foot back into a split stance — back knee hovers above the floor in the bottom position, front shin stays vertical. Lower your back knee toward the floor while keeping your torso upright, then drive through your front heel to return to the top. The fixed stance removes the balance demand of a lunge and lets you focus on loading the quads and glutes. Complete all reps on one side before switching. Elevating the front foot increases glute activation; elevating the back foot (Bulgarian variant) increases the challenge significantly.',
+      'Bell in each hand at your sides. Step one foot back into a split stance — back knee hovers above the floor, front shin stays vertical. Lower your back knee toward the floor, torso upright, then drive through your front heel. All reps on one side before switching. Elevating the front foot increases glute activation; elevating the back foot (Bulgarian variant) increases difficulty significantly.',
   },
   {
     id: 'kb_reverse_lunge',
@@ -3533,7 +3533,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Hold a kettlebell in each hand at your sides. Step back with one foot and lower your rear knee toward the floor — front shin stays vertical, back knee hovers just above the ground. Drive through your front heel to return to standing. The reverse lunge is more knee-friendly than a forward lunge because stepping back reduces the shear force on the front knee. It also requires more hip stability than a split squat. Alternate legs or complete all reps on one side depending on your preference.',
+      'Bell in each hand at your sides. Step back with one foot, lower your rear knee toward the floor — front shin vertical, back knee hovering just above the ground. Drive through your front heel to standing. Reverse lunges are more knee-friendly than forward lunges because stepping back reduces shear force on the front knee. Alternate legs or do all reps on one side.',
   },
   {
     id: 'kb_step_up',
@@ -3552,7 +3552,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Hold a kettlebell in each hand at your sides. Step one foot onto an elevated surface — a bench or box at knee height. Drive through the elevated heel to stand fully on the box, then step back down under control. The step up trains single-leg strength and hip extension with a strong glute recruitment pattern. Keep your torso upright and your knee tracking over your toe. Don't push off the floor with your trailing leg — that turns it into a calf raise assist. All the work should come from the working leg.",
+      "Bell in each hand at your sides. Step one foot onto a bench or box at knee height. Drive through the elevated heel to stand fully on the box, then step back down under control. Keep your torso upright, knee tracking over your toe. Don't push off the floor with your trailing leg — all the work should come from the working leg.",
   },
   {
     id: 'kb_single_leg_rdl',
@@ -3572,7 +3572,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Hold a kettlebell in the opposite hand to the standing leg. With a slight bend in the standing knee, hinge at the hip — your torso and rear leg move in unison like a seesaw until your torso is roughly parallel to the floor. Keep your hips square — don't let the hip of the lifted leg rotate up. Return to standing by driving your hip forward. The anti-rotation demand from holding the bell on the opposite side makes this more challenging than it looks. Start without weight to nail the hip hinge pattern first.",
+      "Bell in the opposite hand to the standing leg. Slight bend in the standing knee, hinge at the hip — torso and rear leg move like a seesaw until roughly parallel to the floor. Keep hips square — don't let the lifted hip rotate up. Drive your hip forward to return. Holding the bell opposite-side adds anti-rotation demand. Start without weight to nail the pattern first.",
   },
   {
     id: 'kb_hip_thrust',
@@ -3591,7 +3591,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Sit with your upper back against a bench, knees bent, feet flat on the floor. Rest a heavy kettlebell on your hip crease — hold the handle to keep it stable. Drive your hips upward by squeezing your glutes hard, until your body forms a straight line from knees to shoulders. Hold the top for a full second, then lower under control. Don't hyperextend your lower back at the top — the range of motion ends when your hips are fully extended, not when your lower back arches. This is the premier glute isolation exercise for building posterior chain size.",
+      "Upper back against a bench, knees bent, feet flat. Rest a heavy bell on your hip crease, hold the handle to stabilize. Drive hips up by squeezing glutes hard until your body forms a straight line from knees to shoulders. Hold the top for a full second, then lower. Don't hyperextend your back at the top — range of motion ends when hips are fully extended, not when your back arches.",
   },
   {
     id: 'kb_good_morning',
@@ -3610,7 +3610,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      'Hold the kettlebell by the bell at your chest, or press it overhead and hold it there. Stand with feet hip-width. Hinge at the hips — pushing them back — while keeping a neutral spine and a slight bend in the knees. Lower until you feel a strong hamstring stretch, then drive your hips back to standing. The overhead variation significantly increases the core demand and upper back stability requirement. This is a pure hip hinge pattern — not a squat. All movement comes from the hips; your lower back should not flex.',
+      'Hold the bell at your chest, or press it overhead for more difficulty. Feet hip-width. Hinge at the hips — push them back — neutral spine, slight knee bend. Lower until you feel a strong hamstring stretch, then drive hips to standing. The overhead variation significantly increases core and upper back demand. This is a pure hip hinge — all movement from the hips, no lower back flexion.',
   },
   {
     id: 'kb_calf_raise',
@@ -3629,7 +3629,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Hold a kettlebell in one hand or both. Stand with the balls of your feet on an elevated surface — a step or plate — to allow full range of motion. Lower your heels as far as possible to get the full calf stretch, then rise up onto your toes as high as you can. Hold the peak contraction for a count before lowering. The calf responds well to high rep, full range work. Using a step is important — flat-ground calf raises that don't reach full dorsiflexion cut off the stretch stimulus that drives growth.",
+      "Bell in one or both hands. Stand with the balls of your feet on a step or plate for full range. Lower your heels as far as possible for a deep calf stretch, then rise onto your toes as high as you can. Hold the peak for a count before lowering. Using a step matters — flat-ground calf raises cut off the stretch stimulus that drives growth.",
   },
 
   // FULL BODY / COMPLEX ── Carries · Cleans · Snatches · TGU
@@ -3650,7 +3650,7 @@ export const EXERCISE_DB = [
     rest: '2-3 min',
     warmup: '2 ramp sets',
     description:
-      "Start with the bell on the floor slightly in front of you. Hike it back between your legs like a swing, then aggressively drive your hips forward and pull your elbow up and back — the bell travels close to your body and flips over your wrist to land softly in the rack position. The key is the 'flip' — the bell should rotate around your wrist, not bang into it. A sore forearm means you're arm-curling instead of letting the bell rotate. The clean is the foundation of KB ballistic work and the entry point to the clean-and-press.",
+      "Bell on the floor slightly in front of you. Hike it back like a swing, then aggressively drive hips forward and pull your elbow up and back — the bell travels close and flips over your wrist to land softly in rack. The key is the flip: the bell rotates around your wrist, not banging into it. A sore forearm means you're arm-curling instead of letting it rotate.",
   },
   {
     id: 'kb_snatch',
@@ -3669,7 +3669,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: '2 ramp sets',
     description:
-      "The king of KB ballistic movements. Hike the bell back between your legs, drive the hips forward, and in one fluid motion — pull, corkscrew the wrist, and punch your hand through the handle — the bell ends up locked out overhead without being swung out in front. The key technical points: the bell travels close to your body, your elbow stays close, and you 'punch through' the handle at eye level rather than catching the bell after it peaks. The snatch demands hip power, shoulder stability, and precise timing. Master the swing and clean first.",
+      "The king of KB ballistics. Hike the bell back, drive hips forward, and in one fluid motion — pull, corkscrew the wrist, punch your hand through the handle — the bell ends up locked out overhead. Key points: bell stays close to your body, elbow stays close, you punch through at eye level rather than catching it after it peaks. Master the swing and clean first.",
   },
   {
     id: 'kb_clean_and_press',
@@ -3689,7 +3689,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: '2 ramp sets',
     description:
-      "The signature KB compound. Clean the bell to the rack position, then strict press overhead. Lower back to rack, then lower to the floor — or do multiple presses from the rack before cleaning again. This is a near-total-body movement: hip power in the clean, shoulder and tricep strength in the press, core throughout. The strict clean-and-press is one of the most efficient tests of functional strength. Don't rush the rack between the clean and press — reset your grip, brace your core, then press.",
+      "The signature KB compound. Clean the bell to rack, strict press overhead. Lower to rack, then to the floor — or do multiple presses from rack before cleaning again. Near-total-body movement: hip power in the clean, shoulder and tricep strength in the press, core throughout. Don't rush the rack position — reset your grip, brace your core, then press.",
   },
   {
     id: 'kb_thruster',
@@ -3708,7 +3708,7 @@ export const EXERCISE_DB = [
     rest: '2-3 min',
     warmup: '2 ramp sets',
     description:
-      'Hold two kettlebells in the rack position. Squat to full depth, then as you drive out of the bottom, use the leg power to assist pressing both bells overhead — the squat and press happen in one continuous movement. This is a conditioning and strength hybrid: the leg drive makes the press achievable under fatigue, and the overhead lockout demands full-body stability. The thruster is one of the most metabolically demanding resistance movements you can do. Keep the rack position solid at the top of the squat before you initiate the press.',
+      'Two bells in rack position. Squat to full depth, then as you drive out of the bottom, use that leg power to press both bells overhead — squat and press in one continuous movement. The leg drive makes the press achievable under fatigue while the overhead lockout demands full-body stability. Keep the rack solid at the top of the squat before initiating the press.',
   },
   {
     id: 'kb_turkish_getup',
@@ -3728,7 +3728,7 @@ export const EXERCISE_DB = [
     rest: '3-4 min',
     warmup: '2 ramp sets',
     description:
-      'The TGU is a slow, deliberate, multi-step movement: from lying to standing while keeping the bell locked overhead the entire time. Six distinct positions link the floor to standing: roll to elbow, roll to hand, sweep leg through, lunge position, stand — then reverse the sequence. Every position must be stable before moving to the next. The TGU builds shoulder stability, hip mobility, thoracic rotation, and total-body coordination simultaneously. Use a very light weight until each position is completely internalized. A shoe balanced on the fist instead of a bell is a useful learning tool.',
+      'Slow, deliberate, multi-step: lying to standing while keeping the bell locked overhead. Six positions link floor to standing — roll to elbow, roll to hand, sweep leg through, lunge, stand — then reverse. Every position must be stable before moving to the next. Builds shoulder stability, hip mobility, and total-body coordination. Use very light weight until each position is internalized.',
   },
   {
     id: 'kb_farmers_carry',
@@ -3748,7 +3748,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 light walk',
     description:
-      "Pick up a heavy kettlebell in each hand. Walk with purpose — upright posture, shoulders packed down and back, core braced, normal gait. The loading from the heavy bells you're carrying challenges grip strength, trap development, core stability, and conditioning simultaneously. There's nothing fancy about the farmer's carry — the difficulty is in choosing a weight that's genuinely challenging and walking without your posture breaking down. If your shoulders are rounding or your torso is leaning, the weight is too heavy. Aim for 30-40 meters per set.",
+      "Heavy bell in each hand. Walk with purpose — upright posture, shoulders packed down and back, core braced, normal gait. Nothing fancy here: the difficulty is choosing a weight that's genuinely challenging and walking without your posture breaking down. If your shoulders round or torso leans, it's too heavy. Aim for 30-40 meters per set.",
   },
   {
     id: 'kb_suitcase_carry',
@@ -3768,7 +3768,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 light walk',
     description:
-      "Carry a single heavy kettlebell in one hand. Walk upright, resisting the urge to lean away from the load — your core must work overtime to keep your spine neutral and prevent lateral flexion. This anti-lateral-flexion demand directly trains your quadratus lumborum and obliques in a functional carry pattern. Switch hands each set or at the midpoint. The suitcase carry is one of the most effective core exercises that doesn't look like a core exercise. Go heavier than you think — the challenge should be anti-lean, not grip.",
+      "Single heavy bell in one hand. Walk upright, resisting the urge to lean away — your core must keep your spine neutral and prevent lateral flexion. This directly trains your QL and obliques in a functional pattern. Switch hands each set or at the midpoint. Go heavier than you think — the challenge should be staying upright, not grip.",
   },
   {
     id: 'kb_windmill',
@@ -3787,7 +3787,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Press a kettlebell overhead and lock it out. Turn your feet 45 degrees away from the working arm. Keeping the bell locked overhead and your eyes on the bell, hinge laterally at the hip — sliding your free hand down your trailing leg — until you feel a deep stretch in your hip and hamstring. Return to standing. The overhead locked arm stays vertical throughout. The windmill combines shoulder stability, hip mobility, and lateral core strength in one movement. It's particularly valuable for thoracic rotation and hip flexor health. Start with very light weight.",
+      "Press a bell overhead and lock it out. Turn your feet 45 degrees away from the working arm. Eyes on the bell, hinge laterally at the hip — slide your free hand down your trailing leg — until you feel a deep hip and hamstring stretch. Return to standing. The overhead arm stays vertical throughout. Combines shoulder stability, hip mobility, and lateral core strength. Start very light.",
   },
 
   // ─── NEW ADDITIONS — CHEST ──────────────────────────────────────────────────
@@ -3810,7 +3810,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: '2 ramp sets',
     description:
-      "Set the bench to a 15–30 degree decline and secure your legs under the pads. Unrack the bar with a grip just outside shoulder width and lower it to your lower chest, right around the bottom of your sternum. Press back up in a slight arc. The decline angle shifts more load onto the lower chest fibers and typically allows you to move more weight than flat bench because the range of motion is shorter and the shoulder is in a more mechanically favorable position. Keep your shoulder blades retracted and don't let the bar drift toward your neck — the decline makes it harder to re-rack if you lose control.",
+      "Bench at 15–30 degree decline, legs secured under the pads. Unrack with a grip just outside shoulder width, lower to your lower chest around the bottom of your sternum, press back up in a slight arc. The decline shifts more load onto lower chest fibers and usually lets you move more weight than flat bench. Keep shoulder blades retracted — don't let the bar drift toward your neck.",
   },
   {
     id: 'svend_press',
@@ -3831,7 +3831,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'First set as feeler — no dedicated warm-up needed',
     description:
-      "Hold a weight plate (or two plates pressed together) between your palms at chest height, squeezing inward with constant tension. Press the plate straight out in front of you until your arms are extended, then bring it back to your chest. The key is maintaining maximum inward squeeze throughout the entire rep — that constant adduction is what makes the chest work. This is a finishing exercise, not a strength builder. Use a 10–25 lb plate; if you need more than that, you're probably not squeezing hard enough. Keep your shoulders down and away from your ears.",
+      "Hold a weight plate between your palms at chest height, squeezing inward with constant tension. Press straight out until arms are extended, bring it back to chest. The key is maximum inward squeeze throughout — that constant adduction is what makes the chest work. This is a finisher, not a strength builder. Use 10–25 lbs; if you need more, you're probably not squeezing hard enough.",
   },
   {
     id: 'band_pushup',
@@ -3852,7 +3852,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 set without band',
     description:
-      "Loop a resistance band across your upper back and anchor each end under your palms on the floor. Perform push-ups as normal — the band adds increasing resistance as you press up, making the lockout significantly harder than a bodyweight push-up. This accommodating resistance trains the chest through a strength curve that matches your leverage, loading the movement hardest where you're strongest. Choose a band tension that makes the last 2–3 reps genuinely difficult. Keep your core braced and body rigid — the band pulling you down makes it tempting to let your hips sag.",
+      "Loop a band across your upper back, anchor each end under your palms. Do push-ups as normal — the band adds resistance as you press up, making lockout significantly harder. This accommodating resistance loads the movement hardest where you're strongest. Pick a band that makes the last 2–3 reps genuinely difficult. Keep your core braced — the band pulling down makes it tempting to let hips sag.",
   },
 
   // ─── NEW ADDITIONS — SHOULDERS ──────────────────────────────────────────────
@@ -3875,7 +3875,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
-      "Set two cables at upper-chest height with no handle attachment (grip the rubber ball) or use stirrup handles. Stand centered between the cable columns, cross your arms to grip the opposite cable, and pull both arms out to your sides in a wide arc, squeezing your rear delts and upper back at full extension. Return slowly. The cables provide constant tension through the entire range of motion, which is the main advantage over dumbbell rear delt flies where gravity drops the tension at the bottom. Keep your body still — if you're rocking, the weight is too heavy.",
+      "Two cables at upper-chest height, grip the rubber balls or use stirrup handles. Stand centered, cross your arms to grip the opposite cable, pull both arms out wide, squeezing rear delts at full extension. Return slowly. The cables provide constant tension through the full range — the main advantage over dumbbell flies where tension drops at the bottom. Stay still; if you're rocking, it's too heavy.",
   },
   {
     id: 'lu_raise',
@@ -3896,7 +3896,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 light feeler set',
     description:
-      "Start with dumbbells at your sides. Perform a lateral raise to shoulder height, then without lowering, rotate your arms forward and press the dumbbells overhead until your arms are fully extended. Reverse the path back down. This movement — popularized by Olympic weightlifter Lu Xiaojun — hits the lateral delts, front delts, and rotator cuff in one continuous motion. Use light weight; this is harder than it looks because the lateral raise position is the weakest point in the chain. Control every phase — rushing turns it into a momentum exercise.",
+      "Dumbbells at your sides. Lateral raise to shoulder height, then without lowering, rotate your arms forward and press overhead until fully extended. Reverse the path down. Hits lateral delts, front delts, and rotator cuff in one continuous motion. Use light weight — this is harder than it looks because the lateral raise is the weakest point. Control every phase; rushing turns it into momentum.",
   },
   {
     id: 'plate_front_raise',
@@ -3917,7 +3917,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'First set as feeler — no dedicated warm-up needed',
     description:
-      "Hold a weight plate with both hands at the 3 and 9 o'clock positions, arms extended in front of your thighs. Raise the plate in a wide arc until it reaches forehead height, pause briefly, then lower under control. The neutral grip and wide hand placement change the activation pattern compared to dumbbell or cable front raises, providing a unique stimulus to the anterior deltoids. Keep your core braced and avoid leaning back — if you need to generate momentum, the plate is too heavy. A 25 lb plate is plenty for most lifters.",
+      "Hold a plate at 3 and 9 o'clock, arms extended in front of your thighs. Raise in a wide arc to forehead height, pause briefly, lower under control. The neutral grip and wide hand placement hit the anterior delts differently than dumbbells. Keep your core braced — don't lean back. If you need momentum, the plate is too heavy. 25 lbs is plenty for most lifters.",
   },
 
   // ─── NEW ADDITIONS — TRICEPS ────────────────────────────────────────────────
@@ -3940,7 +3940,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'First set as feeler — no dedicated warm-up needed',
     description:
-      "Hinge forward at the hips with a flat back, supporting yourself on a bench with one hand. Hold a dumbbell with your upper arm pinned to your side, elbow bent at 90 degrees. Extend your forearm straight back until your arm is fully locked out, squeeze the tricep hard, then lower with control. ACE research found this exercise produces among the highest tricep activation of any movement — but only if you do it right. The most common mistake is swinging the weight or letting the upper arm drift. Your elbow must stay pinned at your ribcage the entire time. Use lighter weight than you think.",
+      "Hinge forward, flat back, one hand on a bench. Hold a dumbbell with upper arm pinned to your side, elbow at 90 degrees. Extend your forearm straight back to full lockout, squeeze hard, lower with control. This produces among the highest tricep activation of any movement — but only if done right. Don't swing or let the upper arm drift. Elbow stays pinned to your ribs. Go lighter than you think.",
   },
   {
     id: 'single_arm_cable_overhead_tri',
@@ -3961,7 +3961,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'First set as feeler — no dedicated warm-up needed',
     description:
-      "Set a cable at the lowest pulley with a single handle. Face away from the machine, grab the handle behind your head with one hand, and step forward into a staggered stance. Your upper arm should be vertical, elbow pointing at the ceiling. Extend your forearm upward until your arm is straight, then lower slowly. The unilateral version lets you focus on each arm independently and correct strength imbalances. Keep your upper arm stationary — all movement comes from the elbow. Lean your torso slightly forward for balance.",
+      "Cable at the lowest pulley, single handle. Face away, grab the handle behind your head, step into a staggered stance. Upper arm vertical, elbow pointing at the ceiling. Extend your forearm until straight, lower slowly. The single-arm version lets you focus on each arm independently and correct imbalances. Upper arm stays stationary — all movement from the elbow. Lean slightly forward for balance.",
   },
   {
     id: 'bench_dips',
@@ -3982,7 +3982,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: '1 easy set',
     description:
-      "Place your hands on the edge of a flat bench behind you, fingers forward, with your legs extended out in front (beginners can bend their knees to reduce difficulty). Lower your body by bending your elbows until your upper arms are roughly parallel to the floor, then press back up. Keep your back close to the bench throughout — drifting forward shifts load away from the triceps. If bodyweight is too easy, place a weight plate on your lap. Don't go deeper than parallel; excessive depth puts the shoulder in an impinged position under load.",
+      "Hands on a bench edge behind you, fingers forward, legs extended (bend knees to make it easier). Lower by bending your elbows until upper arms are roughly parallel to the floor, then press up. Stay close to the bench — drifting forward shifts load off the triceps. Add a plate on your lap if bodyweight is easy. Don't go deeper than parallel; excessive depth impinges the shoulder.",
   },
   {
     id: 'reverse_grip_pushdown',
@@ -4003,7 +4003,7 @@ export const EXERCISE_DB = [
     rest: '60 sec',
     warmup: 'First set as feeler — no dedicated warm-up needed',
     description:
-      "Stand facing a high cable with a straight bar attachment. Grip the bar with an underhand (supinated) grip, elbows pinned to your sides. Push the bar down until your arms are fully extended, squeezing the triceps at the bottom, then return with control. The underhand grip shifts emphasis toward the medial head of the triceps, which is often undertrained by standard overhand pushdowns. Keep your wrists straight and elbows locked at your ribcage. If your elbows drift forward, the weight is too heavy.",
+      "Face a high cable with a straight bar. Underhand (supinated) grip, elbows pinned to your sides. Push down until arms are fully extended, squeeze at the bottom, return with control. The underhand grip shifts emphasis to the medial head of the triceps, often undertrained by standard pushdowns. Wrists straight, elbows locked at your ribs. If elbows drift forward, it's too heavy.",
   },
 
   // ─── NEW ADDITIONS — BACK ──────────────────────────────────────────────────
@@ -4026,7 +4026,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '2 ramp sets',
     description:
-      "Set an incline bench to about 30–45 degrees and lie face-down on it with a dumbbell in each hand hanging straight below your shoulders. Row both dumbbells up toward your hips, squeezing your shoulder blades together at the top, then lower with control. The chest support completely eliminates lower back fatigue and momentum, making this one of the purest upper back exercises available. You'll likely use less weight than unsupported rows — that's the point. Every rep is honest work for the back. Let your arms fully extend at the bottom for a complete stretch.",
+      "Incline bench at 30–45 degrees, lie face-down with a dumbbell in each hand hanging below your shoulders. Row both up toward your hips, squeeze shoulder blades at the top, lower with control. Chest support eliminates lower back fatigue and momentum — every rep is honest back work. You'll use less weight than unsupported rows; that's the point. Full extension at the bottom for a complete stretch.",
   },
   {
     id: 'pendlay_row',
@@ -4047,7 +4047,7 @@ export const EXERCISE_DB = [
     rest: '3 min',
     warmup: 'Full protocol',
     description:
-      "Set up over a loaded barbell with your feet shoulder width apart and your torso parallel to the floor — completely horizontal, not angled up. Grip the bar just outside your knees and explosively row it to your lower chest, then lower it back to the floor completely on each rep. The bar starts and stops on the floor every rep — no touch-and-go, no hanging in the air between reps. Named after coach Glenn Pendlay, this strict row variation builds explosive pulling power and eliminates any cheating because you reset your position every rep. If you can't keep your torso parallel, the weight is too heavy.",
+      "Feet shoulder-width, torso completely parallel to the floor. Grip just outside your knees and explosively row to your lower chest, then lower the bar to the floor on every rep. The bar resets on the ground each time — no touch-and-go. This eliminates cheating because you reset position every rep. If you can't keep your torso parallel, the weight is too heavy.",
   },
   {
     id: 'meadows_row',
@@ -4068,7 +4068,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '1 feeler set',
     description:
-      "Set up a barbell in a landmine attachment or wedge one end into a corner. Stand perpendicular to the bar with a staggered stance, your lead foot next to the loaded end. Grip the thick end of the barbell with an overhand grip, hinge at the hips, and row the bar up toward your hip. This angle — popularized by the late bodybuilder John Meadows — creates a unique arc that provides an intense lat stretch at the bottom and a deep contraction at the top that standard rows can't replicate. Use the thick end of the bar for grip challenge, or wrap a towel around it. Control the eccentric for a 2-second stretch.",
+      "Barbell in a landmine or corner. Stand perpendicular with a staggered stance, lead foot next to the loaded end. Overhand grip on the thick end, hinge at the hips, row toward your hip. This angle creates a unique arc — intense lat stretch at the bottom, deep contraction at the top that standard rows can't match. Control the eccentric for a 2-second stretch.",
   },
   {
     id: 'seal_row',
@@ -4089,7 +4089,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '2 ramp sets',
     description:
-      "Lie face-down on a flat bench elevated on blocks or a power rack so your arms can hang straight down without the weights touching the floor. Row dumbbells (or a barbell) up toward your hips, squeezing your shoulder blades together, then lower fully. The prone position completely eliminates lower back involvement and any opportunity to use momentum — every ounce of force comes from the back muscles. This makes it an excellent choice for anyone with lower back issues or for isolating the back without systemic fatigue. You'll feel the difference in how honest every rep is.",
+      "Lie face-down on a flat bench elevated on blocks so your arms hang free without weights touching the floor. Row dumbbells up toward your hips, squeeze shoulder blades together, lower fully. The prone position completely eliminates lower back involvement and momentum — every ounce of force comes from back muscles. Great for anyone with lower back issues or for isolating the back without systemic fatigue.",
   },
 
   // ─── NEW ADDITIONS — LATS ──────────────────────────────────────────────────
@@ -4112,7 +4112,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '2 ramp sets',
     description:
-      "Attach a V-handle to the lat pulldown cable. Sit with your thighs secured under the pads, grip the V-handle with both hands, and pull it down toward your upper chest by driving your elbows down and back. Squeeze your lats hard at the bottom, then extend your arms fully at the top for a complete stretch. The close neutral grip shifts emphasis toward the lower lats and allows a longer range of motion than wider grips. Lean back slightly — about 10–15 degrees — to clear the path for the handle. Don't yank the weight down; control it on both the pull and the return.",
+      "V-handle on the lat pulldown. Thighs secured under pads, pull the handle toward your upper chest by driving elbows down and back. Squeeze lats hard at the bottom, fully extend at the top for a complete stretch. The close neutral grip emphasizes lower lats and allows longer range of motion than wide grips. Lean back about 10–15 degrees to clear the handle path. Control both directions.",
   },
   {
     id: 'single_arm_lat_pulldown',
@@ -4133,7 +4133,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Attach a single stirrup handle to the lat pulldown cable. Sit with your thighs secured under the pad and grip the handle with one hand. Pull the handle down toward your shoulder by driving your elbow down and slightly back, squeezing the lat at the bottom, then return fully. The unilateral version provides greater range of motion, better mind-muscle connection, and exposes any side-to-side imbalances. Use your free hand to lightly touch your working lat — this tactile cue dramatically improves activation. Keep your torso stable; don't rotate toward the pulling arm.",
+      "Single stirrup handle on the pulldown. Thighs under the pad, pull the handle toward your shoulder — elbow driving down and slightly back, squeeze the lat, return fully. The unilateral version gives greater range of motion and exposes side-to-side imbalances. Touch your working lat with your free hand — this tactile cue dramatically improves activation. Don't rotate toward the pulling arm.",
   },
   {
     id: 'lat_pulldown_reverse',
@@ -4154,7 +4154,7 @@ export const EXERCISE_DB = [
     rest: '2 min',
     warmup: '2 ramp sets',
     description:
-      "Grip the lat pulldown bar with an underhand (supinated) grip, hands about shoulder width apart. Pull the bar toward your upper chest by driving your elbows down and behind you, arching slightly to meet the bar. The supinated grip increases bicep involvement and shifts lat activation slightly toward the lower lats compared to an overhand grip. It also allows a slightly longer range of motion. Think about pulling with your elbows, not your hands — this keeps the lats as the primary driver rather than turning it into a bicep curl. Full extension at the top on every rep.",
+      "Underhand (supinated) grip, hands shoulder-width. Pull toward your upper chest, driving elbows down and behind you, arching slightly. The supinated grip increases bicep involvement and shifts activation toward the lower lats with a slightly longer range of motion. Think about pulling with your elbows, not hands — this keeps lats as the driver instead of turning it into a curl. Full extension at the top every rep.",
   },
   {
     id: 'half_kneeling_cable_pulldown',
@@ -4175,7 +4175,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
-      "Set a cable at the highest position with a single handle. Kneel on one knee facing the cable machine — the knee down should be on the same side as the working arm. Reach up to grab the handle with a full stretch, then pull your elbow down and back toward your hip, squeezing the lat at the bottom. The half-kneeling position prevents cheating with body momentum and adds a core stability demand. This position also allows a full overhead lat stretch that you can't get sitting in a pulldown machine. Go light and focus on the stretch-to-contraction; this is a feel exercise, not a load exercise.",
+      "Cable at the top, single handle. Kneel on one knee facing the machine — same-side knee down as the working arm. Reach up for a full stretch, pull your elbow down and back toward your hip, squeeze the lat. Half-kneeling prevents cheating and adds core stability demand while allowing a full overhead lat stretch you can't get seated. Go light — this is a feel exercise, not a load exercise.",
   },
 
   // ─── NEW ADDITIONS — BICEPS ─────────────────────────────────────────────────
@@ -4198,7 +4198,7 @@ export const EXERCISE_DB = [
     rest: '90 sec',
     warmup: '1 light feeler set',
     description:
-      "Start with dumbbells at your sides, palms facing forward. Curl the dumbbells up with a standard supinated grip, squeezing your biceps at the top. At the top, rotate your wrists so your palms face down (pronated), then lower the dumbbells slowly with this overhand grip. Rotate back to supinated at the bottom and repeat. The supinated curl up trains the biceps; the pronated lowering phase trains the brachioradialis and forearms eccentrically. This classic strongman exercise efficiently trains both muscle groups in a single movement. Use lighter weight than your normal curls — the pronated lowering is the limiting factor.",
+      "Dumbbells at your sides, palms forward. Curl up with a standard supinated grip, squeeze at the top. Rotate wrists to palms-down (pronated), then lower slowly with that overhand grip. Rotate back to supinated at the bottom and repeat. Supinated up trains biceps; pronated down trains brachioradialis and forearms eccentrically. Use lighter than your normal curls — the pronated lowering is the limiter.",
   },
   {
     id: 'drag_curl',

@@ -1058,20 +1058,22 @@ function ExerciseCard({
                 {exercise.description ? (
                   <div
                     style={{
-                      fontSize: 12,
+                      fontSize: 14,
                       color: 'var(--text-secondary)',
-                      lineHeight: 1.6,
+                      lineHeight: 1.7,
                       marginBottom: 16,
                     }}
                   >
-                    {exercise.description}
+                    {exercise.description.split(/(?<=\.)\s+/).map((sentence: string, idx: number) => (
+                      <p key={idx} style={{ margin: '0 0 8px 0' }}>{sentence}</p>
+                    ))}
                   </div>
                 ) : (
                   <div
                     style={{
-                      fontSize: 12,
+                      fontSize: 14,
                       color: 'var(--text-muted)',
-                      lineHeight: 1.6,
+                      lineHeight: 1.7,
                       marginBottom: 16,
                     }}
                   >
