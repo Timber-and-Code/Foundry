@@ -82,16 +82,15 @@ Split ExplorePage.tsx (2,111 lines) into:
 
 ---
 
-## CRITICAL BUG: Workout Completion Broken
+## CRITICAL BUG: Workout Completion Set Count Mismatch
 
-Workouts cannot be completed. The "complete workout" button/action is missing or broken after the React+Vite migration. This means:
-- No workout completion state is saved (foundry:done:d{n}:w{n} never set)
-- Volume metrics don't fire
-- Post-workout quotes/summary don't show
-- Cardio suggestions don't appear
-- Week/meso progression doesn't advance
+The completion flow EXISTS and fires, but it thinks the user has incomplete sets even when all visible sets are done. The user gets prompted "continue or finish?" despite completing everything.
 
-Check DayView.tsx for the doComplete/handleComplete flow. Also check if WeekCompleteModal is properly wired. The completion likely broke during one of the component extractions or the React Router migration.
+**Root cause:** The `doComplete` function in DayView.tsx checks completion against `ex.sets` (the BASE set count, e.g., 4) instead of `getWeekSets(ex.sets, weekIdx, getMeso().weeks)` (the PHASE-ADJUSTED count, e.g., 3 during MEV week). So the user completes 3 sets (what's shown), but the check expects 4 (the raw base) and flags the 4th as missing.
+
+**Fix:** In DayView.tsx `doComplete` (or wherever the "all sets done?" check runs), replace `ex.sets` with `getWeekSets(ex.sets, weekIdx, getMeso().weeks)` — the same call used in the rendering logic.
+
+This is the same root cause as the Home card showing wrong set counts (Bug #5 from the UX fixes).
 
 ---
 
@@ -127,6 +126,39 @@ Need to add:
 - Visual pairing indicator in ExerciseCard (e.g., "Superset with: Cable Fly")
 - Grouped rendering in DayView so paired exercises appear together
 - Rest timer should only start after BOTH exercises in a superset are done
+
+---
+
+## WARMUP & ACTIVE EXERCISE BUGS
+
+### Warmup Protocol Showing Wrong Weight on Week 1
+The warmup guide shows "120 lbs (65%)" during Week 1 (Establish phase) when the user has NO previous weight data. The warmup is calculating percentages off a weight that hasn't been established yet.
+
+Fix in `training.ts` `generateWarmupSteps()`:
+- If weekIdx === 0 (first week) OR no previous weight data exists for this exercise, show the GENERIC warmup protocol without specific weights:
+  - Step 1: "Bar only — 10 reps — Neural activation"
+  - Step 2: "Light weight — 5 reps — Dial in bar path"
+  - Step 3: "Moderate weight — 3 reps — Approaching working weight"
+  - Step 4: "Near working weight — 1 rep — Final primer"
+- Only show specific lb calculations when there IS a previous week's weight to reference
+
+### Warmup Only Showing 1 Ramp Set Instead of Full Protocol
+The warmup guide is displaying a condensed single ramp-up set instead of the full 4-step industry protocol. This is likely because `sessionDuration` defaults to a short value and triggers the "time is tight" condensed warmup path.
+
+Check `generateWarmupSteps()` in training.ts:
+- The `isShort` flag is set when warmup string includes "time is tight"
+- The anchor exercise warmup string comes from `toEx()` in program.ts where `shortWarmup` is true when `duration <= 30`
+- If the user's session duration is 60 min, the warmup should be the FULL protocol, not condensed
+- Verify `sessionDuration` is being read correctly from the profile
+
+### Orange Border Not Migrating to Next Exercise
+The active exercise highlight (orange border on the exercise card) stays on the first exercise even after it's completed. It should move to the currently active/expanded exercise.
+
+In DayView.tsx or ExerciseCard.tsx:
+- grep for the orange border style (`border.*orange\|border.*E8651A\|border.*accent\|activeBorder`)
+- The border is likely tied to `exIdx === 0` (hardcoded to first exercise) instead of tracking which exercise is currently expanded/active
+- Change it to track `expandedIdx` or the first incomplete exercise index
+- When an exercise is completed (all sets done), the border should move to the next incomplete exercise
 
 ---
 

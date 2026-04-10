@@ -54,7 +54,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
   );
 
   // Goal-based rep range suggestions
-  // Compounds: strength=3-6, hypertrophy=6-10, lose_fat=8-12, fitness=8-15
+  // Compounds: strength=4-6, hypertrophy=6-10, lose_fat=8-12, fitness=8-15
   // Isolations: strength=6-10, hypertrophy=10-15, lose_fat=12-18, fitness=12-20
   const goalId = profile?.goal || '';
   const isStrength = goalId === 'build_strength';
@@ -65,7 +65,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
     goalId === 'sport_conditioning';
   function goalReps(e: DbExercise): string {
     const isCompound = ['push', 'pull', 'squat', 'hinge'].includes(e.pattern ?? '');
-    if (isStrength) return isCompound ? '3-6' : '6-10';
+    if (isStrength) return isCompound ? '4-6' : '6-10';
     if (isLoseFat) return isCompound ? '8-12' : '12-18';
     if (isFitness) return isCompound ? '8-15' : '12-20';
     // build_muscle — pure hypertrophy ranges

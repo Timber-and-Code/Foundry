@@ -173,14 +173,14 @@ describe('generateProgram — experience level filtering', () => {
 // Goal-based rep ranges
 // ============================================================================
 describe('generateProgram — goal-based rep ranges', () => {
-  it('strength goal: anchor reps are in "3-6" range for compound exercises', () => {
+  it('strength goal: anchor reps are in "4-6" range for compound exercises', () => {
     const days = generateProgram(
       { ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3, goal: 'build_strength' },
       EXERCISE_DB
     );
-    // The anchor (first) exercise is a compound — should get '3-6'
+    // The anchor (first) exercise is a compound — should get '4-6'
     const anchor = days[0].exercises[0];
-    expect(anchor.reps).toBe('3-6');
+    expect(anchor.reps).toBe('4-6');
   });
 
   it('build_muscle goal: compound anchor reps are "6-10"', () => {

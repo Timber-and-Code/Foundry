@@ -54,9 +54,13 @@ export function getWeekSets(baseSets: number, weekIdx: number, mesoLength: numbe
 export function generateWarmupSteps(
   exercise: Exercise,
   workingWeight: number | string,
+  weekIdx?: number,
 ): WarmupStep[] | null {
   const w = parseFloat(String(workingWeight));
   const hasWeight = !isNaN(w) && w > 0;
+  const isFirstWeek = weekIdx === 0;
+  // Show generic warmup when it's Week 1 (no established weights) or no weight data
+  const showGeneric = isFirstWeek || !hasWeight;
   const equip = exercise.equipment || '';
   const isBarbell = equip === 'barbell';
   const isBW = !!exercise.bw;
@@ -70,12 +74,40 @@ export function generateWarmupSteps(
     return Math.round(lbs / increment) * increment;
   }
   function lbl(pct: number, increment: number): string {
-    if (!hasWeight) return `${pct}% of working weight`;
+    if (showGeneric) return `${pct}% of working weight`;
     const rounded = round(w * (pct / 100), increment);
     return `${rounded} lbs  (${pct}%)`;
   }
 
   if (isBW) return null;
+
+  // Generic warmup for Week 1 or when no previous weight data exists
+  if (showGeneric && (isFullProtocol || (isBarbell && !isShort && !isFeeler && !isLightFeeler))) {
+    return [
+      {
+        label: 'Bar only',
+        reps: '10 reps',
+        detail:
+          'Neural activation. Groove the pattern, set foot position, brace practice.',
+      },
+      {
+        label: 'Light weight',
+        reps: '5 reps',
+        detail: 'Dial in bar path. If anything feels off, fix it here.',
+      },
+      {
+        label: 'Moderate weight',
+        reps: '3 reps',
+        detail: 'Approaching working weight. Full intent on each rep. Brace hard.',
+      },
+      {
+        label: 'Near working weight',
+        reps: '1 rep',
+        detail:
+          'Final primer. Should feel heavy but fast. Rest 2–3 min after this before your first working set.',
+      },
+    ];
+  }
 
   // Barbell full protocol (4 steps)
   if (isBarbell && isFullProtocol && !isShort) {
@@ -107,6 +139,20 @@ export function generateWarmupSteps(
 
   // Barbell short ramp (2 steps, time-limited)
   if (isBarbell && isShort) {
+    if (showGeneric) {
+      return [
+        {
+          label: 'Light weight',
+          reps: '5 reps',
+          detail: 'Crisp technique, full range of motion. Get blood moving and the pattern dialed.',
+        },
+        {
+          label: 'Near working weight',
+          reps: '2 reps',
+          detail: 'Close to working weight. Final primer. Rest 90 seconds then go.',
+        },
+      ];
+    }
     return [
       {
         label: lbl(60, 5),

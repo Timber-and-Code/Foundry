@@ -641,8 +641,28 @@ function DayView({
       dialogShownRef.current.add(exIdx);
       const ex = exercises[exIdx];
       setDialog({ exIdx, exName: ex?.name, restStr: ex?.rest, isLastSet: true });
+
+      // Mark exercise done when all sets are confirmed
+      const exData = weekData[exIdx] || {};
+      const totalSets = Number(ex?.sets ?? 0);
+      let allConfirmed = totalSets > 0;
+      for (let s = 0; s < totalSets; s++) {
+        const sd = (exData as unknown as Record<string, Record<string, unknown>>)[s] || {};
+        if (!sd.confirmed) {
+          allConfirmed = false;
+          break;
+        }
+      }
+      if (allConfirmed) {
+        setDoneExercises((prev) => {
+          if (prev.has(exIdx)) return prev;
+          const next = new Set(prev);
+          next.add(exIdx);
+          return next;
+        });
+      }
     },
-    [doneExercises, exercises]
+    [doneExercises, exercises, weekData]
   );
 
   // handleDialogYes — reserved for dialog confirmation flow

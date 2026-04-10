@@ -346,7 +346,7 @@ function ExerciseCard({
         return parseFloat(String(w));
       }
     }
-    return 185; // Default fallback
+    return 0; // No weight data — signals generic warmup
   }, [weekData, exIdx, prevWeekRaw, exercise.sets]);
 
   return (
@@ -1193,7 +1193,7 @@ function ExerciseCard({
                     paddingLeft: 20,
                   }}
                 >
-                  {generateWarmupSteps(exercise, workingWeight)?.map((step: WarmupStep, idx: number) => (
+                  {generateWarmupSteps(exercise, workingWeight, weekIdx)?.map((step: WarmupStep, idx: number) => (
                     <li key={idx} style={{ marginBottom: 6 }}>
                       <strong>{step.label}</strong> — {step.reps}{step.detail ? `: ${step.detail}` : ''}
                     </li>
