@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
 
 // Data
@@ -305,6 +305,16 @@ function DayView({
     });
   }, [weekDay.exercises, dayIdx, weekIdx]);
   const [exercises, setExercises] = useState(resolveExercises);
+
+  // Defensive sync: if the component mounted while activeDays was empty/stale
+  // (e.g. exercise DB still lazy-loading), local `exercises` state would be
+  // stuck at []. When the upstream day populates, pick it up.
+  useEffect(() => {
+    if (exercises.length === 0 && weekDay.exercises && weekDay.exercises.length > 0) {
+      setExercises(resolveExercises());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekDay.exercises]);
 
   // Active exercise: first exercise not yet completed (for highlight)
   const activeExIdx = useMemo(() => {
@@ -635,18 +645,18 @@ function DayView({
   );
 
   const handleLastSetFilled = useCallback(
-    (exIdx: number, _setIdx: number) => {
-      // Don't fire if already done or already shown since last edit
-      if (doneExercises.has(exIdx) || dialogShownRef.current.has(exIdx)) return;
-      dialogShownRef.current.add(exIdx);
+    (exIdx: number, setIdx: number) => {
       const ex = exercises[exIdx];
-      setDialog({ exIdx, exName: ex?.name, restStr: ex?.rest, isLastSet: true });
 
-      // Mark exercise done when all sets are confirmed
+      // Mark exercise done when all sets are confirmed.
+      // weekData in closure is stale for the set just confirmed
+      // (handleUpdateSet's setWeekData is still queued), so trust setIdx
+      // as confirmed and verify only the other sets.
       const exData = weekData[exIdx] || {};
       const totalSets = Number(ex?.sets ?? 0);
       let allConfirmed = totalSets > 0;
       for (let s = 0; s < totalSets; s++) {
+        if (s === setIdx) continue;
         const sd = (exData as unknown as Record<string, Record<string, unknown>>)[s] || {};
         if (!sd.confirmed) {
           allConfirmed = false;
@@ -661,6 +671,11 @@ function DayView({
           return next;
         });
       }
+
+      // Don't fire if already done or already shown since last edit
+      if (doneExercises.has(exIdx) || dialogShownRef.current.has(exIdx)) return;
+      dialogShownRef.current.add(exIdx);
+      setDialog({ exIdx, exName: ex?.name, restStr: ex?.rest, isLastSet: true });
     },
     [doneExercises, exercises, weekData]
   );

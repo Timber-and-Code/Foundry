@@ -16,7 +16,7 @@ interface AnchorGain {
   peakWeek: number;
 }
 import { getMeso, resetMesoCache } from '../data/constants';
-import { getExerciseDB, findExercise } from '../data/exerciseDB';
+import { getExerciseDB, findExercise, useExerciseDB } from '../data/exerciseDB';
 import {
   store,
   loadProfile,
@@ -51,16 +51,29 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
     return unsub;
   }, []);
 
+  // Subscribe to DB readiness so activeDays recomputes once exercises load.
+  const exerciseDB = useExerciseDB();
+
   const activeDays = useMemo(() => {
     if (!profile) return [];
     const stored = store.get('foundry:storedProgram');
-    const base = stored
-      ? JSON.parse(stored)
-      : (() => {
-          const result = generateProgram(profile, getExerciseDB() as any);
-          store.set('foundry:storedProgram', JSON.stringify(result));
-          return result;
-        })();
+    const storedParsed = stored ? JSON.parse(stored) : null;
+    // Detect a "poisoned" stored program: one generated before the exercise
+    // DB finished lazy-loading, so every day has an empty exercises array.
+    const storedIsPoisoned =
+      Array.isArray(storedParsed) &&
+      storedParsed.length > 0 &&
+      storedParsed.every((d: TrainingDay) => !d.exercises || d.exercises.length === 0);
+    let base;
+    if (storedParsed && !storedIsPoisoned) {
+      base = storedParsed;
+    } else {
+      // Don't generate (or cache) until the DB is actually loaded, otherwise
+      // we'd just re-poison the storedProgram key.
+      if (exerciseDB.length === 0) return [];
+      base = generateProgram(profile, exerciseDB as any);
+      store.set('foundry:storedProgram', JSON.stringify(base));
+    }
     const days = base.slice(0, getMeso().days);
     const added = profile.addedDayExercises || {};
     return days.map((day: TrainingDay, dayIdx: number) => {
@@ -89,7 +102,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
         }));
       return { ...day, exercises: [...day.exercises, ...extraExs] };
     });
-  }, [profile]);
+  }, [profile, exerciseDB]);
 
   const activeWeek = (() => {
     for (let w = 0; w < getMeso().weeks; w++) {

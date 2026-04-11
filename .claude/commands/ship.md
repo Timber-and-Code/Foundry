@@ -1,0 +1,1 @@
+Review all staged and unstaged changes in the current repository. Write a concise, descriptive commit message in present tense that summarizes what changed (e.g. "Fix active exercise highlight advancing on completion" or "Add rest timer phase color sync"). Stage all changes, commit with that message, and push to origin main. Confirm when done.
