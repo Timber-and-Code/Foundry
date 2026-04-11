@@ -294,25 +294,14 @@ describe('DayView', () => {
     expect(Number(stored)).toBeGreaterThan(0);
   });
 
-  it('shows "End Early" button when workout is started', () => {
+  it('does not render the removed "End Early" header button', () => {
     mocks.store.get.mockImplementation((key: string) => {
       if (key === 'foundry:sessionStart:d0:w0') return String(Date.now() - 60000);
       return null;
     });
 
     render(<DayView {...defaultProps()} />);
-    const endEarlyBtn = screen.getByRole('button', { name: /end workout early/i });
-    expect(endEarlyBtn).toBeInTheDocument();
-  });
-
-  it('End Early button has correct styling and label', () => {
-    mocks.store.get.mockImplementation((key: string) => {
-      if (key === 'foundry:sessionStart:d0:w0') return String(Date.now() - 60000);
-      return null;
-    });
-
-    render(<DayView {...defaultProps()} />);
-    const btn = screen.getByRole('button', { name: /end workout early/i });
-    expect(btn).toHaveTextContent('End Early');
+    // End Early was removed — only "Complete Workout" should end a session.
+    expect(screen.queryByRole('button', { name: /end workout early/i })).toBeNull();
   });
 });

@@ -218,8 +218,18 @@ function ExerciseCard({
     const setData = (weekData[exIdx] || {})[s] || { weight: '', reps: '' };
     // Only allow check if reps are entered
     if (!setData.reps || setData.reps === '') return;
-    // Open RPE prompt — user picks Easy/Good/Hard, then set is confirmed
-    setRpePrompt(s);
+    const totalSets = Number(exercise.sets) || 0;
+    const isLastSet = s === totalSets - 1;
+    if (isLastSet) {
+      // Open RPE prompt only on the final set — user picks Easy/Good/Hard
+      setRpePrompt(s);
+      return;
+    }
+    // Non-final set: confirm directly, no RPE prompt
+    onUpdateSet(exIdx, s, 'confirmed', true);
+    setDoneSets((prev) => new Set([...prev, s]));
+    onLastSetFilled(exIdx, s);
+    onSetLogged(exercise.rest || '2 min', exercise.name, s, false);
   };
 
   const handleRpeSelect = (s: number, rpeLabel: string) => {

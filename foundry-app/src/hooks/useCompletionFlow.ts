@@ -15,7 +15,6 @@ interface UseCompletionFlowArgs {
   weekData: Record<string | number, Record<string | number, WorkoutSet>>;
   exNotes: Record<string | number, string>;
   notes: string;
-  doneExercises: Set<number>;
   dayIdx: number;
   weekIdx: number;
   sessionStartRef: React.RefObject<number | null>;
@@ -27,7 +26,6 @@ export function useCompletionFlow({
   weekData,
   exNotes,
   notes,
-  doneExercises,
   dayIdx,
   weekIdx,
   sessionStartRef,
@@ -166,7 +164,19 @@ export function useCompletionFlow({
   };
 
   const handleComplete = () => {
-    const allExDone = doneExercises.size === exercises.length;
+    // Trust weekData as the source of truth, not `doneExercises` — the latter
+    // is populated by `handleLastSetFilled` which can lag or miss updates
+    // (stale closure on the just-confirmed set, un-done+reconfirm flows, etc).
+    // An exercise counts as done if every set slot in weekData is confirmed.
+    const allExDone = exercises.every((ex, i) => {
+      const totalSets = Number(ex?.sets ?? 0);
+      if (totalSets <= 0) return true;
+      const exData = (weekData[i] || {}) as Record<string, WorkoutSet>;
+      for (let s = 0; s < totalSets; s++) {
+        if (!exData[s]?.confirmed) return false;
+      }
+      return true;
+    });
     if (!allExDone) {
       setShowUnfinishedPrompt(true);
       return;
