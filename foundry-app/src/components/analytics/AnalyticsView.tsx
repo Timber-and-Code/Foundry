@@ -86,6 +86,7 @@ function SectionHeader({ title }: { title: string }) {
 function StrengthChart({ chart }: { chart: AnchorChartData }) {
   const phases = getWeekPhase();
   const phaseColors: Record<string, string> = {
+    Establish: 'rgba(122,114,105,0.08)',
     Accumulation: 'rgba(232,228,220,0.06)',
     Intensification: 'rgba(232,101,26,0.08)',
     Peak: 'rgba(212,152,60,0.08)',
