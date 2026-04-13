@@ -23,6 +23,7 @@ import {
   saveExOverride,
   bwPromptShownThisWeek,
   getWeekSets,
+  getWorkoutDaysForWeek,
 } from '../../utils/store';
 import {
   syncExerciseSwapRemote,
@@ -40,6 +41,7 @@ import { useCompletionFlow } from '../../hooks/useCompletionFlow';
 import ExerciseCard from './ExerciseCard';
 import FriendsStrip from '../social/FriendsStrip';
 import FriendWorkoutModal from '../social/FriendWorkoutModal';
+import WorkoutSplash from './WorkoutSplash';
 import WorkoutCompleteModal from './WorkoutCompleteModal';
 import CardioPromptModal from './CardioPromptModal';
 import UnfinishedPromptModal from './UnfinishedPromptModal';
@@ -218,6 +220,43 @@ function DayView({
     const alreadyStarted = !!store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
     return !freshDone && !isLocked && !alreadyStarted;
   });
+
+  // Splash: auto-fires when this day is today's scheduled session OR the most
+  // overdue incomplete scheduled session (a "behind" day). First entry only —
+  // once dismissed it won't re-appear for this (day, week) pair.
+  const [showSplash, setShowSplash] = useState(() => {
+    if (isLocked) return false;
+    const freshDone = store.get(`foundry:done:d${dayIdx}:w${weekIdx}`) === '1';
+    if (freshDone) return false;
+    const alreadyStarted = !!store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
+    if (alreadyStarted) return false;
+    if (store.get(`foundry:splash-seen:d${dayIdx}:w${weekIdx}`) === '1') return false;
+    // Find earliest scheduled session on or before today that is NOT completed.
+    const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;
+    if (!startDate || activeDays.length === 0) return false;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const total = (getMeso().weeks + 1) * activeDays.length;
+    const cursor = new Date(startDate);
+    let count = 0;
+    for (let d = 0; d < 400 && count < total; d++) {
+      const wk = Math.floor(count / activeDays.length);
+      if (getWorkoutDaysForWeek(profile, wk).includes(cursor.getDay())) {
+        const di = count % activeDays.length;
+        const cursorStr = cursor.toISOString().slice(0, 10);
+        if (cursorStr > todayStr) return false;
+        if (!completedDays.has(`${di}:${wk}`)) {
+          return di === dayIdx && wk === weekIdx;
+        }
+        count++;
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return false;
+  });
+  const dismissSplash = () => {
+    store.set(`foundry:splash-seen:d${dayIdx}:w${weekIdx}`, '1');
+    setShowSplash(false);
+  };
   // warmupOpen, readinessBannerDismissed — reserved for warmup/readiness UI
 
   // Readiness check-in state — reserved for in-workout readiness flow
@@ -815,6 +854,26 @@ function DayView({
     }, 1500);
     return () => clearTimeout(timer);
   }, [weekData, exercises, workoutStarted, isDone, isLocked, showNoteReview, showWorkoutModal, dismissRestTimer, setShowNoteReview]);
+
+  if (!workoutStarted && showSplash) {
+    return (
+      <WorkoutSplash
+        dayName={day.name || `Day ${dayIdx + 1}`}
+        dayIdx={dayIdx}
+        weekIdx={weekIdx}
+        exercises={exercises}
+        mesoId={mesoId}
+        onStart={() => {
+          dismissSplash();
+          beginWorkout();
+        }}
+        onBack={() => {
+          dismissSplash();
+          onBack();
+        }}
+      />
+    );
+  }
 
   if (!workoutStarted) {
     return (
