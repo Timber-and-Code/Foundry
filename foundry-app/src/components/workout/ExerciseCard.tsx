@@ -70,6 +70,7 @@ interface ExerciseCardProps {
   note: string;
   onNoteChange: (exIdx: number, value: string) => void;
   onAddSet?: (exIdx: number) => void;
+  onRemoveSet?: (exIdx: number, setIdx: number) => void;
   onMoveUp?: (exIdx: number) => void;
   onMoveDown?: (exIdx: number) => void;
   isFirst?: boolean;
@@ -97,6 +98,7 @@ function ExerciseCard({
   note,
   onNoteChange,
   onAddSet,
+  onRemoveSet,
   onMoveUp,
   onMoveDown,
   isFirst,
@@ -118,6 +120,7 @@ function ExerciseCard({
   const [showHowTo, setShowHowTo] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
   const [rpePrompt, setRpePrompt] = useState<number | null>(null);
+  const [removeSetPrompt, setRemoveSetPrompt] = useState<number | null>(null);
   const [noteOpen, _setNoteOpen] = useState(!!(note && note.trim()));
 
   // Load prev week raw data for "Last session" context hints
@@ -628,7 +631,7 @@ function ExerciseCard({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gridTemplateColumns: '1fr 1fr 1fr 28px',
                   gap: 8,
                   marginBottom: 8,
                   fontSize: 11,
@@ -640,18 +643,21 @@ function ExerciseCard({
                 <div>Weight (lbs)</div>
                 <div>Reps</div>
                 <div style={{ textAlign: 'center' }}>Done</div>
+                <div />
               </div>
               {Array.from({ length: Number(exercise.sets ?? 0) }).map((_, s) => {
                 const sd = (weekData[exIdx] || {})[s] || {};
                 const isDone = doneSets.has(s);
                 const isSuggestedWeight = !!sd.suggested;
                 const isSuggestedReps = !!sd.repsSuggested;
+                const totalSets = Number(exercise.sets ?? 0);
+                const canRemove = !isDone && !readOnly && !!onRemoveSet && totalSets > 1;
                 return (
                   <div
                     key={s}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr 1fr',
+                      gridTemplateColumns: '1fr 1fr 1fr 28px',
                       gap: 8,
                       marginBottom: 6,
                       opacity: isDone ? 0.6 : 1,
@@ -729,9 +735,128 @@ function ExerciseCard({
                     >
                       <span aria-hidden="true">{isDone ? '✓' : ''}</span>
                     </button>
+                    {canRemove ? (
+                      <button
+                        onClick={() => setRemoveSetPrompt(s)}
+                        aria-label={`Remove set ${s + 1}`}
+                        style={{
+                          width: 28,
+                          height: '100%',
+                          padding: 0,
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          fontSize: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <span aria-hidden="true">🗑</span>
+                      </button>
+                    ) : (
+                      <div aria-hidden="true" />
+                    )}
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Remove set confirmation dialog */}
+          {removeSetPrompt !== null && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 300,
+                padding: 24,
+              }}
+              onClick={() => setRemoveSetPrompt(null)}
+            >
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="remove-set-title"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.xxl,
+                  padding: '24px 20px',
+                  width: '100%',
+                  maxWidth: 320,
+                }}
+              >
+                <div
+                  id="remove-set-title"
+                  style={{ fontSize: 16, fontWeight: 800, textAlign: 'center', marginBottom: 8 }}
+                >
+                  Remove set {removeSetPrompt + 1}?
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--text-secondary)',
+                    textAlign: 'center',
+                    marginBottom: 18,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Any data you've entered for this set will be deleted.
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={() => setRemoveSetPrompt(null)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: tokens.radius.md,
+                      background: 'var(--bg-inset)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      const s = removeSetPrompt;
+                      setRemoveSetPrompt(null);
+                      setDoneSets((prev) => {
+                        const next = new Set<number>();
+                        (prev as Set<number>).forEach((d: number) => {
+                          if (d < s) next.add(d);
+                          else if (d > s) next.add(d - 1);
+                        });
+                        return next;
+                      });
+                      onRemoveSet?.(exIdx, s);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: tokens.radius.md,
+                      background: 'var(--danger, #C0392B)',
+                      border: '1px solid var(--danger, #C0392B)',
+                      color: 'white',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

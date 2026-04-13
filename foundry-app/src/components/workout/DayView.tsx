@@ -697,6 +697,40 @@ function DayView({
     [],
   );
 
+  const handleRemoveSet = useCallback(
+    (exIdx: number, setIdx: number) => {
+      setExercises((prev) => {
+        const updated = [...prev];
+        const ex = updated[exIdx];
+        if (ex) {
+          const nextCount = Math.max(1, (Number(ex.sets) || 0) - 1);
+          updated[exIdx] = { ...ex, sets: nextCount };
+        }
+        return updated;
+      });
+      setWeekData((prev) => {
+        const exData = (prev[exIdx] || {}) as unknown as Record<string, Record<string, unknown>>;
+        const removed = exData[setIdx] as Record<string, unknown> | undefined;
+        const removedId = removed?.id as string | undefined;
+        const reindexed: Record<string, Record<string, unknown>> = {};
+        Object.keys(exData)
+          .map((k) => parseInt(k, 10))
+          .sort((a, b) => a - b)
+          .forEach((k) => {
+            if (k === setIdx) return;
+            reindexed[k < setIdx ? k : k - 1] = exData[k];
+          });
+        const next = { ...prev, [exIdx]: reindexed as unknown as typeof prev[number] } as typeof prev;
+        saveDayWeek(dayIdx, weekIdx, next);
+        if (removedId) {
+          deleteWorkoutSetRemote(removedId);
+        }
+        return next;
+      });
+    },
+    [dayIdx, weekIdx],
+  );
+
   const handleMoveExercise = useCallback(
     (fromIdx: number, toIdx: number) => {
       setExercises((prev) => {
@@ -865,6 +899,7 @@ function DayView({
                   setExNotes(next);
                 }}
                 onAddSet={handleAddSet}
+                onRemoveSet={handleRemoveSet}
                 onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
                 onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
                 isFirst={i === 0}
@@ -1019,6 +1054,7 @@ function DayView({
                 setExNotes(next);
               }}
               onAddSet={handleAddSet}
+              onRemoveSet={handleRemoveSet}
               onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
               onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
               isFirst={i === 0}
