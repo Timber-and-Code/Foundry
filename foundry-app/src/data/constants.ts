@@ -4,6 +4,7 @@ import { store } from '../utils/storage';
 // ─── PHASE COLORS ────────────────────────────────────────────────────────────
 // Maps training phases to their UI accent colors
 export const PHASE_COLOR: Record<string, string> = {
+  Establish: '#7A7269',
   Accumulation: '#E8E4DC',
   Intensification: '#E8651A',
   Peak: '#D4983C',
@@ -433,7 +434,7 @@ export function buildMesoConfig(
     4: {
       rirs: ['3 RIR', '2 RIR', '1 RIR', '0-1 RIR'],
       mesoRows: [
-        [0, '3 RIR', 'Accumulation', 'Establish baseline. Leave plenty in the tank. Form focus.'],
+        [0, '3 RIR', 'Establish', 'Establish your baseline. Find a challenging but manageable working weight — no rep targets this week.'],
         [
           1,
           '2 RIR',
@@ -448,7 +449,7 @@ export function buildMesoConfig(
     6: {
       rirs: ['3 RIR', '2-3 RIR', '2 RIR', '1-2 RIR', '1 RIR', '0-1 RIR'],
       mesoRows: [
-        [0, '3 RIR', 'Accumulation', 'Establish baseline. Leave plenty in the tank. Form focus.'],
+        [0, '3 RIR', 'Establish', 'Establish your baseline. Find a challenging but manageable working weight — no rep targets this week.'],
         [1, '2-3 RIR', 'Accumulation', 'Match weights with better technique. Small adds if easy.'],
         [2, '2 RIR', 'Intensification', '+5 lbs anchors. Push closer to failure on accessories.'],
         [3, '1-2 RIR', 'Intensification', '+5 lbs anchors again. Accessories +2.5-5 lbs.'],
@@ -460,7 +461,7 @@ export function buildMesoConfig(
     8: {
       rirs: ['4 RIR', '3 RIR', '2-3 RIR', '2 RIR', '1-2 RIR', '1-2 RIR', '1 RIR', '0-1 RIR'],
       mesoRows: [
-        [0, '4 RIR', 'Accumulation', 'Establish baseline. Technique first. Build the groove.'],
+        [0, '4 RIR', 'Establish', 'Establish your baseline. Find a challenging but manageable working weight — no rep targets this week.'],
         [1, '3 RIR', 'Accumulation', 'Small weight adds. Stay far from failure.'],
         [2, '2-3 RIR', 'Accumulation', '+2.5-5 lbs. Volume is the goal this block.'],
         [
@@ -490,7 +491,7 @@ export function buildMesoConfig(
         '0 RIR',
       ],
       mesoRows: [
-        [0, '4 RIR', 'Accumulation', 'Establish baseline. Volume focus. No heroics.'],
+        [0, '4 RIR', 'Establish', 'Establish your baseline. Find a challenging but manageable working weight — no rep targets this week.'],
         [1, '3-4 RIR', 'Accumulation', 'Small adds on anchors. Build work capacity.'],
         [2, '3 RIR', 'Accumulation', '+2.5-5 lbs across the board.'],
         [3, '2-3 RIR', 'Accumulation', 'Final accumulation push. High volume.'],
@@ -519,7 +520,7 @@ export function buildMesoConfig(
         '0 RIR',
       ],
       mesoRows: [
-        [0, '4 RIR', 'Accumulation', 'Establish baseline. Long meso — patience pays off.'],
+        [0, '4 RIR', 'Establish', 'Establish your baseline. Find a challenging but manageable working weight — no rep targets this week.'],
         [1, '4 RIR', 'Accumulation', 'Refine technique. Small adds only if very easy.'],
         [2, '3 RIR', 'Accumulation', '+2.5 lbs. Build the volume base.'],
         [3, '3 RIR', 'Accumulation', '+2.5-5 lbs. Final volume block push.'],

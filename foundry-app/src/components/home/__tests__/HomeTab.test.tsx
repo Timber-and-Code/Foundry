@@ -116,7 +116,7 @@ function makeProps(overrides: Record<string, any> = {}) {
     completedDays: new Set<string>(),
     activeWeek: 0,
     displayWeek: 0,
-    phase: 'Accumulation',
+    phase: 'Establish',
     pc: '#FF6B6B',
     rir: '3 RIR',
     weekDone: 0,
