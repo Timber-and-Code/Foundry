@@ -7,6 +7,8 @@ import {
   PHASE_COLOR,
   FOUNDRY_COOLDOWN,
 } from '../../data/constants';
+import { store } from '../../utils/store';
+import FriendsStrip from '../social/FriendsStrip';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -40,6 +42,7 @@ function WorkoutCompleteModal({
   onOk,
 }: WorkoutCompleteModalProps) {
   const [cooldownOpen, setCooldownOpen] = useState(false);
+  const mesoId = store.get('foundry:active_meso_id');
 
   const phases = getWeekPhase();
   const phase = phases[weekIdx] || 'Accumulation';
@@ -407,6 +410,13 @@ function WorkoutCompleteModal({
             — {quote.author}
           </div>
         </div>
+
+        {/* Friends strip — presence of crew members on this shared meso */}
+        {mesoId && (
+          <div style={{ width: '100%' }}>
+            <FriendsStrip mesoId={mesoId} onSelectFriend={() => { /* #8: Friend Progress View */ }} />
+          </div>
+        )}
 
         {/* CTA Button */}
         <button
