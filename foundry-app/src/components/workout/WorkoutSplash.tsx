@@ -1,6 +1,7 @@
 import { tokens } from '../../styles/tokens';
 import { getMeso, getWeekPhase, PHASE_COLOR, getWeekRir } from '../../data/constants';
-import { getWeekSets } from '../../utils/store';
+import { getWeekSets, store } from '../../utils/store';
+import { findExercise } from '../../data/exerciseDB';
 import FriendsStrip from '../social/FriendsStrip';
 import type { Exercise } from '../../types';
 
@@ -16,6 +17,7 @@ interface WorkoutSplashProps {
 
 export default function WorkoutSplash({
   dayName,
+  dayIdx,
   weekIdx,
   exercises,
   mesoId,
@@ -106,7 +108,7 @@ export default function WorkoutSplash({
             letterSpacing: '0.14em',
           }}
         >
-          WEEK {weekIdx + 1} / {totalWeeks} &middot; DAY {/* dayIdx is 0-indexed */} {/* displays dayName below */}
+          WEEK {weekIdx + 1} / {totalWeeks} &middot; DAY {dayIdx + 1}
         </div>
 
         {/* Title */}
@@ -149,7 +151,65 @@ export default function WorkoutSplash({
           </div>
         )}
 
-        <div style={{ flex: 1 }} />
+        {/* Exercise overview — scrollable list of today's lifts */}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: tokens.radius.lg,
+          }}
+        >
+          {exercises.map((ex, i) => {
+            const ovId = store.get(`foundry:exov:d${dayIdx}:ex${i}`) || null;
+            const dbEx = ovId ? findExercise(ovId) : null;
+            const setCount = getWeekSets(Number(ex.sets) || 0, weekIdx, totalWeeks);
+            return (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  padding: '10px 14px',
+                  borderBottom: i < exercises.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: 'var(--text-muted)',
+                    width: 18,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {i + 1}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {dbEx ? dbEx.name : ex.name}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1 }}>
+                    {setCount} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {/* Start CTA */}
         <button
