@@ -158,6 +158,8 @@ function DayView({
   const isFutureSession = weekIdx > activeWeek;
   const isLocked = isFutureSession;
 
+  const mesoId = store.get('foundry:active_meso_id');
+
   // BW confirm modal — fires once per session per BW exercise
   const [bwConfirmed, setBwConfirmed] = React.useState(new Set());
   const [bwModal, setBwModal] = React.useState<{ exIdx: number; exName: string } | null>(null);
