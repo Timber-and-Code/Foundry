@@ -754,6 +754,34 @@ function DayView({
     elapsedSecs,
   });
 
+  // Auto-prompt: when every set across every exercise is confirmed, wait 1.5s
+  // and open the NoteReviewSheet. Re-fires if the user taps "Keep going",
+  // adds/edits more sets, and completes again (re-fire gated by autoFiredRef).
+  const autoFiredRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!workoutStarted || isDone || isLocked) return;
+    const allExDone = exercises.every((ex, i) => {
+      const totalSets = Number(ex?.sets ?? 0);
+      if (totalSets <= 0) return true;
+      const exData = (weekData[i] || {}) as Record<string, { confirmed?: boolean }>;
+      for (let s = 0; s < totalSets; s++) {
+        if (!exData[s]?.confirmed) return false;
+      }
+      return true;
+    });
+    if (!allExDone) {
+      autoFiredRef.current = false;
+      return;
+    }
+    if (autoFiredRef.current || showNoteReview || showWorkoutModal) return;
+    autoFiredRef.current = true;
+    const timer = setTimeout(() => {
+      dismissRestTimer();
+      setShowNoteReview(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [weekData, exercises, workoutStarted, isDone, isLocked, showNoteReview, showWorkoutModal, dismissRestTimer, setShowNoteReview]);
+
   if (!workoutStarted) {
     return (
       <div
@@ -1243,6 +1271,9 @@ function DayView({
           onFinish={() => {
             setShowNoteReview(false);
             doCompleteWithStats();
+          }}
+          onKeepGoing={() => {
+            setShowNoteReview(false);
           }}
         />
       )}

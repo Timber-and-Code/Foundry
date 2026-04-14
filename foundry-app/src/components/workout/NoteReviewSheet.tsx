@@ -4,9 +4,10 @@ interface NoteReviewSheetProps {
   note: string;
   onChange: (val: string) => void;
   onFinish: () => void;
+  onKeepGoing?: () => void;
 }
 
-function NoteReviewSheet({ note, onChange, onFinish }: NoteReviewSheetProps) {
+function NoteReviewSheet({ note, onChange, onFinish, onKeepGoing }: NoteReviewSheetProps) {
   return (
     <div
       style={{
@@ -32,16 +33,33 @@ function NoteReviewSheet({ note, onChange, onFinish }: NoteReviewSheetProps) {
           padding: '24px 20px 36px',
         }}
       >
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 800,
-            letterSpacing: '0.12em',
-            color: 'var(--text-muted)',
-            marginBottom: 10,
-          }}
-        >
-          SESSION NOTES
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              color: 'var(--text-muted)',
+            }}
+          >
+            SESSION NOTES
+          </div>
+          {onKeepGoing && (
+            <button
+              onClick={onKeepGoing}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-accent)',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                padding: '4px 0',
+              }}
+            >
+              <span aria-hidden="true">←</span> Keep going
+            </button>
+          )}
         </div>
         <div
           id="note-review-title"
