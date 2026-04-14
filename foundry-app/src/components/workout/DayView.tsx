@@ -55,6 +55,7 @@ interface DayViewProps {
   onBack: () => void;
   onComplete: (data?: Record<string, unknown>) => void;
   onNextDay: () => void;
+  onNavigateToDay?: (dayIdx: number, weekIdx: number) => void;
   completedDays: Set<string>;
   profile: Profile;
   activeDays: TrainingDay[];
@@ -67,6 +68,7 @@ function DayView({
   onBack,
   onComplete,
   onNextDay: _onNextDay,
+  onNavigateToDay,
   completedDays,
   profile,
   activeDays,
@@ -920,6 +922,62 @@ function DayView({
           </h1>
           <div style={{ width: 72 }} aria-hidden="true" />
         </div>
+
+        {/* Future-session block: prior week incomplete */}
+        {isFutureSession && (() => {
+          const incomplete = activeDays
+            .map((d, i) => ({ d, i }))
+            .filter(({ i }) => !completedDays.has(`${i}:${activeWeek}`));
+          return (
+            <div
+              role="alert"
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--phase-intens, #E8651A)',
+                borderRadius: tokens.radius.lg,
+                padding: 20,
+                marginBottom: 20,
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+                Finish Week {activeWeek + 1} first
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 12 }}>
+                You can't start Week {weekIdx + 1} until every day in Week {activeWeek + 1} is complete.
+                {incomplete.length > 0 && ' Tap a day below to finish it:'}
+              </div>
+              {incomplete.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {incomplete.map(({ d, i }) => (
+                    <button
+                      key={i}
+                      onClick={() => onNavigateToDay?.(i, activeWeek)}
+                      disabled={!onNavigateToDay}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: tokens.radius.md,
+                        background: 'var(--bg-inset)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        textAlign: 'left',
+                        cursor: onNavigateToDay ? 'pointer' : 'default',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span>Day {i + 1} · {d.name}</span>
+                      {onNavigateToDay && <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>→</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Meso Overlay */}
         {showMesoOverlay && (

@@ -82,6 +82,10 @@ function DayViewRoute({ onComplete, handleNextDay, completedDays, profile, activ
       }}
       onComplete={() => onComplete(parseInt(dayIdx!, 10), parseInt(weekIdx!, 10))}
       onNextDay={() => handleNextDay(parseInt(dayIdx!, 10), parseInt(weekIdx!, 10))}
+      onNavigateToDay={(d, w) => {
+        window.scrollTo(0, 0);
+        navigate(`/day/${d}/${w}`);
+      }}
       completedDays={completedDays}
       profile={profile}
       activeDays={activeDays}
