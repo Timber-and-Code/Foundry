@@ -28,10 +28,6 @@ export default function WorkoutSplash({
   const phaseColor = PHASE_COLOR[phase] || '#E8E4DC';
   const rir = getWeekRir()[weekIdx] || '';
   const totalWeeks = getMeso().weeks;
-  const totalSets = exercises.reduce(
-    (acc, ex) => acc + getWeekSets(Number(ex.sets ?? 0), weekIdx, totalWeeks),
-    0,
-  );
 
   return (
     <div
@@ -108,7 +104,7 @@ export default function WorkoutSplash({
             letterSpacing: '0.14em',
           }}
         >
-          WEEK {weekIdx + 1} / {totalWeeks} &middot; DAY {dayIdx + 1}
+          WEEK {weekIdx + 1} / {totalWeeks} &middot; DAY {/* dayIdx is 0-indexed */} {/* displays dayName below */}
         </div>
 
         {/* Title */}
@@ -127,22 +123,41 @@ export default function WorkoutSplash({
           </div>
         </div>
 
-        {/* Stat grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 8,
-            padding: '14px 12px',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg,
-          }}
-        >
-          <Stat label="EXERCISES" value={String(exercises.length)} />
-          <Stat label="SETS" value={String(totalSets)} />
-          <Stat label="TARGET" value={rir || '—'} />
-        </div>
+        {/* Target RIR chip */}
+        {rir && (
+          <div
+            style={{
+              alignSelf: 'flex-start',
+              display: 'inline-flex',
+              alignItems: 'baseline',
+              gap: 8,
+              padding: '8px 14px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.pill,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                color: 'var(--text-muted)',
+              }}
+            >
+              TARGET
+            </span>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+              }}
+            >
+              {rir}
+            </span>
+          </div>
+        )}
 
         {/* Friends strip if shared meso */}
         {mesoId && (
@@ -247,21 +262,3 @@ export default function WorkoutSplash({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>{value}</div>
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          color: 'var(--text-muted)',
-          marginTop: 2,
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
-}
