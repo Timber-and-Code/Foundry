@@ -43,10 +43,28 @@ function SwapSheet({
   return (
     <>
       <Sheet open={open} onClose={onClose}>
-        <div style={{ padding: '8px 16px 4px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-          Swap Exercise
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px 4px' }}>
+          <button
+            onClick={onClose}
+            aria-label="Go back"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-accent)',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              padding: '4px 6px',
+            }}
+          >
+            <span aria-hidden="true">←</span> Back
+          </button>
+          <div style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+            Swap Exercise
+          </div>
+          <div style={{ width: 56 }} aria-hidden="true" />
         </div>
-        <div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--text-muted)' }}>
+        <div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
           {replacingName ? `Replacing: ${replacingName}` : 'Select a replacement'}
         </div>
         <ExercisePicker

@@ -155,6 +155,27 @@ export default function ExercisePicker({
     if (autoExpandMuscle) setOpenGroup(autoExpandMuscle);
   }, [autoExpandMuscle]);
 
+  /* ── flat search results + auto-scroll anchor ─────────────────────────────── */
+  const resultsAnchorRef = useRef<HTMLDivElement>(null);
+  const flatResults: Array<ExerciseItem & { _muscle: string }> = [];
+  if (isSearching) {
+    for (const muscle of muscleOrder) {
+      const exs = filteredGroups[muscle];
+      if (!exs) continue;
+      for (const ex of exs) flatResults.push({ ...ex, _muscle: muscle });
+    }
+  }
+  useEffect(() => {
+    if (isSearching && resultsAnchorRef.current) {
+      resultsAnchorRef.current.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }, [q, isSearching]);
+
+  const equipmentLabel = (ex: ExerciseItem): string | null => {
+    const eq = typeof ex.equipment === 'string' ? ex.equipment : Array.isArray(ex.equipment) ? ex.equipment[0] : '';
+    return eq || null;
+  };
+
   /* ── render ───────────────────────────────────────────────────────────────── */
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -310,8 +331,74 @@ export default function ExercisePicker({
         </div>
       )}
 
+      {/* ── Scroll-to-top anchor for search ─────────────────────────────────── */}
+      <div ref={resultsAnchorRef} aria-hidden="true" />
+
+      {/* ── Flat search results ─────────────────────────────────────────────── */}
+      {isSearching && (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {flatResults.map((ex) => {
+            const isSel = selected.includes(ex.id);
+            const isAnchor = selected[0] === ex.id;
+            const eqMatch = equipmentMatch(ex);
+            const eq = equipmentLabel(ex);
+            return (
+              <button
+                key={ex.id}
+                onClick={() => onToggle(ex.id)}
+                style={{
+                  textAlign: 'left',
+                  padding: '12px 16px',
+                  background: isAnchor
+                    ? accent + '14'
+                    : isSel
+                      ? 'rgba(var(--accent-rgb),0.08)'
+                      : 'transparent',
+                  border: 'none',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 3,
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {isAnchor && <HammerIcon size={13} />}
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>{ex.name}</span>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span>{ex._muscle}</span>
+                  {eq && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>{eq}</span>
+                    </>
+                  )}
+                  {!eqMatch && eq && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                        padding: '2px 6px',
+                        borderRadius: tokens.radius.pill,
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-dim, var(--text-muted))',
+                      }}
+                    >
+                      requires {eq}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* ── Accordion muscle groups ─────────────────────────────────────────── */}
-      <div style={{ padding: '4px 0' }}>
+      {!isSearching && <div style={{ padding: '4px 0' }}>
         {muscleOrder.map((muscle) => {
           const exs = filteredGroups[muscle];
           const hidden = isSearching && !exs;
@@ -432,8 +519,10 @@ export default function ExercisePicker({
             </div>
           );
         })}
+      </div>}
 
-        {isSearching && visibleMuscles.length === 0 && (
+      {isSearching && (<>
+        {visibleMuscles.length === 0 && (
           <div
             style={{
               padding: '24px 16px',
@@ -468,7 +557,7 @@ export default function ExercisePicker({
         )}
 
         {/* Always show custom exercise option at bottom when searching with results */}
-        {isSearching && visibleMuscles.length > 0 && onCustomExercise && search.trim().length >= 2 && (
+        {visibleMuscles.length > 0 && onCustomExercise && search.trim().length >= 2 && (
           <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-subtle)' }}>
             <button
               onClick={() => {
@@ -491,7 +580,7 @@ export default function ExercisePicker({
             </button>
           </div>
         )}
-      </div>
+      </>)}
     </div>
   );
 }
