@@ -80,7 +80,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
       >
         <div
           style={{
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: 700,
             letterSpacing: '0.12em',
             color: 'var(--phase-intens)',
@@ -91,7 +91,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
         </div>
         <div
           style={{
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: 900,
             color: 'var(--text-primary)',
             letterSpacing: '-0.01em',
@@ -103,7 +103,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
         </div>
         <div
           style={{
-            fontSize: 13,
+            fontSize: 15,
             color: 'var(--text-secondary)',
             lineHeight: 1.7,
           }}
@@ -125,7 +125,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
       >
         <div
           style={{
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: 700,
             letterSpacing: '0.08em',
             color: 'var(--accent)',
@@ -136,7 +136,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
         </div>
         <div
           style={{
-            fontSize: 12,
+            fontSize: 14,
             color: 'var(--text-secondary)',
             lineHeight: 1.7,
             marginBottom: 12,
@@ -154,7 +154,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             border: '1px solid rgba(var(--accent-rgb),0.35)',
             borderRadius: tokens.radius.sm,
             padding: '7px 14px',
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: 700,
             color: 'var(--accent)',
             cursor: 'pointer',
@@ -204,7 +204,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             </div>
             <div
               style={{
-                fontSize: 13,
+                fontSize: 16,
                 fontWeight: 800,
                 color: 'var(--text-primary)',
                 marginBottom: 4,
@@ -214,7 +214,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             </div>
             <div
               style={{
-                fontSize: 12,
+                fontSize: 14,
                 color: 'var(--text-secondary)',
                 lineHeight: 1.5,
               }}
@@ -252,7 +252,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             </div>
             <div
               style={{
-                fontSize: 13,
+                fontSize: 16,
                 fontWeight: 800,
                 color: 'var(--text-primary)',
                 marginBottom: 4,
@@ -262,7 +262,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             </div>
             <div
               style={{
-                fontSize: 12,
+                fontSize: 14,
                 color: 'var(--text-secondary)',
                 lineHeight: 1.5,
               }}
@@ -277,7 +277,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
       <div style={{ padding: '0 16px 16px' }}>
         <div
           style={{
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: 700,
             letterSpacing: '0.08em',
             color: 'var(--text-muted)',
@@ -300,7 +300,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
             >
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 16,
                   fontWeight: 700,
                   color: 'var(--text-primary)',
                   marginBottom: 4,
@@ -310,7 +310,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
               </div>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   color: 'var(--text-secondary)',
                   lineHeight: 1.55,
                 }}

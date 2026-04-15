@@ -63,7 +63,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
       >
         <div
           style={{
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: 700,
             color: 'var(--text-primary)',
             marginBottom: 10,
@@ -84,7 +84,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                   flexShrink: 0,
                 }}
               />
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</span>
+              <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{label}</span>
             </div>
           ))}
         </div>
@@ -117,7 +117,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
               >
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 700,
                     color: 'var(--text-primary)',
                     flex: 1,
@@ -128,7 +128,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                 </div>
                 <div
                   style={{
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: 800,
                     color: status.color,
                     minWidth: 20,
@@ -140,7 +140,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                 </div>
                 <div
                   style={{
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 700,
                     letterSpacing: '0.03em',
                     color: status.color,
@@ -240,7 +240,7 @@ function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<st
                     position: 'absolute',
                     left: `${optMid}%`,
                     transform: 'translateX(-50%)',
-                    fontSize: 12,
+                    fontSize: 14,
                     color: lblOpt,
                     fontWeight: 700,
                     whiteSpace: 'nowrap',
@@ -307,10 +307,10 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: 22, fontWeight: 900, color }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 900, color }}>{value}</div>
       <div
         style={{
-          fontSize: 12,
+          fontSize: 14,
           color: 'var(--text-secondary)',
           marginTop: 4,
           fontWeight: 600,
@@ -397,7 +397,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         >
           <div
             style={{
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: 800,
               letterSpacing: '0.06em',
               color: 'var(--text-muted)',
@@ -409,7 +409,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             {trend !== null && (
               <span
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: 700,
                   color:
                     trend < 0
@@ -425,14 +425,14 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             )}
             <span
               style={{
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: 900,
                 color: 'var(--text-primary)',
               }}
             >
               {latest.weight}
             </span>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lbs</span>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>lbs</span>
           </div>
         </div>
         <div style={{ padding: '10px 16px 0' }}>
@@ -494,10 +494,10 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                   marginTop: 3,
                 }}
               >
-                <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
                   {bwLog[0]?.date?.slice(5)}
                 </span>
-                <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
                   {latest.date?.slice(5)}
                 </span>
               </div>
@@ -506,7 +506,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             <div
               style={{
                 padding: '6px 0 10px',
-                fontSize: 12,
+                fontSize: 14,
                 color: 'var(--text-muted)',
               }}
             >
@@ -525,7 +525,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         >
           <div
             style={{
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: 700,
               color: 'var(--text-muted)',
               letterSpacing: '0.03em',
@@ -560,7 +560,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                   border: '1px solid var(--accent)',
                   borderRadius: tokens.radius.md,
                   padding: '5px 8px',
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 700,
                   color: 'var(--accent)',
                   outline: 'none',
@@ -574,7 +574,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               <button
                 onClick={saveGoal}
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: 800,
                   color: 'var(--phase-accum)',
                   background: 'none',
@@ -588,7 +588,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               <button
                 onClick={() => setEditingGoal(false)}
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   color: 'var(--text-muted)',
                   background: 'none',
                   border: 'none',
@@ -606,7 +606,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                 setEditingGoal(true);
               }}
               style={{
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 700,
                 color: 'var(--accent)',
                 background: 'none',
@@ -629,7 +629,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             border: 'none',
             borderTop: '1px solid var(--border-subtle)',
             color: 'var(--text-muted)',
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: 700,
             letterSpacing: '0.04em',
             cursor: 'pointer',
@@ -642,7 +642,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           <span>
             HISTORY ({bwLog.length} {bwLog.length === 1 ? 'entry' : 'entries'})
           </span>
-          <span style={{ fontSize: 13 }}>{showHistory ? '▲' : '▼'}</span>
+          <span style={{ fontSize: 14 }}>{showHistory ? '▲' : '▼'}</span>
         </button>
         {showHistory && (
           <div
@@ -670,7 +670,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                   <div>
                     <span
                       style={{
-                        fontSize: 12,
+                        fontSize: 14,
                         fontWeight: 700,
                         color: i === 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
                       }}
@@ -680,7 +680,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                     {i === 0 && (
                       <span
                         style={{
-                          fontSize: 12,
+                          fontSize: 14,
                           fontWeight: 800,
                           letterSpacing: '0.07em',
                           color: 'var(--accent)',
@@ -695,7 +695,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                     {delta !== null && (
                       <span
                         style={{
-                          fontSize: 12,
+                          fontSize: 14,
                           fontWeight: 700,
                           color:
                             delta < 0
@@ -718,7 +718,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                     >
                       {entry.weight}
                     </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lbs</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>lbs</span>
                   </div>
                 </div>
               );
@@ -752,7 +752,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         >
           <div
             style={{
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: 800,
               letterSpacing: '0.06em',
               color: 'var(--text-muted)',
@@ -765,7 +765,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               <>
                 <span
                   style={{
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: 900,
                     color: 'var(--text-primary)',
                   }}
@@ -774,7 +774,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                 </span>
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 14,
                     color: 'var(--text-muted)',
                     marginLeft: 3,
                   }}
@@ -856,7 +856,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             border: 'none',
             cursor: 'pointer',
             color: 'var(--accent)',
-            fontSize: 20,
+            fontSize: 22,
             lineHeight: 1,
             padding: '2px 4px',
             display: 'flex',
@@ -870,14 +870,14 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         </button>
         <span
           style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: '0.05em',
-            color: 'var(--text-secondary)',
+            fontSize: 24,
+            fontWeight: 800,
+            letterSpacing: '-0.01em',
+            color: 'var(--text-primary)',
             flex: 1,
           }}
         >
-          PROGRESS
+          Progress
         </span>
       </div>
 
@@ -886,7 +886,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         <div style={{ marginBottom: 16, marginTop: 16 }}>
           <div
             style={{
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: 700,
               letterSpacing: '0.04em',
               color: 'var(--accent)',
@@ -942,7 +942,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             <div style={{ marginBottom: 16 }}>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: 700,
                   letterSpacing: '0.04em',
                   color: 'var(--accent)',
@@ -984,7 +984,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                         >
                           <span
                             style={{
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: 700,
                               color: 'var(--text-primary)',
                             }}
@@ -994,7 +994,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                           {a.isPR && (
                             <span
                               style={{
-                                fontSize: 12,
+                                fontSize: 14,
                                 fontWeight: 800,
                                 color: '#c9a227',
                                 background: '#c9a22722',
@@ -1010,7 +1010,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                           {a.isStalling && !a.isPR && (
                             <span
                               style={{
-                                fontSize: 12,
+                                fontSize: 14,
                                 fontWeight: 800,
                                 color: '#f87171',
                                 background: '#f8717122',
@@ -1025,7 +1025,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                           )}
                         </div>
                         <div style={{ display: 'flex', gap: 10 }}>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                             75%{' '}
                             <span
                               style={{
@@ -1036,7 +1036,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                               {a.load75} lbs
                             </span>
                           </span>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                             85%{' '}
                             <span
                               style={{
@@ -1051,7 +1051,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                         {a.isStalling && !a.isPR && (
                           <div
                             style={{
-                              fontSize: 12,
+                              fontSize: 14,
                               color: '#f87171',
                               marginTop: 5,
                               lineHeight: 1.4,
@@ -1064,7 +1064,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <div
                           style={{
-                            fontSize: 22,
+                            fontSize: 24,
                             fontWeight: 900,
                             color: a.isPR ? '#c9a227' : a.isStalling ? '#f87171' : ac,
                             letterSpacing: '-0.02em',
@@ -1075,7 +1075,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                         </div>
                         <div
                           style={{
-                            fontSize: 12,
+                            fontSize: 14,
                             color: 'var(--text-muted)',
                             marginTop: 2,
                           }}
@@ -1089,7 +1089,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               </div>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   color: 'var(--text-dim)',
                   marginTop: 6,
                   paddingLeft: 2,
@@ -1104,7 +1104,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         {/* Current weights by day */}
         <div
           style={{
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: 700,
             letterSpacing: '0.04em',
             color: 'var(--accent)',
@@ -1167,7 +1167,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                   style={{
                     background: accent + '22',
                     color: accent,
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 700,
                     padding: '4px 8px',
                     borderRadius: tokens.radius.md,
@@ -1179,7 +1179,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                 </span>
                 <span
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 700,
                     color: 'var(--text-primary)',
                     flex: 1,
@@ -1190,7 +1190,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                 {completedDays.has(`${dayIdx}:${currentWeek}`) && (
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: 14,
                       color: 'var(--phase-accum)',
                       flexShrink: 0,
                     }}
@@ -1201,7 +1201,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                 <span
                   style={{
                     color: 'var(--text-dim)',
-                    fontSize: 20,
+                    fontSize: 22,
                     flexShrink: 0,
                     transform: isDayExpanded ? 'rotate(90deg)' : 'none',
                     transition: 'transform 0.2s',
@@ -1235,7 +1235,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                         >
                           <span
                             style={{
-                              fontSize: 13,
+                              fontSize: 14,
                               color: 'var(--text-primary)',
                               fontWeight: 600,
                             }}
@@ -1246,7 +1246,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                           {lift.muscle && (
                             <span
                               style={{
-                                fontSize: 12,
+                                fontSize: 14,
                                 color: 'var(--phase-intens)',
                                 fontWeight: 700,
                                 letterSpacing: '0.05em',
@@ -1258,7 +1258,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                         </div>
                         <span
                           style={{
-                            fontSize: 12,
+                            fontSize: 14,
                             color: 'var(--border-accent)',
                           }}
                         >
@@ -1316,12 +1316,12 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                   justifyContent: 'space-between',
                 }}
               >
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
                   Cardio History ({cardioKeys.length})
                 </span>
                 <span style={{
                   color: 'var(--text-dim)',
-                  fontSize: 20,
+                  fontSize: 22,
                   transform: showCardioHistory ? 'rotate(90deg)' : 'none',
                   transition: 'transform 0.2s',
                 }}>
@@ -1348,14 +1348,14 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                           {date}
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
                           {session.type || 'Cardio'}{session.intensity ? ` · ${session.intensity}` : ''}
                         </div>
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: tokens.colors.gold, textAlign: 'right' }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: tokens.colors.gold, textAlign: 'right' }}>
                         {session.duration ? `${session.duration} min` : '—'}
                       </div>
                     </div>
@@ -1378,7 +1378,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               background: 'var(--bg-card)',
               border: '1px solid var(--accent)',
               color: 'var(--accent)',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 700,
               textAlign: 'center',
             }}
@@ -1395,7 +1395,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
               color: 'var(--text-secondary)',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 700,
               textAlign: 'center',
             }}
