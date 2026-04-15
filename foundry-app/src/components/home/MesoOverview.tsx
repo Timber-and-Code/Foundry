@@ -1,7 +1,7 @@
 import React from 'react';
 import { loadArchive, store } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
-import { getMeso, getWeekPhase, getMesoRows, getProgTargets, PHASE_COLOR } from '../../data/constants';
+import { getMeso, getMesoRows, getProgTargets, PHASE_COLOR } from '../../data/constants';
 import type { Profile, TrainingDay } from '../../types';
 
 interface MesoOverviewProps {
@@ -65,7 +65,6 @@ function SubHeader({ label, goBack }: { label: string; goBack: () => void }) {
 
 function MesoOverviewContent() {
   const meso = getMeso();
-  const phases = getWeekPhase();
   const mesoRows = getMesoRows();
   const progTargets = getProgTargets();
   const currentWeek = parseInt(store.get('foundry:currentWeek') || '0');
@@ -76,21 +75,6 @@ function MesoOverviewContent() {
     full_body: 'Full Body',
     push_pull: 'Push / Pull',
   };
-
-  // Group weeks by phase for the phase summary
-  const phaseGroups: { phase: string; weeks: number[]; color: string }[] = [];
-  phases.forEach((phase, idx) => {
-    const last = phaseGroups[phaseGroups.length - 1];
-    if (last && last.phase === phase) {
-      last.weeks.push(idx);
-    } else {
-      phaseGroups.push({
-        phase,
-        weeks: [idx],
-        color: (PHASE_COLOR as Record<string, string>)[phase] || 'var(--accent)',
-      });
-    }
-  });
 
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -125,52 +109,6 @@ function MesoOverviewContent() {
               {meso.days}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Phase progression bar */}
-      <div
-        style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: tokens.radius.lg,
-          padding: '16px',
-        }}
-      >
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 12 }}>
-          PHASE PROGRESSION
-        </div>
-        <div style={{ display: 'flex', gap: 2, marginBottom: 12 }}>
-          {phases.map((phase, w) => {
-            const color = (PHASE_COLOR as Record<string, string>)[phase] || 'var(--accent)';
-            const isCurrent = w === currentWeek;
-            return (
-              <div
-                key={w}
-                style={{
-                  flex: 1,
-                  height: isCurrent ? 8 : 6,
-                  borderRadius: tokens.radius.xs,
-                  background: color,
-                  opacity: w <= currentWeek ? 1 : 0.3,
-                  transition: 'all 0.2s',
-                  border: isCurrent ? `1px solid ${color}` : 'none',
-                  boxShadow: isCurrent ? `0 0 6px ${color}55` : 'none',
-                }}
-                title={`Week ${w + 1} — ${phase}`}
-              />
-            );
-          })}
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {phaseGroups.map(({ phase, weeks, color }) => (
-            <div key={phase} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 8, height: 8, borderRadius: tokens.radius.xs, background: color }} />
-              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
-                {phase} <span style={{ color: 'var(--text-dim)' }}>W{weeks[0] + 1}–{weeks[weeks.length - 1] + 1}</span>
-              </span>
-            </div>
-          ))}
         </div>
       </div>
 
