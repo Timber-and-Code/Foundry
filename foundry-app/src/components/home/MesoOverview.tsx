@@ -201,8 +201,8 @@ function MesoOverviewContent() {
               style={{
                 padding: '12px 16px',
                 borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.04))',
-                background: isCurrent ? `${color}0a` : 'transparent',
-                borderLeft: isCurrent ? `3px solid ${color}` : '3px solid transparent',
+                background: isCurrent ? `${color}14` : `${color}06`,
+                borderLeft: `3px solid ${color}`,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
