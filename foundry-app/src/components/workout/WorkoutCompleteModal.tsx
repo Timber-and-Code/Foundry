@@ -382,29 +382,52 @@ function WorkoutCompleteModal({
           </div>
         )}
 
-        {/* Motivational quote */}
+        {/* Motivational quote — closing beat before the CTA */}
         <div
           style={{
-            textAlign: 'center',
-            padding: '8px 12px',
+            width: '100%',
+            position: 'relative',
+            padding: '20px 20px 20px 28px',
+            borderLeft: `3px solid ${phaseColor}`,
+            marginTop: 4,
           }}
         >
           <div
+            aria-hidden="true"
             style={{
-              fontSize: 13,
-              fontStyle: 'italic',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6,
+              position: 'absolute',
+              top: -8,
+              left: 14,
+              fontSize: 56,
+              lineHeight: 1,
+              color: phaseColor,
+              opacity: 0.35,
+              fontFamily: 'Georgia, serif',
+              pointerEvents: 'none',
             }}
           >
-            "{quote.text}"
+            &ldquo;
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              lineHeight: 1.45,
+              letterSpacing: '-0.005em',
+              position: 'relative',
+            }}
+          >
+            {quote.text}
           </div>
           <div
             style={{
               fontSize: 11,
-              color: 'var(--text-muted)',
-              marginTop: 6,
-              fontWeight: 600,
+              color: phaseColor,
+              marginTop: 12,
+              fontWeight: 800,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
             }}
           >
             — {quote.author}
