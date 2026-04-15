@@ -1,6 +1,7 @@
 import { tokens } from '../../styles/tokens';
 import { getMeso, getWeekPhase, PHASE_COLOR, getWeekRir } from '../../data/constants';
-import { getWeekSets } from '../../utils/store';
+import { getWeekSets, store } from '../../utils/store';
+import { findExercise } from '../../data/exerciseDB';
 import FriendsStrip from '../social/FriendsStrip';
 import type { Exercise } from '../../types';
 
@@ -16,6 +17,7 @@ interface WorkoutSplashProps {
 
 export default function WorkoutSplash({
   dayName,
+  dayIdx,
   weekIdx,
   exercises,
   mesoId,
@@ -26,10 +28,6 @@ export default function WorkoutSplash({
   const phaseColor = PHASE_COLOR[phase] || '#E8E4DC';
   const rir = getWeekRir()[weekIdx] || '';
   const totalWeeks = getMeso().weeks;
-  const totalSets = exercises.reduce(
-    (acc, ex) => acc + getWeekSets(Number(ex.sets ?? 0), weekIdx, totalWeeks),
-    0,
-  );
 
   return (
     <div
@@ -125,22 +123,41 @@ export default function WorkoutSplash({
           </div>
         </div>
 
-        {/* Stat grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 8,
-            padding: '14px 12px',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg,
-          }}
-        >
-          <Stat label="EXERCISES" value={String(exercises.length)} />
-          <Stat label="SETS" value={String(totalSets)} />
-          <Stat label="TARGET" value={rir || '—'} />
-        </div>
+        {/* Target RIR chip */}
+        {rir && (
+          <div
+            style={{
+              alignSelf: 'flex-start',
+              display: 'inline-flex',
+              alignItems: 'baseline',
+              gap: 8,
+              padding: '8px 14px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.pill,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                color: 'var(--text-muted)',
+              }}
+            >
+              TARGET
+            </span>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+              }}
+            >
+              {rir}
+            </span>
+          </div>
+        )}
 
         {/* Friends strip if shared meso */}
         {mesoId && (
@@ -149,7 +166,65 @@ export default function WorkoutSplash({
           </div>
         )}
 
-        <div style={{ flex: 1 }} />
+        {/* Exercise overview — scrollable list of today's lifts */}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: tokens.radius.lg,
+          }}
+        >
+          {exercises.map((ex, i) => {
+            const ovId = store.get(`foundry:exov:d${dayIdx}:ex${i}`) || null;
+            const dbEx = ovId ? findExercise(ovId) : null;
+            const setCount = getWeekSets(Number(ex.sets) || 0, weekIdx, totalWeeks);
+            return (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  padding: '10px 14px',
+                  borderBottom: i < exercises.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: 'var(--text-muted)',
+                    width: 18,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {i + 1}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {dbEx ? dbEx.name : ex.name}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1 }}>
+                    {setCount} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {/* Start CTA */}
         <button
@@ -187,21 +262,3 @@ export default function WorkoutSplash({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>{value}</div>
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          color: 'var(--text-muted)',
-          marginTop: 2,
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
-}
