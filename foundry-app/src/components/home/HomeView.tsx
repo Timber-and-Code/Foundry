@@ -778,7 +778,6 @@ function HomeView({
           displayWeek={displayWeek}
           completedDays={completedDays}
           activeDays={activeDays}
-          goBack={goBack}
           goTo={goTo}
         />
       )}
@@ -810,7 +809,6 @@ function HomeView({
           setNoteViewer={setNoteViewer}
           skipVersion={skipVersion}
           setSkipVersion={setSkipVersion}
-          goBack={goBack}
           goTo={goTo}
           onSelectDay={onSelectDay}
           onSelectDayWeek={onSelectDayWeek}
