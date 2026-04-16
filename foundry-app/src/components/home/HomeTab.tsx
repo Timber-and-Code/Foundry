@@ -52,8 +52,7 @@ function RestStateCard({
   setShowNextSession,
   activeWeek,
   goBack,
-  setCurrentWeek,
-  onSelectDay,
+  onSelectDayWeek,
 }: {
   displayWeekAllDone: boolean;
   calendarSessionDone: boolean;
@@ -71,8 +70,7 @@ function RestStateCard({
   setShowNextSession: (v: boolean | ((prev: boolean) => boolean)) => void;
   activeWeek: number;
   goBack: () => void;
-  setCurrentWeek: (v: number) => void;
-  onSelectDay: (v: number) => void;
+  onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
 }) {
   // Find last completed day's tag for mobility
   let homeMobilityTag = null;
@@ -273,7 +271,7 @@ function RestStateCard({
           {showNextSession && (
             <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
               <button
-                onClick={() => { goBack(); setCurrentWeek(activeWeek); onSelectDay(nextDayIdxForCollapse); }}
+                onClick={() => { goBack(); onSelectDayWeek(nextDayIdxForCollapse, activeWeek); }}
                 style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0' }}
               >
                 {nextDayForCollapse.exercises.map((ex: Exercise, ei: number) => {
@@ -295,7 +293,7 @@ function RestStateCard({
               </button>
               <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border-subtle)' }}>
                 <button
-                  onClick={() => { goBack(); setCurrentWeek(activeWeek); onSelectDay(nextDayIdxForCollapse); }}
+                  onClick={() => { goBack(); onSelectDayWeek(nextDayIdxForCollapse, activeWeek); }}
                   style={{
                     width: '100%', padding: '10px', borderRadius: tokens.radius.md, cursor: 'pointer',
                     background: 'var(--btn-primary-bg)', border: '1px solid var(--btn-primary-border)',
@@ -344,9 +342,7 @@ interface HomeTabProps {
   setShowMorningMobility: (v: boolean | ((prev: boolean) => boolean)) => void;
   goTo: (v: string) => void;
   goBack: () => void;
-  onSelectDay: (v: number) => void;
   onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
-  setCurrentWeek: (v: number) => void;
   setShowSkipConfirm: (v: { dayIdx: number; weekIdx: number } | null) => void;
   onOpenCardio: (dateStr: string, protocol: string | null) => void;
   onOpenMobility: (v: string) => void;
@@ -382,9 +378,7 @@ function HomeTab({
   setShowMorningMobility,
   goTo,
   goBack,
-  onSelectDay,
   onSelectDayWeek,
-  setCurrentWeek,
   setShowSkipConfirm,
   onOpenCardio,
   onOpenMobility,
@@ -617,8 +611,7 @@ function HomeTab({
           setShowNextSession={setShowNextSession}
           activeWeek={activeWeek}
           goBack={goBack}
-          setCurrentWeek={setCurrentWeek}
-          onSelectDay={onSelectDay}
+          onSelectDayWeek={onSelectDayWeek}
         />
       ) : (
         <div
@@ -633,7 +626,7 @@ function HomeTab({
           }}
         >
           <button
-            onClick={(e) => { e.stopPropagation(); goBack(); setCurrentWeek(showDayWeek); onSelectDay(showDayIdx); }}
+            onClick={(e) => { e.stopPropagation(); goBack(); onSelectDayWeek(showDayIdx, showDayWeek); }}
             style={{
               width: '100%', background: `linear-gradient(135deg, ${showDayAccent}0d 0%, transparent 100%)`,
               border: 'none', cursor: 'pointer', padding: '14px 16px',
