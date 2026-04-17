@@ -1118,7 +1118,7 @@ function ExerciseCard({
                           fontSize: 12,
                         }}
                       >
-                        Week {row.w}: {row.maxW} lbs × {row.maxR} reps ({row.sets} sets)
+                        Week {row.w + 1}: {row.maxW} lbs × {row.maxR} reps ({row.sets} sets)
                       </div>
                     ))}
                   </div>
