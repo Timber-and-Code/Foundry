@@ -9,6 +9,8 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   authUnavailable: boolean;
+  inRecovery: boolean;
+  clearRecovery: () => void;
   signup: (email: string, password: string) => ReturnType<typeof supabase.auth.signUp>;
   login: (email: string, password: string) => ReturnType<typeof supabase.auth.signInWithPassword>;
   logout: () => ReturnType<typeof supabase.auth.signOut>;
@@ -21,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [authUnavailable, setAuthUnavailable] = useState(false);
+  const [inRecovery, setInRecovery] = useState(false);
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
@@ -40,7 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = supabase.auth.onAuthStateChange((event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        if (event === 'SIGNED_IN') {
+        if (event === 'PASSWORD_RECOVERY') {
+          // Supabase delivered the user here via the password-reset email.
+          // Skip the usual pull/flush — AuthGate will route them to the
+          // recovery UI, and regular sync resumes after clearRecovery().
+          setInRecovery(true);
+        } else if (event === 'SIGNED_IN') {
           if (session?.user) Sentry.setUser({ email: session.user.email, id: session.user.id });
           // Pull remote state first (merges into local, marks local-newer
           // keys dirty), THEN flush the dirty queue so any pre-auth local
@@ -52,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           pullFromSupabase();
         } else if (event === 'SIGNED_OUT') {
           Sentry.setUser(null);
+          setInRecovery(false);
         }
       });
       subscription = data.subscription;
@@ -72,9 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = (email: string, password: string) => supabase.auth.signInWithPassword({ email, password });
   const logout = () => supabase.auth.signOut();
+  const clearRecovery = () => setInRecovery(false);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, authUnavailable, signup, login, logout }}>
+    <AuthContext.Provider value={{ user, session, loading, authUnavailable, inRecovery, clearRecovery, signup, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,10 +6,15 @@ import Button from '../ui/Button';
 import { FOUNDRY_ANVIL_IMG } from '../../data/images-core';
 import { tokens } from '../../styles/tokens';
 
-export default function AuthPage() {
+interface AuthPageProps {
+  initialMode?: 'login' | 'signup' | 'recovery';
+  onRecoveryComplete?: () => void;
+}
+
+export default function AuthPage({ initialMode = 'login', onRecoveryComplete }: AuthPageProps = {}) {
   const { login, signup } = useAuth();
   const { showToast } = useToast();
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [mode, setMode] = useState<'login' | 'signup' | 'recovery'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,6 +27,16 @@ export default function AuthPage() {
     setInfo('');
     setLoading(true);
     try {
+      if (mode === 'recovery') {
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) {
+          setError(updateError.message);
+        } else {
+          showToast('Password updated.', 'success');
+          onRecoveryComplete?.();
+        }
+        return;
+      }
       const fn = mode === 'login' ? login : signup;
       const { error: authError } = await fn(email, password);
       if (authError) {
@@ -47,11 +62,13 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`,
+      });
       if (resetError) {
         setError(resetError.message);
       } else {
-        setInfo('Password reset email sent.');
+        setInfo('Password reset email sent. Open the link on this device to finish.');
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
@@ -124,42 +141,51 @@ export default function AuthPage() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
         }}
       >
-        {/* Mode toggle */}
-        <div
-          style={{
-            display: 'flex',
-            background: 'var(--bg-root, #141414)',
-            borderRadius: tokens.radius.lg,
-            padding: 3,
-            marginBottom: 24,
-          }}
-        >
-          {['login', 'signup'].map((m) => (
-            <button
-              key={m}
-              onClick={() => { setMode(m); setError(''); setInfo(''); }}
-              style={{
-                flex: 1,
-                minHeight: 44,
-                padding: `${tokens.spacing.sm}px`,
-                borderRadius: tokens.radius.md,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: tokens.fontSize.sm,
-                fontWeight: tokens.fontWeight.bold,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                transition: 'background 0.15s, color 0.15s',
-                background: mode === m ? tokens.colors.accentMuted : 'transparent',
-                color: mode === m ? tokens.colors.accentDim : 'var(--text-muted, #666)',
-              }}
-            >
-              {m === 'login' ? 'Sign In' : 'Create Account'}
-            </button>
-          ))}
-        </div>
+        {/* Mode toggle — hidden during recovery */}
+        {mode !== 'recovery' && (
+          <div
+            style={{
+              display: 'flex',
+              background: 'var(--bg-root, #141414)',
+              borderRadius: tokens.radius.lg,
+              padding: 3,
+              marginBottom: 24,
+            }}
+          >
+            {(['login', 'signup'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setError(''); setInfo(''); }}
+                style={{
+                  flex: 1,
+                  minHeight: 44,
+                  padding: `${tokens.spacing.sm}px`,
+                  borderRadius: tokens.radius.md,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: tokens.fontSize.sm,
+                  fontWeight: tokens.fontWeight.bold,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  transition: 'background 0.15s, color 0.15s',
+                  background: mode === m ? tokens.colors.accentMuted : 'transparent',
+                  color: mode === m ? tokens.colors.accentDim : 'var(--text-muted, #666)',
+                }}
+              >
+                {m === 'login' ? 'Sign In' : 'Create Account'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {mode === 'recovery' && (
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20, textAlign: 'center' }}>
+            Choose a new password for your account.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {mode !== 'recovery' && (
           <div>
             <label
               htmlFor="email"
@@ -197,6 +223,7 @@ export default function AuthPage() {
               }}
             />
           </div>
+          )}
 
           <div>
             <label
@@ -211,7 +238,7 @@ export default function AuthPage() {
                 marginBottom: 6,
               }}
             >
-              Password
+              {mode === 'recovery' ? 'New password' : 'Password'}
             </label>
             <input
               id="password"
@@ -267,7 +294,7 @@ export default function AuthPage() {
           )}
 
           <Button type="submit" fullWidth disabled={loading} style={{ marginTop: 4 }}>
-            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Update password'}
           </Button>
         </form>
 

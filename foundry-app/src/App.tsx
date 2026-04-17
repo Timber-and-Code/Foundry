@@ -492,7 +492,7 @@ function App() {
 }
 
 function AuthGate() {
-  const { user, loading, authUnavailable } = useAuth();
+  const { user, loading, authUnavailable, inRecovery, clearRecovery } = useAuth();
   // Track welcome + explicit auth-request state. Persisted to localStorage
   // so it survives reloads; driven by custom events so AuthGate can react
   // without a page reload when WelcomeScreen or OnboardingFlow updates it.
@@ -536,6 +536,17 @@ function AuthGate() {
   // Supabase unreachable — bypass auth, use localStorage-only flow
   if (authUnavailable) {
     return <App />;
+  }
+
+  // Password recovery email landed the user here — force the "set new
+  // password" form even if a session is present (Supabase's recovery
+  // flow hands us a temporary session on arrival).
+  if (inRecovery) {
+    return (
+      <React.Suspense fallback={null}>
+        <AuthPage initialMode="recovery" onRecoveryComplete={clearRecovery} />
+      </React.Suspense>
+    );
   }
 
   // No session: welcome → anonymous app → auth (only on explicit request)
