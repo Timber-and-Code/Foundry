@@ -693,9 +693,7 @@ function HomeView({
             setShowMorningMobility={setShowMorningMobility}
             goTo={goTo}
             goBack={goBack}
-            onSelectDay={onSelectDay}
             onSelectDayWeek={onSelectDayWeek}
-            setCurrentWeek={setCurrentWeek}
             setShowSkipConfirm={setShowSkipConfirm}
             onOpenCardio={onOpenCardio}
             onOpenMobility={onOpenMobility}
