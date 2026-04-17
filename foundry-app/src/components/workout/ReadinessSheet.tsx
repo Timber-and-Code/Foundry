@@ -7,6 +7,7 @@ import type { ReadinessEntry } from '../../types';
 
 interface ReadinessSheetProps {
   onDismiss: () => void;
+  onCancel?: () => void;
 }
 
 const SIGNALS: { key: keyof ReadinessEntry; label: string; opts: { val: string; label: string }[] }[] = [
@@ -44,7 +45,7 @@ function todayKey(): string {
   return `foundry:readiness:${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function ReadinessSheet({ onDismiss }: ReadinessSheetProps) {
+function ReadinessSheet({ onDismiss, onCancel }: ReadinessSheetProps) {
   const [readiness, setReadiness] = useState<ReadinessEntry | null>(() => {
     try {
       return JSON.parse(store.get(todayKey()) || 'null');
@@ -201,6 +202,22 @@ function ReadinessSheet({ onDismiss }: ReadinessSheetProps) {
             alignItems: 'center',
           }}
         >
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-accent)',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                padding: '10px 4px',
+              }}
+            >
+              <span aria-hidden="true">←</span> Go back
+            </button>
+          )}
           <button
             onClick={onDismiss}
             style={{
