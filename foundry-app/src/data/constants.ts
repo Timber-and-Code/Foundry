@@ -441,7 +441,7 @@ export function buildMesoConfig(
           'Accumulation',
           'Match weights, refine technique. Add weight where it feels easy.',
         ],
-        [2, '1 RIR', 'Peak', 'Push close to failure. +5 lbs on anchors.'],
+        [2, '1 RIR', 'Intensification', 'Push closer to failure. +5 lbs on anchors.'],
         [3, '0-1 RIR', 'Peak', 'PR attempts on anchors. Maximum effort week.'],
         [null, 'N/A', 'DELOAD', '50-60% of peak weight. 2 sets only. Zero failure. Recover.'],
       ],

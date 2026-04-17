@@ -81,7 +81,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
           <div>
             <div
               style={{
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 800,
                 letterSpacing: '0.12em',
                 color: 'var(--text-muted)',
@@ -92,7 +92,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
             </div>
             <div
               style={{
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: 800,
                 color: 'var(--text-primary)',
               }}
@@ -127,7 +127,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
             <div key={i} style={{ marginBottom: 14 }}>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: 700,
                   color: 'var(--text-secondary)',
                   letterSpacing: '0.04em',
@@ -138,7 +138,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
               </div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   color: 'var(--text-primary)',
                   lineHeight: 1.6,
                   background: 'var(--bg-inset)',
@@ -155,7 +155,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
           <div style={{ marginTop: 4 }}>
             <div
               style={{
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 700,
                 color: 'var(--text-secondary)',
                 letterSpacing: '0.04em',
@@ -166,7 +166,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
             </div>
             <div
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 color: 'var(--text-primary)',
                 lineHeight: 1.6,
                 background: 'var(--bg-inset)',
@@ -309,13 +309,13 @@ function ScheduleTab({
         <button
           onClick={() => setShowEditSchedule(true)}
           style={{
-            padding: '6px 12px',
+            padding: '8px 14px',
             borderRadius: tokens.radius.md,
             cursor: 'pointer',
             background: 'var(--accent)11',
             border: '1px solid var(--accent)44',
             color: 'var(--accent)',
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: 700,
             letterSpacing: '0.04em',
           }}
@@ -362,17 +362,17 @@ function ScheduleTab({
               <div>
                 <div
                   style={{
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: 700,
                     color: 'var(--text-primary)',
                     lineHeight: 1.2,
                   }}
                 >
-                  Schedule
+                  Calendar
                 </div>
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     color: 'var(--text-secondary)',
                     fontWeight: 600,
                     marginTop: 2,
@@ -396,7 +396,7 @@ function ScheduleTab({
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: canGoBack ? 'var(--text-secondary)' : 'var(--text-dim)',
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: 700,
                   opacity: canGoBack ? 1 : 0.3,
                 }}
@@ -412,7 +412,7 @@ function ScheduleTab({
                     border: '1px solid var(--phase-intens)55',
                     background: 'var(--phase-intens)11',
                     cursor: 'pointer',
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: 800,
                     letterSpacing: '0.05em',
                     color: 'var(--phase-intens)',
@@ -434,7 +434,7 @@ function ScheduleTab({
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: canGoForward ? 'var(--text-secondary)' : 'var(--text-dim)',
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: 700,
                   opacity: canGoForward ? 1 : 0.3,
                 }}
@@ -458,7 +458,7 @@ function ScheduleTab({
                 key={d}
                 style={{
                   textAlign: 'center',
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 700,
                   letterSpacing: '0.03em',
                   color: 'var(--text-secondary)',
@@ -561,7 +561,7 @@ function ScheduleTab({
                 >
                   <div
                     style={{
-                      fontSize: sessionKey ? 13 : 11,
+                      fontSize: sessionKey ? 15 : 13,
                       fontWeight: isToday || sessionKey ? 800 : 500,
                       color: isToday
                         ? isDone
@@ -646,7 +646,7 @@ function ScheduleTab({
                         position: 'absolute',
                         top: 2,
                         right: 2,
-                        fontSize: 12,
+                        fontSize: 13,
                         lineHeight: 1,
                         cursor: 'pointer',
                         filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.4))',
@@ -690,9 +690,9 @@ function ScheduleTab({
                   />
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: 13,
                       color: 'var(--text-muted)',
-                      fontWeight: 600,
+                      fontWeight: 700,
                     }}
                   >
                     {label.slice(0, 3).toUpperCase()}
@@ -710,7 +710,7 @@ function ScheduleTab({
                     background: 'var(--accent)',
                   }}
                 />
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Extra</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>Extra</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <div
@@ -721,7 +721,7 @@ function ScheduleTab({
                     background: tokens.colors.gold,
                   }}
                 />
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Cardio</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>Cardio</div>
               </div>
             </div>
           </div>
@@ -774,7 +774,7 @@ function ScheduleTab({
             <div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 16,
                   fontWeight: 700,
                   color: 'var(--text-primary)',
                   lineHeight: 1.2,
@@ -784,9 +784,9 @@ function ScheduleTab({
               </div>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   color: 'var(--text-muted)',
-                  marginTop: 1,
+                  marginTop: 2,
                 }}
               >
                 Phases & session breakdown
