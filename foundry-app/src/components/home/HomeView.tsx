@@ -8,11 +8,9 @@ import { tokens } from '../../styles/tokens';
 import {
   store,
   getWorkoutDaysForWeek,
-  getReadinessScore,
   setSkipped,
   saveProfile,
 } from '../../utils/store';
-import { syncReadinessToSupabase } from '../../utils/sync';
 import { on } from '../../utils/events';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -30,7 +28,7 @@ import ExplorePage from '../explore/ExplorePage';
 import { PricingPage } from '../settings/PricingPage';
 import ShareMesoModal from '../social/ShareMesoModal';
 import JoinMesoFlow from '../social/JoinMesoFlow';
-import type { Profile, TrainingDay, ReadinessEntry } from '../../types';
+import type { Profile, TrainingDay } from '../../types';
 
 interface HomeViewProps {
   tabRef: React.MutableRefObject<((key: string) => void) | null>;
@@ -120,43 +118,10 @@ function HomeView({
   const [noteViewer, setNoteViewer] = useState<NoteViewerData | null>(null);
 
   // ── Home tab UI state ───────────────────────────────────────────────────
-  const [showNextSession, setShowNextSession] = useState(false);
+  const [showNextSession, setShowNextSession] = useState(true);
   const [showMorningMobility, setShowMorningMobility] = useState(true);
   const [showRecoveryMorning, setShowRecoveryMorning] = useState(false);
   const [showRecoveryTag, setShowRecoveryTag] = useState(false);
-
-  // ── Readiness state ─────────────────────────────────────────────────────
-  const todayReadinessKey = (() => {
-    const d = new Date();
-    return `foundry:readiness:${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  })();
-  const [readiness, setReadiness] = useState(() => {
-    try {
-      return JSON.parse(store.get(todayReadinessKey) || 'null');
-    } catch {
-      return null;
-    }
-  });
-  const [readinessOpen, setReadinessOpen] = useState(() => {
-    try {
-      const r = JSON.parse(store.get(todayReadinessKey) || 'null');
-      return !r || !r.sleep || !r.soreness || !r.energy;
-    } catch {
-      return true;
-    }
-  });
-
-  const updateReadiness = (key: keyof ReadinessEntry, val: string) => {
-    const next = { ...(readiness || {}), [key]: val };
-    store.set(todayReadinessKey, JSON.stringify(next));
-    setReadiness(next);
-    const score = getReadinessScore(next);
-    if (score !== null) {
-      setReadinessOpen(false);
-      const dateStr = todayReadinessKey.replace('foundry:readiness:', '');
-      syncReadinessToSupabase(dateStr, next);
-    }
-  };
 
   // ── Derived / computed values ───────────────────────────────────────────
 
@@ -187,10 +152,6 @@ function HomeView({
     }
     return getMeso().weeks;
   }, [completedDays, activeDays]);
-
-  useEffect(() => {
-    setShowNextSession(false);
-  }, [activeWeek]);
 
   const calendarWeek = useMemo(() => {
     const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;
@@ -722,10 +683,6 @@ function HomeView({
             mesoPct={mesoPct}
             doneSessions={doneSessions}
             totalSessions={totalSessions}
-            readiness={readiness}
-            readinessOpen={readinessOpen}
-            setReadinessOpen={setReadinessOpen}
-            updateReadiness={updateReadiness}
             showRecoveryMorning={showRecoveryMorning}
             setShowRecoveryMorning={setShowRecoveryMorning}
             showRecoveryTag={showRecoveryTag}

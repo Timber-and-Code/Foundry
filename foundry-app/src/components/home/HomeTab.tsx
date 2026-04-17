@@ -15,9 +15,8 @@ import {
   getTimeGreeting,
   getWeekSets,
 } from '../../utils/store';
-import ReadinessCard from './ReadinessCard';
 import MobilityCard from './MobilityCard';
-import type { Profile, TrainingDay, Exercise, ReadinessEntry, CardioScheduleSlot } from '../../types';
+import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
 
 // ── Section Divider ───────────────────────────────────────────────────────
 
@@ -330,10 +329,6 @@ interface HomeTabProps {
   mesoPct: number;
   doneSessions: number;
   totalSessions: number;
-  readiness: ReadinessEntry | null;
-  readinessOpen: boolean;
-  setReadinessOpen: (v: boolean) => void;
-  updateReadiness: (key: keyof ReadinessEntry, val: string) => void;
   showRecoveryMorning: boolean;
   setShowRecoveryMorning: (v: boolean | ((prev: boolean) => boolean)) => void;
   showRecoveryTag: boolean;
@@ -368,10 +363,6 @@ function HomeTab({
   mesoPct,
   doneSessions: _doneSessions,
   totalSessions: _totalSessions,
-  readiness,
-  readinessOpen,
-  setReadinessOpen,
-  updateReadiness,
   showRecoveryMorning,
   setShowRecoveryMorning,
   showRecoveryTag: _showRecoveryTag,
@@ -436,25 +427,6 @@ function HomeTab({
   const showDayIdx = !isRestState && todayMesoDay ? calDayIdx : nextDayIdx;
   const showDayAccent = showDay ? (TAG_ACCENT as Record<string, any>)[showDay.tag || ''] : nextDayAccent;
   const isToday = isCalendarWorkoutDay && !calendarSessionDone;
-
-  // Detect if today is a workout day
-  let _isWorkoutToday = false;
-  if (startDate && activeDays.length > 0) {
-    const _total = (getMeso().weeks + 1) * activeDays.length;
-    let _sc = 0,
-      _cursor = new Date(startDate);
-    for (let _d = 0; _d < 400 && _sc < _total; _d++) {
-      const _wkIdx = Math.floor(_sc / activeDays.length);
-      if (getWorkoutDaysForWeek(profile, _wkIdx).includes(_cursor.getDay())) {
-        if (_cursor.toISOString().slice(0, 10) === todayCardioStr) {
-          const _dIdx = _sc % activeDays.length;
-          if (!completedDays.has(`${_dIdx}:${_wkIdx}`)) _isWorkoutToday = true;
-        }
-        _sc++;
-      }
-      _cursor.setDate(_cursor.getDate() + 1);
-    }
-  }
 
   const preview = showDay?.exercises || [];
   const lastWeekData: Record<string, any> = (() => {
@@ -721,16 +693,6 @@ function HomeTab({
       <SectionDivider />
 
       {/* ═══ SECONDARY ZONE: Supporting actions ═══ */}
-
-      {/* Readiness card — only on non-workout days */}
-      {!_isWorkoutToday && (
-        <ReadinessCard
-          readiness={readiness}
-          readinessOpen={readinessOpen}
-          setReadinessOpen={setReadinessOpen}
-          updateReadiness={updateReadiness}
-        />
-      )}
 
       {/* Cardio card */}
       {todayCardioSlot ? (
