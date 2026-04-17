@@ -137,8 +137,8 @@ function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: Training
               key={i}
               style={{
                 padding: '14px 16px',
-                background: isCurrent ? `${color}14` : 'var(--bg-card)',
-                border: `1px solid ${color}${isCurrent ? '88' : '55'}`,
+                background: `${color}${isCurrent ? '44' : '28'}`,
+                border: `1px solid ${color}${isCurrent ? 'aa' : '66'}`,
                 borderRadius: tokens.radius.lg,
                 boxShadow: 'var(--shadow-sm)',
               }}
@@ -149,13 +149,13 @@ function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: Training
                     width: 32,
                     height: 32,
                     borderRadius: tokens.radius.sm,
-                    background: `${color}20`,
+                    background: 'rgba(0,0,0,0.35)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: 14,
                     fontWeight: 800,
-                    color: color,
+                    color: 'var(--text-primary)',
                     flexShrink: 0,
                   }}
                 >
@@ -172,9 +172,9 @@ function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: Training
                           fontSize: 13,
                           fontWeight: 800,
                           letterSpacing: '0.08em',
-                          color: color,
-                          background: `${color}18`,
-                          border: `1px solid ${color}33`,
+                          color: 'var(--text-primary)',
+                          background: 'rgba(0,0,0,0.4)',
+                          border: '1px solid rgba(255,255,255,0.15)',
                           borderRadius: tokens.radius.sm,
                           padding: '2px 6px',
                         }}
@@ -188,8 +188,8 @@ function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: Training
                   style={{
                     fontSize: 13,
                     fontWeight: 700,
-                    color: color,
-                    background: `${color}12`,
+                    color: 'var(--text-primary)',
+                    background: 'rgba(0,0,0,0.35)',
                     padding: '4px 10px',
                     borderRadius: tokens.radius.sm,
                     whiteSpace: 'nowrap',
