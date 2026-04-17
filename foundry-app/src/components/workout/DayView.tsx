@@ -154,9 +154,12 @@ function DayView({
     return getMeso().weeks;
   })();
 
-  // Future sessions are completely locked — show empty, no interaction
+  // Future sessions are normally locked; user can opt in via the
+  // "Start anyway" button to record this session without finishing the
+  // prior week first (e.g. when matching a friend's day).
+  const [futureOverride, setFutureOverride] = useState(false);
   const isFutureSession = weekIdx > activeWeek;
-  const isLocked = isFutureSession;
+  const isLocked = isFutureSession && !futureOverride;
 
   const mesoId = store.get('foundry:active_meso_id');
 
@@ -920,7 +923,7 @@ function DayView({
         </div>
 
         {/* Future-session block: prior week incomplete */}
-        {isFutureSession && (() => {
+        {isFutureSession && !futureOverride && (() => {
           const incomplete = activeDays
             .map((d, i) => ({ d, i }))
             .filter(({ i }) => !completedDays.has(`${i}:${activeWeek}`));
@@ -971,6 +974,26 @@ function DayView({
                   ))}
                 </div>
               )}
+              <button
+                onClick={() => setFutureOverride(true)}
+                style={{
+                  width: '100%',
+                  marginTop: 14,
+                  padding: '12px 14px',
+                  borderRadius: tokens.radius.md,
+                  background: 'transparent',
+                  border: '1px dashed var(--phase-intens, #E8651A)',
+                  color: 'var(--phase-intens, #E8651A)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Start this session anyway
+              </button>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 8, textAlign: 'center' }}>
+                Records this day independently. Earlier days stay marked incomplete.
+              </div>
             </div>
           );
         })()}
