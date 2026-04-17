@@ -1441,6 +1441,7 @@ function DayView({
           dayTag={day.tag}
           gender={profile?.gender}
           stats={workoutStats}
+          dayIdx={dayIdx}
           weekIdx={completionWeekIdx !== null ? completionWeekIdx : weekIdx}
           onOk={() => {
             setShowWorkoutModal(false);

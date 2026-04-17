@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { getMeso, getWeekPhase, PHASE_COLOR, getWeekRir } from '../../data/constants';
 import { getWeekSets, store } from '../../utils/store';
 import { findExercise } from '../../data/exerciseDB';
 import FriendsStrip from '../social/FriendsStrip';
-import type { Exercise } from '../../types';
+import FriendWorkoutModal from '../social/FriendWorkoutModal';
+import type { Exercise, MesoMember } from '../../types';
 
 interface WorkoutSplashProps {
   dayName: string;
@@ -24,6 +26,7 @@ export default function WorkoutSplash({
   onStart,
   onBack,
 }: WorkoutSplashProps) {
+  const [selectedFriend, setSelectedFriend] = useState<MesoMember | null>(null);
   const phase = getWeekPhase()[weekIdx] || 'Accumulation';
   const phaseColor = PHASE_COLOR[phase] || '#E8E4DC';
   const rir = getWeekRir()[weekIdx] || '';
@@ -162,7 +165,7 @@ export default function WorkoutSplash({
         {/* Friends strip if shared meso */}
         {mesoId && (
           <div onClick={(e) => e.stopPropagation()}>
-            <FriendsStrip mesoId={mesoId} onSelectFriend={() => { /* #8: Friend Progress View */ }} />
+            <FriendsStrip mesoId={mesoId} onSelectFriend={setSelectedFriend} />
           </div>
         )}
 
@@ -258,6 +261,16 @@ export default function WorkoutSplash({
           Or tap anywhere to begin
         </div>
       </div>
+      {mesoId && (
+        <FriendWorkoutModal
+          open={!!selectedFriend}
+          member={selectedFriend}
+          mesoId={mesoId}
+          dayIdx={dayIdx}
+          weekIdx={weekIdx}
+          onClose={() => setSelectedFriend(null)}
+        />
+      )}
     </div>
   );
 }

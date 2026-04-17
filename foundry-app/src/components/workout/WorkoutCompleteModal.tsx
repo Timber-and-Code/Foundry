@@ -9,6 +9,8 @@ import {
 } from '../../data/constants';
 import { store } from '../../utils/store';
 import FriendsStrip from '../social/FriendsStrip';
+import FriendWorkoutModal from '../social/FriendWorkoutModal';
+import type { MesoMember } from '../../types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -27,6 +29,7 @@ interface WorkoutCompleteModalProps {
   dayTag?: string;
   gender?: string;
   stats: WorkoutCompleteStats;
+  dayIdx: number;
   weekIdx: number;
   onOk: () => void;
 }
@@ -38,10 +41,12 @@ function WorkoutCompleteModal({
   dayTag,
   gender,
   stats,
+  dayIdx,
   weekIdx,
   onOk,
 }: WorkoutCompleteModalProps) {
   const [cooldownOpen, setCooldownOpen] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<MesoMember | null>(null);
   const mesoId = store.get('foundry:active_meso_id');
 
   const phases = getWeekPhase();
@@ -437,7 +442,7 @@ function WorkoutCompleteModal({
         {/* Friends strip — presence of crew members on this shared meso */}
         {mesoId && (
           <div style={{ width: '100%' }}>
-            <FriendsStrip mesoId={mesoId} onSelectFriend={() => { /* #8: Friend Progress View */ }} />
+            <FriendsStrip mesoId={mesoId} onSelectFriend={setSelectedFriend} />
           </div>
         )}
 
@@ -461,6 +466,16 @@ function WorkoutCompleteModal({
           NEXT SESSION →
         </button>
       </div>
+      {mesoId && (
+        <FriendWorkoutModal
+          open={!!selectedFriend}
+          member={selectedFriend}
+          mesoId={mesoId}
+          dayIdx={dayIdx}
+          weekIdx={weekIdx}
+          onClose={() => setSelectedFriend(null)}
+        />
+      )}
     </div>
   );
 }
