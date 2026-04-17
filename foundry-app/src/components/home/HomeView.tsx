@@ -786,6 +786,7 @@ function HomeView({
           activeDays={activeDays}
           completedDays={completedDays}
           profile={profile}
+          currentWeek={displayWeek}
         />
       )}
 
