@@ -1,5 +1,5 @@
 import React from 'react';
-import { loadArchive, store } from '../../utils/store';
+import { loadArchive } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
 import { getMeso, getMesoRows, getProgTargets, PHASE_COLOR } from '../../data/constants';
 import type { Profile, TrainingDay } from '../../types';
@@ -11,6 +11,7 @@ interface MesoOverviewProps {
   activeDays: TrainingDay[];
   completedDays: Set<string>;
   profile: Profile;
+  currentWeek: number;
 }
 
 // ── SubHeader ─────────────────────────────────────────────────────────────
@@ -63,11 +64,10 @@ function SubHeader({ label, goBack }: { label: string; goBack: () => void }) {
 
 // ── Meso Overview Content ─────────────────────────────────────────────────
 
-function MesoOverviewContent({ activeDays }: { activeDays: TrainingDay[] }) {
+function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: TrainingDay[]; currentWeek: number }) {
   const meso = getMeso();
   const mesoRows = getMesoRows();
   const progTargets = getProgTargets();
-  const currentWeek = parseInt(store.get('foundry:currentWeek') || '0');
 
   const splitLabels: Record<string, string> = {
     ppl: 'Push / Pull / Legs',
@@ -386,12 +386,12 @@ function WeeklySummary({ goBack }: { activeDays: TrainingDay[]; completedDays: S
 
 // ── Main export ───────────────────────────────────────────────────────────
 
-function MesoOverview({ tab, goBack, goTo: _goTo, activeDays, completedDays, profile }: MesoOverviewProps) {
+function MesoOverview({ tab, goBack, goTo: _goTo, activeDays, completedDays, profile, currentWeek }: MesoOverviewProps) {
   if (tab === 'overview') {
     return (
       <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
         <SubHeader label="MESO OVERVIEW" goBack={goBack} />
-        <MesoOverviewContent activeDays={activeDays} />
+        <MesoOverviewContent activeDays={activeDays} currentWeek={currentWeek} />
       </div>
     );
   }
