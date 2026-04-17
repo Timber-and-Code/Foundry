@@ -295,20 +295,32 @@ function DayView({
     }
   };
 
-  // Begin workout — stamps localStorage, starts timer, dismisses overlay
-  const beginWorkout = () => {
+  // Commit the workout start — stamps localStorage, starts timer, dismisses
+  // overlay, and registers the remote session. Called after the user has
+  // confirmed intent (either directly, or via the readiness sheet).
+  const commitStartWorkout = () => {
     startTimer();
     setShowMesoOverlay(false);
+    store.set(`foundry:splash-seen:d${dayIdx}:w${weekIdx}`, '1');
+    setShowSplash(false);
     if (!bwPromptShownThisWeek()) setShowBwCheckin(true);
-    if (isReadinessIncompleteToday()) setShowReadinessSheet(true);
-    // Chunk 4a: create/upsert the remote workout_sessions row with
-    // started_at. Fire-and-forget. Failures are surfaced via toast.
     const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
     upsertWorkoutSessionRemote(dayIdx, weekIdx, {
       sessionId,
       startedAt: new Date().toISOString(),
       isComplete: false,
     });
+  };
+
+  // Intent to begin — if readiness is incomplete, show the sheet first so
+  // the user has a real "Go back" option before the timer starts.
+  const beginWorkout = () => {
+    if (isReadinessIncompleteToday()) {
+      setShowSplash(false);
+      setShowReadinessSheet(true);
+      return;
+    }
+    commitStartWorkout();
   };
 
   // showPostStrengthPrompt, showCardioPrompt — reserved for post-strength/cardio prompts
@@ -877,10 +889,7 @@ function DayView({
         weekIdx={weekIdx}
         exercises={exercises}
         mesoId={mesoId}
-        onStart={() => {
-          dismissSplash();
-          beginWorkout();
-        }}
+        onStart={beginWorkout}
         onBack={() => {
           dismissSplash();
           onBack();
@@ -1422,7 +1431,20 @@ function DayView({
 
       {/* Readiness check-in (pre-workout) */}
       {showReadinessSheet && (
-        <ReadinessSheet onDismiss={() => setShowReadinessSheet(false)} />
+        <ReadinessSheet
+          onDismiss={() => {
+            setShowReadinessSheet(false);
+            if (!workoutStarted) commitStartWorkout();
+          }}
+          onCancel={
+            workoutStarted
+              ? undefined
+              : () => {
+                  setShowReadinessSheet(false);
+                  setShowSplash(true);
+                }
+          }
+        />
       )}
 
       {/* Note Review Step */}
