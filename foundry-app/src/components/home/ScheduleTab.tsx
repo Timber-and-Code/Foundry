@@ -18,24 +18,6 @@ import EditScheduleSheet from './EditScheduleSheet';
 
 // ── Inline icon helpers ────────────────────────────────────────────────────
 
-const scheduleIcon = (color: string) => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-    <line x1="16" y1="2" x2="16" y2="6" />
-    <line x1="8" y1="2" x2="8" y2="6" />
-    <line x1="3" y1="10" x2="21" y2="10" />
-  </svg>
-);
-
 const overviewIcon = (color: string) => (
   <svg
     width="16"
@@ -298,32 +280,6 @@ function ScheduleTab({
 
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
-      {/* Edit Schedule action */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          padding: '12px 16px 0',
-        }}
-      >
-        <button
-          onClick={() => setShowEditSchedule(true)}
-          style={{
-            padding: '8px 14px',
-            borderRadius: tokens.radius.md,
-            cursor: 'pointer',
-            background: 'var(--accent)11',
-            border: '1px solid var(--accent)44',
-            color: 'var(--accent)',
-            fontSize: 14,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-          }}
-        >
-          ⚙ Edit Schedule
-        </button>
-      </div>
-
       {/* Calendar */}
       <div style={{ padding: '12px 0 0' }}>
         <div
@@ -345,42 +301,16 @@ function ScheduleTab({
               marginBottom: 12,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: tokens.radius.sm,
-                  background: 'var(--phase-intens)15',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {scheduleIcon('var(--phase-intens)')}
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    lineHeight: 1.2,
-                  }}
-                >
-                  Calendar
-                </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    color: 'var(--text-secondary)',
-                    fontWeight: 600,
-                    marginTop: 2,
-                  }}
-                >
-                  {monthName}
-                </div>
-              </div>
+            <div
+              style={{
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: '-0.01em',
+                color: 'var(--text-primary)',
+                lineHeight: 1.1,
+              }}
+            >
+              {monthName}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <button
@@ -661,71 +591,27 @@ function ScheduleTab({
             })}
           </div>
 
-          {/* Legend */}
-          <div
-            style={{
-              marginTop: 10,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 6,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {[
-                ['Accumulation', 'var(--phase-accum)'],
-                ['Intensification', 'var(--phase-intens)'],
-                ['Peak', 'var(--phase-peak)'],
-                ['Deload', 'var(--phase-deload)'],
-              ].map(([label, color]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <div
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: tokens.radius.xs,
-                      background: color,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: 'var(--text-muted)',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {label.slice(0, 3).toUpperCase()}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: tokens.radius.full,
-                    background: 'var(--accent)',
-                  }}
-                />
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>Extra</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: tokens.radius.full,
-                    background: tokens.colors.gold,
-                  }}
-                />
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>Cardio</div>
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
+
+      {/* Edit Schedule action */}
+      <div style={{ padding: '12px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          onClick={() => setShowEditSchedule(true)}
+          style={{
+            padding: '8px 14px',
+            borderRadius: tokens.radius.md,
+            cursor: 'pointer',
+            background: 'var(--accent)11',
+            border: '1px solid var(--accent)44',
+            color: 'var(--accent)',
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+          }}
+        >
+          ⚙ Edit Schedule
+        </button>
       </div>
 
       {/* Meso Overview nav card */}

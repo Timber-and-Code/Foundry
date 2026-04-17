@@ -25,12 +25,11 @@ const SYNC_ICON_TITLE: Record<SyncState, string> = {
 
 interface FoundryBannerProps {
   subtitle?: string;
-  subtitleLine2?: string;
   onProfileTap?: () => void;
   syncState?: SyncState;
 }
 
-function FoundryBanner({ subtitle, subtitleLine2, onProfileTap, syncState = 'idle' }: FoundryBannerProps) {
+function FoundryBanner({ subtitle, onProfileTap, syncState = 'idle' }: FoundryBannerProps) {
   const iconColor = SYNC_ICON_COLOR[syncState];
   const iconGlow = SYNC_ICON_GLOW[syncState];
   return (
@@ -93,12 +92,10 @@ function FoundryBanner({ subtitle, subtitleLine2, onProfileTap, syncState = 'idl
                 fontFamily: "'Inter', system-ui, sans-serif",
                 textTransform: 'uppercase',
                 lineHeight: 1.4,
+                color: 'var(--amber)',
               }}
             >
-              <div style={{ color: 'var(--text-primary)' }}>{subtitle}</div>
-              {subtitleLine2 && (
-                <div style={{ color: 'var(--phase-accum)', marginTop: 1 }}>{subtitleLine2}</div>
-              )}
+              {subtitle}
             </div>
           )}
         </div>

@@ -63,7 +63,7 @@ function SubHeader({ label, goBack }: { label: string; goBack: () => void }) {
 
 // ── Meso Overview Content ─────────────────────────────────────────────────
 
-function MesoOverviewContent() {
+function MesoOverviewContent({ activeDays }: { activeDays: TrainingDay[] }) {
   const meso = getMeso();
   const mesoRows = getMesoRows();
   const progTargets = getProgTargets();
@@ -75,6 +75,12 @@ function MesoOverviewContent() {
     full_body: 'Full Body',
     push_pull: 'Push / Pull',
   };
+
+  const tags = [...new Set(activeDays.map((d) => d.tag).filter(Boolean))];
+  const splitDisplay =
+    tags.length > 0
+      ? tags.join(' / ')
+      : splitLabels[meso.splitType] || meso.splitType;
 
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -94,7 +100,7 @@ function MesoOverviewContent() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-dim)', marginBottom: 4 }}>Split</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-              {splitLabels[meso.splitType] || meso.splitType}
+              {splitDisplay}
             </div>
           </div>
           <div style={{ flex: 1 }}>
@@ -113,15 +119,8 @@ function MesoOverviewContent() {
       </div>
 
       {/* Week-by-week breakdown */}
-      <div
-        style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: tokens.radius.lg,
-          overflow: 'hidden',
-        }}
-      >
-        <div style={{ padding: '16px 16px 10px', fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
           WEEK-BY-WEEK BREAKDOWN
         </div>
         {mesoRows.map((row, i) => {
@@ -137,10 +136,11 @@ function MesoOverviewContent() {
             <div
               key={i}
               style={{
-                padding: '12px 16px',
-                borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.04))',
-                background: isCurrent ? `${color}14` : `${color}06`,
-                borderLeft: `3px solid ${color}`,
+                padding: '14px 16px',
+                background: isCurrent ? `${color}14` : 'var(--bg-card)',
+                border: `1px solid ${color}${isCurrent ? '88' : '55'}`,
+                borderRadius: tokens.radius.lg,
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
@@ -391,7 +391,7 @@ function MesoOverview({ tab, goBack, goTo: _goTo, activeDays, completedDays, pro
     return (
       <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
         <SubHeader label="MESO OVERVIEW" goBack={goBack} />
-        <MesoOverviewContent />
+        <MesoOverviewContent activeDays={activeDays} />
       </div>
     );
   }
