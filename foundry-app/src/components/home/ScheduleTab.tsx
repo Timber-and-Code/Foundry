@@ -203,7 +203,6 @@ interface ScheduleTabProps {
   setNoteViewer: (v: NoteViewerData | null) => void;
   skipVersion: number;
   setSkipVersion: (v: number) => void;
-  goBack: () => void;
   goTo: (v: string) => void;
   onSelectDay?: (v: number) => void;
   onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
@@ -236,7 +235,6 @@ function ScheduleTab({
   setNoteViewer,
   skipVersion: _skipVersion,
   setSkipVersion: _setSkipVersion,
-  goBack,
   goTo,
   onSelectDay: _onSelectDay,
   onSelectDayWeek,
@@ -300,49 +298,14 @@ function ScheduleTab({
 
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
-      {/* Header */}
+      {/* Edit Schedule action */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '16px 16px 12px',
-          background: 'var(--bg-deep)',
-          borderBottom: '1px solid var(--border)',
+          justifyContent: 'flex-end',
+          padding: '12px 16px 0',
         }}
       >
-        <button
-          onClick={goBack}
-          aria-label="Go back"
-          className="btn-ghost"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--accent)',
-            fontSize: 20,
-            lineHeight: 1,
-            padding: '2px 4px',
-            display: 'flex',
-            alignItems: 'center',
-            minWidth: 44,
-            minHeight: 44,
-            justifyContent: 'center',
-          }}
-        >
-          <span aria-hidden="true">‹</span>
-        </button>
-        <span
-          style={{
-            fontSize: 24,
-            fontWeight: 800,
-            letterSpacing: '-0.01em',
-            color: 'var(--text-primary)',
-            flex: 1,
-          }}
-        >
-          Schedule
-        </span>
         <button
           onClick={() => setShowEditSchedule(true)}
           style={{

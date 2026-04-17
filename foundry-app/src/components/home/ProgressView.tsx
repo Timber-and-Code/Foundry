@@ -262,11 +262,10 @@ interface ProgressViewProps {
   currentWeek: number;
   completedDays: Set<string>;
   activeDays: TrainingDay[];
-  goBack: () => void;
   goTo: (n: number | string) => void;
 }
 
-export default function ProgressView({ currentWeek, completedDays, activeDays, goBack, goTo }: ProgressViewProps) {
+export default function ProgressView({ currentWeek, completedDays, activeDays, goTo }: ProgressViewProps) {
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [showCardioHistory, setShowCardioHistory] = useState(false);
   const weekByTag = calcMuscleSetsByTag(activeDays, completedDays, currentWeek);
@@ -837,50 +836,6 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
 
   return (
     <div>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '16px 16px 12px',
-          background: 'var(--bg-deep)',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <button
-          onClick={goBack}
-          className="btn-ghost"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--accent)',
-            fontSize: 22,
-            lineHeight: 1,
-            padding: '2px 4px',
-            display: 'flex',
-            alignItems: 'center',
-            minWidth: 44,
-            minHeight: 44,
-            justifyContent: 'center',
-          }}
-        >
-          ‹
-        </button>
-        <span
-          style={{
-            fontSize: 24,
-            fontWeight: 800,
-            letterSpacing: '-0.01em',
-            color: 'var(--text-primary)',
-            flex: 1,
-          }}
-        >
-          Progress
-        </span>
-      </div>
-
       <div style={{ padding: '0 16px 24px' }}>
         {/* Week summary */}
         <div style={{ marginBottom: 16, marginTop: 16 }}>
