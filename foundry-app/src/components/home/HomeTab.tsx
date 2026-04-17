@@ -567,7 +567,7 @@ function HomeTab({
               return (
                 <div
                   key={i}
-                  onClick={(e) => { e.stopPropagation(); goBack(); onSelectDayWeek(i, activeWeek); }}
+                  onClick={(e) => { e.stopPropagation(); goBack(); onSelectDayWeek(i, displayWeek); }}
                   style={{
                     flex: 1, minWidth: 0, padding: '4px 2px', borderRadius: tokens.radius.xs,
                     border: `1px solid ${done ? tc + '60' : isNext ? accent : pc + '44'}`,
