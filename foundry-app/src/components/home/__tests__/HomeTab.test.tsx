@@ -49,6 +49,7 @@ vi.mock('../../../data/constants', () => ({
 
 vi.mock('../../../data/exercises', () => ({
   EXERCISE_DB: [],
+  SAMPLE_PROGRAMS: [],
 }));
 
 vi.mock('../../../styles/tokens', () => ({

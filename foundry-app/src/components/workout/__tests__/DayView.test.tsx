@@ -92,6 +92,7 @@ vi.mock('../../data/constants', () => ({
 
 vi.mock('../../data/exercises', () => ({
   EXERCISE_DB: [{ id: 'bench', name: 'Bench Press', muscle: 'chest' }],
+  SAMPLE_PROGRAMS: [],
 }));
 
 vi.mock('../../utils/helpers', () => ({
