@@ -4,17 +4,45 @@ import { useToast } from '../../contexts/ToastContext';
 import { tokens } from '../../styles/tokens';
 import { store } from '../../utils/store';
 
+export type SaveProgressTrigger = 'first_set' | 'first_week_done' | 'settings';
+
 interface SaveProgressSheetProps {
   onDismiss: () => void;
+  trigger?: SaveProgressTrigger;
 }
 
-export default function SaveProgressSheet({ onDismiss }: SaveProgressSheetProps) {
+interface TriggerCopy {
+  title: string;
+  body: string;
+}
+
+const COPY_BY_TRIGGER: Record<SaveProgressTrigger, TriggerCopy> = {
+  first_set: {
+    title: "Don't lose this",
+    body: 'You just logged your first set. Save it to the cloud so your progress follows you.',
+  },
+  first_week_done: {
+    title: 'A week of work, saved',
+    body: "You've logged a full week. Create an account to back it up — your program, your sets, your PRs, all on every device.",
+  },
+  settings: {
+    title: 'Sync across devices',
+    body: 'Create an account and your workouts, PRs, and program history travel with you.',
+  },
+};
+
+export default function SaveProgressSheet({
+  onDismiss,
+  trigger = 'settings',
+}: SaveProgressSheetProps) {
   const { signup } = useAuth();
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const copy = COPY_BY_TRIGGER[trigger];
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +65,11 @@ export default function SaveProgressSheet({ onDismiss }: SaveProgressSheetProps)
   };
 
   const handleSkip = () => {
-    store.set('foundry:save_progress_dismissed', '1');
+    // Manual settings trigger does not set the permanent dismiss flag — the
+    // user explicitly opened it and may want to re-open later.
+    if (trigger !== 'settings') {
+      store.set('foundry:save_progress_dismissed', '1');
+    }
     onDismiss();
   };
 
@@ -68,16 +100,34 @@ export default function SaveProgressSheet({ onDismiss }: SaveProgressSheetProps)
       >
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 6 }}>
-            Save your progress
+          <div
+            style={{
+              fontSize: 20,
+              fontWeight: 900,
+              color: 'var(--text-primary)',
+              marginBottom: 6,
+            }}
+          >
+            {copy.title}
           </div>
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 300, margin: '0 auto' }}>
-            Create an account to sync across devices and never lose your training data.
+          <div
+            style={{
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+              maxWidth: 320,
+              margin: '0 auto',
+            }}
+          >
+            {copy.body}
           </div>
         </div>
 
         {/* Signup form */}
-        <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <form
+          onSubmit={handleSignup}
+          style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+        >
           <input
             type="email"
             placeholder="Email"

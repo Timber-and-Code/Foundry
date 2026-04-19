@@ -592,6 +592,16 @@ function DayView({
         };
         saveDayWeek(dayIdx, weekIdx, next);
 
+        // Onboarding v2: emit first-set-logged once per user, when a
+        // confirmed set lands. Gated by foundry:first_set_emitted so we
+        // only fire once for the lifetime of this local profile.
+        if (field === 'confirmed' && value === true) {
+          if (!store.get('foundry:first_set_emitted')) {
+            store.set('foundry:first_set_emitted', '1');
+            emit('foundry:first-set-logged');
+          }
+        }
+
         // Chunk 4a: sync this set to workout_sets (debounced per-set to
         // coalesce rapid typing). Only fire if the set has meaningful
         // data (reps present) so we don't spam empty rows for sets the

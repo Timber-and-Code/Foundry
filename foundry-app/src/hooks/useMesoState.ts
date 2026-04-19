@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { WorkoutSet, TrainingDay, Exercise } from '../types';
 import type { WeekCompleteModalData } from '../components/WeekCompleteModal';
-import { on } from '../utils/events';
+import { on, emit } from '../utils/events';
 
 interface UseMesoStateParams {
   setView: (view: string) => void;
@@ -123,6 +123,14 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
 
     if (weekFinished) {
       snapshotData();
+
+      // Onboarding v2: emit first-week-done once per user, when week 0
+      // completes. Gated by foundry:first_week_done_emitted.
+      if (weekIdx === 0 && !store.get('foundry:first_week_done_emitted')) {
+        store.set('foundry:first_week_done_emitted', '1');
+        emit('foundry:first-week-done');
+      }
+
       let totalSets = 0;
       const _storedProg = store.get('foundry:storedProgram');
       const prof = loadProfile();
