@@ -33,6 +33,7 @@ interface ProgressViewProps {
 export default function ProgressView({ currentWeek, completedDays, activeDays, goBack, goTo }: ProgressViewProps) {
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [showCardioHistory, setShowCardioHistory] = useState(false);
+  const [progressTab, setProgressTab] = useState<'week' | 'history'>('week');
   const weekByTag = calcMuscleSetsByTag(activeDays, completedDays, currentWeek);
 
   const workoutsThisWeek = activeDays.filter((_, i) =>
@@ -653,8 +654,56 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
       </div>
 
       <div style={{ padding: '0 16px 24px' }}>
+        {/* Sub-tab switcher — pill style segmented control */}
+        <div
+          role="tablist"
+          aria-label="Progress view"
+          style={{
+            display: 'flex',
+            gap: 4,
+            marginTop: 16,
+            marginBottom: 16,
+            padding: 4,
+            background: 'var(--bg-inset)',
+            border: '1px solid var(--border)',
+            borderRadius: tokens.radius.pill,
+          }}
+        >
+          {([
+            { key: 'week', label: 'This Week' },
+            { key: 'history', label: 'History' },
+          ] as const).map((t) => {
+            const active = progressTab === t.key;
+            return (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setProgressTab(t.key)}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  border: 'none',
+                  borderRadius: tokens.radius.pill,
+                  background: active ? 'var(--accent)' : 'transparent',
+                  color: active ? 'var(--btn-primary-text)' : 'var(--text-secondary)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: '0.03em',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {progressTab === 'week' && (
+        <>
         {/* Week summary */}
-        <div style={{ marginBottom: 16, marginTop: 16 }}>
+        <div style={{ marginBottom: 16 }}>
           <div
             style={{
               fontSize: 12,
@@ -672,7 +721,11 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           </div>
           <VolumeLandmarksCard byTag={weekByTag} title="Volume This Week" />
         </div>
+        </>
+        )}
 
+        {progressTab === 'history' && (
+        <>
         {/* BW trend */}
         <BwChart />
 
@@ -1146,6 +1199,8 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             </div>
           );
         })()}
+        </>
+        )}
 
         {/* Quick links */}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
