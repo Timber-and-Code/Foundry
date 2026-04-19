@@ -18,6 +18,7 @@ import { loadCardioSession } from '../../utils/persistence';
 import { calcMuscleSetsByTag } from '../../utils/analyticsData';
 import type { TrainingDay, Exercise, BodyWeightEntry, WorkoutSet, CardioSession } from '../../types';
 import VolumeLandmarksCard from './VolumeLandmarksCard';
+import EmptyState from '../ui/EmptyState';
 // haptic import reserved for future UI feedback
 
 // ── Main ProgressView ────────────────────────────────────────────────────────
@@ -95,7 +96,14 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
       return isNaN(v) ? null : v;
     });
 
-    if (bwLog.length === 0) return null;
+    if (bwLog.length === 0) {
+      return (
+        <EmptyState
+          title="Log your first weigh-in to see trends"
+          body="Tap + on the Home tab to record a bodyweight entry."
+        />
+      );
+    }
 
     const latest = bwLog[bwLog.length - 1];
     const trend = bwLog.length >= 2 ? latest.weight - bwLog[0].weight : null;
@@ -1050,7 +1058,17 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         {/* Cardio History */}
         {(() => {
           const cardioKeys = store.keys('foundry:cardio:session:');
-          if (cardioKeys.length === 0) return null;
+          if (cardioKeys.length === 0) {
+            return (
+              <div style={{ marginTop: 16, marginBottom: 8 }}>
+                <EmptyState
+                  compact
+                  title="No cardio logged yet"
+                  body="Cardio sessions will appear here once you finish your first one."
+                />
+              </div>
+            );
+          }
           const sessions: { date: string; session: CardioSession }[] = [];
           if (showCardioHistory) {
             cardioKeys

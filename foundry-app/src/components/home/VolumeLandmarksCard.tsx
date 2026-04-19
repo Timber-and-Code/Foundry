@@ -9,6 +9,7 @@ import {
   BAND_EXCEED,
   TICK_COLOR,
 } from '../../utils/analyticsData';
+import EmptyState from '../ui/EmptyState';
 
 type Landmark = { mev: number; mavLow: number; mavHigh: number; mrv: number };
 
@@ -28,7 +29,15 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
         s.label === 'Exceeding' ? 0 : s.label === 'MV' ? 1 : 2;
       return priority(sa!) - priority(sb!) || (b[1] as number) - (a[1] as number);
     });
-  if (entries.length === 0) return null;
+  if (entries.length === 0) {
+    return (
+      <EmptyState
+        compact
+        title="No sets logged yet"
+        body="Finish a workout to see your weekly volume versus MEV/MRV landmarks."
+      />
+    );
+  }
 
   const lblOpt = 'var(--phase-accum)';
 
