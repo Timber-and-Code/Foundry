@@ -355,24 +355,12 @@ function VolumeCard({
       return priority(sa!) - priority(sb!) || b[1] - a[1];
     });
 
-  if (entries.length === 0)
-    return (
-      <div
-        style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: tokens.radius.lg,
-          padding: 24,
-          textAlign: 'center',
-          color: 'var(--text-muted)',
-          fontSize: 13,
-        }}
-      >
-        Complete a workout to see volume data.
-      </div>
-    );
-
   const meso = getMeso();
+  const emptyBody = entries.length === 0;
+  const emptyLabel =
+    weekFilter === null
+      ? 'Complete a workout to see volume data.'
+      : `No sets logged for week ${weekFilter + 1} yet.`;
 
   return (
     <div
@@ -427,6 +415,15 @@ function VolumeCard({
           ))}
         </div>
       </div>
+
+      {emptyBody && (
+        <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          {emptyLabel}
+        </div>
+      )}
+
+      {!emptyBody && (
+      <>
 
       {/* Bars */}
       <div style={{ padding: '0 16px 6px' }}>
@@ -529,6 +526,8 @@ function VolumeCard({
           );
         })}
       </div>
+      </>
+      )}
     </div>
   );
 }
