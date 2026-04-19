@@ -8,7 +8,7 @@ const SYNC_LABEL: Record<SyncState, { color: string; text: string }> = {
   idle:    { color: 'var(--text-muted, #888)', text: 'Cloud sync active' },
   syncing: { color: '#60a5fa',                 text: 'Syncing…' },
   synced:  { color: '#4ade80',                 text: 'Synced' },
-  offline: { color: '#f87171',                 text: 'Offline — saved locally' },
+  offline: { color: 'var(--stalling)',         text: 'Offline — saved locally' },
 };
 
 export default function AccountSection() {
@@ -111,7 +111,7 @@ export default function AccountSection() {
         }}
       >
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Sign Out</span>
-        <span style={{ fontSize: 13, color: '#f87171', fontWeight: 500 }}>Logout</span>
+        <span style={{ fontSize: 13, color: 'var(--stalling)', fontWeight: 500 }}>Logout</span>
       </button>
     </div>
   );

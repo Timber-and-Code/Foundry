@@ -166,8 +166,8 @@ function StrengthChart({ chart }: { chart: AnchorChartData }) {
               style={{
                 fontSize: 11,
                 fontWeight: 800,
-                color: '#c9a227',
-                background: '#c9a22722',
+                color: 'var(--pr-gold)',
+                background: 'var(--pr-gold-subtle)',
                 border: '1px solid #c9a22744',
                 borderRadius: tokens.radius.sm,
                 padding: '1px 5px',
@@ -182,8 +182,8 @@ function StrengthChart({ chart }: { chart: AnchorChartData }) {
               style={{
                 fontSize: 11,
                 fontWeight: 800,
-                color: '#f87171',
-                background: '#f8717122',
+                color: 'var(--stalling)',
+                background: 'var(--stalling-subtle)',
                 border: '1px solid #f8717144',
                 borderRadius: tokens.radius.sm,
                 padding: '1px 5px',
@@ -199,7 +199,7 @@ function StrengthChart({ chart }: { chart: AnchorChartData }) {
             style={{
               fontSize: 20,
               fontWeight: 900,
-              color: chart.isPR ? '#c9a227' : chart.isStalling ? '#f87171' : ac,
+              color: chart.isPR ? 'var(--pr-gold)' : chart.isStalling ? 'var(--stalling)' : ac,
               letterSpacing: '-0.02em',
             }}
           >
@@ -278,7 +278,7 @@ function StrengthChart({ chart }: { chart: AnchorChartData }) {
               cx={xScale(i)}
               cy={yScale(p.e1rm)}
               r={isPRWeek ? 4.5 : 3}
-              fill={isPRWeek ? '#c9a227' : ac}
+              fill={isPRWeek ? 'var(--pr-gold)' : ac}
               stroke={isPRWeek ? '#c9a22744' : 'none'}
               strokeWidth={isPRWeek ? 2 : 0}
             />
@@ -589,7 +589,7 @@ function PRTimelineCard({ entries }: { entries: PRTimelineEntry[] }) {
                   width: 10,
                   height: 10,
                   borderRadius: tokens.radius.full,
-                  background: '#c9a227',
+                  background: 'var(--pr-gold)',
                   border: '2px solid var(--bg-card)',
                   marginLeft: 0,
                 }}
@@ -604,7 +604,7 @@ function PRTimelineCard({ entries }: { entries: PRTimelineEntry[] }) {
               </div>
               {/* Weight + delta */}
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                <span style={{ fontSize: 17, fontWeight: 900, color: '#c9a227', letterSpacing: '-0.02em' }}>
+                <span style={{ fontSize: 17, fontWeight: 900, color: 'var(--pr-gold)', letterSpacing: '-0.02em' }}>
                   {pr.weight} lbs
                 </span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--phase-accum)' }}>

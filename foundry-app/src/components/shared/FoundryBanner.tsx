@@ -6,7 +6,7 @@ const SYNC_ICON_COLOR: Record<SyncState, string> = {
   idle:    '#C0885A',
   syncing: '#60a5fa',
   synced:  '#4ade80',
-  offline: '#f87171',
+  offline: 'var(--stalling)',
 };
 
 const SYNC_ICON_GLOW: Record<SyncState, string> = {
