@@ -717,21 +717,6 @@ function HomeTab({
         </div>
       )}
 
-      {/* ═══ SECTION DIVIDER ═══ */}
-      <SectionDivider />
-
-      {/* ═══ SECONDARY ZONE: Supporting actions ═══ */}
-
-      {/* Readiness card — only on non-workout days */}
-      {!_isWorkoutToday && (
-        <ReadinessCard
-          readiness={readiness}
-          readinessOpen={readinessOpen}
-          setReadinessOpen={setReadinessOpen}
-          updateReadiness={updateReadiness}
-        />
-      )}
-
       {/* Cardio card */}
       {todayCardioSlot ? (
         <button
@@ -824,6 +809,21 @@ function HomeTab({
           </div>
           <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 700 }}>+</span>
         </button>
+      )}
+
+      {/* ═══ SECTION DIVIDER ═══ */}
+      <SectionDivider />
+
+      {/* ═══ SECONDARY ZONE: Supporting actions ═══ */}
+
+      {/* Readiness card — only on non-workout days */}
+      {!_isWorkoutToday && (
+        <ReadinessCard
+          readiness={readiness}
+          readinessOpen={readinessOpen}
+          setReadinessOpen={setReadinessOpen}
+          updateReadiness={updateReadiness}
+        />
       )}
 
       {/* Pre-workout mobility — workout days only */}
