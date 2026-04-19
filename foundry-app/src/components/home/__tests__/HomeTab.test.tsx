@@ -262,7 +262,6 @@ describe('HomeTab', () => {
     fireEvent.click(todayButton!);
 
     expect(props.goBack).toHaveBeenCalled();
-    expect(props.setCurrentWeek).toHaveBeenCalledWith(0);
-    expect(props.onSelectDay).toHaveBeenCalledWith(0);
+    expect(props.onSelectDayWeek).toHaveBeenCalledWith(0, 0);
   });
 });

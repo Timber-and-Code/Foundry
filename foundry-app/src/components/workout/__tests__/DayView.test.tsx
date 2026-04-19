@@ -155,6 +155,14 @@ function makeDay(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// Today's readiness key — tests that click Begin Workout must mock this as
+// complete so DayView doesn't intercept with the ReadinessSheet.
+const todayReadinessKey = () => {
+  const d = new Date();
+  return `foundry:readiness:${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const completeReadiness = () => JSON.stringify({ sleep: 7, soreness: 2, energy: 7 });
+
 const defaultProps = () => ({
   dayIdx: 0,
   weekIdx: 0,
@@ -253,8 +261,11 @@ describe('DayView', () => {
   });
 
   it('shows elapsed timer once workout is started', () => {
-    // Simulate a session that started 65 seconds ago
+    // Simulate a session that started 65 seconds ago — seed real localStorage
+    // since the useWorkoutTimer hook reads the real store, not the mock.
     const startTime = Date.now() - 65000;
+    localStorage.setItem('foundry:sessionStart:d0:w0', String(startTime));
+    localStorage.setItem(todayReadinessKey(), completeReadiness());
     mocks.store.get.mockImplementation((key: string) => {
       if (key === 'foundry:sessionStart:d0:w0') return String(startTime);
       return null;
@@ -283,6 +294,12 @@ describe('DayView', () => {
   });
 
   it('notes persistence - clicking Begin Workout stores session start', () => {
+    // Readiness must be complete in real localStorage — DayView's readiness
+    // check reads the real store, not the mock (the mock registers at a path
+    // the real DayView import doesn't resolve to). Seeding localStorage is
+    // the working path.
+    localStorage.setItem(todayReadinessKey(), completeReadiness());
+
     // Render the pre-workout view
     render(<DayView {...defaultProps()} />);
     expect(screen.getByText(/Push Day/)).toBeInTheDocument();
@@ -292,8 +309,6 @@ describe('DayView', () => {
     fireEvent.click(beginButtons[0]);
 
     // After starting, the component stores the session start time in localStorage.
-    // store.set is the real localStorage (our mock for the store object isn't intercepting it
-    // due to barrel re-export), so we verify via localStorage directly.
     const sessionKey = 'foundry:sessionStart:d0:w0';
     const stored = localStorage.getItem(sessionKey);
     expect(stored).not.toBeNull();
