@@ -45,6 +45,7 @@ import WorkoutCompleteModal from './WorkoutCompleteModal';
 import CardioPromptModal from './CardioPromptModal';
 import UnfinishedPromptModal from './UnfinishedPromptModal';
 import NoteReviewSheet from './NoteReviewSheet';
+import ReadinessSheet from './ReadinessSheet';
 import SwapSheet from './SwapSheet';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
@@ -300,13 +301,27 @@ function DayView({
     isLocked,
   });
 
-  // Begin workout — stamps localStorage, starts timer, dismisses overlay
-  const beginWorkout = () => {
+  // Readiness is one row per day; prompt only if today's entry isn't already complete
+  const isReadinessIncompleteToday = () => {
+    const d = new Date();
+    const key = `foundry:readiness:${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    try {
+      const r = JSON.parse(store.get(key) || 'null');
+      return !r || !r.sleep || !r.soreness || !r.energy;
+    } catch {
+      return true;
+    }
+  };
+
+  // Commit the workout start — stamps localStorage, starts timer, dismisses
+  // overlay, and registers the remote session. Called after the user has
+  // confirmed intent (either directly, or via the readiness sheet).
+  const commitStartWorkout = () => {
     startTimer();
     setShowMesoOverlay(false);
+    store.set(`foundry:splash-seen:d${dayIdx}:w${weekIdx}`, '1');
+    setShowSplash(false);
     if (!bwPromptShownThisWeek()) setShowBwCheckin(true);
-    // Chunk 4a: create/upsert the remote workout_sessions row with
-    // started_at. Fire-and-forget. Failures are surfaced via toast.
     const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
     upsertWorkoutSessionRemote(dayIdx, weekIdx, {
       sessionId,
@@ -315,9 +330,22 @@ function DayView({
     });
   };
 
+  // Intent to begin — if readiness is incomplete, show the sheet first so
+  // the user has a real "Go back" option before the timer starts.
+  const beginWorkout = () => {
+    if (isReadinessIncompleteToday()) {
+      setShowSplash(false);
+      setShowReadinessSheet(true);
+      return;
+    }
+    commitStartWorkout();
+  };
+
   // showPostStrengthPrompt, showCardioPrompt — reserved for post-strength/cardio prompts
   // BW check-in — triggered from beginWorkout(), not at mount
   const [, setShowBwCheckin] = useState(false);
+  // Readiness check-in — triggered from beginWorkout() if today's entry is incomplete
+  const [showReadinessSheet, setShowReadinessSheet] = useState(false);
   // bwCheckinInput, setBwCheckinInput — reserved for BW check-in input
   // Per-exercise notes
   const [exNotes, setExNotes] = useState(() => loadExNotes(dayIdx, weekIdx));
@@ -901,10 +929,7 @@ function DayView({
         weekIdx={weekIdx}
         exercises={exercises}
         mesoId={mesoId}
-        onStart={() => {
-          dismissSplash();
-          beginWorkout();
-        }}
+        onStart={beginWorkout}
         onBack={() => {
           dismissSplash();
           onBack();
@@ -1463,6 +1488,24 @@ function DayView({
           </div>
         );
       })()}
+
+      {/* Readiness check-in (pre-workout) */}
+      {showReadinessSheet && (
+        <ReadinessSheet
+          onDismiss={() => {
+            setShowReadinessSheet(false);
+            if (!workoutStarted) commitStartWorkout();
+          }}
+          onCancel={
+            workoutStarted
+              ? undefined
+              : () => {
+                  setShowReadinessSheet(false);
+                  setShowSplash(true);
+                }
+          }
+        />
+      )}
 
       {/* Note Review Step */}
       {showNoteReview && (

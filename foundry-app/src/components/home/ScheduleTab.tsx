@@ -18,24 +18,6 @@ import EditScheduleSheet from './EditScheduleSheet';
 
 // ── Inline icon helpers ────────────────────────────────────────────────────
 
-const scheduleIcon = (color: string) => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-    <line x1="16" y1="2" x2="16" y2="6" />
-    <line x1="8" y1="2" x2="8" y2="6" />
-    <line x1="3" y1="10" x2="21" y2="10" />
-  </svg>
-);
-
 const overviewIcon = (color: string) => (
   <svg
     width="16"
@@ -81,7 +63,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
           <div>
             <div
               style={{
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 800,
                 letterSpacing: '0.12em',
                 color: 'var(--text-muted)',
@@ -92,7 +74,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
             </div>
             <div
               style={{
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: 800,
                 color: 'var(--text-primary)',
               }}
@@ -127,7 +109,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
             <div key={i} style={{ marginBottom: 14 }}>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: 700,
                   color: 'var(--text-secondary)',
                   letterSpacing: '0.04em',
@@ -138,7 +120,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
               </div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   color: 'var(--text-primary)',
                   lineHeight: 1.6,
                   background: 'var(--bg-inset)',
@@ -155,7 +137,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
           <div style={{ marginTop: 4 }}>
             <div
               style={{
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 700,
                 color: 'var(--text-secondary)',
                 letterSpacing: '0.04em',
@@ -166,7 +148,7 @@ function NoteViewer({ noteViewer, setNoteViewer }: { noteViewer: NoteViewerData 
             </div>
             <div
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 color: 'var(--text-primary)',
                 lineHeight: 1.6,
                 background: 'var(--bg-inset)',
@@ -203,7 +185,6 @@ interface ScheduleTabProps {
   setNoteViewer: (v: NoteViewerData | null) => void;
   skipVersion: number;
   setSkipVersion: (v: number) => void;
-  goBack: () => void;
   goTo: (v: string) => void;
   onSelectDay?: (v: number) => void;
   onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
@@ -236,7 +217,6 @@ function ScheduleTab({
   setNoteViewer,
   skipVersion: _skipVersion,
   setSkipVersion: _setSkipVersion,
-  goBack,
   goTo,
   onSelectDay: _onSelectDay,
   onSelectDayWeek,
@@ -300,67 +280,6 @@ function ScheduleTab({
 
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '16px 16px 12px',
-          background: 'var(--bg-deep)',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <button
-          onClick={goBack}
-          aria-label="Go back"
-          className="btn-ghost"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--accent)',
-            fontSize: 20,
-            lineHeight: 1,
-            padding: '2px 4px',
-            display: 'flex',
-            alignItems: 'center',
-            minWidth: 44,
-            minHeight: 44,
-            justifyContent: 'center',
-          }}
-        >
-          <span aria-hidden="true">‹</span>
-        </button>
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: '0.05em',
-            color: 'var(--text-secondary)',
-            flex: 1,
-          }}
-        >
-          SCHEDULE
-        </span>
-        <button
-          onClick={() => setShowEditSchedule(true)}
-          style={{
-            padding: '6px 12px',
-            borderRadius: tokens.radius.md,
-            cursor: 'pointer',
-            background: 'var(--accent)11',
-            border: '1px solid var(--accent)44',
-            color: 'var(--accent)',
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-          }}
-        >
-          ⚙ Edit Schedule
-        </button>
-      </div>
-
       {/* Calendar */}
       <div style={{ padding: '12px 0 0' }}>
         <div
@@ -382,42 +301,16 @@ function ScheduleTab({
               marginBottom: 12,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: tokens.radius.sm,
-                  background: 'var(--phase-intens)15',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {scheduleIcon('var(--phase-intens)')}
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    lineHeight: 1.2,
-                  }}
-                >
-                  Schedule
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--text-secondary)',
-                    fontWeight: 600,
-                    marginTop: 2,
-                  }}
-                >
-                  {monthName}
-                </div>
-              </div>
+            <div
+              style={{
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: '-0.01em',
+                color: 'var(--text-primary)',
+                lineHeight: 1.1,
+              }}
+            >
+              {monthName}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <button
@@ -433,7 +326,7 @@ function ScheduleTab({
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: canGoBack ? 'var(--text-secondary)' : 'var(--text-dim)',
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: 700,
                   opacity: canGoBack ? 1 : 0.3,
                 }}
@@ -449,7 +342,7 @@ function ScheduleTab({
                     border: '1px solid var(--phase-intens)55',
                     background: 'var(--phase-intens)11',
                     cursor: 'pointer',
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: 800,
                     letterSpacing: '0.05em',
                     color: 'var(--phase-intens)',
@@ -471,7 +364,7 @@ function ScheduleTab({
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: canGoForward ? 'var(--text-secondary)' : 'var(--text-dim)',
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: 700,
                   opacity: canGoForward ? 1 : 0.3,
                 }}
@@ -495,7 +388,7 @@ function ScheduleTab({
                 key={d}
                 style={{
                   textAlign: 'center',
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 700,
                   letterSpacing: '0.03em',
                   color: 'var(--text-secondary)',
@@ -598,7 +491,7 @@ function ScheduleTab({
                 >
                   <div
                     style={{
-                      fontSize: sessionKey ? 13 : 11,
+                      fontSize: sessionKey ? 15 : 13,
                       fontWeight: isToday || sessionKey ? 800 : 500,
                       color: isToday
                         ? isDone
@@ -683,7 +576,7 @@ function ScheduleTab({
                         position: 'absolute',
                         top: 2,
                         right: 2,
-                        fontSize: 12,
+                        fontSize: 13,
                         lineHeight: 1,
                         cursor: 'pointer',
                         filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.4))',
@@ -698,71 +591,27 @@ function ScheduleTab({
             })}
           </div>
 
-          {/* Legend */}
-          <div
-            style={{
-              marginTop: 10,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 6,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {[
-                ['Accumulation', 'var(--phase-accum)'],
-                ['Intensification', 'var(--phase-intens)'],
-                ['Peak', 'var(--phase-peak)'],
-                ['Deload', 'var(--phase-deload)'],
-              ].map(([label, color]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <div
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: tokens.radius.xs,
-                      background: color,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--text-muted)',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {label.slice(0, 3).toUpperCase()}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: tokens.radius.full,
-                    background: 'var(--accent)',
-                  }}
-                />
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Extra</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: tokens.radius.full,
-                    background: tokens.colors.gold,
-                  }}
-                />
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Cardio</div>
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
+
+      {/* Edit Schedule action */}
+      <div style={{ padding: '12px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          onClick={() => setShowEditSchedule(true)}
+          style={{
+            padding: '8px 14px',
+            borderRadius: tokens.radius.md,
+            cursor: 'pointer',
+            background: 'var(--accent)11',
+            border: '1px solid var(--accent)44',
+            color: 'var(--accent)',
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+          }}
+        >
+          ⚙ Edit Schedule
+        </button>
       </div>
 
       {/* Meso Overview nav card */}
@@ -811,7 +660,7 @@ function ScheduleTab({
             <div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 16,
                   fontWeight: 700,
                   color: 'var(--text-primary)',
                   lineHeight: 1.2,
@@ -821,9 +670,9 @@ function ScheduleTab({
               </div>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 14,
                   color: 'var(--text-muted)',
-                  marginTop: 1,
+                  marginTop: 2,
                 }}
               >
                 Phases & session breakdown

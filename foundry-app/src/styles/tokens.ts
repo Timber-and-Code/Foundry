@@ -114,6 +114,19 @@ export const tokens = {
     hero: 36,
   },
 
+  // Role-based type scale — prefer these over raw fontSize values.
+  // Floor is 13 (pill); all prose is 14+.
+  font: {
+    title:   24, // Page / tab titles
+    section: 18, // Major section headers
+    card:    16, // Card headings, phase / exercise names
+    caps:    14, // ALL-CAPS small-caps labels (pair with letterSpacing 0.1em, weight 700)
+    body:    14, // Default body, descriptions, guidance, metadata
+    pill:    13, // Tiny badges / status chips
+    stat:    20, // Inline numeric emphasis
+    statLg:  28, // Hero numerics
+  },
+
   fontWeight: {
     normal:   '400',
     medium:   '500',

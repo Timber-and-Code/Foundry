@@ -16,9 +16,8 @@ import {
   getWeekSets,
 } from '../../utils/store';
 import WelcomeRibbon from './WelcomeRibbon';
-import ReadinessCard from './ReadinessCard';
 import MobilityCard from './MobilityCard';
-import type { Profile, TrainingDay, Exercise, ReadinessEntry, CardioScheduleSlot } from '../../types';
+import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
 
 // ── Section Divider ───────────────────────────────────────────────────────
 
@@ -53,8 +52,7 @@ function RestStateCard({
   setShowNextSession,
   activeWeek,
   goBack,
-  setCurrentWeek,
-  onSelectDay,
+  onSelectDayWeek,
 }: {
   displayWeekAllDone: boolean;
   calendarSessionDone: boolean;
@@ -72,8 +70,7 @@ function RestStateCard({
   setShowNextSession: (v: boolean | ((prev: boolean) => boolean)) => void;
   activeWeek: number;
   goBack: () => void;
-  setCurrentWeek: (v: number) => void;
-  onSelectDay: (v: number) => void;
+  onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
 }) {
   // Find last completed day's tag for mobility
   let homeMobilityTag = null;
@@ -143,12 +140,12 @@ function RestStateCard({
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             )}
-            <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.08em', color: headerColor }}>
+            <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: headerColor }}>
               {headerLabel}
             </span>
           </div>
           {doneLabel && calendarSessionDone && (
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+            <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
               {doneLabel}
             </span>
           )}
@@ -170,7 +167,7 @@ function RestStateCard({
               textAlign: 'left',
             }}
           >
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
               {isWeekComplete ? 'Active Recovery Guide' : 'Recovery Guide'}
             </span>
             <svg
@@ -194,33 +191,33 @@ function RestStateCard({
                     borderLeft: '3px solid var(--accent)',
                   }}
                 >
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 2 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 2 }}>
                     {item.title}
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                     {item.body}
                   </div>
                 </div>
               ))}
               {/* Mobility section inline */}
-              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginTop: 4 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginTop: 4 }}>
                 DAILY MOBILITY
               </div>
               {DAILY_MOBILITY.map((move, i) => (
                 <div key={`dm-${i}`} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{move.name}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{move.name}</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
                 </div>
               ))}
               {homeMobilityMoves && (
                 <>
-                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginTop: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginTop: 4 }}>
                     {homeMobilityTag} COOLDOWN
                   </div>
                   {homeMobilityMoves.map((move, i) => (
                     <div key={`cm-${i}`} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)' }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{move.name}</div>
-                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{move.name}</div>
+                      <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
                     </div>
                   ))}
                 </>
@@ -256,10 +253,10 @@ function RestStateCard({
             }}
           >
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>
                 NEXT SESSION
               </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
                 {nextDayForCollapse.label}
               </div>
             </div>
@@ -274,7 +271,7 @@ function RestStateCard({
           {showNextSession && (
             <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
               <button
-                onClick={() => { goBack(); setCurrentWeek(activeWeek); onSelectDay(nextDayIdxForCollapse); }}
+                onClick={() => { goBack(); onSelectDayWeek(nextDayIdxForCollapse, activeWeek); }}
                 style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0' }}
               >
                 {nextDayForCollapse.exercises.map((ex: Exercise, ei: number) => {
@@ -283,10 +280,10 @@ function RestStateCard({
                   return (
                     <div key={ei} style={{ display: 'flex', padding: '8px 16px', borderBottom: ei < nextDayForCollapse.exercises.length - 1 ? '1px solid var(--border-subtle)' : 'none', textAlign: 'left' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {dbEx ? dbEx.name : ex.name}
                         </div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 1 }}>
+                        <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 1 }}>
                           {getWeekSets(Number(ex.sets) || 0, activeWeek, getMeso().weeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
                         </div>
                       </div>
@@ -296,7 +293,7 @@ function RestStateCard({
               </button>
               <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border-subtle)' }}>
                 <button
-                  onClick={() => { goBack(); setCurrentWeek(activeWeek); onSelectDay(nextDayIdxForCollapse); }}
+                  onClick={() => { goBack(); onSelectDayWeek(nextDayIdxForCollapse, activeWeek); }}
                   style={{
                     width: '100%', padding: '10px', borderRadius: tokens.radius.md, cursor: 'pointer',
                     background: 'var(--btn-primary-bg)', border: '1px solid var(--btn-primary-border)',
@@ -331,10 +328,6 @@ interface HomeTabProps {
   mesoPct: number;
   doneSessions: number;
   totalSessions: number;
-  readiness: ReadinessEntry | null;
-  readinessOpen: boolean;
-  setReadinessOpen: (v: boolean) => void;
-  updateReadiness: (key: keyof ReadinessEntry, val: string) => void;
   showRecoveryMorning: boolean;
   setShowRecoveryMorning: (v: boolean | ((prev: boolean) => boolean)) => void;
   showRecoveryTag: boolean;
@@ -345,9 +338,7 @@ interface HomeTabProps {
   setShowMorningMobility: (v: boolean | ((prev: boolean) => boolean)) => void;
   goTo: (v: string) => void;
   goBack: () => void;
-  onSelectDay: (v: number) => void;
   onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
-  setCurrentWeek: (v: number) => void;
   setShowSkipConfirm: (v: { dayIdx: number; weekIdx: number } | null) => void;
   onOpenCardio: (dateStr: string, protocol: string | null) => void;
   onOpenMobility: (v: string) => void;
@@ -369,10 +360,6 @@ function HomeTab({
   mesoPct,
   doneSessions: _doneSessions,
   totalSessions: _totalSessions,
-  readiness,
-  readinessOpen,
-  setReadinessOpen,
-  updateReadiness,
   showRecoveryMorning,
   setShowRecoveryMorning,
   showRecoveryTag: _showRecoveryTag,
@@ -383,9 +370,7 @@ function HomeTab({
   setShowMorningMobility,
   goTo,
   goBack,
-  onSelectDay,
   onSelectDayWeek,
-  setCurrentWeek,
   setShowSkipConfirm,
   onOpenCardio,
   onOpenMobility,
@@ -438,25 +423,6 @@ function HomeTab({
   const showDayAccent = showDay ? (TAG_ACCENT as Record<string, any>)[showDay.tag || ''] : nextDayAccent;
   const isToday = isCalendarWorkoutDay && !calendarSessionDone;
 
-  // Detect if today is a workout day
-  let _isWorkoutToday = false;
-  if (startDate && activeDays.length > 0) {
-    const _total = (getMeso().weeks + 1) * activeDays.length;
-    let _sc = 0,
-      _cursor = new Date(startDate);
-    for (let _d = 0; _d < 400 && _sc < _total; _d++) {
-      const _wkIdx = Math.floor(_sc / activeDays.length);
-      if (getWorkoutDaysForWeek(profile, _wkIdx).includes(_cursor.getDay())) {
-        if (_cursor.toISOString().slice(0, 10) === todayCardioStr) {
-          const _dIdx = _sc % activeDays.length;
-          if (!completedDays.has(`${_dIdx}:${_wkIdx}`)) _isWorkoutToday = true;
-        }
-        _sc++;
-      }
-      _cursor.setDate(_cursor.getDate() + 1);
-    }
-  }
-
   const preview = showDay?.exercises || [];
   const lastWeekData: Record<string, any> = (() => {
     for (let w = (isToday ? calWeekIdx : activeWeek) - 1; w >= 0; w--) {
@@ -499,7 +465,7 @@ function HomeTab({
       {profile?.name && (
         <div
           style={{
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: 500,
             color: 'var(--text-secondary)',
             letterSpacing: '0.01em',
@@ -559,11 +525,11 @@ function HomeTab({
             >
               {phase.toUpperCase()}
             </span>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>
               WK {displayWeek + 1}/{getMeso().weeks}
             </span>
             {phase !== 'Accumulation' && (
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 'auto' }}>
+              <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 'auto' }}>
                 {rir}
               </span>
             )}
@@ -587,10 +553,10 @@ function HomeTab({
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: 'pointer',
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: done ? tc : isNext ? accent : 'var(--text-muted)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.04em', color: done ? tc : isNext ? accent : 'var(--text-muted)' }}>
                     {({ PUSH: 'Push', PULL: 'Pull', LEGS: 'Legs', UPPER: 'Upper', LOWER: 'Lower', FULL: 'Full' } as Record<string, any>)[day.tag || ''] || day.tag}
                   </div>
-                  <div style={{ fontSize: 11, lineHeight: 1 }}>
+                  <div style={{ fontSize: 13, lineHeight: 1 }}>
                     {done ? <span style={{ color: tc }}>✓</span> : isNext ? <span style={{ color: accent }}>●</span> : <span style={{ color: 'var(--text-dim)' }}>·</span>}
                   </div>
                 </div>
@@ -603,7 +569,7 @@ function HomeTab({
             <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: tokens.radius.xs, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${weekPct}%`, background: pc, borderRadius: tokens.radius.xs, transition: 'width 0.5s ease' }} />
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
               {weekDone}/{weekTotal}
             </div>
           </div>
@@ -629,8 +595,7 @@ function HomeTab({
           setShowNextSession={setShowNextSession}
           activeWeek={activeWeek}
           goBack={goBack}
-          setCurrentWeek={setCurrentWeek}
-          onSelectDay={onSelectDay}
+          onSelectDayWeek={onSelectDayWeek}
         />
       ) : (
         <div
@@ -645,7 +610,7 @@ function HomeTab({
           }}
         >
           <button
-            onClick={(e) => { e.stopPropagation(); goBack(); setCurrentWeek(showDayWeek); onSelectDay(showDayIdx); }}
+            onClick={(e) => { e.stopPropagation(); goBack(); onSelectDayWeek(showDayIdx, showDayWeek); }}
             style={{
               width: '100%', background: `linear-gradient(135deg, ${showDayAccent}0d 0%, transparent 100%)`,
               border: 'none', cursor: 'pointer', padding: '14px 16px',
@@ -656,19 +621,19 @@ function HomeTab({
             onMouseLeave={(e) => (e.currentTarget.style.background = `linear-gradient(135deg, ${showDayAccent}0d 0%, transparent 100%)`)}
           >
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 12, color: 'var(--phase-accum)', fontWeight: 700, letterSpacing: '0.06em', marginBottom: 3 }}>
+              <div style={{ fontSize: 14, color: 'var(--phase-accum)', fontWeight: 700, letterSpacing: '0.06em', marginBottom: 3 }}>
                 {isToday ? 'TODAY' : 'NEXT SESSION'}
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
                 {showDay!.label}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 2 }}>
                 Week {showDayWeek + 1} · Day {showDayIdx + 1}
               </div>
             </div>
             <div
               style={{
-                flexShrink: 0, fontSize: 14, fontWeight: 800, color: showDayAccent,
+                flexShrink: 0, fontSize: 16, fontWeight: 800, color: showDayAccent,
                 background: showDayAccent + '18', border: `1px solid ${showDayAccent}44`,
                 borderRadius: tokens.radius.md, padding: '6px 14px', letterSpacing: '0.04em',
               }}
@@ -695,17 +660,17 @@ function HomeTab({
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {dbEx ? dbEx.name : ex.name}
                     </div>
-                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 1 }}>
+                    <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 1 }}>
                       {getWeekSets(Number(ex.sets) || 0, showDayWeek, getMeso().weeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
                     </div>
                   </div>
                   {!!prevWeight && (
                     <div style={{ flexShrink: 0, marginLeft: 10, textAlign: 'right' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{String(prevWeight)}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>last wk</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{String(prevWeight)}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>last wk</div>
                     </div>
                   )}
                 </div>
@@ -719,7 +684,7 @@ function HomeTab({
                 style={{
                   width: '100%', background: 'transparent', border: '1px solid var(--border)',
                   borderRadius: tokens.radius.md, color: 'var(--text-muted)',
-                  fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', padding: '8px', cursor: 'pointer',
+                  fontSize: 14, fontWeight: 700, letterSpacing: '0.04em', padding: '8px', cursor: 'pointer',
                 }}
               >
                 Skip Today's Session
@@ -728,6 +693,11 @@ function HomeTab({
           )}
         </div>
       )}
+
+      {/* ═══ SECTION DIVIDER ═══ */}
+      <SectionDivider />
+
+      {/* ═══ SECONDARY ZONE: Supporting actions ═══ */}
 
       {/* Cardio card */}
       {todayCardioSlot ? (
@@ -755,13 +725,13 @@ function HomeTab({
                 strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
               </svg>
-              <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.08em', color: todayCardioSession?.completed ? tokens.colors.gold : CARDIO_COLOR }}>
+              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: todayCardioSession?.completed ? tokens.colors.gold : CARDIO_COLOR }}>
                 {todayCardioSession?.completed ? 'CARDIO DONE ✓' : 'CARDIO TODAY'}
               </span>
             </div>
             {!todayCardioSession?.completed && (
               <span style={{
-                fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: CARDIO_COLOR,
+                fontSize: 14, fontWeight: 800, letterSpacing: '0.06em', color: CARDIO_COLOR,
                 background: `${CARDIO_COLOR}18`, border: `1px solid ${CARDIO_COLOR}44`,
                 borderRadius: tokens.radius.md, padding: '4px 10px',
               }}>
@@ -774,10 +744,10 @@ function HomeTab({
             return (
               <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
                     {proto ? proto.label : todayCardioSlot.protocol}
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
                     {proto ? (proto.description?.split('.')[0] ?? proto.description) + '.' : 'Cardio session'}
                   </div>
                 </div>
@@ -788,7 +758,7 @@ function HomeTab({
                       { label: 'REST', val: `${proto.intervals.restSecs}s`, color: tokens.colors.gold },
                     ].map(({ label, val, color }) => (
                       <div key={label} style={{
-                        fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', color,
+                        fontSize: 13, fontWeight: 800, letterSpacing: '0.05em', color,
                         background: `${color}18`, border: `1px solid ${color}44`,
                         borderRadius: tokens.radius.sm, padding: '2px 6px', whiteSpace: 'nowrap',
                       }}>
@@ -815,27 +785,12 @@ function HomeTab({
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={CARDIO_COLOR} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
             </svg>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>
               {todayCardioSession?.completed ? 'Cardio logged today ✓' : 'Add a cardio session'}
             </span>
           </div>
-          <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 700 }}>+</span>
+          <span style={{ fontSize: 16, color: 'var(--text-muted)', fontWeight: 700 }}>+</span>
         </button>
-      )}
-
-      {/* ═══ SECTION DIVIDER ═══ */}
-      <SectionDivider />
-
-      {/* ═══ SECONDARY ZONE: Supporting actions ═══ */}
-
-      {/* Readiness card — only on non-workout days */}
-      {!_isWorkoutToday && (
-        <ReadinessCard
-          readiness={readiness}
-          readinessOpen={readinessOpen}
-          setReadinessOpen={setReadinessOpen}
-          updateReadiness={updateReadiness}
-        />
       )}
 
       {/* Pre-workout mobility — workout days only */}
@@ -858,14 +813,14 @@ function HomeTab({
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
               </svg>
-              <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
                 BEFORE YOU TRAIN
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {showDay.tag && (
                 <span style={{
-                  fontSize: 12, fontWeight: 700, color: showDayAccent,
+                  fontSize: 14, fontWeight: 700, color: showDayAccent,
                   background: showDayAccent + '18', border: `1px solid ${showDayAccent}33`,
                   borderRadius: tokens.radius.sm, padding: '2px 8px', letterSpacing: '0.06em',
                 }}>
@@ -880,13 +835,13 @@ function HomeTab({
           </button>
           {showMorningMobility && (
             <div style={{ padding: '12px 16px' }}>
-              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
                 DAILY MOBILITY · 3 MOVES
               </div>
               {DAILY_MOBILITY.map((move, i) => (
                 <div key={i} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', marginBottom: 5, border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{move.name}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{move.name}</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
                 </div>
               ))}
             </div>

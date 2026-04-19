@@ -59,7 +59,7 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
       >
         <div
           style={{
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: 700,
             color: 'var(--text-primary)',
             marginBottom: 10,
@@ -80,7 +80,7 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
                   flexShrink: 0,
                 }}
               />
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</span>
+              <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{label}</span>
             </div>
           ))}
         </div>
@@ -113,7 +113,7 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
               >
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 700,
                     color: 'var(--text-primary)',
                     flex: 1,
@@ -124,7 +124,7 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
                 </div>
                 <div
                   style={{
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: 800,
                     color: status.color,
                     minWidth: 20,
@@ -136,7 +136,7 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
                 </div>
                 <div
                   style={{
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 700,
                     letterSpacing: '0.03em',
                     color: status.color,

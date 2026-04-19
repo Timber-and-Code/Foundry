@@ -25,12 +25,11 @@ const SYNC_ICON_TITLE: Record<SyncState, string> = {
 
 interface FoundryBannerProps {
   subtitle?: string;
-  subtitleLine2?: string;
   onProfileTap?: () => void;
   syncState?: SyncState;
 }
 
-function FoundryBanner({ subtitle, subtitleLine2, onProfileTap, syncState = 'idle' }: FoundryBannerProps) {
+function FoundryBanner({ subtitle, onProfileTap, syncState = 'idle' }: FoundryBannerProps) {
   const iconColor = SYNC_ICON_COLOR[syncState];
   const iconGlow = SYNC_ICON_GLOW[syncState];
   return (
@@ -38,7 +37,7 @@ function FoundryBanner({ subtitle, subtitleLine2, onProfileTap, syncState = 'idl
       role="banner"
       style={{
         background: '#0f0f0f',
-        padding: '10px 16px',
+        padding: '14px 16px',
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
@@ -73,9 +72,9 @@ function FoundryBanner({ subtitle, subtitleLine2, onProfileTap, syncState = 'idl
         <div>
           <div
             style={{
-              fontSize: 18,
+              fontSize: 28,
               fontWeight: 400,
-              letterSpacing: '0.2em',
+              letterSpacing: '0.18em',
               color: 'var(--text-primary)',
               lineHeight: 1,
               fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
@@ -86,20 +85,17 @@ function FoundryBanner({ subtitle, subtitleLine2, onProfileTap, syncState = 'idl
           {subtitle && (
             <div
               style={{
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: '0.15em',
-                color: 'var(--phase-accum)',
-                marginTop: 2,
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '0.12em',
+                marginTop: 6,
                 fontFamily: "'Inter', system-ui, sans-serif",
                 textTransform: 'uppercase',
                 lineHeight: 1.4,
+                color: 'var(--amber)',
               }}
             >
-              <div>{subtitle}</div>
-              {subtitleLine2 && (
-                <div style={{ color: 'var(--text-muted)', marginTop: 1 }}>{subtitleLine2}</div>
-              )}
+              {subtitle}
             </div>
           )}
         </div>
