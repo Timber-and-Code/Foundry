@@ -18,6 +18,9 @@ interface SetupPageProps {
 export default function SetupPage({ onComplete }: SetupPageProps) {
   const { signup, user } = useAuth();
   const { showToast } = useToast();
+  // Onboarding v2: defer email/password signup entirely. SaveProgressSheet
+  // handles account creation after the user has logged their first set.
+  const v2DeferAuth = store.get('foundry:onboarding_v2') !== '0';
   const SPLIT_CONFIG = {
     ppl: {
       label: 'Push · Pull · Legs',
@@ -270,7 +273,12 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
       // is about to build is tied to a persistent Supabase account from the
       // first set. Skipped entirely if the user is already signed in (e.g.
       // returning via the Sign in link on Pick Your Path).
-      if (!user) {
+      //
+      // Onboarding v2: this block is bypassed. SaveProgressSheet prompts for
+      // account creation on first-set-logged / first-week-done / meso
+      // completion instead. The account is tied to the anonymous local
+      // profile at signup time via the existing flushDirty() sync path.
+      if (!user && !v2DeferAuth) {
         const email = form.email.trim();
         const password = form.password;
         if (!email || !email.includes('@')) {
@@ -824,7 +832,9 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                 </div>
               </div>
 
-              {/* Save your progress — email + password signup (required) */}
+              {/* Save your progress — email + password signup. Hidden in
+                  onboarding v2: SaveProgressSheet handles it later. */}
+              {!v2DeferAuth && (
               <div style={sec}>
                 <label style={sLabel}>Save your progress *</label>
                 <div
@@ -920,6 +930,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                   </button>
                 </div>
               </div>
+              )}
 
               {/* Error */}
               {error && (

@@ -474,23 +474,12 @@ function HomeTab({
     : activeDays[activeDays.length - 1]?.label || '';
 
   // Onboarding v2: signal that Home mounted so the CoachMarkOrchestrator
-  // can arm the 2s dwell timer for the phase-bar mark.
+  // can arm the 2s dwell timer for the phase-bar mark. The `establish`
+  // mark fires from DayView when the user actually opens day 0/week 0 —
+  // not here on Home mount.
   React.useEffect(() => {
-    const ev = new Event('foundry:home-mounted');
-    window.dispatchEvent(ev);
-    // Also fire the first-day1-week1 event when the user first opens a
-    // program: activeWeek===0 AND no day0 logged yet. Only matters when the
-    // user taps today — we emit when HomeTab mounts and they're in week 0.
-    if (activeWeek === 0 && !completedDays.has('0:0')) {
-      const timer = window.setTimeout(() => {
-        if (!store.get('foundry:first_day1_event_emitted')) {
-          store.set('foundry:first_day1_event_emitted', '1');
-          window.dispatchEvent(new Event('foundry:first-day1-week1-open'));
-        }
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [activeWeek]);
+    window.dispatchEvent(new Event('foundry:home-mounted'));
+  }, []);
 
   return (
     <div

@@ -45,15 +45,15 @@ describe('IntakeCard', () => {
     expect(screen.getByLabelText(/your name/i)).toBeInTheDocument();
     // Experience pills are wrapped in a Reveal with aria-hidden=true, so
     // getByRole will not find them while name is empty.
-    expect(screen.queryByRole('radio', { name: /just starting/i })).toBeNull();
+    expect(screen.queryByRole('radio', { name: /under 1 year/i })).toBeNull();
   });
 
   it('reveals experience pills when name is entered', () => {
     render(<IntakeCard onDone={() => {}} />);
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });
-    expect(screen.getByRole('radio', { name: /just starting/i })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /under 2 years/i })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /^2\+ years$/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /under 1 year/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /1–3 years/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /^3\+ years$/i })).toBeInTheDocument();
   });
 
   it('CTA is disabled until all three fields are answered', () => {
@@ -64,7 +64,7 @@ describe('IntakeCard', () => {
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });
     expect(cta).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('radio', { name: /under 2 years/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /1–3 years/i }));
     expect(cta).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: /lose fat/i }));
@@ -75,7 +75,7 @@ describe('IntakeCard', () => {
     const onDone = vi.fn();
     render(<IntakeCard onDone={onDone} />);
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });
-    fireEvent.click(screen.getByRole('radio', { name: /under 2 years/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /1–3 years/i }));
     fireEvent.click(screen.getByRole('button', { name: /lose fat/i }));
     fireEvent.click(screen.getByRole('button', { name: /build my program/i }));
 
@@ -94,7 +94,7 @@ describe('IntakeCard', () => {
   it('writes anchor_strength_bias flag for "Build muscle and strength"', () => {
     render(<IntakeCard onDone={() => {}} />);
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });
-    fireEvent.click(screen.getByRole('radio', { name: /under 2 years/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /1–3 years/i }));
     fireEvent.click(screen.getByRole('button', { name: /build muscle and strength/i }));
     fireEvent.click(screen.getByRole('button', { name: /build my program/i }));
 
@@ -105,7 +105,7 @@ describe('IntakeCard', () => {
   it('maps sport performance to sport_conditioning', () => {
     render(<IntakeCard onDone={() => {}} />);
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });
-    fireEvent.click(screen.getByRole('radio', { name: /^2\+ years$/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /^3\+ years$/i }));
     fireEvent.click(screen.getByRole('button', { name: /sport performance/i }));
     fireEvent.click(screen.getByRole('button', { name: /build my program/i }));
 
@@ -115,7 +115,7 @@ describe('IntakeCard', () => {
   it('experience pill writes "new" for Just starting (matches existing storage contract)', () => {
     render(<IntakeCard onDone={() => {}} />);
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });
-    fireEvent.click(screen.getByRole('radio', { name: /just starting/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /under 1 year/i }));
     fireEvent.click(screen.getByRole('button', { name: /lose fat/i }));
     fireEvent.click(screen.getByRole('button', { name: /build my program/i }));
 

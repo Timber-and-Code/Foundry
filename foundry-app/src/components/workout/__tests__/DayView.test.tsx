@@ -120,6 +120,11 @@ vi.mock('../../../contexts/RestTimerContext', () => ({
   RestTimerProvider: ({ children }: any) => children,
 }));
 
+vi.mock('../../../contexts/ToastContext', () => ({
+  useToast: () => ({ showToast: vi.fn() }),
+  ToastProvider: ({ children }: any) => children,
+}));
+
 vi.mock('../ExerciseCard', () => ({
   default: ({ exercise }: { exercise: { name: string } }) => (
     <div data-testid="exercise-card">{exercise.name}</div>

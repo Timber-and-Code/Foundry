@@ -34,6 +34,7 @@ import {
   debouncedSync,
 } from '../../utils/sync';
 import { useRestTimer } from '../../contexts/RestTimerContext';
+import { useToast } from '../../contexts/ToastContext';
 import { useWorkoutTimer, formatElapsed } from '../../hooks/useWorkoutTimer';
 import { useCompletionFlow } from '../../hooks/useCompletionFlow';
 
@@ -74,7 +75,21 @@ function DayView({
 }: DayViewProps) {
   const { restTimer, restTimerMinimized, setRestTimerMinimized, startRestTimer, dismissRestTimer } =
     useRestTimer();
+  const { showToast } = useToast();
+  const notStartedWarnRef = React.useRef(0);
   const day = activeDays[dayIdx];
+
+  // Onboarding v2: emit the establish-week event the first time the user
+  // opens ANY workout in week 0 — week 0 IS the Establish phase, regardless
+  // of which calendar weekday they're on. Gated by a one-time flag so it
+  // fires once per user ever. The CoachMarkOrchestrator listens and shows
+  // the `establish` coach mark.
+  useEffect(() => {
+    if (weekIdx === 0 && !store.get('foundry:first_establish_day_emitted')) {
+      store.set('foundry:first_establish_day_emitted', '1');
+      window.dispatchEvent(new Event('foundry:first-day1-week1-open'));
+    }
+  }, [weekIdx]);
 
   // Guard: if the day slot doesn't exist (profile/MESO mismatch after restore), bail gracefully
   if (!day) {
@@ -542,6 +557,18 @@ function DayView({
 
   const handleUpdateSet = useCallback(
     (exIdx: number, setIdx: number, field: string, value: string | number | boolean) => {
+      // Gate set edits behind Begin Workout. Workout must be started (or
+      // locked/done for retro edits) before data can be logged — otherwise
+      // users can type into fields without realizing they haven't started.
+      if (!workoutStarted && !isDone && !isLocked) {
+        const now = Date.now();
+        if (now - notStartedWarnRef.current > 1500) {
+          notStartedWarnRef.current = now;
+          showToast('Tap Begin Workout to start logging sets', 'info');
+        }
+        return;
+      }
+
       // If user edits actual data for a done exercise, un-done it so they can re-complete
       // Don't un-done on confirmed flag writes — those are checkmark actions, not edits
       if (field !== 'confirmed') {
@@ -669,7 +696,7 @@ function DayView({
         return next;
       });
     },
-    [dayIdx, weekIdx, exercises]
+    [dayIdx, weekIdx, exercises, workoutStarted, isDone, isLocked, showToast]
   );
 
   const handleWeightAutoFill = useCallback(

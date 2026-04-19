@@ -51,10 +51,12 @@ interface ExperiencePill {
   label: string;
 }
 
+// Labels match AutoBuilderFlow's display ranges so the value round-trips
+// through onboarding → builder without the user seeing a mismatch.
 const EXPERIENCE_PILLS: ExperiencePill[] = [
-  { key: 'new', label: 'Just starting' },
-  { key: 'intermediate', label: 'Under 2 years' },
-  { key: 'advanced', label: '2+ years' },
+  { key: 'new', label: 'Under 1 year' },
+  { key: 'intermediate', label: '1–3 years' },
+  { key: 'advanced', label: '3+ years' },
 ];
 
 interface IntakeCardProps {

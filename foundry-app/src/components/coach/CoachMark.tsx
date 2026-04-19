@@ -69,8 +69,8 @@ export default function CoachMark({ anchorSelector, title, copy, onDismiss }: Co
     ? {
         position: 'fixed',
         left: '50%',
-        bottom: 24,
-        transform: 'translateX(-50%)',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
         width: Math.min(tooltipWidth, viewportW - 24),
       }
     : {
@@ -91,14 +91,17 @@ export default function CoachMark({ anchorSelector, title, copy, onDismiss }: Co
         position: 'fixed',
         inset: 0,
         zIndex: 950,
-        background: 'rgba(0,0,0,0.55)',
-        backdropFilter: 'blur(2px)',
-        WebkitBackdropFilter: 'blur(2px)',
+        // Fallback mode (no anchor): a gentle global dim so the tooltip has
+        // contrast. Anchor mode: transparent — the spotlight ring's box-shadow
+        // handles the dimming with a cutout over the anchor so it stays
+        // legible.
+        background: fallbackMode ? 'rgba(0,0,0,0.55)' : 'transparent',
         animation: 'coachMarkFadeIn 200ms ease',
       }}
       onClick={onDismiss}
     >
-      {/* Spotlight ring on anchor */}
+      {/* Spotlight ring on anchor — big box-shadow darkens everything outside
+          the hole, leaving the anchor fully visible. */}
       {rect && (
         <div
           aria-hidden="true"
@@ -109,7 +112,8 @@ export default function CoachMark({ anchorSelector, title, copy, onDismiss }: Co
             width: rect.width + 16,
             height: rect.height + 16,
             borderRadius: 12,
-            boxShadow: '0 0 0 9999px rgba(0,0,0,0.4), 0 0 20px rgba(232,101,26,0.4)',
+            boxShadow:
+              '0 0 0 9999px rgba(0,0,0,0.65), 0 0 24px rgba(232,101,26,0.5)',
             border: `2px solid ${tokens.colors.accent}`,
             pointerEvents: 'none',
             animation: 'coachMarkPulse 1.6s ease-in-out infinite',
@@ -182,8 +186,8 @@ export default function CoachMark({ anchorSelector, title, copy, onDismiss }: Co
           to { opacity: 1; }
         }
         @keyframes coachMarkPulse {
-          0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.4), 0 0 20px rgba(232,101,26,0.4); }
-          50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.4), 0 0 30px rgba(232,101,26,0.6); }
+          0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.65), 0 0 24px rgba(232,101,26,0.5); }
+          50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.65), 0 0 36px rgba(232,101,26,0.75); }
         }
       `}</style>
     </div>

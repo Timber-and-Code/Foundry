@@ -306,6 +306,14 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
         mesoTotalSessions,
       });
 
+      // Onboarding v2: emit meso-complete once per user when the final week
+      // of the first meso wraps. Gated so a multi-meso veteran doesn't get
+      // re-prompted at the end of every block.
+      if (isFinal && !store.get('foundry:meso_complete_emitted')) {
+        store.set('foundry:meso_complete_emitted', '1');
+        emit('foundry:meso-complete');
+      }
+
       const nextWeek = weekIdx + 1;
       if (nextWeek <= getMeso().weeks) {
         setCurrentWeek(nextWeek);

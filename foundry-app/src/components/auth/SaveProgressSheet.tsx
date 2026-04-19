@@ -4,7 +4,11 @@ import { useToast } from '../../contexts/ToastContext';
 import { tokens } from '../../styles/tokens';
 import { store } from '../../utils/store';
 
-export type SaveProgressTrigger = 'first_set' | 'first_week_done' | 'settings';
+export type SaveProgressTrigger =
+  | 'first_set'
+  | 'first_week_done'
+  | 'meso_complete'
+  | 'settings';
 
 interface SaveProgressSheetProps {
   onDismiss: () => void;
@@ -24,6 +28,10 @@ const COPY_BY_TRIGGER: Record<SaveProgressTrigger, TriggerCopy> = {
   first_week_done: {
     title: 'A week of work, saved',
     body: "You've logged a full week. Create an account to back it up — your program, your sets, your PRs, all on every device.",
+  },
+  meso_complete: {
+    title: 'Mesocycle complete — lock it in',
+    body: "You finished a full mesocycle. Create an account now so this meso, every PR, and your next block carry forward.",
   },
   settings: {
     title: 'Sync across devices',

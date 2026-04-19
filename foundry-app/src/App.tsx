@@ -162,12 +162,18 @@ function App() {
 
   const [onboarded, setOnboarded] = useState(() => !!store.get('foundry:onboarded'));
   const [openWeekly, setOpenWeekly] = useState(false);
-  const [showSetup, setShowSetup] = useState(false);
+  // showSetup defaults to true when the user is onboarded but has no profile
+  // yet — that's the "first meso build in progress" state, and should
+  // survive reloads. Otherwise a page reload mid-setup lands on NoMesoShell
+  // which auto-saves a generic profile when a sample program is selected.
+  const [showSetup, setShowSetup] = useState(
+    () => !!store.get('foundry:onboarded') && !store.get('foundry:profile'),
+  );
   const [showTour, setShowTour] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
   const [showSaveProgress, setShowSaveProgress] = useState(false);
   const [saveProgressTrigger, setSaveProgressTrigger] = useState<
-    'first_set' | 'first_week_done' | 'settings'
+    'first_set' | 'first_week_done' | 'meso_complete' | 'settings'
   >('settings');
   const v2 = isOnboardingV2Enabled();
   const syncState = useSyncState();
@@ -236,26 +242,28 @@ function App() {
     }
   }, [profile, v2]);
 
-  // Onboarding v2: bridge first-set-logged and first-week-done events to the
-  // SaveProgressSheet triggers. Cap at 2 auto prompts via
-  // foundry:save_progress_prompts (the first_set and first_week_done triggers).
+  // Onboarding v2: bridge first-set-logged, first-week-done, and
+  // meso-complete events to the SaveProgressSheet triggers. Cap at 3 auto
+  // prompts (one per milestone) via foundry:save_progress_prompts.
   useEffect(() => {
     if (!v2) return;
-    const open = (trigger: 'first_set' | 'first_week_done') => {
+    const open = (trigger: 'first_set' | 'first_week_done' | 'meso_complete') => {
       if (user) return; // already authed
       if (store.get('foundry:save_progress_dismissed') === '1') return;
       const promptsRaw = store.get('foundry:save_progress_prompts');
       const prompts = promptsRaw ? parseInt(promptsRaw, 10) : 0;
-      if (prompts >= 2) return;
+      if (prompts >= 3) return;
       store.set('foundry:save_progress_prompts', String(prompts + 1));
       setSaveProgressTrigger(trigger);
       setTimeout(() => setShowSaveProgress(true), 2000);
     };
     const unsubSet = on('foundry:first-set-logged', () => open('first_set'));
     const unsubWeek = on('foundry:first-week-done', () => open('first_week_done'));
+    const unsubMeso = on('foundry:meso-complete', () => open('meso_complete'));
     return () => {
       unsubSet();
       unsubWeek();
+      unsubMeso();
     };
   }, [v2, user]);
 
