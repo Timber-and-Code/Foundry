@@ -11,9 +11,11 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <!-- Self-hosted fonts. @font-face declarations live in src/styles/global.css.
+       Inter Variable is the critical-path body font — preload avoids FOUT
+       on WelcomeScreen + IntakeCard. Bebas Neue is display-only, loaded
+       on-demand via @font-face. -->
+  <link rel="preload" href="/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
 </head>
 <body>
   <div id="root"></div>
