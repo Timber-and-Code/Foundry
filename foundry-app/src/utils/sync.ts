@@ -1832,7 +1832,17 @@ export async function pullFromSupabase(): Promise<void> {
         remoteActiveMesoId = row.active_meso_id ?? null;
         const localKey = 'foundry:profile';
         const localRaw = store.get(localKey);
-        const remoteFields = supabaseRowToAppProfileFields(row);
+        const remoteFieldsRaw = supabaseRowToAppProfileFields(row);
+        // Strip undefined keys so they don't clobber local values on merge.
+        // supabaseRowToAppProfileFields returns undefined for nullable columns
+        // (weight_lbs, gender, date_of_birth) when the remote row has nulls;
+        // spreading those into the local profile sets the key to undefined,
+        // which JSON.stringify then drops — wiping the user's local-only
+        // field.
+        const remoteFields: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(remoteFieldsRaw)) {
+          if (v !== undefined) remoteFields[k] = v;
+        }
 
         if (localRaw) {
           try {
