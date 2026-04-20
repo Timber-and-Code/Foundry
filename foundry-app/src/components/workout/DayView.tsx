@@ -1195,6 +1195,22 @@ function DayView({
           onScopeWeek={() => executeSwap('week')}
           onScopeCancel={() => setSwapPending(null)}
         />
+
+        {/* Readiness check-in gate — fires from beginWorkout() when today's
+            readiness is incomplete. Mounted here too because the main return
+            below only renders after workoutStarted flips true. */}
+        {showReadinessSheet && (
+          <ReadinessSheet
+            onDismiss={() => {
+              setShowReadinessSheet(false);
+              if (!workoutStarted) commitStartWorkout();
+            }}
+            onCancel={() => {
+              setShowReadinessSheet(false);
+              setShowSplash(true);
+            }}
+          />
+        )}
       </div>
     );
   }
