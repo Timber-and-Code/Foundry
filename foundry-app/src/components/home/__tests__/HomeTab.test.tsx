@@ -49,6 +49,7 @@ vi.mock('../../../data/constants', () => ({
 
 vi.mock('../../../data/exercises', () => ({
   EXERCISE_DB: [],
+  SAMPLE_PROGRAMS: [],
 }));
 
 vi.mock('../../../styles/tokens', () => ({
@@ -261,7 +262,6 @@ describe('HomeTab', () => {
     fireEvent.click(todayButton!);
 
     expect(props.goBack).toHaveBeenCalled();
-    expect(props.setCurrentWeek).toHaveBeenCalledWith(0);
-    expect(props.onSelectDay).toHaveBeenCalledWith(0);
+    expect(props.onSelectDayWeek).toHaveBeenCalledWith(0, 0);
   });
 });

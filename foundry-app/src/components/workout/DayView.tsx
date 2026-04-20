@@ -22,6 +22,9 @@ import {
   loadExOverride,
   saveExOverride,
   bwPromptShownThisWeek,
+  markBwPromptShown,
+  addBwEntry,
+  loadBwLog,
   getWeekSets,
   getWorkoutDaysForWeek,
 } from '../../utils/store';
@@ -34,6 +37,7 @@ import {
   debouncedSync,
 } from '../../utils/sync';
 import { useRestTimer } from '../../contexts/RestTimerContext';
+import { useToast } from '../../contexts/ToastContext';
 import { useWorkoutTimer, formatElapsed } from '../../hooks/useWorkoutTimer';
 import { useCompletionFlow } from '../../hooks/useCompletionFlow';
 
@@ -75,7 +79,21 @@ function DayView({
 }: DayViewProps) {
   const { restTimer, restTimerMinimized, setRestTimerMinimized, startRestTimer, dismissRestTimer } =
     useRestTimer();
+  const { showToast } = useToast();
+  const notStartedWarnRef = React.useRef(0);
   const day = activeDays[dayIdx];
+
+  // Onboarding v2: emit the establish-week event the first time the user
+  // opens ANY workout in week 0 — week 0 IS the Establish phase, regardless
+  // of which calendar weekday they're on. Gated by a one-time flag so it
+  // fires once per user ever. The CoachMarkOrchestrator listens and shows
+  // the `establish` coach mark.
+  useEffect(() => {
+    if (weekIdx === 0 && !store.get('foundry:first_establish_day_emitted')) {
+      store.set('foundry:first_establish_day_emitted', '1');
+      window.dispatchEvent(new Event('foundry:first-day1-week1-open'));
+    }
+  }, [weekIdx]);
 
   // Guard: if the day slot doesn't exist (profile/MESO mismatch after restore), bail gracefully
   if (!day) {
@@ -155,35 +173,21 @@ function DayView({
     return getMeso().weeks;
   })();
 
-  // Future sessions are completely locked — show empty, no interaction
+  // Future sessions are normally locked; user can opt in via the
+  // "Start anyway" button to record this session without finishing the
+  // prior week first (e.g. when matching a friend's day).
+  const [futureOverride, setFutureOverride] = useState(false);
   const isFutureSession = weekIdx > activeWeek;
-  const isLocked = isFutureSession;
+  const isLocked = isFutureSession && !futureOverride;
 
   const mesoId = store.get('foundry:active_meso_id');
 
-  // BW confirm modal — fires once per session per BW exercise
-  const [bwConfirmed, setBwConfirmed] = React.useState(new Set());
-  const [bwModal, setBwModal] = React.useState<{ exIdx: number; exName: string } | null>(null);
-  const [bwInput, setBwInput] = React.useState('');
-
+  // Weekly bodyweight check-in — fires once at workout start if the day
+  // has any BW-based exercises AND the prompt hasn't been shown yet this
+  // week. Mid-workout per-exercise prompts were removed: they interrupted
+  // the user's flow and didn't match the "gather signals up front" model.
   const handleExpandToggle = (i: number) => {
-    const ex = day.exercises[i];
-    // If BW exercise, not yet confirmed this session, and not read-only
-    if (ex.bw && !bwConfirmed.has(i) && !isDone && !isLocked) {
-      setBwInput(String(profile?.weight || ''));
-      setBwModal({ exIdx: i, exName: ex.name });
-    }
     setExpandedIdx(expandedIdx === i ? null : i);
-  };
-
-  const handleBwConfirm = () => {
-    if (!bwModal) return;
-    const val = parseFloat(bwInput);
-    if (!isNaN(val) && val > 0 && val !== parseFloat(String(profile?.weight || 0))) {
-      onProfileUpdate && onProfileUpdate({ weight: bwInput });
-    }
-    setBwConfirmed((prev) => new Set([...prev, bwModal.exIdx]));
-    setBwModal(null);
   };
 
   // Future sessions: load raw (empty) data so inputs show blank, not suggestions
@@ -303,7 +307,10 @@ function DayView({
     setShowMesoOverlay(false);
     store.set(`foundry:splash-seen:d${dayIdx}:w${weekIdx}`, '1');
     setShowSplash(false);
-    if (!bwPromptShownThisWeek()) setShowBwCheckin(true);
+    // Weekly bodyweight check-in: only prompt when this day actually has a
+    // BW-based exercise and we haven't asked yet this week.
+    const hasBwExercise = (day.exercises || []).some((e: Exercise) => e.bw);
+    if (hasBwExercise && !bwPromptShownThisWeek()) setShowBwCheckin(true);
     const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
     upsertWorkoutSessionRemote(dayIdx, weekIdx, {
       sessionId,
@@ -324,8 +331,13 @@ function DayView({
   };
 
   // showPostStrengthPrompt, showCardioPrompt — reserved for post-strength/cardio prompts
-  // BW check-in — triggered from beginWorkout(), not at mount
-  const [, setShowBwCheckin] = useState(false);
+  // BW check-in — triggered from commitStartWorkout when the day has BW
+  // exercises and we haven't prompted yet this week.
+  const [showBwCheckin, setShowBwCheckin] = useState(false);
+  const [bwCheckinInput, setBwCheckinInput] = useState(() => {
+    const log = loadBwLog();
+    return log.length > 0 ? String(log[0].weight) : profile?.weight ? String(profile.weight) : '';
+  });
   // Readiness check-in — triggered from beginWorkout() if today's entry is incomplete
   const [showReadinessSheet, setShowReadinessSheet] = useState(false);
   // bwCheckinInput, setBwCheckinInput — reserved for BW check-in input
@@ -567,6 +579,18 @@ function DayView({
 
   const handleUpdateSet = useCallback(
     (exIdx: number, setIdx: number, field: string, value: string | number | boolean) => {
+      // Gate set edits behind Begin Workout. Workout must be started (or
+      // locked/done for retro edits) before data can be logged — otherwise
+      // users can type into fields without realizing they haven't started.
+      if (!workoutStarted && !isDone && !isLocked) {
+        const now = Date.now();
+        if (now - notStartedWarnRef.current > 1500) {
+          notStartedWarnRef.current = now;
+          showToast('Tap Begin Workout to start logging sets', 'info');
+        }
+        return;
+      }
+
       // If user edits actual data for a done exercise, un-done it so they can re-complete
       // Don't un-done on confirmed flag writes — those are checkmark actions, not edits
       if (field !== 'confirmed') {
@@ -616,6 +640,51 @@ function DayView({
           },
         };
         saveDayWeek(dayIdx, weekIdx, next);
+
+        // Onboarding v2:
+        //  - first-set-logged fires on the first confirmed set ever (used by
+        //    WelcomeRibbon to hide once the user actually starts training).
+        //  - second-exercise-complete fires after the user has completed
+        //    TWO exercises. This is the SaveProgressSheet trigger — firing
+        //    after the second exercise keeps it off the same beat as the
+        //    RPE coach mark (which fires on the first exercise's last set).
+        if (field === 'confirmed' && value === true) {
+          // Defer emits out of the setWeekData updater — firing synchronously
+          // from inside a state updater triggers cross-component setState
+          // during render (React warning), since subscribers in App.tsx
+          // call their own setState.
+          if (!store.get('foundry:first_set_emitted')) {
+            store.set('foundry:first_set_emitted', '1');
+            queueMicrotask(() => emit('foundry:first-set-logged'));
+          }
+          if (!store.get('foundry:second_exercise_complete_emitted')) {
+            // Count how many exercises have all their work sets confirmed,
+            // based on the freshly-merged state.
+            const weekData = next as Record<
+              string | number,
+              Record<string, { confirmed?: boolean; warmup?: boolean }>
+            >;
+            let completeCount = 0;
+            exercises.forEach((ex: Exercise, i: number) => {
+              const totalWorkSets = Number(ex?.sets ?? 0);
+              if (totalWorkSets <= 0) return;
+              const exData = (weekData[i] || {}) as Record<
+                string,
+                { confirmed?: boolean; warmup?: boolean } | undefined
+              >;
+              let confirmed = 0;
+              for (const k of Object.keys(exData)) {
+                const s = exData[k];
+                if (s && s.confirmed && !s.warmup) confirmed++;
+              }
+              if (confirmed >= totalWorkSets) completeCount++;
+            });
+            if (completeCount >= 2) {
+              store.set('foundry:second_exercise_complete_emitted', '1');
+              queueMicrotask(() => emit('foundry:second-exercise-complete'));
+            }
+          }
+        }
 
         // Chunk 4a: sync this set to workout_sets (debounced per-set to
         // coalesce rapid typing). Only fire if the set has meaningful
@@ -684,7 +753,7 @@ function DayView({
         return next;
       });
     },
-    [dayIdx, weekIdx, exercises]
+    [dayIdx, weekIdx, exercises, workoutStarted, isDone, isLocked, showToast]
   );
 
   const handleWeightAutoFill = useCallback(
@@ -945,7 +1014,7 @@ function DayView({
         </div>
 
         {/* Future-session block: prior week incomplete */}
-        {isFutureSession && (() => {
+        {isFutureSession && !futureOverride && (() => {
           const incomplete = activeDays
             .map((d, i) => ({ d, i }))
             .filter(({ i }) => !completedDays.has(`${i}:${activeWeek}`));
@@ -996,6 +1065,26 @@ function DayView({
                   ))}
                 </div>
               )}
+              <button
+                onClick={() => setFutureOverride(true)}
+                style={{
+                  width: '100%',
+                  marginTop: 14,
+                  padding: '12px 14px',
+                  borderRadius: tokens.radius.md,
+                  background: 'transparent',
+                  border: '1px dashed var(--phase-intens, #E8651A)',
+                  color: 'var(--phase-intens, #E8651A)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Start this session anyway
+              </button>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 8, textAlign: 'center' }}>
+                Records this day independently. Earlier days stay marked incomplete.
+              </div>
             </div>
           );
         })()}
@@ -1135,6 +1224,22 @@ function DayView({
           onScopeWeek={() => executeSwap('week')}
           onScopeCancel={() => setSwapPending(null)}
         />
+
+        {/* Readiness check-in gate — fires from beginWorkout() when today's
+            readiness is incomplete. Mounted here too because the main return
+            below only renders after workoutStarted flips true. */}
+        {showReadinessSheet && (
+          <ReadinessSheet
+            onDismiss={() => {
+              setShowReadinessSheet(false);
+              if (!workoutStarted) commitStartWorkout();
+            }}
+            onCancel={() => {
+              setShowReadinessSheet(false);
+              setShowSplash(true);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -1247,66 +1352,116 @@ function DayView({
         </div>
       )}
 
-      {/* Bodyweight Modal */}
-      {bwModal && (
+      {/* Weekly bodyweight check-in (first workout of the week) */}
+      {showBwCheckin && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            zIndex: 200,
+            background: tokens.colors.overlayMed,
+            zIndex: 290,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            padding: 24,
           }}
-          onClick={() => setBwModal(null)}
         >
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="bw-dialog-title"
+            aria-labelledby="bw-checkin-title"
             style={{
               background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: tokens.radius.lg,
-              padding: 20,
-              maxWidth: 300,
+              border: '1px solid var(--border-accent)',
+              borderRadius: tokens.radius.xl,
+              padding: '28px 24px',
+              maxWidth: 320,
+              width: '100%',
+              boxShadow: 'var(--shadow-xl)',
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            <div id="bw-dialog-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Bodyweight Check</div>
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 10 }}>
+              WEEKLY CHECK-IN
+            </div>
+            <div id="bw-checkin-title" style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+              Log your bodyweight
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+              Tracking weekly bodyweight alongside your lifts gives you the full picture of how your training is working.
+            </div>
             <input
               type="number"
-              value={bwInput}
-              onChange={(e) => setBwInput(e.target.value)}
-              placeholder="Enter weight (lbs)"
-              aria-label="Your bodyweight in pounds"
+              inputMode="decimal"
+              value={bwCheckinInput}
+              onChange={(e) => setBwCheckinInput(e.target.value)}
+              placeholder="lbs"
               autoFocus
               style={{
                 width: '100%',
-                padding: '10px',
-                borderRadius: tokens.radius.sm,
-                border: '1px solid var(--border)',
-                marginBottom: 16,
                 background: 'var(--bg-inset)',
-                color: 'var(--text-primary)',
+                border: '1px solid var(--border-accent)',
+                borderRadius: tokens.radius.lg,
+                padding: '14px',
+                fontSize: 28,
+                fontWeight: 900,
+                color: 'var(--accent)',
+                textAlign: 'center',
+                marginBottom: 16,
+                outline: 'none',
+                boxSizing: 'border-box',
               }}
             />
-            <button
-              onClick={handleBwConfirm}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: tokens.radius.sm,
-                background: 'var(--btn-primary-bg)',
-                border: '1px solid var(--btn-primary-border)',
-                color: 'var(--btn-primary-text)',
-                cursor: 'pointer',
-                fontWeight: 700,
-              }}
-            >
-              Confirm
-            </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button
+                onClick={() => { markBwPromptShown(); setShowBwCheckin(false); }}
+                style={{
+                  padding: '14px',
+                  borderRadius: tokens.radius.lg,
+                  cursor: 'pointer',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                Skip
+              </button>
+              <button
+                disabled={(() => {
+                  const v = parseFloat(bwCheckinInput);
+                  return isNaN(v) || v <= 0;
+                })()}
+                onClick={() => {
+                  const val = parseFloat(bwCheckinInput);
+                  if (isNaN(val) || val <= 0) return;
+                  addBwEntry(val);
+                  onProfileUpdate && onProfileUpdate({ weight: String(val) });
+                  markBwPromptShown();
+                  setShowBwCheckin(false);
+                }}
+                className="btn-primary"
+                style={{
+                  padding: '14px',
+                  borderRadius: tokens.radius.lg,
+                  cursor: (() => {
+                    const v = parseFloat(bwCheckinInput);
+                    return isNaN(v) || v <= 0 ? 'not-allowed' : 'pointer';
+                  })(),
+                  fontSize: 13,
+                  fontWeight: 800,
+                  background: 'var(--btn-primary-bg)',
+                  border: '1px solid var(--btn-primary-border)',
+                  color: 'var(--btn-primary-text)',
+                  opacity: (() => {
+                    const v = parseFloat(bwCheckinInput);
+                    return isNaN(v) || v <= 0 ? 0.5 : 1;
+                  })(),
+                }}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}

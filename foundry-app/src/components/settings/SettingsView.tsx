@@ -8,6 +8,7 @@ import { getMeso } from '../../data/constants';
 import type { Profile, WorkoutSet, TrainingDay } from '../../types';
 
 const AccountSection = React.lazy(() => import('../auth/UserMenu'));
+const SaveProgressSheet = React.lazy(() => import('../auth/SaveProgressSheet'));
 
 const FOUNDRY_AI_WORKER_URL = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 const FOUNDRY_APP_KEY = import.meta.env.VITE_FOUNDRY_APP_KEY;
@@ -27,10 +28,11 @@ interface ProfileDrawerProps {
 }
 
 export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [weight, setWeight] = useState(saved.weight || '');
   const [editingWeight, setEditingWeight] = useState(false);
   const [showData, setShowData] = useState(false);
+  const [showSyncSheet, setShowSyncSheet] = useState(false);
 
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState('');
@@ -462,6 +464,40 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             <AccountSection />
           </Suspense>
 
+          {/* Sync across devices — always available for anonymous users */}
+          {!user && (
+            <button
+              type="button"
+              onClick={() => setShowSyncSheet(true)}
+              style={{
+                width: '100%',
+                marginTop: 8,
+                padding: '14px 16px',
+                borderRadius: tokens.radius.xl,
+                border: `1px solid ${tokens.colors.accentBorder}`,
+                background: tokens.colors.bgCard,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: tokens.colors.textPrimary, letterSpacing: '0.01em' }}>
+                  Sync across devices
+                </span>
+                <span style={{ fontSize: 11, color: tokens.colors.textMuted, fontWeight: 500 }}>
+                  Create an account to back up your training and sync.
+                </span>
+              </div>
+              <span aria-hidden="true" style={{ color: tokens.colors.accent, fontSize: 16, fontWeight: 800 }}>
+                →
+              </span>
+            </button>
+          )}
+
           {/* Foundry Pro / Tier Status */}
           {divider}
           {(() => {
@@ -737,6 +773,13 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             )}
           </div>
         </div>
+      )}
+
+      {/* Sync-across-devices sheet (anonymous users only) */}
+      {showSyncSheet && (
+        <Suspense fallback={null}>
+          <SaveProgressSheet trigger="settings" onDismiss={() => setShowSyncSheet(false)} />
+        </Suspense>
       )}
     </div>
   );

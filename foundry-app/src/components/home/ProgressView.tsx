@@ -4,7 +4,6 @@ import HammerIcon from '../shared/HammerIcon';
 import {
   TAG_ACCENT,
   PHASE_COLOR,
-  VOLUME_LANDMARKS,
   getMeso,
   getWeekPhase,
 } from '../../data/constants';
@@ -16,246 +15,11 @@ import {
   loadDayWeek,
 } from '../../utils/store';
 import { loadCardioSession } from '../../utils/persistence';
-import {
-  calcMuscleSetsByTag,
-  flattenMuscleSets,
-  getLandmarkStatus,
-  VOLUME_LEGEND,
-  BAND_MV,
-  BAND_OPT,
-  BAND_EXCEED,
-  TICK_COLOR,
-} from '../../utils/analyticsData';
+import { calcMuscleSetsByTag } from '../../utils/analyticsData';
 import type { TrainingDay, Exercise, BodyWeightEntry, WorkoutSet, CardioSession } from '../../types';
+import VolumeLandmarksCard from './VolumeLandmarksCard';
+import EmptyState from '../ui/EmptyState';
 // haptic import reserved for future UI feedback
-
-// ── Volume Landmarks Card ────────────────────────────────────────────────────
-function VolumeLandmarksCard({ byTag, title }: { byTag: Record<string, Record<string, number>>; title: string }) {
-  const muscleSets = flattenMuscleSets(byTag);
-  const entries = Object.entries(muscleSets)
-    .filter(([m, s]) => s > 0 && (VOLUME_LANDMARKS as Record<string, { mev: number; mavLow: number; mavHigh: number; mrv: number }>)[m])
-    .sort((a, b) => {
-      const sa = getLandmarkStatus(a[1], (VOLUME_LANDMARKS as Record<string, { mev: number; mavLow: number; mavHigh: number; mrv: number }>)[a[0]]);
-      const sb = getLandmarkStatus(b[1], (VOLUME_LANDMARKS as Record<string, { mev: number; mavLow: number; mavHigh: number; mrv: number }>)[b[0]]);
-      const priority = (s: NonNullable<ReturnType<typeof getLandmarkStatus>>) =>
-        s.label === 'Exceeding' ? 0 : s.label === 'MV' ? 1 : 2;
-      return priority(sa!) - priority(sb!) || (b[1] as number) - (a[1] as number);
-    });
-  if (entries.length === 0) return null;
-
-  const lblOpt = 'var(--phase-accum)';
-
-  return (
-    <div
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: tokens.radius.lg,
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow-sm)',
-      }}
-    >
-      <div
-        style={{
-          padding: '14px 16px 12px',
-          borderBottom: '1px solid var(--border-subtle)',
-        }}
-      >
-        <div
-          style={{
-            fontSize: 16,
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            marginBottom: 10,
-          }}
-        >
-          {title || 'Volume check'}
-        </div>
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          {VOLUME_LEGEND.map(([c, label], i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: tokens.radius.xs,
-                  background: c,
-                  opacity: 0.75,
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ padding: '0 16px 6px' }}>
-        {entries.map(([muscle, sets], idx) => {
-          const lm = (VOLUME_LANDMARKS as Record<string, any>)[muscle];
-          const status = getLandmarkStatus(sets as number, lm)!;
-          const scale = lm.mrv + 5;
-          const mevPct = (lm.mev / scale) * 100;
-          const mrvPct = (lm.mrv / scale) * 100;
-          const fillPct = Math.min(((sets as number) / scale) * 100, 99);
-          const isLast = idx === entries.length - 1;
-          const optMid = (mevPct + mrvPct) / 2;
-          return (
-            <div
-              key={muscle}
-              style={{
-                padding: '11px 0',
-                borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  marginBottom: 7,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    flex: 1,
-                    minWidth: 0,
-                  }}
-                >
-                  {muscle}
-                </div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: status.color,
-                    minWidth: 20,
-                    textAlign: 'right',
-                    lineHeight: 1,
-                  }}
-                >
-                  {sets as number}
-                </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    letterSpacing: '0.03em',
-                    color: status.color,
-                    background: status.bg,
-                    border: `1px solid ${status.border}`,
-                    padding: '3px 9px',
-                    borderRadius: tokens.radius.sm,
-                    minWidth: 64,
-                    textAlign: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {status.label}
-                </div>
-              </div>
-              <div
-                style={{
-                  position: 'relative',
-                  height: 14,
-                  borderRadius: tokens.radius.sm,
-                  overflow: 'hidden',
-                  background: 'var(--bg-inset)',
-                }}
-              >
-                {/* MV zone: 0 → MEV */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    height: '100%',
-                    width: `${mevPct}%`,
-                    background: BAND_MV,
-                  }}
-                />
-                {/* Optimal zone: MEV → MRV */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mevPct}%`,
-                    top: 0,
-                    height: '100%',
-                    width: `${mrvPct - mevPct}%`,
-                    background: BAND_OPT,
-                  }}
-                />
-                {/* Exceeding zone: MRV → end */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mrvPct}%`,
-                    top: 0,
-                    height: '100%',
-                    right: 0,
-                    background: BAND_EXCEED,
-                  }}
-                />
-                {/* MEV tick */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mevPct}%`,
-                    top: 0,
-                    width: 1,
-                    height: '100%',
-                    background: TICK_COLOR,
-                  }}
-                />
-                {/* MRV tick */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mrvPct}%`,
-                    top: 0,
-                    width: 1,
-                    height: '100%',
-                    background: TICK_COLOR,
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    height: '100%',
-                    width: `${fillPct}%`,
-                    background: status.fill,
-                    opacity: 0.72,
-                    borderRadius: `${tokens.radius.sm}px 0 0 ${tokens.radius.sm}px`,
-                    transition: 'width 0.5s cubic-bezier(0.22,1,0.36,1)',
-                  }}
-                />
-              </div>
-              <div style={{ position: 'relative', height: 14, marginTop: 3 }}>
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: `${optMid}%`,
-                    transform: 'translateX(-50%)',
-                    fontSize: 14,
-                    color: lblOpt,
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {lm.mev}–{lm.mrv} optimal
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // ── Main ProgressView ────────────────────────────────────────────────────────
 interface ProgressViewProps {
@@ -268,6 +32,7 @@ interface ProgressViewProps {
 export default function ProgressView({ currentWeek, completedDays, activeDays, goTo }: ProgressViewProps) {
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [showCardioHistory, setShowCardioHistory] = useState(false);
+  const [progressTab, setProgressTab] = useState<'week' | 'history'>('week');
   const weekByTag = calcMuscleSetsByTag(activeDays, completedDays, currentWeek);
 
   const workoutsThisWeek = activeDays.filter((_, i) =>
@@ -331,7 +96,14 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
       return isNaN(v) ? null : v;
     });
 
-    if (bwLog.length === 0) return null;
+    if (bwLog.length === 0) {
+      return (
+        <EmptyState
+          title="Log your first weigh-in to see trends"
+          body="Tap + on the Home tab to record a bodyweight entry."
+        />
+      );
+    }
 
     const latest = bwLog[bwLog.length - 1];
     const trend = bwLog.length >= 2 ? latest.weight - bwLog[0].weight : null;
@@ -532,7 +304,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           >
             {goalWeight !== null ? (
               <span>
-                GOAL: <span style={{ color: '#c9a227', fontWeight: 800 }}>{goalWeight} lbs</span>
+                GOAL: <span style={{ color: 'var(--pr-gold)', fontWeight: 800 }}>{goalWeight} lbs</span>
                 {goalReached && (
                   <span style={{ marginLeft: 6, color: 'var(--phase-accum)' }}>✓ Reached!</span>
                 )}
@@ -837,8 +609,56 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
   return (
     <div>
       <div style={{ padding: '0 16px 24px' }}>
+        {/* Sub-tab switcher — pill style segmented control */}
+        <div
+          role="tablist"
+          aria-label="Progress view"
+          style={{
+            display: 'flex',
+            gap: 4,
+            marginTop: 16,
+            marginBottom: 16,
+            padding: 4,
+            background: 'var(--bg-inset)',
+            border: '1px solid var(--border)',
+            borderRadius: tokens.radius.pill,
+          }}
+        >
+          {([
+            { key: 'week', label: 'This Week' },
+            { key: 'history', label: 'History' },
+          ] as const).map((t) => {
+            const active = progressTab === t.key;
+            return (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setProgressTab(t.key)}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  border: 'none',
+                  borderRadius: tokens.radius.pill,
+                  background: active ? 'var(--accent)' : 'transparent',
+                  color: active ? 'var(--btn-primary-text)' : 'var(--text-secondary)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: '0.03em',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {progressTab === 'week' && (
+        <>
         {/* Week summary */}
-        <div style={{ marginBottom: 16, marginTop: 16 }}>
+        <div style={{ marginBottom: 16 }}>
           <div
             style={{
               fontSize: 14,
@@ -856,7 +676,11 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           </div>
           <VolumeLandmarksCard byTag={weekByTag} title="Volume This Week" />
         </div>
+        </>
+        )}
 
+        {progressTab === 'history' && (
+        <>
         {/* BW trend */}
         <BwChart />
 
@@ -951,8 +775,8 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                               style={{
                                 fontSize: 14,
                                 fontWeight: 800,
-                                color: '#c9a227',
-                                background: '#c9a22722',
+                                color: 'var(--pr-gold)',
+                                background: 'var(--pr-gold-subtle)',
                                 border: '1px solid #c9a22744',
                                 borderRadius: tokens.radius.sm,
                                 padding: '1px 5px',
@@ -967,8 +791,8 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                               style={{
                                 fontSize: 14,
                                 fontWeight: 800,
-                                color: '#f87171',
-                                background: '#f8717122',
+                                color: 'var(--stalling)',
+                                background: 'var(--stalling-subtle)',
                                 border: '1px solid #f8717144',
                                 borderRadius: tokens.radius.sm,
                                 padding: '1px 5px',
@@ -1007,7 +831,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                           <div
                             style={{
                               fontSize: 14,
-                              color: '#f87171',
+                              color: 'var(--stalling)',
                               marginTop: 5,
                               lineHeight: 1.4,
                             }}
@@ -1021,7 +845,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
                           style={{
                             fontSize: 24,
                             fontWeight: 900,
-                            color: a.isPR ? '#c9a227' : a.isStalling ? '#f87171' : ac,
+                            color: a.isPR ? 'var(--pr-gold)' : a.isStalling ? 'var(--stalling)' : ac,
                             letterSpacing: '-0.02em',
                             lineHeight: 1,
                           }}
@@ -1242,7 +1066,17 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         {/* Cardio History */}
         {(() => {
           const cardioKeys = store.keys('foundry:cardio:session:');
-          if (cardioKeys.length === 0) return null;
+          if (cardioKeys.length === 0) {
+            return (
+              <div style={{ marginTop: 16, marginBottom: 8 }}>
+                <EmptyState
+                  compact
+                  title="No cardio logged yet"
+                  body="Cardio sessions will appear here once you finish your first one."
+                />
+              </div>
+            );
+          }
           const sessions: { date: string; session: CardioSession }[] = [];
           if (showCardioHistory) {
             cardioKeys
@@ -1320,6 +1154,8 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             </div>
           );
         })()}
+        </>
+        )}
 
         {/* Quick links */}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>

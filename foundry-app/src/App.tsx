@@ -47,6 +47,7 @@ import type { Profile, TrainingDay } from './types';
 import { useMesoState } from './hooks/useMesoState';
 
 const OnboardingFlow = React.lazy(() => import('./components/onboarding/OnboardingFlow'));
+const IntakeCard = React.lazy(() => import('./components/onboarding/IntakeCard'));
 const HomeView = React.lazy(() => import('./components/home/HomeView'));
 const NoMesoShell = React.lazy(() => import('./components/home/NoMesoShell'));
 const DayView = React.lazy(() => import('./components/workout/DayView'));
@@ -54,9 +55,18 @@ const ExtraDayView = React.lazy(() => import('./components/workout/ExtraDayView'
 const CardioSessionView = React.lazy(() => import('./components/workout/CardioSessionView'));
 const MobilitySessionView = React.lazy(() => import('./components/workout/MobilitySessionView'));
 const TourOverlay = React.lazy(() => import('./components/tour/TourOverlay'));
+const CoachMarkOrchestrator = React.lazy(
+  () => import('./components/coach/CoachMarkOrchestrator'),
+);
 const ProfileDrawer = React.lazy(() => import('./components/settings/SettingsView'));
 const SetupPage = React.lazy(() => import('./components/setup/SetupPage'));
 const NotFoundPage = React.lazy(() => import('./components/NotFoundPage'));
+
+// Onboarding v2 feature flag. Defaults ON for the TestFlight testing cut.
+// Explicit opt-out via localStorage.setItem('foundry:onboarding_v2', '0') lets
+// testers compare against the legacy flow without a rebuild. Existing users
+// with foundry:onboarded=1 never hit this gate and are unaffected.
+const isOnboardingV2Enabled = (): boolean => store.get('foundry:onboarding_v2') !== '0';
 
 // ─── ROUTE WRAPPERS ───────────────────────────────────────────────────────────
 
@@ -152,10 +162,20 @@ function App() {
 
   const [onboarded, setOnboarded] = useState(() => !!store.get('foundry:onboarded'));
   const [openWeekly, setOpenWeekly] = useState(false);
-  const [showSetup, setShowSetup] = useState(false);
+  // showSetup defaults to true when the user is onboarded but has no profile
+  // yet — that's the "first meso build in progress" state, and should
+  // survive reloads. Otherwise a page reload mid-setup lands on NoMesoShell
+  // which auto-saves a generic profile when a sample program is selected.
+  const [showSetup, setShowSetup] = useState(
+    () => !!store.get('foundry:onboarded') && !store.get('foundry:profile'),
+  );
   const [showTour, setShowTour] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
   const [showSaveProgress, setShowSaveProgress] = useState(false);
+  const [saveProgressTrigger, setSaveProgressTrigger] = useState<
+    'first_set' | 'first_week_done' | 'meso_complete' | 'settings'
+  >('settings');
+  const v2 = isOnboardingV2Enabled();
   const syncState = useSyncState();
   const homeTabRef = useRef<((tab: string) => void) | null>(null);
 
@@ -212,13 +232,44 @@ function App() {
     return unsub;
   }, [navigate, setProfile, setCompletedDays, setCurrentWeek]);
 
-  // Show tour if flagged (e.g. on reload after setup, or first visit)
+  // Show legacy tour if flagged (only when v2 is OFF; v2 replaces TourOverlay
+  // with CoachMarkOrchestrator)
   useEffect(() => {
+    if (v2) return;
     if (store.get('foundry:show_tour') === '1' && !store.get('foundry:toured')) {
       store.remove('foundry:show_tour');
       setTimeout(() => setShowTour(true), 800);
     }
-  }, [profile]);
+  }, [profile, v2]);
+
+  // Onboarding v2: bridge first-set-logged, first-week-done, and
+  // meso-complete events to the SaveProgressSheet triggers. Cap at 3 auto
+  // prompts (one per milestone) via foundry:save_progress_prompts.
+  useEffect(() => {
+    if (!v2) return;
+    const open = (trigger: 'first_set' | 'first_week_done' | 'meso_complete') => {
+      if (user) return; // already authed
+      if (store.get('foundry:save_progress_dismissed') === '1') return;
+      const promptsRaw = store.get('foundry:save_progress_prompts');
+      const prompts = promptsRaw ? parseInt(promptsRaw, 10) : 0;
+      if (prompts >= 3) return;
+      store.set('foundry:save_progress_prompts', String(prompts + 1));
+      setSaveProgressTrigger(trigger);
+      setTimeout(() => setShowSaveProgress(true), 2000);
+    };
+    // SaveProgressSheet trigger fires after the user has completed their
+    // second exercise — a natural pause that doesn't collide with the RPE
+    // coach mark on the first exercise's last set. The 'first_set' trigger
+    // key is retained for copy/analytics continuity.
+    const unsubExercise = on('foundry:second-exercise-complete', () => open('first_set'));
+    const unsubWeek = on('foundry:first-week-done', () => open('first_week_done'));
+    const unsubMeso = on('foundry:meso-complete', () => open('meso_complete'));
+    return () => {
+      unsubExercise();
+      unsubWeek();
+      unsubMeso();
+    };
+  }, [v2, user]);
 
   // ── Onboarding gate ──
   // Early returns use React.lazy components — must wrap in Suspense
@@ -229,6 +280,18 @@ function App() {
   );
 
   if (!profile && !onboarded) {
+    if (v2) {
+      return (
+        <React.Suspense fallback={suspenseFallback}>
+          <IntakeCard
+            onDone={() => {
+              setOnboarded(true);
+              setShowSetup(true);
+            }}
+          />
+        </React.Suspense>
+      );
+    }
     return (
       <React.Suspense fallback={suspenseFallback}>
         <OnboardingFlow
@@ -265,14 +328,22 @@ function App() {
           onComplete={(p: Profile) => {
             saveProfile(p);
             store.remove('foundry:storedProgram');
-            if (!store.get('foundry:toured')) store.set('foundry:show_tour', '1');
+            // v2 replaces TourOverlay with CoachMarkOrchestrator (no show_tour flag)
+            if (!v2 && !store.get('foundry:toured')) {
+              store.set('foundry:show_tour', '1');
+            }
             resetMesoCache();
             setProfile(loadProfile());
             setCompletedDays(loadCompleted(getMeso()));
             setCurrentWeek(loadCurrentWeek());
             setShowSetup(false);
-            // Prompt anonymous users to save their progress after first meso build
-            if (!user && !store.get('foundry:save_progress_dismissed')) {
+            // Land on Home, not whatever route the URL was before onboarding
+            // (e.g. /day/0/0 persisted from a prior session + localStorage clear).
+            navigate('/');
+            // Legacy behavior: prompt on meso-save. v2 drops this trigger and
+            // waits for first-set-logged / first-week-done instead.
+            if (!v2 && !user && !store.get('foundry:save_progress_dismissed')) {
+              setSaveProgressTrigger('settings');
               setTimeout(() => setShowSaveProgress(true), 800);
             }
           }}
@@ -448,12 +519,18 @@ function App() {
         </Routes>
         </main>
 
-        {showTour && (
+        {showTour && !v2 && (
           <TourOverlay
             onDone={() => setShowTour(false)}
             onNavigate={() => navigate('/')}
             onTabChange={(tab) => homeTabRef.current && homeTabRef.current(tab)}
           />
+        )}
+
+        {v2 && onboarded && (
+          <React.Suspense fallback={null}>
+            <CoachMarkOrchestrator />
+          </React.Suspense>
         )}
 
         {/* Global minimized timer bar */}
@@ -478,7 +555,10 @@ function App() {
         {/* Save your progress — deferred auth for anonymous users */}
         {showSaveProgress && (
           <React.Suspense fallback={null}>
-            <SaveProgressSheet onDismiss={() => setShowSaveProgress(false)} />
+            <SaveProgressSheet
+              trigger={saveProgressTrigger}
+              onDismiss={() => setShowSaveProgress(false)}
+            />
           </React.Suspense>
         )}
       </div>

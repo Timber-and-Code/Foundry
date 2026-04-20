@@ -226,6 +226,12 @@ function ExerciseCard({
     if (isLastSet) {
       // Open RPE prompt only on the final set — user picks Easy/Good/Hard
       setRpePrompt(s);
+      // Onboarding v2: fire the first-rpe-prompt event once per user so the
+      // CoachMarkOrchestrator can explain what the labels mean.
+      if (!store.get('foundry:first_rpe_emitted')) {
+        store.set('foundry:first_rpe_emitted', '1');
+        window.dispatchEvent(new Event('foundry:first-rpe-prompt'));
+      }
       return;
     }
     // Non-final set: confirm directly, no RPE prompt
@@ -1001,6 +1007,7 @@ function ExerciseCard({
               onClick={() => setRpePrompt(null)}
             >
               <div
+                data-coach="rpe-prompt"
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',

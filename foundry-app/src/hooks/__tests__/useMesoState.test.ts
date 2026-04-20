@@ -32,6 +32,7 @@ const mockExercises = vi.hoisted(() => ({
   EXERCISE_DB: [
     { id: 'bench', name: 'Bench Press', muscle: 'chest', equipment: 'barbell' },
   ],
+  SAMPLE_PROGRAMS: [],
 }));
 
 const mockProgram = vi.hoisted(() => ({

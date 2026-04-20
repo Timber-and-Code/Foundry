@@ -15,6 +15,14 @@ interface FoundryEventMap {
   'foundry:wants_auth': void;
   'foundry:welcomed': void;
   'foundry:resetToSetup': void;
+  // Onboarding v2 — coach mark + save-sheet triggers
+  'foundry:first-set-logged': void;
+  'foundry:second-exercise-complete': void;
+  'foundry:first-week-done': void;
+  'foundry:meso-complete': void;
+  'foundry:save-sheet-request': { trigger: 'first_set' | 'first_week_done' | 'meso_complete' | 'settings' };
+  'foundry:coach-mark-dismissed': { conceptId: string };
+  'foundry:schedule-tab-opened': void;
 }
 
 type EventName = keyof FoundryEventMap;

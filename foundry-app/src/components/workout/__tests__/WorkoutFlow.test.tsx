@@ -171,6 +171,7 @@ vi.mock('../../../data/constants', () => ({
 
 vi.mock('../../../data/exercises', () => ({
   EXERCISE_DB: mocks.EXERCISE_DB,
+  SAMPLE_PROGRAMS: [],
 }));
 
 vi.mock('../../../utils/program', () => ({

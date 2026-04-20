@@ -340,18 +340,47 @@ export async function ensureTrainingStructureRemote(
     if (checkError) throw checkError;
     if (existing && existing.length > 0) return; // already populated
 
-    // Dynamic imports to avoid static circular dependency.
-    const [programMod, exercisesMod] = await Promise.all([
-      import('./program'),
-      import('../data/exercises'),
-    ]);
-    const { generateProgram } = programMod;
-    const EXERCISE_DB = (exercisesMod as { EXERCISE_DB: unknown[] }).EXERCISE_DB;
+    // Prefer the locally-cached storedProgram so the tde rows reference the
+    // exact exercises the user sees in DayView and logs sets against.
+    // generateProgram uses shuffle(), so a re-call here would produce a
+    // DIFFERENT pick and orphan every workout_set on a future device pull.
+    let program: unknown[] | null = null;
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('foundry:storedProgram');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (
+            Array.isArray(parsed) &&
+            parsed.length > 0 &&
+            parsed.some((d) => Array.isArray((d as { exercises?: unknown[] }).exercises) && ((d as { exercises: unknown[] }).exercises.length > 0))
+          ) {
+            program = parsed;
+          }
+        } catch { /* fall through to generate */ }
+      }
+    }
 
-    const program = generateProgram(
-      profile,
-      EXERCISE_DB as Parameters<typeof generateProgram>[1],
-    );
+    if (!program) {
+      // No cached program (e.g., first save during onboarding) — generate a
+      // fresh one and cache it so subsequent writes agree.
+      const [programMod, exercisesMod] = await Promise.all([
+        import('./program'),
+        import('../data/exercises'),
+      ]);
+      const { generateProgram } = programMod;
+      const EXERCISE_DB = (exercisesMod as { EXERCISE_DB: unknown[] }).EXERCISE_DB;
+      program = generateProgram(
+        profile,
+        EXERCISE_DB as Parameters<typeof generateProgram>[1],
+      );
+      if (typeof window !== 'undefined' && Array.isArray(program) && program.length > 0) {
+        try {
+          localStorage.setItem('foundry:storedProgram', JSON.stringify(program));
+        } catch { /* non-critical cache write */ }
+      }
+    }
+
     if (!Array.isArray(program) || program.length === 0) return;
 
     // Build training_days rows — generate uuids up front so we can reference
@@ -1803,7 +1832,17 @@ export async function pullFromSupabase(): Promise<void> {
         remoteActiveMesoId = row.active_meso_id ?? null;
         const localKey = 'foundry:profile';
         const localRaw = store.get(localKey);
-        const remoteFields = supabaseRowToAppProfileFields(row);
+        const remoteFieldsRaw = supabaseRowToAppProfileFields(row);
+        // Strip undefined keys so they don't clobber local values on merge.
+        // supabaseRowToAppProfileFields returns undefined for nullable columns
+        // (weight_lbs, gender, date_of_birth) when the remote row has nulls;
+        // spreading those into the local profile sets the key to undefined,
+        // which JSON.stringify then drops — wiping the user's local-only
+        // field.
+        const remoteFields: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(remoteFieldsRaw)) {
+          if (v !== undefined) remoteFields[k] = v;
+        }
 
         if (localRaw) {
           try {
@@ -1991,6 +2030,151 @@ export async function pushToSupabase(): Promise<void> {
       console.log('[Foundry Sync] Pushed ' + ops.length + ' records to Supabase');
     }
   } catch (e) { reportSyncFailure('push', e); } finally { syncEnd(); }
+}
+
+// Chunk 4b: migrate locally-accumulated workout data to Supabase on sign-up.
+// Onboarding v2 defers auth, so users log sets before any user_id exists.
+// On SIGNED_IN we need to walk the foundry:day{d}:week{w} keys and upsert
+// a workout_session + workout_sets per day/week — pushToSupabase() above
+// only handles the profile block. Idempotent: uses upsert on the same
+// locally-persisted session/set ids, so running it twice is a no-op.
+export async function migrateLocalWorkoutsToSupabase(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const user = await getUser();
+  if (!user) return;
+
+  // Need profile to derive the exercise map.
+  const profileRaw = store.get('foundry:profile');
+  if (!profileRaw) return;
+  let profile: Profile;
+  try {
+    profile = JSON.parse(profileRaw) as Profile;
+  } catch {
+    return;
+  }
+
+  const mesoId = getOrCreateActiveMesoId();
+
+  // Ensure the parent rows exist before any workout_sets upsert (FKs).
+  await syncMesocycleToSupabase(profile);
+  await syncProfileToSupabase(profile);
+  await ensureTrainingStructureRemote(mesoId, profile);
+
+  // Build (dayIdx, exIdx) → exercise_id from the generated program. Local
+  // exercise IDs match the `exercise_id` column (text) written by
+  // ensureTrainingStructureRemote, so we can reuse them directly.
+  //
+  // CRITICAL: prefer the cached foundry:storedProgram over re-running
+  // generateProgram. generateProgram shuffles, so a fresh call here would
+  // produce different exercises than the ones the user just logged sets
+  // against (and than the ones ensureTrainingStructureRemote just wrote to
+  // training_day_exercises). Falling back to generateProgram only if no
+  // cached program exists.
+  let program: unknown[] | null = null;
+  const storedRaw = localStorage.getItem('foundry:storedProgram');
+  if (storedRaw) {
+    try {
+      const parsed = JSON.parse(storedRaw);
+      if (
+        Array.isArray(parsed) &&
+        parsed.length > 0 &&
+        parsed.some((d) => Array.isArray((d as { exercises?: unknown[] }).exercises) && ((d as { exercises: unknown[] }).exercises.length > 0))
+      ) {
+        program = parsed;
+      }
+    } catch { /* fall through */ }
+  }
+  if (!program) {
+    const [programMod, exercisesMod] = await Promise.all([
+      import('./program'),
+      import('../data/exercises'),
+    ]);
+    const generateProgram = (programMod as { generateProgram: (p: Profile, db: unknown[]) => unknown[] }).generateProgram;
+    const EXERCISE_DB = (exercisesMod as { EXERCISE_DB: unknown[] }).EXERCISE_DB;
+    program = generateProgram(profile, EXERCISE_DB);
+  }
+  if (!Array.isArray(program) || program.length === 0) return;
+  const exerciseIdFor = (dayIdx: number, exIdx: number): string | null => {
+    const day = program[dayIdx] as { exercises?: unknown[] } | undefined;
+    const ex = day?.exercises?.[exIdx] as { id?: unknown } | undefined;
+    return ex && ex.id != null ? String(ex.id) : null;
+  };
+
+  // Collect all foundry:day{d}:week{w} keys.
+  const dayWeekKeys: Array<{ dayIdx: number; weekIdx: number }> = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    const m = key.match(/^foundry:day(\d+):week(\d+)$/);
+    if (!m) continue;
+    dayWeekKeys.push({ dayIdx: parseInt(m[1], 10), weekIdx: parseInt(m[2], 10) });
+  }
+
+  // Walk each and upsert session + sets. Sequential — Supabase upserts here
+  // are cheap for the handful of records a pre-signup session produces, and
+  // we want the session row committed before the sets that reference it.
+  for (const { dayIdx, weekIdx } of dayWeekKeys) {
+    const raw = localStorage.getItem(`foundry:day${dayIdx}:week${weekIdx}`);
+    if (!raw) continue;
+    let data: Record<string, Record<string, {
+      id?: string;
+      weight?: string | number;
+      reps?: string | number;
+      rpe?: string | number;
+      confirmed?: boolean;
+      warmup?: boolean;
+    }>>;
+    try { data = JSON.parse(raw); } catch { continue; }
+
+    const sessionStart = localStorage.getItem(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
+    const isDone = localStorage.getItem(`foundry:done:d${dayIdx}:w${weekIdx}`) === '1';
+    const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
+
+    await upsertWorkoutSessionRemote(dayIdx, weekIdx, {
+      sessionId,
+      startedAt: sessionStart ? new Date(parseInt(sessionStart, 10)).toISOString() : null,
+      completedAt: isDone && sessionStart
+        ? new Date(parseInt(sessionStart, 10)).toISOString()
+        : null,
+      isComplete: isDone,
+    });
+
+    for (const exIdxStr of Object.keys(data)) {
+      const exIdx = parseInt(exIdxStr, 10);
+      if (Number.isNaN(exIdx)) continue;
+      const setsMap = data[exIdxStr];
+      if (!setsMap) continue;
+
+      const overrideId = store.get(`foundry:exOv:d${dayIdx}:w${weekIdx}:${exIdx}`) || null;
+      const exerciseId = overrideId || exerciseIdFor(dayIdx, exIdx);
+      if (!exerciseId) continue;
+
+      for (const setIdxStr of Object.keys(setsMap)) {
+        const setIdx = parseInt(setIdxStr, 10);
+        if (Number.isNaN(setIdx)) continue;
+        const set = setsMap[setIdxStr];
+        if (!set || !set.id) continue;
+        if (set.reps == null || set.reps === '') continue;
+
+        const weightNum = set.weight != null && set.weight !== '' ? Number(set.weight) : null;
+        const repsNum = set.reps != null && set.reps !== '' ? Number(set.reps) : null;
+        const rpeNum = set.rpe != null && set.rpe !== '' ? Number(set.rpe) : null;
+
+        await upsertWorkoutSetRemote(
+          sessionId,
+          set.id,
+          exerciseId,
+          setIdx,
+          {
+            weight: weightNum != null && !Number.isNaN(weightNum) ? weightNum : null,
+            reps: repsNum != null && !Number.isNaN(repsNum) ? repsNum : null,
+            rpe: rpeNum != null && !Number.isNaN(rpeNum) ? rpeNum : null,
+            isWarmup: !!set.warmup,
+          },
+        );
+      }
+    }
+  }
 }
 
 // ─── TRAIN WITH FRIENDS (social) ───────────────────────────────────────────

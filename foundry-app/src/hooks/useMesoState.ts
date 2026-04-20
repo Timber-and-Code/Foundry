@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { WorkoutSet, TrainingDay, Exercise } from '../types';
 import type { WeekCompleteModalData } from '../components/WeekCompleteModal';
-import { on } from '../utils/events';
+import { on, emit } from '../utils/events';
 
 interface UseMesoStateParams {
   setView: (view: string) => void;
@@ -123,6 +123,14 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
 
     if (weekFinished) {
       snapshotData();
+
+      // Onboarding v2: emit first-week-done once per user, when week 0
+      // completes. Gated by foundry:first_week_done_emitted.
+      if (weekIdx === 0 && !store.get('foundry:first_week_done_emitted')) {
+        store.set('foundry:first_week_done_emitted', '1');
+        emit('foundry:first-week-done');
+      }
+
       let totalSets = 0;
       const _storedProg = store.get('foundry:storedProgram');
       const prof = loadProfile();
@@ -297,6 +305,14 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
         mesoCompletedSessions,
         mesoTotalSessions,
       });
+
+      // Onboarding v2: emit meso-complete once per user when the final week
+      // of the first meso wraps. Gated so a multi-meso veteran doesn't get
+      // re-prompted at the end of every block.
+      if (isFinal && !store.get('foundry:meso_complete_emitted')) {
+        store.set('foundry:meso_complete_emitted', '1');
+        emit('foundry:meso-complete');
+      }
 
       const nextWeek = weekIdx + 1;
       if (nextWeek <= getMeso().weeks) {

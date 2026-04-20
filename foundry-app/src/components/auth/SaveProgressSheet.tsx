@@ -4,29 +4,70 @@ import { useToast } from '../../contexts/ToastContext';
 import { tokens } from '../../styles/tokens';
 import { store } from '../../utils/store';
 
+export type SaveProgressTrigger =
+  | 'first_set'
+  | 'first_week_done'
+  | 'meso_complete'
+  | 'settings';
+
 interface SaveProgressSheetProps {
   onDismiss: () => void;
+  trigger?: SaveProgressTrigger;
 }
 
-export default function SaveProgressSheet({ onDismiss }: SaveProgressSheetProps) {
-  const { signup } = useAuth();
+interface TriggerCopy {
+  title: string;
+  body: string;
+}
+
+const COPY_BY_TRIGGER: Record<SaveProgressTrigger, TriggerCopy> = {
+  first_set: {
+    title: "Don't lose this",
+    body: 'You just logged your first set. Save it to the cloud so your progress follows you.',
+  },
+  first_week_done: {
+    title: 'A week of work, saved',
+    body: "You've logged a full week. Create an account to back it up — your program, your sets, your PRs, all on every device.",
+  },
+  meso_complete: {
+    title: 'Mesocycle complete — lock it in',
+    body: "You finished a full mesocycle. Create an account now so this meso, every PR, and your next block carry forward.",
+  },
+  settings: {
+    title: 'Sync across devices',
+    body: 'Create an account and your workouts, PRs, and program history travel with you.',
+  },
+};
+
+export default function SaveProgressSheet({
+  onDismiss,
+  trigger = 'settings',
+}: SaveProgressSheetProps) {
+  const { signup, login } = useAuth();
   const { showToast } = useToast();
+  const [mode, setMode] = useState<'signup' | 'login'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const copy = COPY_BY_TRIGGER[trigger];
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const { error: authError } = await signup(email, password);
+      const fn = mode === 'signup' ? signup : login;
+      const { error: authError } = await fn(email, password);
       if (authError) {
         setError(authError.message);
       } else {
         store.set('foundry:save_progress_dismissed', '1');
-        showToast('Account created! Your data will sync.', 'success');
+        showToast(
+          mode === 'signup' ? 'Account created! Your data will sync.' : 'Welcome back! Syncing…',
+          'success',
+        );
         onDismiss();
       }
     } catch (err: unknown) {
@@ -37,7 +78,11 @@ export default function SaveProgressSheet({ onDismiss }: SaveProgressSheetProps)
   };
 
   const handleSkip = () => {
-    store.set('foundry:save_progress_dismissed', '1');
+    // Manual settings trigger does not set the permanent dismiss flag — the
+    // user explicitly opened it and may want to re-open later.
+    if (trigger !== 'settings') {
+      store.set('foundry:save_progress_dismissed', '1');
+    }
     onDismiss();
   };
 
@@ -68,16 +113,34 @@ export default function SaveProgressSheet({ onDismiss }: SaveProgressSheetProps)
       >
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 6 }}>
-            Save your progress
+          <div
+            style={{
+              fontSize: 20,
+              fontWeight: 900,
+              color: 'var(--text-primary)',
+              marginBottom: 6,
+            }}
+          >
+            {copy.title}
           </div>
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 300, margin: '0 auto' }}>
-            Create an account to sync across devices and never lose your training data.
+          <div
+            style={{
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+              maxWidth: 320,
+              margin: '0 auto',
+            }}
+          >
+            {copy.body}
           </div>
         </div>
 
-        {/* Signup form */}
-        <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Auth form */}
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+        >
           <input
             type="email"
             placeholder="Email"
@@ -102,7 +165,7 @@ export default function SaveProgressSheet({ onDismiss }: SaveProgressSheetProps)
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            autoComplete="new-password"
+            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
             style={{
               padding: '14px 16px',
               borderRadius: tokens.radius.md,
@@ -136,9 +199,32 @@ export default function SaveProgressSheet({ onDismiss }: SaveProgressSheetProps)
               marginTop: 4,
             }}
           >
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading
+              ? mode === 'signup' ? 'Creating account...' : 'Signing in...'
+              : mode === 'signup' ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+
+        {/* Mode toggle */}
+        <button
+          type="button"
+          onClick={() => { setMode((m) => (m === 'signup' ? 'login' : 'signup')); setError(''); }}
+          style={{
+            width: '100%',
+            marginTop: 10,
+            padding: '8px',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: 13,
+            color: 'var(--text-accent)',
+            fontWeight: 600,
+          }}
+        >
+          {mode === 'signup'
+            ? 'Already have an account? Sign in'
+            : 'New here? Create an account'}
+        </button>
 
         {/* Skip */}
         <button

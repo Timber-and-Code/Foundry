@@ -71,6 +71,12 @@ export const tokens = {
     danger:       '#f44336',
     success:      '#4caf50',
     warning:      '#ff9800',
+
+    // PR / goal / stalling — semantic highlights
+    prGold:         '#c9a227',
+    prGoldSubtle:   '#c9a22722',
+    stalling:       '#f87171',
+    stallingSubtle: '#f8717122',
   },
 
   spacing: {

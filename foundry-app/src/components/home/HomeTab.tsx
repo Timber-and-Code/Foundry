@@ -15,6 +15,7 @@ import {
   getTimeGreeting,
   getWeekSets,
 } from '../../utils/store';
+import WelcomeRibbon from './WelcomeRibbon';
 import MobilityCard from './MobilityCard';
 import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
 
@@ -438,6 +439,14 @@ function HomeTab({
     ? activeDays[calDayIdx]?.label || ''
     : activeDays[activeDays.length - 1]?.label || '';
 
+  // Onboarding v2: signal that Home mounted so the CoachMarkOrchestrator
+  // can arm the 2s dwell timer for the phase-bar mark. The `establish`
+  // mark fires from DayView when the user actually opens day 0/week 0 —
+  // not here on Home mount.
+  React.useEffect(() => {
+    window.dispatchEvent(new Event('foundry:home-mounted'));
+  }, []);
+
   return (
     <div
       style={{
@@ -447,6 +456,9 @@ function HomeTab({
         gap: 12,
       }}
     >
+      {/* ═══ PRIMARY ZONE: Welcome ribbon (first session only) ═══ */}
+      <WelcomeRibbon name={profile?.name} />
+
       {/* ═══ PRIMARY ZONE: Greeting + Dashboard + Today ═══ */}
 
       {/* Greeting */}

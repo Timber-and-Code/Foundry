@@ -28,15 +28,27 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
   // AI-built or custom days take priority
   if (profile?.aiDays && profile.aiDays.length > 0) return profile.aiDays;
 
-  const equipment = profile?.equipment || [
-    'barbell',
-    'dumbbell',
-    'cable',
-    'machine',
-    'bodyweight',
-    'band',
-    'kettlebell',
-  ];
+  const ALL_EQUIPMENT = ['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight', 'band', 'kettlebell'];
+  // Shortcut tokens — onboarding v2 Beat1Essentials + Supabase default column —
+  // get expanded to the atomic equipment types generateProgram filters on.
+  const EQUIPMENT_PRESETS: Record<string, string[]> = {
+    full_gym: ALL_EQUIPMENT,
+    home_gym: ['dumbbell', 'bodyweight', 'band', 'kettlebell'],
+    minimal: ['bodyweight', 'band'],
+  };
+  const profEq = profile?.equipment as unknown;
+  let rawEquipment: string[];
+  if (Array.isArray(profEq) && profEq.length > 0) {
+    rawEquipment = profEq.map((v) => String(v));
+  } else if (typeof profEq === 'string' && profEq) {
+    rawEquipment = [profEq];
+  } else {
+    rawEquipment = ALL_EQUIPMENT;
+  }
+  // Expand any preset tokens into their atomic parts, dedupe.
+  const equipment = Array.from(new Set(
+    rawEquipment.flatMap((eq: string) => EQUIPMENT_PRESETS[eq] ?? [eq]),
+  ));
   const duration = profile?.sessionDuration || 60;
   const splitType = profile?.splitType || 'ppl';
   const numDays = profile?.workoutDays?.length || profile?.daysPerWeek || 6;
