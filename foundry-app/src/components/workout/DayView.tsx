@@ -5,7 +5,9 @@ import { tokens } from '../../styles/tokens';
 import {
   randomQuote,
   getMeso,
+  getWeekPhase,
 } from '../../data/constants';
+import { loadArchive } from '../../utils/archive';
 import { getExerciseDB, findExercise, type ExerciseEntry } from '../../data/exerciseDB';
 
 // UI
@@ -94,6 +96,32 @@ function DayView({
       window.dispatchEvent(new Event('foundry:first-day1-week1-open'));
     }
   }, [weekIdx]);
+
+  // Onboarding v2: emit first-deload-week once per user when the user opens
+  // a day during the deload phase. CoachMarkOrchestrator explains why the
+  // deload week is lighter.
+  useEffect(() => {
+    const phases = getWeekPhase();
+    const phase = phases[weekIdx];
+    if (phase === 'Deload' && !store.get('foundry:first_deload_emitted')) {
+      store.set('foundry:first_deload_emitted', '1');
+      window.dispatchEvent(new Event('foundry:first-deload-week'));
+    }
+  }, [weekIdx]);
+
+  // Onboarding v2: emit first-meso-carryover once per user when the user
+  // opens Day 0 / Week 0 of a follow-up meso (archive has at least one
+  // completed entry). CoachMarkOrchestrator explains the carryover story.
+  useEffect(() => {
+    if (weekIdx !== 0 || dayIdx !== 0) return;
+    if (store.get('foundry:first_carryover_emitted')) return;
+    try {
+      if (loadArchive().length >= 1) {
+        store.set('foundry:first_carryover_emitted', '1');
+        window.dispatchEvent(new Event('foundry:first-meso-carryover'));
+      }
+    } catch { /* archive load fallback — skip */ }
+  }, [weekIdx, dayIdx]);
 
   // Guard: if the day slot doesn't exist (profile/MESO mismatch after restore), bail gracefully
   if (!day) {
@@ -1485,6 +1513,7 @@ function DayView({
         return (
           <div
             onClick={done ? dismissRestTimer : undefined}
+            data-coach="rest-timer"
             style={{
               position: 'fixed',
               inset: 0,
