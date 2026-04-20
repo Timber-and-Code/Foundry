@@ -594,11 +594,17 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Send Feedback</span>
               <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>Write</span>
             </button>
+          </div>
+
+          {/* About */}
+          {divider}
+          {sectionLabel('ABOUT')}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button
               onClick={() => setShowAbout(true)}
               style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
             >
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>About The Foundry</span>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>The Foundry</span>
               <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>Read</span>
             </button>
           </div>
