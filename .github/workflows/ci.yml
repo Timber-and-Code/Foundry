@@ -32,7 +32,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3cmVzeXJkeWFsd2tvd3l4eHdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDI5NDAsImV4cCI6MjA5MDcxODk0MH0.VNpTfui51QnB5UZ6fDZKTzI6oCXasEl8WGlNHZv0lc0
       - name: Check bundle sizes
         run: |
-          cd foundry-app
+          # working-directory is already foundry-app via defaults.run
           # Check that no single chunk exceeds 200KB gzip
           node -e "
             const fs = require('fs');
