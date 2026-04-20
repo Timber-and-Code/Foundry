@@ -1,3 +1,12 @@
+/* ── Font families ── */
+/* Single source of truth for font-family stacks. Prefer var(--ff-*) in
+   CSS and tokens.font in TS over inline magic strings. */
+:root {
+  --ff-display: 'Bebas Neue', 'Inter', system-ui, sans-serif;
+  --ff-body:    'InterVariable', 'Inter', system-ui, sans-serif;
+  --ff-mono:    ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+}
+
 /* ── Dark theme: The Foundry – Forge Palette ── */
 :root, [data-theme="dark"] {
   --bg-root:       #0A0A0C;
