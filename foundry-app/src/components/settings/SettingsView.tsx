@@ -581,6 +581,84 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           </button>
           )}
 
+          {/* About The Foundry */}
+          {divider}
+          {sectionLabel('ABOUT THE FOUNDRY')}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              padding: '14px 16px',
+              background: 'var(--bg-inset)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.lg,
+            }}
+          >
+            {[
+              {
+                h: 'The idea',
+                b: "The Foundry builds you a mesocycle, runs it alongside you, and makes sure every week gets harder than the last. You don't pick sets and reps. You don't guess when to deload. You show up, log your work, and come out the other side stronger.",
+              },
+              {
+                h: 'Progressive overload, by the book',
+                b: 'Volume and intensity ramp each week until you peak, then you deload and reset. Every meso is designed to leave you measurably stronger than the one before it.',
+              },
+              {
+                h: 'Volume that actually means something',
+                b: "MEV, MAV, MRV per muscle group. Real numbers, not hunches. You'll always know whether you're building, pushing, or holding on.",
+              },
+              {
+                h: 'Every anchor lift, tracked',
+                b: "Sparklines, trend arrows, peak-week detection. Your PRs live in one place, across every meso you've ever run.",
+              },
+              {
+                h: 'The tools that do the heavy lifting',
+                b: "Auto-firing rest timer. Phase-aware intensity targets. Meso-to-meso carryover. Profile-level progression rules. The stuff you'd otherwise track in a notebook.",
+              },
+              {
+                h: 'Your training record, archived',
+                b: "Every completed cycle saved with PRs, volume totals, and a snapshot of the profile that shaped it. The Foundry remembers so you don't have to.",
+              },
+            ].map((s) => (
+              <div key={s.h}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: 'var(--text-primary)',
+                    marginBottom: 4,
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  {s.h}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {s.b}
+                </div>
+              </div>
+            ))}
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                fontStyle: 'italic',
+                lineHeight: 1.55,
+                paddingTop: 4,
+                borderTop: '1px solid var(--border-subtle)',
+                marginTop: 2,
+              }}
+            >
+              Made for people who want to train well, not just train a lot.
+            </div>
+          </div>
+
           {/* Support */}
           {divider}
           {sectionLabel('SUPPORT')}
