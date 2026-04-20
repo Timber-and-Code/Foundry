@@ -649,9 +649,13 @@ function DayView({
         //    after the second exercise keeps it off the same beat as the
         //    RPE coach mark (which fires on the first exercise's last set).
         if (field === 'confirmed' && value === true) {
+          // Defer emits out of the setWeekData updater — firing synchronously
+          // from inside a state updater triggers cross-component setState
+          // during render (React warning), since subscribers in App.tsx
+          // call their own setState.
           if (!store.get('foundry:first_set_emitted')) {
             store.set('foundry:first_set_emitted', '1');
-            emit('foundry:first-set-logged');
+            queueMicrotask(() => emit('foundry:first-set-logged'));
           }
           if (!store.get('foundry:second_exercise_complete_emitted')) {
             // Count how many exercises have all their work sets confirmed,
@@ -677,7 +681,7 @@ function DayView({
             });
             if (completeCount >= 2) {
               store.set('foundry:second_exercise_complete_emitted', '1');
-              emit('foundry:second-exercise-complete');
+              queueMicrotask(() => emit('foundry:second-exercise-complete'));
             }
           }
         }
