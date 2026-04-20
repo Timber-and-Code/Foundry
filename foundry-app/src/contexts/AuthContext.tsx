@@ -2,7 +2,12 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { User, Session } from '@supabase/supabase-js';
 import * as Sentry from '@sentry/react';
 import { supabase } from '../utils/supabase';
-import { pullFromSupabase, pushToSupabase, flushDirty } from '../utils/sync';
+import {
+  pullFromSupabase,
+  pushToSupabase,
+  flushDirty,
+  migrateLocalWorkoutsToSupabase,
+} from '../utils/sync';
 
 interface AuthContextValue {
   user: User | null;
@@ -43,11 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_IN') {
           if (session?.user) Sentry.setUser({ email: session.user.email, id: session.user.id });
           // Pull remote state first (merges into local, marks local-newer
-          // keys dirty), THEN flush the dirty queue so any pre-auth local
-          // work — e.g. a meso created while unauthenticated, or writes
-          // that silently failed on previous attempts — gets pushed to
-          // Supabase now that we have a valid session.
-          pullFromSupabase().then(() => flushDirty());
+          // keys dirty), then walk local dayWeek keys and migrate any
+          // pre-auth workout sessions/sets (onboarding v2 defer-auth),
+          // then flush the dirty queue for everything else (readiness,
+          // cardio, profile edits). migrateLocalWorkoutsToSupabase is
+          // idempotent, so running on every sign-in is safe.
+          pullFromSupabase()
+            .then(() => migrateLocalWorkoutsToSupabase())
+            .then(() => flushDirty());
         } else if (event === 'USER_UPDATED') {
           pullFromSupabase();
         } else if (event === 'SIGNED_OUT') {
