@@ -107,6 +107,25 @@ function ExerciseCard({
   supersetPartnerName,
 }: ExerciseCardProps) {
   const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression ?? '']?.[weekIdx];
+
+  // Onboarding v2: emit first-anchor-visible once per user when the first
+  // anchor exercise row mounts in a real DayView. CoachMarkOrchestrator
+  // listens and explains what the hammer means.
+  useEffect(() => {
+    if (exercise.anchor && !store.get('foundry:first_anchor_emitted')) {
+      store.set('foundry:first_anchor_emitted', '1');
+      window.dispatchEvent(new Event('foundry:first-anchor-visible'));
+    }
+  }, [exercise.anchor]);
+
+  // Min rep target derived from the exercise's rep range (e.g. "8-12" -> 8).
+  // Used to detect a "miss" (reps < target) for the rep-progression coach mark.
+  const repsMin = useMemo(() => {
+    const raw = String(exercise.reps || '');
+    const first = raw.split('-')[0];
+    const n = parseInt(first, 10);
+    return Number.isFinite(n) ? n : 0;
+  }, [exercise.reps]);
   const goalColor =
     weekIdx < 2
       ? 'var(--text-muted)'
@@ -221,6 +240,18 @@ function ExerciseCard({
     const setData = (weekData[exIdx] || {})[s] || { weight: '', reps: '' };
     // Only allow check if reps are entered
     if (!setData.reps || setData.reps === '') return;
+    // Onboarding v2: if this confirmation is a rep miss, emit first-miss once
+    // per user so the CoachMarkOrchestrator can explain what happens next.
+    const confirmedReps = parseInt(String(setData.reps || 0), 10);
+    if (
+      repsMin > 0 &&
+      confirmedReps > 0 &&
+      confirmedReps < repsMin &&
+      !store.get('foundry:first_rep_progression_emitted')
+    ) {
+      store.set('foundry:first_rep_progression_emitted', '1');
+      window.dispatchEvent(new Event('foundry:first-miss'));
+    }
     const totalSets = Number(exercise.sets) || 0;
     const isLastSet = s === totalSets - 1;
     if (isLastSet) {
@@ -306,6 +337,15 @@ function ExerciseCard({
     return { stallTarget, stallWarning };
   }, [weekData, exIdx, prevWeekRaw, exercise.sets]);
 
+  // Onboarding v2: emit first-stall once per user when the stall warning
+  // first becomes truthy. CoachMarkOrchestrator explains what a stall means.
+  useEffect(() => {
+    if (stallWarning && !store.get('foundry:first_stall_emitted')) {
+      store.set('foundry:first_stall_emitted', '1');
+      window.dispatchEvent(new Event('foundry:first-stall'));
+    }
+  }, [stallWarning]);
+
   // Load history sparkline on expanded
   useEffect(() => {
     if (!expanded) return;
@@ -370,6 +410,7 @@ function ExerciseCard({
 
   return (
     <div
+      data-coach={exercise.anchor ? 'anchor-row' : undefined}
       style={{
         background: 'var(--bg-card)',
         border: active ? '1px solid var(--accent, #D4A03C)' : '1px solid var(--border)',
@@ -442,7 +483,11 @@ function ExerciseCard({
               >
                 {exercise.name}
               </span>
-              {exercise.anchor && <HammerIcon size={16} style={{ marginTop: 1 }} />}
+              {exercise.anchor && (
+                <span data-coach="anchor-hammer" style={{ display: 'inline-flex' }}>
+                  <HammerIcon size={16} style={{ marginTop: 1 }} />
+                </span>
+              )}
               {exercise.modifier && (
                 <span
                   style={{
@@ -561,6 +606,7 @@ function ExerciseCard({
           {/* Stall warning */}
           {stallWarning && (
             <div
+              data-coach="stall-chip"
               style={{
                 background: tokens.colors.amberHighlight,
                 border: '1px solid var(--danger)',
@@ -658,9 +704,13 @@ function ExerciseCard({
                 const isSuggestedReps = !!sd.repsSuggested;
                 const totalSets = Number(exercise.sets ?? 0);
                 const canRemove = !isDone && !readOnly && !!onRemoveSet && totalSets > 1;
+                const confirmedReps = parseInt(String(sd.reps || 0), 10);
+                const isMissedRow =
+                  isDone && repsMin > 0 && confirmedReps > 0 && confirmedReps < repsMin;
                 return (
                   <div
                     key={s}
+                    data-coach={isMissedRow ? 'missed-row' : undefined}
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '1fr 1fr 1fr 28px',

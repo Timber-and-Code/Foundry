@@ -154,6 +154,7 @@ function MobilityViewRoute({ profile }: { profile: Profile }) {
 
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 const SaveProgressSheet = React.lazy(() => import('./components/auth/SaveProgressSheet'));
+const MesoCompleteSheet = React.lazy(() => import('./components/setup/MesoCompleteSheet'));
 
 function App() {
   const navigate = useNavigate();
@@ -175,6 +176,11 @@ function App() {
   const [saveProgressTrigger, setSaveProgressTrigger] = useState<
     'first_set' | 'first_week_done' | 'meso_complete' | 'settings'
   >('settings');
+  // Phase 2 — when the current meso is fully complete and no new meso
+  // has been started yet, MesoCompleteSheet takes over HomeView.
+  const [showMesoComplete, setShowMesoComplete] = useState(
+    () => store.get('foundry:meso_complete_shown') === '1',
+  );
   const v2 = isOnboardingV2Enabled();
   const syncState = useSyncState();
   const homeTabRef = useRef<((tab: string) => void) | null>(null);
@@ -264,12 +270,76 @@ function App() {
     const unsubExercise = on('foundry:second-exercise-complete', () => open('first_set'));
     const unsubWeek = on('foundry:first-week-done', () => open('first_week_done'));
     const unsubMeso = on('foundry:meso-complete', () => open('meso_complete'));
+    // Manual requests from surfaces like AnonLocalBanner or Settings'
+    // "Sync across devices" row. Not counted against the 3-prompt auto cap.
+    const unsubRequest = on('foundry:save-sheet-request', ({ trigger }) => {
+      if (user) return;
+      setSaveProgressTrigger(trigger);
+      setShowSaveProgress(true);
+    });
     return () => {
       unsubExercise();
       unsubWeek();
       unsubMeso();
+      unsubRequest();
     };
   }, [v2, user]);
+
+  // Phase 2 — MesoCompleteSheet takeover. The `foundry:meso-complete`
+  // event fires once from useMesoState when the final week's last day
+  // is marked done. We latch on it and also hydrate from localStorage so
+  // reloads mid-flow still land on the sheet.
+  useEffect(() => {
+    const unsub = on('foundry:meso-complete', () => {
+      setShowMesoComplete(true);
+      store.set('foundry:meso_complete_shown', '1');
+    });
+    return unsub;
+  }, []);
+
+  // Three takeover-sheet actions route here:
+  //   repeat-meso     → MesoCompleteSheet archived + kept meso_transition; land on Setup
+  //   new-meso        → MesoCompleteSheet archived + cleared transition; fresh Setup
+  //   browse-samples  → archived + cleared; jump user to Explore tab samples
+  useEffect(() => {
+    const unsubRepeat = on('foundry:repeat-meso', () => {
+      setShowMesoComplete(false);
+      resetMesoCache();
+      setProfile(null);
+      setCompletedDays(new Set());
+      setCurrentWeek(0);
+      setShowSetup(true);
+      navigate('/');
+    });
+    const unsubNew = on('foundry:new-meso', () => {
+      setShowMesoComplete(false);
+      resetMesoCache();
+      setProfile(null);
+      setCompletedDays(new Set());
+      setCurrentWeek(0);
+      setShowSetup(true);
+      navigate('/');
+    });
+    const unsubSamples = on('foundry:browse-samples', () => {
+      setShowMesoComplete(false);
+      resetMesoCache();
+      setProfile(null);
+      setCompletedDays(new Set());
+      setCurrentWeek(0);
+      // Flag read by the Explore tab on next mount so it opens samples
+      // directly instead of the default view.
+      store.set('foundry:pending_samples', '1');
+      setShowSetup(false);
+      navigate('/');
+      // Defer the tab switch a frame so HomeView mounts first.
+      requestAnimationFrame(() => homeTabRef.current?.('explore'));
+    });
+    return () => {
+      unsubRepeat();
+      unsubNew();
+      unsubSamples();
+    };
+  }, [navigate, setProfile, setCompletedDays, setCurrentWeek]);
 
   // ── Onboarding gate ──
   // Early returns use React.lazy components — must wrap in Suspense
@@ -559,6 +629,16 @@ function App() {
               trigger={saveProgressTrigger}
               onDismiss={() => setShowSaveProgress(false)}
             />
+          </React.Suspense>
+        )}
+
+        {/* Phase 2 end-of-meso takeover. Rendered as a fixed overlay so
+            it sits on top of whatever view is behind. Not dismissable — the
+            sheet itself wires archive + transition handling for its 3
+            action cards. */}
+        {showMesoComplete && (
+          <React.Suspense fallback={null}>
+            <MesoCompleteSheet profile={profile} />
           </React.Suspense>
         )}
       </div>
