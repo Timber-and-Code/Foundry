@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { tokens } from '../../styles/tokens';
-import { store } from '../../utils/store';
+import { store, ageFromDob, isEduEmail } from '../../utils/store';
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 export type SaveProgressTrigger =
   | 'first_set'
@@ -23,7 +28,7 @@ interface TriggerCopy {
 const COPY_BY_TRIGGER: Record<SaveProgressTrigger, TriggerCopy> = {
   first_set: {
     title: "Don't lose this",
-    body: 'You just logged your first set. Save it to the cloud so your progress follows you.',
+    body: "You're two exercises in. Save your progress to the cloud so it follows you — every set, every meso, every device.",
   },
   first_week_done: {
     title: 'A week of work, saved',
@@ -50,12 +55,54 @@ export default function SaveProgressSheet({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // DOB + student are collected at signup (moved out of the About You
+  // step in onboarding v2). They drive free-tier eligibility.
+  const [dob, setDob] = useState<{ month: string; day: string; year: string }>(() => {
+    try {
+      const p = JSON.parse(store.get('foundry:profile') || '{}');
+      if (p.birthdate) {
+        const [y, m, d] = String(p.birthdate).split('-');
+        return { year: y || '', month: String(parseInt(m || '0')) || '', day: String(parseInt(d || '0')) || '' };
+      }
+    } catch { /* parse fallback */ }
+    return { month: '', day: '', year: '' };
+  });
+  const [isStudent, setIsStudent] = useState(false);
+  const [studentEmail, setStudentEmail] = useState('');
+  const [studentEmailError, setStudentEmailError] = useState('');
+
+  const selectStyle: React.CSSProperties = {
+    padding: '14px 10px',
+    borderRadius: tokens.radius.md,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-inset)',
+    color: 'var(--text-primary)',
+    fontSize: 14,
+    outline: 'none',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+  };
 
   const copy = COPY_BY_TRIGGER[trigger];
+  const age = ageFromDob(dob);
+  const ageYoung = age !== null && age < 18;
+  const ageSenior = age !== null && age >= 62;
+  const ageQualifies = ageYoung || ageSenior;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    // Signup-only: DOB required for free-tier determination.
+    if (mode === 'signup') {
+      if (!dob.month || !dob.day || !dob.year) {
+        setError('Please enter your full date of birth.');
+        return;
+      }
+      if (isStudent && studentEmail.trim() && !isEduEmail(studentEmail)) {
+        setStudentEmailError('Enter a valid .edu email address');
+        return;
+      }
+    }
     setLoading(true);
     try {
       const fn = mode === 'signup' ? signup : login;
@@ -63,6 +110,22 @@ export default function SaveProgressSheet({
       if (authError) {
         setError(authError.message);
       } else {
+        // On signup, enrich the local profile with birthdate + student
+        // status. Existing sync pipeline will carry these to Supabase.
+        if (mode === 'signup') {
+          try {
+            const p = JSON.parse(store.get('foundry:profile') || '{}');
+            const m = String(dob.month).padStart(2, '0');
+            const d = String(dob.day).padStart(2, '0');
+            p.birthdate = `${dob.year}-${m}-${d}`;
+            if (isStudent && studentEmail.trim() && isEduEmail(studentEmail)) {
+              p.isStudent = true;
+              p.studentEmail = studentEmail.trim().toLowerCase();
+              p.studentVerifiedAt = new Date().toISOString();
+            }
+            store.set('foundry:profile', JSON.stringify(p));
+          } catch { /* profile enrich fallback */ }
+        }
         store.set('foundry:save_progress_dismissed', '1');
         showToast(
           mode === 'signup' ? 'Account created! Your data will sync.' : 'Welcome back! Syncing…',
@@ -141,6 +204,171 @@ export default function SaveProgressSheet({
           onSubmit={handleSubmit}
           style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
         >
+          {/* DOB — signup only */}
+          {mode === 'signup' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  color: 'var(--phase-intens)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Date of Birth
+              </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '2fr 1fr 1.5fr',
+                  gap: 8,
+                }}
+              >
+                <select
+                  value={dob.month}
+                  onChange={(e) => setDob((d) => ({ ...d, month: e.target.value }))}
+                  aria-label="Month"
+                  style={selectStyle}
+                >
+                  <option value="">Month</option>
+                  {MONTHS.map((m, i) => (
+                    <option key={i} value={String(i + 1)}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={dob.day}
+                  onChange={(e) => setDob((d) => ({ ...d, day: e.target.value }))}
+                  aria-label="Day"
+                  style={selectStyle}
+                >
+                  <option value="">Day</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={String(d)}>{d}</option>
+                  ))}
+                </select>
+                <select
+                  value={dob.year}
+                  onChange={(e) => setDob((d) => ({ ...d, year: e.target.value }))}
+                  aria-label="Year"
+                  style={selectStyle}
+                >
+                  <option value="">Year</option>
+                  {Array.from(
+                    { length: new Date().getFullYear() - 1929 },
+                    (_, i) => new Date().getFullYear() - i,
+                  ).map((y) => (
+                    <option key={y} value={String(y)}>{y}</option>
+                  ))}
+                </select>
+              </div>
+              {ageQualifies && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--phase-accum)',
+                    fontWeight: 600,
+                    lineHeight: 1.4,
+                    padding: '8px 10px',
+                    borderRadius: tokens.radius.md,
+                    background: 'var(--phase-accum)12',
+                    border: '1px solid var(--phase-accum)44',
+                  }}
+                >
+                  {ageYoung
+                    ? 'The Foundry is permanently free for users under 18.'
+                    : 'The Foundry is permanently free for adults 62 and over.'}
+                </div>
+              )}
+
+              {/* Student checkbox — hidden when user already qualifies by age */}
+              {!ageQualifies && age !== null && (
+                <div style={{ marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsStudent(!isStudent);
+                      if (isStudent) { setStudentEmail(''); setStudentEmailError(''); }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      padding: 0, width: '100%',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 20, height: 20,
+                        borderRadius: tokens.radius.sm,
+                        border: `2px solid ${isStudent ? 'var(--phase-accum)' : 'var(--border)'}`,
+                        background: isStudent ? 'var(--phase-accum)' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, transition: 'all 0.15s',
+                      }}
+                    >
+                      {isStudent && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      I'm a student
+                    </span>
+                  </button>
+                  {isStudent && (
+                    <div style={{ marginTop: 8 }}>
+                      <input
+                        type="email"
+                        inputMode="email"
+                        placeholder="your.name@school.edu"
+                        value={studentEmail}
+                        onChange={(e) => { setStudentEmail(e.target.value); setStudentEmailError(''); }}
+                        onBlur={() => {
+                          if (studentEmail.trim() && !isEduEmail(studentEmail)) {
+                            setStudentEmailError('Enter a valid .edu email address');
+                          }
+                        }}
+                        style={{
+                          padding: '14px 16px',
+                          borderRadius: tokens.radius.md,
+                          border: `1px solid ${studentEmailError ? 'var(--danger)' : 'var(--border)'}`,
+                          background: 'var(--bg-inset)',
+                          color: 'var(--text-primary)',
+                          fontSize: 14,
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          outline: 'none',
+                        }}
+                      />
+                      {studentEmailError && (
+                        <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 4 }}>
+                          {studentEmailError}
+                        </div>
+                      )}
+                      {studentEmail.trim() && isEduEmail(studentEmail) && (
+                        <div
+                          style={{
+                            marginTop: 6,
+                            padding: '8px 10px',
+                            borderRadius: tokens.radius.md,
+                            background: 'var(--phase-accum)12',
+                            border: '1px solid var(--phase-accum)44',
+                            fontSize: 12,
+                            color: 'var(--phase-accum)',
+                            fontWeight: 600,
+                          }}
+                        >
+                          The Foundry is free for students. Welcome aboard.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <input
             type="email"
             placeholder="Email"

@@ -5,6 +5,7 @@ import { store } from '../../utils/store';
 const MicroTour = React.lazy(() => import('./MicroTour'));
 
 type Experience = 'new' | 'intermediate' | 'advanced';
+type Gender = 'm' | 'f' | 'nb';
 type GoalKey = 'muscle_and_strength' | 'lose_fat' | 'improve_fitness' | 'sport_performance';
 
 interface GoalPill {
@@ -59,36 +60,65 @@ const EXPERIENCE_PILLS: ExperiencePill[] = [
   { key: 'advanced', label: '3+ years' },
 ];
 
+interface GenderPill {
+  key: Gender;
+  label: string;
+}
+
+// Storage values (m/f/nb) match the legacy SetupPage schema so the profile
+// field round-trips cleanly without a migration.
+const GENDER_PILLS: GenderPill[] = [
+  { key: 'm', label: 'Male' },
+  { key: 'f', label: 'Female' },
+  { key: 'nb', label: 'Prefer not to say' },
+];
+
 interface IntakeCardProps {
   onDone: () => void;
 }
 
 export default function IntakeCard({ onDone }: IntakeCardProps) {
   const [name, setName] = useState('');
+  const [gender, setGender] = useState<Gender | null>(null);
   const [experience, setExperience] = useState<Experience | null>(null);
   const [goal, setGoal] = useState<GoalKey | null>(null);
   const [showTour, setShowTour] = useState(false);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const genderRef = useRef<HTMLDivElement>(null);
   const experienceRef = useRef<HTMLDivElement>(null);
   const goalRef = useRef<HTMLDivElement>(null);
 
   const nameValid = name.trim().length > 0;
-  const experienceRevealed = nameValid;
-  const goalRevealed = nameValid && experience !== null;
-  const ready = nameValid && experience !== null && goal !== null;
+  const genderRevealed = nameValid;
+  const experienceRevealed = nameValid && gender !== null;
+  const goalRevealed = nameValid && gender !== null && experience !== null;
+  const ready = nameValid && gender !== null && experience !== null && goal !== null;
 
   const progressPct = ready
     ? 100
     : goalRevealed && goal
       ? 100
       : experienceRevealed && experience
-        ? 66
-        : nameValid
-          ? 33
-          : 0;
+        ? 75
+        : genderRevealed && gender
+          ? 50
+          : nameValid
+            ? 25
+            : 0;
 
   // Auto-scroll to reveal new sections (guard: jsdom lacks scrollIntoView)
+  useEffect(() => {
+    if (
+      genderRevealed &&
+      !gender &&
+      genderRef.current &&
+      typeof genderRef.current.scrollIntoView === 'function'
+    ) {
+      genderRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [genderRevealed, gender]);
+
   useEffect(() => {
     if (
       experienceRevealed &&
@@ -112,11 +142,11 @@ export default function IntakeCard({ onDone }: IntakeCardProps) {
   }, [goalRevealed, goal]);
 
   const handleSubmit = (path: 'direct' | 'tour' = 'direct') => {
-    if (!ready || !goal || !experience) return;
+    if (!ready || !goal || !experience || !gender) return;
     const pill = GOAL_PILLS.find((p) => p.key === goal)!;
     store.set(
       'foundry:onboarding_data',
-      JSON.stringify({ name: name.trim(), experience }),
+      JSON.stringify({ name: name.trim(), gender, experience }),
     );
     store.set('foundry:onboarding_goal', pill.storageGoal);
     store.set('foundry:onboarded', '1');
@@ -210,13 +240,16 @@ export default function IntakeCard({ onDone }: IntakeCardProps) {
         </div>
         <div
           style={{
-            fontSize: 12,
+            fontSize: 15,
             fontWeight: 500,
-            color: tokens.colors.textMuted,
-            letterSpacing: '0.02em',
+            color: tokens.colors.textSecondary,
+            lineHeight: 1.45,
+            margin: '10px 0 6px',
           }}
         >
-          Takes 30 seconds. This shapes your first mesocycle.
+          The Foundry writes your program.
+          <br />
+          Tell us who you are.
         </div>
       </div>
 
@@ -247,7 +280,21 @@ export default function IntakeCard({ onDone }: IntakeCardProps) {
         />
       </FieldBlock>
 
-      {/* Field 2 — Experience */}
+      {/* Field 2 — Gender */}
+      <Reveal show={genderRevealed}>
+        <div ref={genderRef}>
+          <FieldBlock label="Gender">
+            <PillGroup
+              ariaLabel="Gender"
+              options={GENDER_PILLS}
+              selected={gender}
+              onSelect={setGender}
+            />
+          </FieldBlock>
+        </div>
+      </Reveal>
+
+      {/* Field 3 — Experience */}
       <Reveal show={experienceRevealed}>
         <div ref={experienceRef}>
           <FieldBlock label="How long have you been training?">
@@ -261,7 +308,7 @@ export default function IntakeCard({ onDone }: IntakeCardProps) {
         </div>
       </Reveal>
 
-      {/* Field 3 — Goal */}
+      {/* Field 4 — Goal */}
       <Reveal show={goalRevealed}>
         <div ref={goalRef}>
           <FieldBlock label="What brings you here?">

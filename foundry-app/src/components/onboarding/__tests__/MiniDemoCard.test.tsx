@@ -19,17 +19,32 @@ vi.mock('../../../utils/store', () => ({
 import MiniDemoCard from '../MiniDemoCard';
 
 describe('MiniDemoCard', () => {
-  it('renders with Bench Press and a tappable set row', () => {
+  it('renders Bench Press with a Weight/Reps/Done grid like the real ExerciseCard', () => {
     render(<MiniDemoCard onComplete={() => {}} />);
     expect(screen.getByText(/bench press/i)).toBeInTheDocument();
-    expect(screen.getByText(/140 lb/)).toBeInTheDocument();
+    // Column headers from the real ExerciseCard layout
+    expect(screen.getByText(/weight \(lbs\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/^reps$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^done$/i)).toBeInTheDocument();
+    // Last-session hint is present (matches real ExerciseCard pattern)
+    expect(screen.getByText(/last session/i)).toBeInTheDocument();
+    // Done button is the only interactive element in the grid
+    expect(screen.getByLabelText(/tap to log this set/i)).toBeInTheDocument();
   });
 
-  it('a single tap logs the set and reveals the copy', () => {
+  it('tapping Done logs the set and reveals the explainer copy', () => {
     render(<MiniDemoCard onComplete={() => {}} />);
-    const setRow = screen.getByLabelText(/tap to log this set/i);
-    fireEvent.click(setRow);
-    expect(screen.getByText(/that's it\. foundry handles the rest/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/tap to log this set/i));
+    expect(
+      screen.getByText(/that's it\. the foundry handles the rest/i),
+    ).toBeInTheDocument();
+  });
+
+  it('reveals a forward-looking "Next session" hint after the set is logged', () => {
+    render(<MiniDemoCard onComplete={() => {}} />);
+    fireEvent.click(screen.getByLabelText(/tap to log this set/i));
+    // Mirrors the real "Last session: X × Y" pattern but forward-looking
+    expect(screen.getByText(/next session:\s*140\s*×\s*9/i)).toBeInTheDocument();
   });
 
   it('calls onComplete when the Build my program CTA is tapped after log', () => {

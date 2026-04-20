@@ -229,6 +229,19 @@ function ScheduleTab({
   setAddWorkoutType,
   setAddWorkoutDayType,
 }: ScheduleTabProps) {
+  // Onboarding v2: emit schedule-tab-opened once per user the first time
+  // ScheduleTab mounts after onboarding. CoachMarkOrchestrator explains
+  // that the calendar is tappable for rescheduling.
+  React.useEffect(() => {
+    if (
+      store.get('foundry:onboarded') === '1' &&
+      !store.get('foundry:first_schedule_emitted')
+    ) {
+      store.set('foundry:first_schedule_emitted', '1');
+      window.dispatchEvent(new Event('foundry:schedule-tab-opened'));
+    }
+  }, []);
+
   const today = new Date();
   const displayDate = new Date(today.getFullYear(), today.getMonth() + calendarOffset, 1);
   const year = displayDate.getFullYear();
@@ -402,6 +415,7 @@ function ScheduleTab({
 
           {/* Calendar grid */}
           <div
+            data-coach="schedule-calendar"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(7, 1fr)',
@@ -618,6 +632,7 @@ function ScheduleTab({
       <div style={{ padding: '8px 12px 0' }}>
         <button
           onClick={() => goTo('overview')}
+          data-coach="meso-overview"
           style={{
             width: '100%',
             background: 'var(--bg-card)',
