@@ -257,10 +257,11 @@ function App() {
       setSaveProgressTrigger(trigger);
       setTimeout(() => setShowSaveProgress(true), 2000);
     };
-    // SaveProgressSheet trigger fires at a natural pause — after the user
-    // completes their first exercise — not mid-set. The 'first_set' trigger
+    // SaveProgressSheet trigger fires after the user has completed their
+    // second exercise — a natural pause that doesn't collide with the RPE
+    // coach mark on the first exercise's last set. The 'first_set' trigger
     // key is retained for copy/analytics continuity.
-    const unsubExercise = on('foundry:first-exercise-complete', () => open('first_set'));
+    const unsubExercise = on('foundry:second-exercise-complete', () => open('first_set'));
     const unsubWeek = on('foundry:first-week-done', () => open('first_week_done'));
     const unsubMeso = on('foundry:meso-complete', () => open('meso_complete'));
     return () => {

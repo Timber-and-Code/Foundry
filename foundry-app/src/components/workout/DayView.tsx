@@ -650,26 +650,40 @@ function DayView({
         // Onboarding v2:
         //  - first-set-logged fires on the first confirmed set ever (used by
         //    WelcomeRibbon to hide once the user actually starts training).
-        //  - first-exercise-complete fires once all work sets for an exercise
-        //    are confirmed. This is the SaveProgressSheet trigger — catching
-        //    the user at a natural pause rather than mid-set.
+        //  - second-exercise-complete fires after the user has completed
+        //    TWO exercises. This is the SaveProgressSheet trigger — firing
+        //    after the second exercise keeps it off the same beat as the
+        //    RPE coach mark (which fires on the first exercise's last set).
         if (field === 'confirmed' && value === true) {
           if (!store.get('foundry:first_set_emitted')) {
             store.set('foundry:first_set_emitted', '1');
             emit('foundry:first-set-logged');
           }
-          if (!store.get('foundry:first_exercise_complete_emitted')) {
-            const exData = ((next as Record<string | number, Record<string, { confirmed?: boolean; warmup?: boolean }>>)[exIdx] || {}) as Record<string, { confirmed?: boolean; warmup?: boolean } | undefined>;
-            const exerciseDef = exercises[exIdx];
-            const totalWorkSets = Number(exerciseDef?.sets ?? 0);
-            let confirmedWorkSets = 0;
-            for (const k of Object.keys(exData)) {
-              const s = exData[k];
-              if (s && s.confirmed && !s.warmup) confirmedWorkSets++;
-            }
-            if (totalWorkSets > 0 && confirmedWorkSets >= totalWorkSets) {
-              store.set('foundry:first_exercise_complete_emitted', '1');
-              emit('foundry:first-exercise-complete');
+          if (!store.get('foundry:second_exercise_complete_emitted')) {
+            // Count how many exercises have all their work sets confirmed,
+            // based on the freshly-merged state.
+            const weekData = next as Record<
+              string | number,
+              Record<string, { confirmed?: boolean; warmup?: boolean }>
+            >;
+            let completeCount = 0;
+            exercises.forEach((ex: Exercise, i: number) => {
+              const totalWorkSets = Number(ex?.sets ?? 0);
+              if (totalWorkSets <= 0) return;
+              const exData = (weekData[i] || {}) as Record<
+                string,
+                { confirmed?: boolean; warmup?: boolean } | undefined
+              >;
+              let confirmed = 0;
+              for (const k of Object.keys(exData)) {
+                const s = exData[k];
+                if (s && s.confirmed && !s.warmup) confirmed++;
+              }
+              if (confirmed >= totalWorkSets) completeCount++;
+            });
+            if (completeCount >= 2) {
+              store.set('foundry:second_exercise_complete_emitted', '1');
+              emit('foundry:second-exercise-complete');
             }
           }
         }
