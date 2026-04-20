@@ -25,6 +25,7 @@ export default function MinimizedTimerBar({ restTimer, onTap }: MinimizedTimerBa
   return (
     <div
       onClick={() => onTap(done)}
+      data-coach="rest-timer"
       style={{
         position: 'fixed',
         bottom: 64,

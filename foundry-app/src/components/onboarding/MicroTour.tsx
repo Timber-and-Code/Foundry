@@ -12,10 +12,10 @@ interface MicroTourProps {
 type Slide = 'shape' | 'progress' | 'demo';
 
 const PHASE_DESCRIPTION: Record<Phase, string> = {
-  Establish: 'Dial in form and starting loads. Quality before volume.',
-  Accumulation: 'Pile on volume. Moderate weight, many sets. Growth zone.',
-  Intensification: 'Heavier loads, fewer sets. Strength shows up.',
-  Peak: 'Your best lifts of the block. Go.',
+  Establish: 'Dial in form and baseline loads. Volume climbs next week.',
+  Accumulation: 'Pile on volume. Moderate weight, lots of sets.',
+  Intensification: 'Fewer sets, heavier loads. Strength shows up.',
+  Peak: 'Your best lifts of the block.',
   Deload: 'Lighter week. Recovery is where growth happens.',
 };
 
@@ -102,7 +102,7 @@ export default function MicroTour({ onDone, onSkip }: MicroTourProps) {
                   marginBottom: 14,
                 }}
               >
-                THE SHAPE OF A MESO
+                HOW THE FOUNDRY ADAPTS
               </div>
               <div
                 style={{
@@ -111,8 +111,9 @@ export default function MicroTour({ onDone, onSkip }: MicroTourProps) {
                   lineHeight: 1.6,
                 }}
               >
-                Five phases, four to six weeks. You build, peak, and recover — and every
-                rep sets up the next one.
+                Five phases, four to eight weeks. You establish form, accumulate volume,
+                intensify the load, peak your lifts, then deload so the gains stick. Each
+                phase is shaped by how you trained in the last one.
               </div>
             </div>
 
@@ -197,7 +198,7 @@ export default function MicroTour({ onDone, onSkip }: MicroTourProps) {
                   marginBottom: 14,
                 }}
               >
-                PROGRESS, LOGGED
+                THE WEIGHT GOES UP
               </div>
               <div
                 style={{
@@ -206,7 +207,9 @@ export default function MicroTour({ onDone, onSkip }: MicroTourProps) {
                   lineHeight: 1.6,
                 }}
               >
-                You log sets. Foundry decides what next week asks of you — a little more, always.
+                Hit all reps? Next week adds weight. Miss reps? Same weight, chase the reps
+                back. Stall twice? The Foundry deloads you. You just log sets — the math is
+                ours.
               </div>
             </div>
             <ProgressionSVG />

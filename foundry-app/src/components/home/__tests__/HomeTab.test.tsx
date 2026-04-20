@@ -52,6 +52,15 @@ vi.mock('../../../data/exercises', () => ({
   SAMPLE_PROGRAMS: [],
 }));
 
+vi.mock('../../../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: null }),
+}));
+
+vi.mock('../../../utils/events', () => ({
+  emit: vi.fn(),
+  on: vi.fn(() => () => {}),
+}));
+
 vi.mock('../../../styles/tokens', () => ({
   tokens: {
     colors: {
