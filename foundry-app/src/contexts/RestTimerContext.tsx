@@ -9,6 +9,7 @@ import React, {
   type MutableRefObject,
 } from 'react';
 import { parseRestSeconds, haptic } from '../utils/helpers';
+import { store } from '../utils/store';
 
 interface RestTimerState {
   remaining: number;
@@ -59,6 +60,12 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   const startRestTimer = useCallback(
     (restStr: string, exName: string, dayIdx?: number, weekIdx?: number) => {
+      // Onboarding v2: fire the first-rest-timer event once per user so the
+      // CoachMarkOrchestrator can explain what the rest timer does.
+      if (!store.get('foundry:first_rest_timer_emitted')) {
+        store.set('foundry:first_rest_timer_emitted', '1');
+        window.dispatchEvent(new Event('foundry:first-rest-timer'));
+      }
       const secs = parseRestSeconds(restStr);
       if (restIntervalRef.current) clearInterval(restIntervalRef.current);
       const endTime = Date.now() + secs * 1000;

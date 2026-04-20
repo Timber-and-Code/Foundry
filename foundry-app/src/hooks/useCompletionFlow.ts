@@ -150,6 +150,43 @@ export function useCompletionFlow({
       isComplete: true,
     });
 
+    // Onboarding v2: emit first-all-reps-hit once per user when every
+    // confirmed set on every anchor exercise met its target rep count.
+    // CoachMarkOrchestrator explains that next week adds weight.
+    if (!store.get('foundry:first_weight_progression_emitted')) {
+      const anchors = exercises.filter((ex: Exercise) => ex.anchor);
+      let allAnchorsHit = anchors.length > 0;
+      for (const ex of anchors) {
+        const raw = String(ex.reps || '');
+        const target = parseInt(raw.split('-')[0], 10);
+        if (!Number.isFinite(target) || target <= 0) {
+          allAnchorsHit = false;
+          break;
+        }
+        const idx = exercises.indexOf(ex);
+        const exData = (weekData[idx] || {}) as Record<string, WorkoutSet>;
+        const sets = Object.values(exData).filter(
+          (s: WorkoutSet) => s.confirmed && !s.warmup,
+        );
+        if (sets.length === 0) {
+          allAnchorsHit = false;
+          break;
+        }
+        for (const s of sets) {
+          const r = parseInt(String(s.reps || 0), 10);
+          if (!Number.isFinite(r) || r < target) {
+            allAnchorsHit = false;
+            break;
+          }
+        }
+        if (!allAnchorsHit) break;
+      }
+      if (allAnchorsHit) {
+        store.set('foundry:first_weight_progression_emitted', '1');
+        window.dispatchEvent(new Event('foundry:first-all-reps-hit'));
+      }
+    }
+
     setShowWorkoutModal(true);
     pendingCompletionRef.current = completionData;
   };
