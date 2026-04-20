@@ -68,7 +68,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
         zIndex: 400,
         background: 'var(--bg-root)',
         overflowY: 'auto',
-        fontFamily: "'Inter',system-ui,sans-serif",
+        fontFamily: tokens.fontFamily.body,
       }}
     >
       {/* Header */}
