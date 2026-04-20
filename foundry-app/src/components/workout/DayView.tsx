@@ -22,6 +22,9 @@ import {
   loadExOverride,
   saveExOverride,
   bwPromptShownThisWeek,
+  markBwPromptShown,
+  addBwEntry,
+  loadBwLog,
   getWeekSets,
   getWorkoutDaysForWeek,
 } from '../../utils/store';
@@ -179,29 +182,12 @@ function DayView({
 
   const mesoId = store.get('foundry:active_meso_id');
 
-  // BW confirm modal — fires once per session per BW exercise
-  const [bwConfirmed, setBwConfirmed] = React.useState(new Set());
-  const [bwModal, setBwModal] = React.useState<{ exIdx: number; exName: string } | null>(null);
-  const [bwInput, setBwInput] = React.useState('');
-
+  // Weekly bodyweight check-in — fires once at workout start if the day
+  // has any BW-based exercises AND the prompt hasn't been shown yet this
+  // week. Mid-workout per-exercise prompts were removed: they interrupted
+  // the user's flow and didn't match the "gather signals up front" model.
   const handleExpandToggle = (i: number) => {
-    const ex = day.exercises[i];
-    // If BW exercise, not yet confirmed this session, and not read-only
-    if (ex.bw && !bwConfirmed.has(i) && !isDone && !isLocked) {
-      setBwInput(String(profile?.weight || ''));
-      setBwModal({ exIdx: i, exName: ex.name });
-    }
     setExpandedIdx(expandedIdx === i ? null : i);
-  };
-
-  const handleBwConfirm = () => {
-    if (!bwModal) return;
-    const val = parseFloat(bwInput);
-    if (!isNaN(val) && val > 0 && val !== parseFloat(String(profile?.weight || 0))) {
-      onProfileUpdate && onProfileUpdate({ weight: bwInput });
-    }
-    setBwConfirmed((prev) => new Set([...prev, bwModal.exIdx]));
-    setBwModal(null);
   };
 
   // Future sessions: load raw (empty) data so inputs show blank, not suggestions
@@ -321,7 +307,10 @@ function DayView({
     setShowMesoOverlay(false);
     store.set(`foundry:splash-seen:d${dayIdx}:w${weekIdx}`, '1');
     setShowSplash(false);
-    if (!bwPromptShownThisWeek()) setShowBwCheckin(true);
+    // Weekly bodyweight check-in: only prompt when this day actually has a
+    // BW-based exercise and we haven't asked yet this week.
+    const hasBwExercise = (day.exercises || []).some((e: Exercise) => e.bw);
+    if (hasBwExercise && !bwPromptShownThisWeek()) setShowBwCheckin(true);
     const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
     upsertWorkoutSessionRemote(dayIdx, weekIdx, {
       sessionId,
@@ -342,8 +331,13 @@ function DayView({
   };
 
   // showPostStrengthPrompt, showCardioPrompt — reserved for post-strength/cardio prompts
-  // BW check-in — triggered from beginWorkout(), not at mount
-  const [, setShowBwCheckin] = useState(false);
+  // BW check-in — triggered from commitStartWorkout when the day has BW
+  // exercises and we haven't prompted yet this week.
+  const [showBwCheckin, setShowBwCheckin] = useState(false);
+  const [bwCheckinInput, setBwCheckinInput] = useState(() => {
+    const log = loadBwLog();
+    return log.length > 0 ? String(log[0].weight) : profile?.weight ? String(profile.weight) : '';
+  });
   // Readiness check-in — triggered from beginWorkout() if today's entry is incomplete
   const [showReadinessSheet, setShowReadinessSheet] = useState(false);
   // bwCheckinInput, setBwCheckinInput — reserved for BW check-in input
@@ -1354,66 +1348,106 @@ function DayView({
         </div>
       )}
 
-      {/* Bodyweight Modal */}
-      {bwModal && (
+      {/* Weekly bodyweight check-in (first workout of the week) */}
+      {showBwCheckin && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            zIndex: 200,
+            background: tokens.colors.overlayMed,
+            zIndex: 290,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            padding: 24,
           }}
-          onClick={() => setBwModal(null)}
         >
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="bw-dialog-title"
+            aria-labelledby="bw-checkin-title"
             style={{
               background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: tokens.radius.lg,
-              padding: 20,
-              maxWidth: 300,
+              border: '1px solid var(--border-accent)',
+              borderRadius: tokens.radius.xl,
+              padding: '28px 24px',
+              maxWidth: 320,
+              width: '100%',
+              boxShadow: 'var(--shadow-xl)',
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            <div id="bw-dialog-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Bodyweight Check</div>
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 10 }}>
+              WEEKLY CHECK-IN
+            </div>
+            <div id="bw-checkin-title" style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+              Log your bodyweight
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+              Tracking weekly bodyweight alongside your lifts gives you the full picture of how your training is working.
+            </div>
             <input
               type="number"
-              value={bwInput}
-              onChange={(e) => setBwInput(e.target.value)}
-              placeholder="Enter weight (lbs)"
-              aria-label="Your bodyweight in pounds"
+              inputMode="decimal"
+              value={bwCheckinInput}
+              onChange={(e) => setBwCheckinInput(e.target.value)}
+              placeholder="lbs"
               autoFocus
               style={{
                 width: '100%',
-                padding: '10px',
-                borderRadius: tokens.radius.sm,
-                border: '1px solid var(--border)',
-                marginBottom: 16,
                 background: 'var(--bg-inset)',
-                color: 'var(--text-primary)',
+                border: '1px solid var(--border-accent)',
+                borderRadius: tokens.radius.lg,
+                padding: '14px',
+                fontSize: 28,
+                fontWeight: 900,
+                color: 'var(--accent)',
+                textAlign: 'center',
+                marginBottom: 16,
+                outline: 'none',
+                boxSizing: 'border-box',
               }}
             />
-            <button
-              onClick={handleBwConfirm}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: tokens.radius.sm,
-                background: 'var(--btn-primary-bg)',
-                border: '1px solid var(--btn-primary-border)',
-                color: 'var(--btn-primary-text)',
-                cursor: 'pointer',
-                fontWeight: 700,
-              }}
-            >
-              Confirm
-            </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button
+                onClick={() => { markBwPromptShown(); setShowBwCheckin(false); }}
+                style={{
+                  padding: '14px',
+                  borderRadius: tokens.radius.lg,
+                  cursor: 'pointer',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => {
+                  const val = parseFloat(bwCheckinInput);
+                  if (!isNaN(val) && val > 0) {
+                    addBwEntry(val);
+                    onProfileUpdate && onProfileUpdate({ weight: String(val) });
+                  }
+                  markBwPromptShown();
+                  setShowBwCheckin(false);
+                }}
+                className="btn-primary"
+                style={{
+                  padding: '14px',
+                  borderRadius: tokens.radius.lg,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  background: 'var(--btn-primary-bg)',
+                  border: '1px solid var(--btn-primary-border)',
+                  color: 'var(--btn-primary-text)',
+                }}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}

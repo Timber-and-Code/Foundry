@@ -19,6 +19,14 @@ export default function WelcomeScreen() {
     emit('foundry:welcomed');
   };
 
+  const handleSignIn = () => {
+    // Route straight to AuthPage without first going through onboarding.
+    store.set('foundry:welcomed', '1');
+    store.set('foundry:wants_auth', '1');
+    emit('foundry:welcomed');
+    emit('foundry:wants_auth');
+  };
+
   return (
     <main
       style={{
@@ -117,27 +125,42 @@ export default function WelcomeScreen() {
           justifyContent: 'center',
         }}
       >
-        <button
-          onClick={handleGetStarted}
-          className="btn-primary"
-          style={{
-            width: '100%',
-            maxWidth: 360,
-            padding: '18px',
-            fontSize: 'clamp(15px, 4vw, 17px)',
-            fontWeight: 600,
-            borderRadius: tokens.radius.xl,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            background: 'var(--btn-primary-bg)',
-            color: 'var(--btn-primary-text)',
-            border: '1px solid var(--btn-primary-border)',
-            boxShadow: '0 4px 24px rgba(232,101,26,0.35)',
-            cursor: 'pointer',
-          }}
-        >
-          Get Started
-        </button>
+        <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={handleGetStarted}
+            className="btn-primary"
+            style={{
+              width: '100%',
+              padding: '18px',
+              fontSize: 'clamp(15px, 4vw, 17px)',
+              fontWeight: 600,
+              borderRadius: tokens.radius.xl,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              background: 'var(--btn-primary-bg)',
+              color: 'var(--btn-primary-text)',
+              border: '1px solid var(--btn-primary-border)',
+              boxShadow: '0 4px 24px rgba(232,101,26,0.35)',
+              cursor: 'pointer',
+            }}
+          >
+            Get Started
+          </button>
+          <button
+            onClick={handleSignIn}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '4px 8px',
+              fontSize: 13,
+              color: tokens.colors.textSecondary,
+              cursor: 'pointer',
+              fontWeight: 500,
+            }}
+          >
+            Already have an account? <span style={{ color: tokens.colors.accent, textDecoration: 'underline' }}>Sign in</span>
+          </button>
+        </div>
       </div>
     </main>
   );
