@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 /* ------------------------------------------------------------------ */
 
 const mocks = vi.hoisted(() => ({
-  store: { get: vi.fn() },
+  store: { get: vi.fn(), set: vi.fn() },
   getWarmupDetail: vi.fn(),
   generateWarmupSteps: vi.fn(),
   loadArchive: vi.fn(),
@@ -230,5 +230,36 @@ describe('ExerciseCard', () => {
     const weightInputs = screen.getAllByLabelText(/Set \d+ weight in pounds/);
     fireEvent.blur(weightInputs[1]);
     expect(onWeightAutoFill).not.toHaveBeenCalled();
+  });
+
+  // 14. Emits first-miss when a set is confirmed with reps < target
+  it('emits first-miss when a non-final set is confirmed with reps < target', () => {
+    mocks.store.get.mockImplementation(() => null);
+    const handler = vi.fn();
+    window.addEventListener('foundry:first-miss', handler);
+    // Target is "8-12" → min 8. Entering 5 reps is a miss.
+    const props = defaultProps({
+      exercise: makeExercise({ reps: '8-12', sets: 3 }),
+      weekData: { 0: { 0: { weight: '135', reps: '5' } } },
+    });
+    render(<ExerciseCard {...props} />);
+    fireEvent.click(screen.getByLabelText('Mark set 1 complete'));
+    expect(handler).toHaveBeenCalledTimes(1);
+    window.removeEventListener('foundry:first-miss', handler);
+  });
+
+  // 15. Does NOT emit first-miss when reps meet or exceed target
+  it('does not emit first-miss when reps >= target', () => {
+    mocks.store.get.mockImplementation(() => null);
+    const handler = vi.fn();
+    window.addEventListener('foundry:first-miss', handler);
+    const props = defaultProps({
+      exercise: makeExercise({ reps: '8-12', sets: 3 }),
+      weekData: { 0: { 0: { weight: '135', reps: '10' } } },
+    });
+    render(<ExerciseCard {...props} />);
+    fireEvent.click(screen.getByLabelText('Mark set 1 complete'));
+    expect(handler).not.toHaveBeenCalled();
+    window.removeEventListener('foundry:first-miss', handler);
   });
 });
