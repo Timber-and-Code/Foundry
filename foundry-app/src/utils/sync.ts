@@ -340,18 +340,47 @@ export async function ensureTrainingStructureRemote(
     if (checkError) throw checkError;
     if (existing && existing.length > 0) return; // already populated
 
-    // Dynamic imports to avoid static circular dependency.
-    const [programMod, exercisesMod] = await Promise.all([
-      import('./program'),
-      import('../data/exercises'),
-    ]);
-    const { generateProgram } = programMod;
-    const EXERCISE_DB = (exercisesMod as { EXERCISE_DB: unknown[] }).EXERCISE_DB;
+    // Prefer the locally-cached storedProgram so the tde rows reference the
+    // exact exercises the user sees in DayView and logs sets against.
+    // generateProgram uses shuffle(), so a re-call here would produce a
+    // DIFFERENT pick and orphan every workout_set on a future device pull.
+    let program: unknown[] | null = null;
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('foundry:storedProgram');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (
+            Array.isArray(parsed) &&
+            parsed.length > 0 &&
+            parsed.some((d) => Array.isArray((d as { exercises?: unknown[] }).exercises) && ((d as { exercises: unknown[] }).exercises.length > 0))
+          ) {
+            program = parsed;
+          }
+        } catch { /* fall through to generate */ }
+      }
+    }
 
-    const program = generateProgram(
-      profile,
-      EXERCISE_DB as Parameters<typeof generateProgram>[1],
-    );
+    if (!program) {
+      // No cached program (e.g., first save during onboarding) — generate a
+      // fresh one and cache it so subsequent writes agree.
+      const [programMod, exercisesMod] = await Promise.all([
+        import('./program'),
+        import('../data/exercises'),
+      ]);
+      const { generateProgram } = programMod;
+      const EXERCISE_DB = (exercisesMod as { EXERCISE_DB: unknown[] }).EXERCISE_DB;
+      program = generateProgram(
+        profile,
+        EXERCISE_DB as Parameters<typeof generateProgram>[1],
+      );
+      if (typeof window !== 'undefined' && Array.isArray(program) && program.length > 0) {
+        try {
+          localStorage.setItem('foundry:storedProgram', JSON.stringify(program));
+        } catch { /* non-critical cache write */ }
+      }
+    }
+
     if (!Array.isArray(program) || program.length === 0) return;
 
     // Build training_days rows — generate uuids up front so we can reference
