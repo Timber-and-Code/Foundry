@@ -301,7 +301,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                   lineHeight: 1.45,
                 }}
               >
-                Learn how Foundry adapts to your training and drives real
+                Learn how The Foundry adapts to your training and drives real
                 progress.
               </div>
             </button>
@@ -535,7 +535,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
                         store.set('foundry:onboarded', '1');
                         window.location.reload();
                       } else
-                        alert("Couldn't read that file. Make sure it's a Foundry backup (.json).");
+                        alert("Couldn't read that file. Make sure it's a backup from The Foundry (.json).");
                     });
                   }}
                 />

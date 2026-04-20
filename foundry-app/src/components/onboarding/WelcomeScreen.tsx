@@ -43,24 +43,21 @@ export default function WelcomeScreen() {
         margin: '0 auto',
       }}
     >
-      {/* Top spacer for vertical rhythm */}
-      <div style={{ flex: '0 0 auto', height: 24 }} />
-
-      {/* Center: logo + text */}
+      {/* Top: logo + title, anchored near the top. Tagline is a separate
+          flex child below so it centers in the remaining space between
+          this group and the CTA. */}
       <div
         style={{
-          flex: '1 1 auto',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: 32,
+          gap: 28,
           width: '100%',
         }}
       >
         <img
           src="/foundry-f.png"
-          alt="Foundry"
+          alt="The Foundry"
           style={{
             width: 'clamp(220px, 64vw, 320px)',
             height: 'auto',
@@ -76,44 +73,50 @@ export default function WelcomeScreen() {
           }}
         />
 
-        <div
+        <h1
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 14,
+            margin: 0,
+            fontFamily: "'Bebas Neue', 'Inter', sans-serif",
+            fontSize: 'clamp(40px, 11vw, 56px)',
+            letterSpacing: '0.18em',
+            fontWeight: 400,
+            color: '#FBF7E4',
+            textShadow: '0 2px 24px rgba(232,101,26,0.2)',
             textAlign: 'center',
           }}
         >
-          <h1
-            style={{
-              margin: 0,
-              fontFamily: "'Bebas Neue', 'Inter', sans-serif",
-              fontSize: 'clamp(40px, 11vw, 56px)',
-              letterSpacing: '0.18em',
-              fontWeight: 400,
-              color: '#FBF7E4',
-              textShadow: '0 2px 24px rgba(232,101,26,0.2)',
-            }}
-          >
-            THE FOUNDRY
-          </h1>
+          THE FOUNDRY
+        </h1>
+      </div>
 
-          <p
-            style={{
-              margin: 0,
-              fontSize: 'clamp(14px, 3.6vw, 16px)',
-              lineHeight: 1.55,
-              color: tokens.colors.textSecondary,
-              maxWidth: 320,
-              fontWeight: 400,
-            }}
-          >
-            Progress you can feel.
-            <br />
-            Programming you can trust.
-          </p>
-        </div>
+      {/* Middle: tagline centered in remaining space. flex:1 here
+          (not space-between gaps) because the top group is visually
+          much taller than the CTA — equal gaps would still read as
+          "tagline hugs the CTA". flex:1 gives true visual center. */}
+      <div
+        style={{
+          flex: '1 1 auto',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            textAlign: 'center',
+            fontSize: 'clamp(14px, 3.6vw, 16px)',
+            lineHeight: 1.55,
+            color: tokens.colors.textSecondary,
+            maxWidth: 320,
+            fontWeight: 400,
+          }}
+        >
+          Progress you can feel.
+          <br />
+          Programming you can trust.
+        </p>
       </div>
 
       {/* Bottom: CTA */}
