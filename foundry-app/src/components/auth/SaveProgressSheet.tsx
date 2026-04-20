@@ -43,8 +43,9 @@ export default function SaveProgressSheet({
   onDismiss,
   trigger = 'settings',
 }: SaveProgressSheetProps) {
-  const { signup } = useAuth();
+  const { signup, login } = useAuth();
   const { showToast } = useToast();
+  const [mode, setMode] = useState<'signup' | 'login'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -52,17 +53,21 @@ export default function SaveProgressSheet({
 
   const copy = COPY_BY_TRIGGER[trigger];
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const { error: authError } = await signup(email, password);
+      const fn = mode === 'signup' ? signup : login;
+      const { error: authError } = await fn(email, password);
       if (authError) {
         setError(authError.message);
       } else {
         store.set('foundry:save_progress_dismissed', '1');
-        showToast('Account created! Your data will sync.', 'success');
+        showToast(
+          mode === 'signup' ? 'Account created! Your data will sync.' : 'Welcome back! Syncing…',
+          'success',
+        );
         onDismiss();
       }
     } catch (err: unknown) {
@@ -131,9 +136,9 @@ export default function SaveProgressSheet({
           </div>
         </div>
 
-        {/* Signup form */}
+        {/* Auth form */}
         <form
-          onSubmit={handleSignup}
+          onSubmit={handleSubmit}
           style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
         >
           <input
@@ -160,7 +165,7 @@ export default function SaveProgressSheet({
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            autoComplete="new-password"
+            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
             style={{
               padding: '14px 16px',
               borderRadius: tokens.radius.md,
@@ -194,9 +199,32 @@ export default function SaveProgressSheet({
               marginTop: 4,
             }}
           >
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading
+              ? mode === 'signup' ? 'Creating account...' : 'Signing in...'
+              : mode === 'signup' ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+
+        {/* Mode toggle */}
+        <button
+          type="button"
+          onClick={() => { setMode((m) => (m === 'signup' ? 'login' : 'signup')); setError(''); }}
+          style={{
+            width: '100%',
+            marginTop: 10,
+            padding: '8px',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: 13,
+            color: 'var(--text-accent)',
+            fontWeight: 600,
+          }}
+        >
+          {mode === 'signup'
+            ? 'Already have an account? Sign in'
+            : 'New here? Create an account'}
+        </button>
 
         {/* Skip */}
         <button
