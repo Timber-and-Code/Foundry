@@ -17,6 +17,7 @@ interface FoundryEventMap {
   'foundry:resetToSetup': void;
   // Onboarding v2 — coach mark + save-sheet triggers
   'foundry:first-set-logged': void;
+  'foundry:first-exercise-complete': void;
   'foundry:first-week-done': void;
   'foundry:meso-complete': void;
   'foundry:save-sheet-request': { trigger: 'first_set' | 'first_week_done' | 'meso_complete' | 'settings' };

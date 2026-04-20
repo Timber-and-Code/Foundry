@@ -647,13 +647,30 @@ function DayView({
         };
         saveDayWeek(dayIdx, weekIdx, next);
 
-        // Onboarding v2: emit first-set-logged once per user, when a
-        // confirmed set lands. Gated by foundry:first_set_emitted so we
-        // only fire once for the lifetime of this local profile.
+        // Onboarding v2:
+        //  - first-set-logged fires on the first confirmed set ever (used by
+        //    WelcomeRibbon to hide once the user actually starts training).
+        //  - first-exercise-complete fires once all work sets for an exercise
+        //    are confirmed. This is the SaveProgressSheet trigger — catching
+        //    the user at a natural pause rather than mid-set.
         if (field === 'confirmed' && value === true) {
           if (!store.get('foundry:first_set_emitted')) {
             store.set('foundry:first_set_emitted', '1');
             emit('foundry:first-set-logged');
+          }
+          if (!store.get('foundry:first_exercise_complete_emitted')) {
+            const exData = ((next as Record<string | number, Record<string, { confirmed?: boolean; warmup?: boolean }>>)[exIdx] || {}) as Record<string, { confirmed?: boolean; warmup?: boolean } | undefined>;
+            const exerciseDef = exercises[exIdx];
+            const totalWorkSets = Number(exerciseDef?.sets ?? 0);
+            let confirmedWorkSets = 0;
+            for (const k of Object.keys(exData)) {
+              const s = exData[k];
+              if (s && s.confirmed && !s.warmup) confirmedWorkSets++;
+            }
+            if (totalWorkSets > 0 && confirmedWorkSets >= totalWorkSets) {
+              store.set('foundry:first_exercise_complete_emitted', '1');
+              emit('foundry:first-exercise-complete');
+            }
           }
         }
 
