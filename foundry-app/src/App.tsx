@@ -337,6 +337,9 @@ function App() {
             setCompletedDays(loadCompleted(getMeso()));
             setCurrentWeek(loadCurrentWeek());
             setShowSetup(false);
+            // Land on Home, not whatever route the URL was before onboarding
+            // (e.g. /day/0/0 persisted from a prior session + localStorage clear).
+            navigate('/');
             // Legacy behavior: prompt on meso-save. v2 drops this trigger and
             // waits for first-set-logged / first-week-done instead.
             if (!v2 && !user && !store.get('foundry:save_progress_dismissed')) {
