@@ -28,7 +28,7 @@ interface TriggerCopy {
 const COPY_BY_TRIGGER: Record<SaveProgressTrigger, TriggerCopy> = {
   first_set: {
     title: "Don't lose this",
-    body: 'You just logged your first set. Save it to the cloud so your progress follows you.',
+    body: "You're two exercises in. Save your progress to the cloud so it follows you — every set, every meso, every device.",
   },
   first_week_done: {
     title: 'A week of work, saved',

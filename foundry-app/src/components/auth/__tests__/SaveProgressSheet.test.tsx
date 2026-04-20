@@ -46,10 +46,10 @@ describe('SaveProgressSheet', () => {
     vi.clearAllMocks();
   });
 
-  it('first_set trigger renders the first-set copy', () => {
+  it('first_set trigger renders the two-exercises copy', () => {
     render(<SaveProgressSheet trigger="first_set" onDismiss={() => {}} />);
     expect(screen.getByText(/don't lose this/i)).toBeInTheDocument();
-    expect(screen.getByText(/first set/i)).toBeInTheDocument();
+    expect(screen.getByText(/two exercises in/i)).toBeInTheDocument();
   });
 
   it('first_week_done trigger renders the full-week copy', () => {
