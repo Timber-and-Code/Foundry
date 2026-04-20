@@ -191,7 +191,7 @@ interface ScheduleTabProps {
   onOpenExtra: (v: string) => void;
   onOpenCardio: (dateStr: string, protocolId: string | null) => void;
   setCurrentWeek: (v: number) => void;
-  onProfileUpdate: (v: Profile) => void;
+  onProfileUpdate: (updates: Partial<Profile>) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setAddWorkoutModal: (v: any) => void;
   setAddWorkoutStep: (v: string) => void;
