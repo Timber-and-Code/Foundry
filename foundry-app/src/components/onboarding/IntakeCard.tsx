@@ -210,13 +210,16 @@ export default function IntakeCard({ onDone }: IntakeCardProps) {
         </div>
         <div
           style={{
-            fontSize: 12,
+            fontSize: 15,
             fontWeight: 500,
-            color: tokens.colors.textMuted,
-            letterSpacing: '0.02em',
+            color: tokens.colors.textSecondary,
+            lineHeight: 1.45,
+            margin: '10px 0 6px',
           }}
         >
-          Takes 30 seconds. This shapes your first mesocycle.
+          The Foundry writes your program.
+          <br />
+          Tell us who you are.
         </div>
       </div>
 
