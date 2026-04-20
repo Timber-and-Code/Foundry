@@ -2053,13 +2053,36 @@ export async function migrateLocalWorkoutsToSupabase(): Promise<void> {
   // Build (dayIdx, exIdx) → exercise_id from the generated program. Local
   // exercise IDs match the `exercise_id` column (text) written by
   // ensureTrainingStructureRemote, so we can reuse them directly.
-  const [programMod, exercisesMod] = await Promise.all([
-    import('./program'),
-    import('../data/exercises'),
-  ]);
-  const generateProgram = (programMod as { generateProgram: (p: Profile, db: unknown[]) => unknown[] }).generateProgram;
-  const EXERCISE_DB = (exercisesMod as { EXERCISE_DB: unknown[] }).EXERCISE_DB;
-  const program = generateProgram(profile, EXERCISE_DB);
+  //
+  // CRITICAL: prefer the cached foundry:storedProgram over re-running
+  // generateProgram. generateProgram shuffles, so a fresh call here would
+  // produce different exercises than the ones the user just logged sets
+  // against (and than the ones ensureTrainingStructureRemote just wrote to
+  // training_day_exercises). Falling back to generateProgram only if no
+  // cached program exists.
+  let program: unknown[] | null = null;
+  const storedRaw = localStorage.getItem('foundry:storedProgram');
+  if (storedRaw) {
+    try {
+      const parsed = JSON.parse(storedRaw);
+      if (
+        Array.isArray(parsed) &&
+        parsed.length > 0 &&
+        parsed.some((d) => Array.isArray((d as { exercises?: unknown[] }).exercises) && ((d as { exercises: unknown[] }).exercises.length > 0))
+      ) {
+        program = parsed;
+      }
+    } catch { /* fall through */ }
+  }
+  if (!program) {
+    const [programMod, exercisesMod] = await Promise.all([
+      import('./program'),
+      import('../data/exercises'),
+    ]);
+    const generateProgram = (programMod as { generateProgram: (p: Profile, db: unknown[]) => unknown[] }).generateProgram;
+    const EXERCISE_DB = (exercisesMod as { EXERCISE_DB: unknown[] }).EXERCISE_DB;
+    program = generateProgram(profile, EXERCISE_DB);
+  }
   if (!Array.isArray(program) || program.length === 0) return;
   const exerciseIdFor = (dayIdx: number, exIdx: number): string | null => {
     const day = program[dayIdx] as { exercises?: unknown[] } | undefined;
