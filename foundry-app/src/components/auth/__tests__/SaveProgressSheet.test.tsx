@@ -18,6 +18,16 @@ vi.mock('../../../utils/store', () => ({
     set: vi.fn((k: string, v: string) => void flags.set(k, v)),
     remove: vi.fn((k: string) => void flags.delete(k)),
   },
+  ageFromDob: (dob: { month: string; day: string; year: string }) => {
+    if (!dob.month || !dob.day || !dob.year) return null;
+    const today = new Date();
+    const birth = new Date(+dob.year, +dob.month - 1, +dob.day);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+  },
+  isEduEmail: (email: string) => /\.edu\s*$/i.test(email.trim()),
 }));
 
 vi.mock('../../../contexts/AuthContext', () => ({
