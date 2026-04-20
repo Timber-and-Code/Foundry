@@ -16,6 +16,7 @@ import {
   getWeekSets,
 } from '../../utils/store';
 import WelcomeRibbon from './WelcomeRibbon';
+import AnonLocalBanner from './AnonLocalBanner';
 import MobilityCard from './MobilityCard';
 import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
 
@@ -458,6 +459,9 @@ function HomeTab({
     >
       {/* ═══ PRIMARY ZONE: Welcome ribbon (first session only) ═══ */}
       <WelcomeRibbon name={profile?.name} />
+
+      {/* ═══ PRIMARY ZONE: Local-only reminder for anonymous users ═══ */}
+      <AnonLocalBanner />
 
       {/* ═══ PRIMARY ZONE: Greeting + Dashboard + Today ═══ */}
 

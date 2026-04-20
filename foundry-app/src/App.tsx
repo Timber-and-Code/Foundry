@@ -270,10 +270,18 @@ function App() {
     const unsubExercise = on('foundry:second-exercise-complete', () => open('first_set'));
     const unsubWeek = on('foundry:first-week-done', () => open('first_week_done'));
     const unsubMeso = on('foundry:meso-complete', () => open('meso_complete'));
+    // Manual requests from surfaces like AnonLocalBanner or Settings'
+    // "Sync across devices" row. Not counted against the 3-prompt auto cap.
+    const unsubRequest = on('foundry:save-sheet-request', ({ trigger }) => {
+      if (user) return;
+      setSaveProgressTrigger(trigger);
+      setShowSaveProgress(true);
+    });
     return () => {
       unsubExercise();
       unsubWeek();
       unsubMeso();
+      unsubRequest();
     };
   }, [v2, user]);
 

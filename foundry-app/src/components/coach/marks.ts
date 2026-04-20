@@ -73,7 +73,7 @@ export const COACH_MARKS: CoachMarkDef[] = [
     trigger: { type: 'event', name: 'foundry:first-stall' },
     anchor: '[data-coach="stall-chip"]',
     title: 'Stall detected',
-    copy: 'Stall detected. Foundry will ease off next week so you can recover and push again.',
+    copy: 'Stall detected. The Foundry will ease off next week so you can recover and push again.',
   },
   {
     id: 'deload',
@@ -86,7 +86,7 @@ export const COACH_MARKS: CoachMarkDef[] = [
     id: 'carryover',
     trigger: { type: 'event', name: 'foundry:first-meso-carryover' },
     anchor: '[data-coach="meso-overview"]',
-    title: 'Meso 2',
+    title: 'Your next meso',
     copy: 'Your new meso starts heavier — because you did. Every block builds on the last.',
   },
   {
