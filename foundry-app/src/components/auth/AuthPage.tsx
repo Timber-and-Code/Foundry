@@ -70,14 +70,14 @@ export default function AuthPage() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: `${tokens.spacing.xl}px ${tokens.spacing.lg}px`,
-        fontFamily: "'Inter', system-ui, sans-serif",
+        fontFamily: tokens.fontFamily.body,
       }}
     >
       {/* Logo */}
       <header style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 40 }}>
         <img
           src={typeof FOUNDRY_ANVIL_IMG !== 'undefined' ? FOUNDRY_ANVIL_IMG : ''}
-          alt="Foundry"
+          alt="The Foundry"
           style={{
             width: 64,
             height: 64,
@@ -86,13 +86,15 @@ export default function AuthPage() {
             boxShadow: '0 0 32px rgba(232,101,26,0.3)',
           }}
         />
+        {/* Typography pass: 0.25em stretched the F off the right edge on
+            iPhone SE. 0.16em matches the locked WelcomeScreen/CTA spec. */}
         <h1
           style={{
             fontSize: tokens.fontSize.xxl,
             fontWeight: tokens.fontWeight.normal,
-            letterSpacing: '0.25em',
+            letterSpacing: '0.16em',
             color: 'var(--text-primary, #e5e5e5)',
-            fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+            fontFamily: tokens.fontFamily.display,
             margin: 0,
           }}
         >
@@ -101,11 +103,11 @@ export default function AuthPage() {
         <h2
           style={{
             fontSize: 10,
-            letterSpacing: '0.2em',
+            letterSpacing: '0.08em',
             color: 'var(--accent)',
             textTransform: 'uppercase',
             margin: 0,
-            fontWeight: 400,
+            fontWeight: 600,
           }}
         >
           Forge your strength

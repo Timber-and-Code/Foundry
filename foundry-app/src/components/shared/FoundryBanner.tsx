@@ -70,14 +70,17 @@ function FoundryBanner({ subtitle, onProfileTap, syncState = 'idle' }: FoundryBa
           }}
         />
         <div>
+          {/* Typography pass: nav lockup uses tighter 0.12em — 0.18em was
+              inherited from WelcomeScreen display size and reads too open
+              at this 28px nav scale. */}
           <div
             style={{
               fontSize: 28,
               fontWeight: 400,
-              letterSpacing: '0.18em',
+              letterSpacing: '0.12em',
               color: 'var(--text-primary)',
               lineHeight: 1,
-              fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+              fontFamily: tokens.fontFamily.display,
             }}
           >
             THE FOUNDRY
@@ -87,9 +90,9 @@ function FoundryBanner({ subtitle, onProfileTap, syncState = 'idle' }: FoundryBa
               style={{
                 fontSize: 12,
                 fontWeight: 600,
-                letterSpacing: '0.12em',
+                letterSpacing: '0.08em',
                 marginTop: 6,
-                fontFamily: "'Inter', system-ui, sans-serif",
+                fontFamily: tokens.fontFamily.body,
                 textTransform: 'uppercase',
                 lineHeight: 1.4,
                 color: 'var(--amber)',
