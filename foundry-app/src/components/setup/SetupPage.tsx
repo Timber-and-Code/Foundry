@@ -1,14 +1,10 @@
 import React, { useState } from 'react';
 import { tokens } from '../../styles/tokens';
-import { store, ageFromDob, isEduEmail } from '../../utils/store';
-import { emit } from '../../utils/events';
-import { supabase } from '../../utils/supabase';
+import { store, isEduEmail } from '../../utils/store';
 import FoundryBanner from '../shared/FoundryBanner';
 import AutoBuilderFlow from './AutoBuilderFlow';
 import ManualBuilderFlow from './ManualBuilderFlow';
 import CardioSetupFlow from './CardioSetupFlow';
-import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '../../contexts/ToastContext';
 import type { Profile } from '../../types';
 
 interface SetupPageProps {
@@ -16,11 +12,6 @@ interface SetupPageProps {
 }
 
 export default function SetupPage({ onComplete }: SetupPageProps) {
-  const { signup, user } = useAuth();
-  const { showToast } = useToast();
-  // Onboarding v2: defer email/password signup entirely. SaveProgressSheet
-  // handles account creation after the user has logged their first set.
-  const v2DeferAuth = store.get('foundry:onboarding_v2') !== '0';
   const SPLIT_CONFIG = {
     ppl: {
       label: 'Push · Pull · Legs',
@@ -59,7 +50,13 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
   // DAY_NAMES — was used by removed SchedulePreview
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const [step, setStep] = useState(1);
+  // Onboarding v2: IntakeCard now collects name/gender/experience/goal
+  // before SetupPage mounts, so Step 1 ("About You") is dropped and we
+  // land users directly on path choice. DOB + student + weight are
+  // captured later (signup + BW weekly prompt respectively).
+  // `step` stays as a constant for the few remaining `step === 2` guards
+  // until the surrounding render tree is simplified further.
+  const [step] = useState(2);
   const [pathMode, setPathMode] = useState<string | null>(null);
   const [manualExStep, setManualExStep] = useState(false);
   const [manualPairStep, setManualPairStep] = useState(false);
@@ -81,7 +78,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     return {
       name: (saved.name as string) || tp?.name || '',
       age: saved.age ? String(saved.age) : tp?.age ? String(tp.age) : '',
-      gender: tp?.gender || '',
+      gender: (saved.gender as string) || tp?.gender || '',
       weight: tp?.weight || '' as string | number,
       goal: savedGoal || tp?.goal || '',
       goalNote: '' as string,
@@ -97,19 +94,11 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
       daysPerWeek: tp?.daysPerWeek || 6,
     };
   });
-  const [setupDob, setSetupDob] = useState<{ month: string; day: string; year: string }>(() => {
-    let saved: Record<string, unknown> = {};
-    try {
-      saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
-    } catch { /* JSON parse fallback */ }
-    const savedDob = saved.dob as { month?: string; day?: string; year?: string } | undefined;
-    if (savedDob && savedDob.month) {
-      return {
-        month: savedDob.month || '',
-        day: savedDob.day || '',
-        year: savedDob.year || '',
-      };
-    }
+  // Onboarding v2: DOB + student status captured at signup
+  // (SaveProgressSheet), not in SetupPage. These state handles exist only
+  // to feed AutoBuilderFlow and the profile enrichment below — their
+  // setters are no longer called from within SetupPage.
+  const [setupDob] = useState<{ month: string; day: string; year: string }>(() => {
     try {
       const profile = JSON.parse(store.get('foundry:profile') || '{}');
       if (profile.birthdate) {
@@ -125,28 +114,21 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     } catch { /* JSON parse fallback */ }
     return { month: '', day: '', year: '' };
   });
-  const SETUP_MONTHS = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
 
-  // Student verification state
-  const [isStudent, setIsStudent] = useState(() => {
+  const [isStudent] = useState(() => {
     try {
       const p = JSON.parse(store.get('foundry:profile') || '{}');
       return !!p.isStudent;
     } catch { return false; }
   });
-  const [studentEmail, setStudentEmail] = useState(() => {
+  const [studentEmail] = useState(() => {
     try {
       const p = JSON.parse(store.get('foundry:profile') || '{}');
       return (p.studentEmail as string) || '';
     } catch { return ''; }
   });
-  const [studentEmailError, setStudentEmailError] = useState('');
 
   const [aiLoading, setAiLoading] = useState(false);
-  const [signupLoading, setSignupLoading] = useState(false);
   const [, setAiCoachNote] = useState('');
   const [legBalancePrompt, setLegBalancePrompt] = useState<Profile | null>(null);
   const [showCardioStep, setShowCardioStep] = useState(false);
@@ -256,68 +238,6 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
     });
   };
 
-  const goNext = async () => {
-    setError('');
-    if (step === 1) {
-      if (!form.name.trim()) {
-        setError('Please enter your name.');
-        return;
-      }
-      // Gender is optional — no validation needed
-      // DOB required (all three fields) — needed for free-tier age qualification.
-      if (!setupDob.month || !setupDob.day || !setupDob.year) {
-        setError('Please enter your full date of birth.');
-        return;
-      }
-      // Email + password gate — create the account here so the meso the user
-      // is about to build is tied to a persistent Supabase account from the
-      // first set. Skipped entirely if the user is already signed in (e.g.
-      // returning via the Sign in link on Pick Your Path).
-      //
-      // Onboarding v2: this block is bypassed. SaveProgressSheet prompts for
-      // account creation on first-set-logged / first-week-done / meso
-      // completion instead. The account is tied to the anonymous local
-      // profile at signup time via the existing flushDirty() sync path.
-      if (!user && !v2DeferAuth) {
-        const email = form.email.trim();
-        const password = form.password;
-        if (!email || !email.includes('@')) {
-          setError('Please enter a valid email address.');
-          return;
-        }
-        if (!password || password.length < 6) {
-          setError('Password must be at least 6 characters.');
-          return;
-        }
-        setSignupLoading(true);
-        try {
-          const { error: signupError } = await signup(email, password);
-          if (signupError) {
-            setSignupLoading(false);
-            const msg = (signupError.message || '').toLowerCase();
-            if (msg.includes('already registered') || msg.includes('already exists')) {
-              setError(
-                'You already have an account with this email. Tap "Sign in instead" below to log in, or "Forgot password?" to reset it.'
-              );
-            } else {
-              setError(signupError.message || 'Sign up failed. Please try again.');
-            }
-            return;
-          }
-          showToast('Account created — check your email to confirm', 'success');
-        } catch (e) {
-          setSignupLoading(false);
-          const err = e as Error;
-          setError(err.message || 'Sign up failed. Please try again.');
-          return;
-        }
-        setSignupLoading(false);
-      }
-      setPathMode(null);
-    }
-    setStep(2);
-    window.scrollTo(0, 0);
-  };
 
   // ── Shared style atoms ─────────────────────────────────────────────────
   const inputStyle: React.CSSProperties = {
@@ -361,25 +281,21 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
 
   // ── Progress header ────────────────────────────────────────────────────
   const Header = () => {
-    const isPathSelect = step === 2 && pathMode === null;
-    const isAutoInputs = step === 2 && pathMode === 'auto';
-    const progressPct = step === 1 ? '33%' : isPathSelect ? '55%' : '100%';
-    const title =
-      step === 1
-        ? 'About You'
-        : isPathSelect
-          ? 'Build Mode'
-          : isAutoInputs
-            ? 'Quick Build'
-            : 'Your Program';
-    const subtitle =
-      step === 1
-        ? 'Step 1 of 2'
-        : isPathSelect
-          ? 'Step 2 of 2'
-          : isAutoInputs
-            ? 'Foundry Auto-Build'
-            : 'Manual Setup';
+    const isPathSelect = pathMode === null;
+    const isAutoInputs = pathMode === 'auto';
+    // Progress bar now only reflects Step 2 + child flow progression; Step 1
+    // was removed with the IntakeCard consolidation.
+    const progressPct = isPathSelect ? '50%' : '100%';
+    const title = isPathSelect
+      ? 'Build Mode'
+      : isAutoInputs
+        ? 'Quick Build'
+        : 'Your Program';
+    const subtitle = isPathSelect
+      ? 'Pick your path'
+      : isAutoInputs
+        ? 'The Foundry Auto-Build'
+        : 'Manual Setup';
 
     const handleBack = () => {
       setError('');
@@ -393,17 +309,10 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
         window.scrollTo(0, 0);
         return;
       }
-      if (isAutoInputs || isPathSelect) {
-        if (isAutoInputs) setPathMode(null);
-        else {
-          setStep(1);
-          setPathMode(null);
-        }
-        window.scrollTo(0, 0);
-      } else {
-        setStep(1);
-        window.scrollTo(0, 0);
-      }
+      // From any inner flow, back → path select. Path select has no earlier
+      // step (IntakeCard lives outside SetupPage now).
+      if (isAutoInputs) setPathMode(null);
+      window.scrollTo(0, 0);
     };
 
     return (
@@ -439,7 +348,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
               {title}
             </div>
           </div>
-          {step === 2 && (
+          {pathMode !== null && (
             <button
               onClick={handleBack}
               style={{
@@ -547,431 +456,6 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <Header />
 
-          {/* ─── STEP 1 ─── */}
-          {step === 1 && (
-            <div style={{ padding: '24px 20px 40px' }}>
-              {/* Name */}
-              <div style={sec}>
-                <label style={sLabel}>Your name *</label>
-                <input
-                  type="text"
-                  placeholder="First name"
-                  value={form.name}
-                  onChange={(e) => set('name', e.target.value)}
-                  style={inputStyle}
-                  autoFocus
-                />
-              </div>
-
-              {/* Gender */}
-              <div style={sec}>
-                <label style={sLabel}>Gender</label>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 1fr',
-                    gap: 8,
-                    marginTop: 8,
-                  }}
-                >
-                  {[
-                    ['m', 'Male'],
-                    ['f', 'Female'],
-                    ['nb', 'Other'],
-                  ].map(([val, lbl]) => (
-                    <button
-                      key={val}
-                      onClick={() => set('gender', val)}
-                      style={{
-                        padding: '16px',
-                        borderRadius: tokens.radius.md,
-                        cursor: 'pointer',
-                        fontWeight: 700,
-                        fontSize: 14,
-                        letterSpacing: '0.03em',
-                        background:
-                          form.gender === val ? 'rgba(var(--accent-rgb),0.14)' : 'var(--bg-card)',
-                        border: `1px solid ${form.gender === val ? 'var(--accent)' : 'var(--border)'}`,
-                        color: form.gender === val ? 'var(--accent)' : 'var(--text-primary)',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      {lbl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Date of Birth + Weight */}
-              <div style={{ ...sec }}>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={sLabel}>Date of Birth</label>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '2fr 1fr 1.5fr',
-                      gap: 8,
-                      marginTop: 8,
-                    }}
-                  >
-                    {/* Month */}
-                    <select
-                      value={setupDob.month}
-                      onChange={(e) => setSetupDob((d) => ({ ...d, month: e.target.value }))}
-                      style={{
-                        ...inputStyle,
-                        marginTop: 0,
-                        padding: '14px 10px',
-                        appearance: 'none',
-                        WebkitAppearance: 'none',
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 10px center',
-                        paddingRight: 28,
-                      }}
-                    >
-                      <option value="">Month</option>
-                      {SETUP_MONTHS.map((m, i) => (
-                        <option key={i} value={String(i + 1)}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                    {/* Day */}
-                    <select
-                      value={setupDob.day}
-                      onChange={(e) => setSetupDob((d) => ({ ...d, day: e.target.value }))}
-                      style={{
-                        ...inputStyle,
-                        marginTop: 0,
-                        padding: '14px 10px',
-                        appearance: 'none',
-                        WebkitAppearance: 'none',
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 10px center',
-                        paddingRight: 28,
-                      }}
-                    >
-                      <option value="">Day</option>
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                        <option key={d} value={String(d)}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                    {/* Year */}
-                    <select
-                      value={setupDob.year}
-                      onChange={(e) => setSetupDob((d) => ({ ...d, year: e.target.value }))}
-                      style={{
-                        ...inputStyle,
-                        marginTop: 0,
-                        padding: '14px 10px',
-                        appearance: 'none',
-                        WebkitAppearance: 'none',
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 10px center',
-                        paddingRight: 28,
-                      }}
-                    >
-                      <option value="">Year</option>
-                      {Array.from(
-                        { length: new Date().getFullYear() - 1929 },
-                        (_, i) => new Date().getFullYear() - i
-                      ).map((y) => (
-                        <option key={y} value={String(y)}>
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {/* Free tier callout */}
-                  {(() => {
-                    const age = ageFromDob(setupDob);
-                    if (age === null) return null;
-                    const isYoung = age < 18,
-                      isSenior = age >= 62;
-                    if (!isYoung && !isSenior) return null;
-                    return (
-                      <div
-                        style={{
-                          marginTop: 10,
-                          padding: '10px 12px',
-                          borderRadius: tokens.radius.md,
-                          background: 'var(--phase-accum)12',
-                          border: '1px solid var(--phase-accum)44',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: 12,
-                            color: 'var(--phase-accum)',
-                            fontWeight: 600,
-                            lineHeight: 1.4,
-                          }}
-                        >
-                          {isYoung
-                            ? 'The Foundry is permanently free for users under 18.'
-                            : 'The Foundry is permanently free for adults 62 and over.'}
-                        </span>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Student verification */}
-                  {(() => {
-                    const age = ageFromDob(setupDob);
-                    // Don't show student toggle if already qualifying via age
-                    if (age !== null && (age < 18 || age >= 62)) return null;
-                    return (
-                      <div style={{ marginTop: 12 }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsStudent(!isStudent);
-                            if (isStudent) { setStudentEmail(''); setStudentEmailError(''); }
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: 0,
-                            width: '100%',
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 20,
-                              height: 20,
-                              borderRadius: tokens.radius.sm,
-                              border: `2px solid ${isStudent ? 'var(--phase-accum)' : 'var(--border)'}`,
-                              background: isStudent ? 'var(--phase-accum)' : 'transparent',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                              transition: 'all 0.15s',
-                            }}
-                          >
-                            {isStudent && (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            )}
-                          </div>
-                          <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
-                            I'm a student
-                          </span>
-                        </button>
-
-                        {isStudent && (
-                          <div style={{ marginTop: 10 }}>
-                            <input
-                              type="email"
-                              inputMode="email"
-                              placeholder="your.name@school.edu"
-                              value={studentEmail}
-                              onChange={(e) => {
-                                setStudentEmail(e.target.value);
-                                setStudentEmailError('');
-                              }}
-                              onBlur={() => {
-                                if (studentEmail.trim() && !isEduEmail(studentEmail)) {
-                                  setStudentEmailError('Enter a valid .edu email address');
-                                }
-                              }}
-                              style={{
-                                ...inputStyle,
-                                borderColor: studentEmailError ? '#e05252' : undefined,
-                              }}
-                            />
-                            {studentEmailError && (
-                              <div style={{ fontSize: 11, color: '#e05252', marginTop: 4 }}>
-                                {studentEmailError}
-                              </div>
-                            )}
-                            {studentEmail.trim() && isEduEmail(studentEmail) && (
-                              <div
-                                style={{
-                                  marginTop: 8,
-                                  padding: '10px 12px',
-                                  borderRadius: tokens.radius.md,
-                                  background: 'var(--phase-accum)12',
-                                  border: '1px solid var(--phase-accum)44',
-                                }}
-                              >
-                                <span style={{ fontSize: 12, color: 'var(--phase-accum)', fontWeight: 600, lineHeight: 1.4 }}>
-                                  The Foundry is free for students. Welcome aboard.
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-                <div>
-                  <label style={sLabel}>Weight (lbs)</label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="e.g. 185"
-                    value={form.weight}
-                    onChange={(e) => set('weight', e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
-
-              {/* Save your progress — email + password signup. Hidden in
-                  onboarding v2: SaveProgressSheet handles it later. */}
-              {!v2DeferAuth && (
-              <div style={sec}>
-                <label style={sLabel}>Save your progress *</label>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.5,
-                    marginTop: 4,
-                    marginBottom: 10,
-                  }}
-                >
-                  Create your free Foundry account to sync your meso across
-                  devices and keep your work safe.
-                </div>
-                <input
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="Email address"
-                  value={form.email}
-                  onChange={(e) => set('email', e.target.value)}
-                  style={inputStyle}
-                />
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Password (at least 6 characters)"
-                  value={form.password}
-                  onChange={(e) => set('password', e.target.value)}
-                  style={{ ...inputStyle, marginTop: 10 }}
-                />
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginTop: 10,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const email = form.email.trim();
-                      if (!email || !email.includes('@')) {
-                        setError('Enter your email address first.');
-                        return;
-                      }
-                      setError('');
-                      try {
-                        const { error: resetErr } =
-                          await supabase.auth.resetPasswordForEmail(email);
-                        if (resetErr) {
-                          setError(resetErr.message);
-                        } else {
-                          showToast('Password reset email sent', 'success');
-                        }
-                      } catch {
-                        setError('Could not send reset email. Try again.');
-                      }
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      padding: 0,
-                      textDecoration: 'underline',
-                      textUnderlineOffset: 2,
-                    }}
-                  >
-                    Forgot password?
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      store.set('foundry:wants_auth', '1');
-                      emit('foundry:wants_auth');
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: tokens.colors.accent,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      padding: 0,
-                      textDecoration: 'underline',
-                      textUnderlineOffset: 2,
-                    }}
-                  >
-                    Sign in instead
-                  </button>
-                </div>
-              </div>
-              )}
-
-              {/* Error */}
-              {error && (
-                <div
-                  style={{
-                    background: 'var(--danger-bg)',
-                    border: '1px solid var(--danger)',
-                    borderRadius: tokens.radius.md,
-                    padding: '12px 16px',
-                    marginBottom: 16,
-                    fontSize: 13,
-                    color: 'var(--danger)',
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-
-              <button
-                onClick={goNext}
-                disabled={signupLoading}
-                className="btn-primary"
-                style={{
-                  width: '100%',
-                  padding: '20px',
-                  borderRadius: tokens.radius.md,
-                  cursor: signupLoading ? 'not-allowed' : 'pointer',
-                  background: 'var(--btn-primary-bg)',
-                  border: '1px solid var(--btn-primary-border)',
-                  color: 'var(--btn-primary-text)',
-                  fontSize: 16,
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
-                  boxShadow: '0 4px 24px rgba(var(--accent-rgb),0.3)',
-                  opacity: signupLoading ? 0.7 : 1,
-                }}
-              >
-                {signupLoading ? 'Creating account…' : 'Continue →'}
-              </button>
-            </div>
-          )}
 
           {/* ─── PATH SELECT ─── */}
           {step === 2 && pathMode === null && (
