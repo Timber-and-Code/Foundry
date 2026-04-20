@@ -1424,12 +1424,15 @@ function DayView({
                 Skip
               </button>
               <button
+                disabled={(() => {
+                  const v = parseFloat(bwCheckinInput);
+                  return isNaN(v) || v <= 0;
+                })()}
                 onClick={() => {
                   const val = parseFloat(bwCheckinInput);
-                  if (!isNaN(val) && val > 0) {
-                    addBwEntry(val);
-                    onProfileUpdate && onProfileUpdate({ weight: String(val) });
-                  }
+                  if (isNaN(val) || val <= 0) return;
+                  addBwEntry(val);
+                  onProfileUpdate && onProfileUpdate({ weight: String(val) });
                   markBwPromptShown();
                   setShowBwCheckin(false);
                 }}
@@ -1437,12 +1440,19 @@ function DayView({
                 style={{
                   padding: '14px',
                   borderRadius: tokens.radius.lg,
-                  cursor: 'pointer',
+                  cursor: (() => {
+                    const v = parseFloat(bwCheckinInput);
+                    return isNaN(v) || v <= 0 ? 'not-allowed' : 'pointer';
+                  })(),
                   fontSize: 13,
                   fontWeight: 800,
                   background: 'var(--btn-primary-bg)',
                   border: '1px solid var(--btn-primary-border)',
                   color: 'var(--btn-primary-text)',
+                  opacity: (() => {
+                    const v = parseFloat(bwCheckinInput);
+                    return isNaN(v) || v <= 0 ? 0.5 : 1;
+                  })(),
                 }}
               >
                 Save
