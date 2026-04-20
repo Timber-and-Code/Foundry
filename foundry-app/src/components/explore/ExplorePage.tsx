@@ -33,7 +33,7 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
   if (section === 'learn') return <LearnSection onBack={() => setSection('home')} />;
 
   const tiles: {
-    id: Exclude<Section, 'home' | 'learn'>;
+    id: Exclude<Section, 'home'>;
     title: string;
     subtitle: string;
     icon: React.ReactNode;
@@ -127,95 +127,57 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
         </svg>
       ),
     },
+    {
+      id: 'learn',
+      title: 'The System',
+      subtitle: 'Periodization, volume landmarks, progression — the why behind it all',
+      icon: (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      ),
+    },
   ];
 
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
-      {/* The System callout */}
-      <div
-        style={{
-          margin: '20px 16px 0',
-          padding: '18px 20px',
-          background: 'rgba(var(--accent-rgb),0.07)',
-          border: '1px solid rgba(var(--accent-rgb),0.2)',
-          borderRadius: tokens.radius.lg,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.1em',
-            color: 'var(--accent)',
-            marginBottom: 10,
-          }}
-        >
-          THE SYSTEM
-        </div>
-        <div
-          style={{
-            fontSize: 15,
-            color: 'var(--text-primary)',
-            lineHeight: 1.55,
-            fontWeight: 700,
-            marginBottom: 6,
-          }}
-        >
-          Progressive overload, by the book.
-        </div>
-        <div
-          style={{
-            fontSize: 14,
-            color: 'var(--text-secondary)',
-            lineHeight: 1.65,
-            marginBottom: 14,
-          }}
-        >
-          Volume and intensity ramp each week until you peak, then you deload and reset. Every
-          feature in the app exists to support that loop.
-        </div>
-        <button
-          onClick={() => setSection('learn')}
-          style={{
-            background: 'transparent',
-            border: '1px solid rgba(var(--accent-rgb),0.35)',
-            borderRadius: tokens.radius.sm,
-            padding: '7px 14px',
-            fontSize: 13,
-            fontWeight: 700,
-            color: 'var(--accent)',
-            cursor: 'pointer',
-            letterSpacing: '0.05em',
-          }}
-        >
-          Read more →
-        </button>
-      </div>
-
-      {/* 4-tile 2×2 grid */}
-      <div style={{ padding: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {tiles.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSection(t.id)}
-              style={{
-                padding: '18px 16px',
-                borderRadius: tokens.radius.lg,
-                cursor: 'pointer',
-                textAlign: 'left',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
-              <div style={{ marginBottom: 8 }}>{t.icon}</div>
+      <div style={{ padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {tiles.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setSection(t.id)}
+            style={{
+              padding: '16px 18px',
+              borderRadius: tokens.radius.lg,
+              cursor: 'pointer',
+              textAlign: 'left',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+              width: '100%',
+            }}
+          >
+            <div style={{ flexShrink: 0 }}>{t.icon}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
                   fontSize: 16,
                   fontWeight: 800,
                   color: 'var(--text-primary)',
-                  marginBottom: 4,
+                  marginBottom: 3,
                 }}
               >
                 {t.title}
@@ -224,14 +186,24 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
                 style={{
                   fontSize: 13,
                   color: 'var(--text-secondary)',
-                  lineHeight: 1.5,
+                  lineHeight: 1.45,
                 }}
               >
                 {t.subtitle}
               </div>
-            </button>
-          ))}
-        </div>
+            </div>
+            <span
+              aria-hidden="true"
+              style={{
+                color: 'var(--text-dim)',
+                fontSize: 20,
+                flexShrink: 0,
+              }}
+            >
+              ›
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   );
