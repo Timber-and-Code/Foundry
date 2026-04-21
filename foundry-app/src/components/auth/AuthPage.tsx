@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../utils/supabase';
@@ -15,6 +15,57 @@ export default function AuthPage() {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Keyboard handling: on iOS (Capacitor), when the keyboard opens, scroll the
+  // active input into view so the user can see what they're typing. We load
+  // the plugin lazily + defensively — on web builds the dynamic import resolves
+  // but `addListener` is a no-op, and if anything throws we silently fall back
+  // to the onFocus scrollIntoView handler on each input.
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const mod = await import('@capacitor/keyboard');
+        if (cancelled || !mod?.Keyboard?.addListener) return;
+        const handle = await mod.Keyboard.addListener('keyboardWillShow', () => {
+          const el = document.activeElement as HTMLElement | null;
+          if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }
+        });
+        cleanup = () => {
+          try {
+            handle?.remove?.();
+          } catch {
+            /* noop */
+          }
+        };
+      } catch {
+        // Plugin not available (web build, test env, etc.) — onFocus fallback covers us.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, []);
+
+  // onFocus fallback — works everywhere (web + native) and is cheap. The
+  // Capacitor listener above is the primary fix on iOS because the keyboard
+  // animates in AFTER the focus event fires; keyboardWillShow gives us the
+  // right moment to re-scroll.
+  const scrollFocusedIntoView = (e: React.FocusEvent<HTMLInputElement>) => {
+    const el = e.currentTarget;
+    // Defer slightly so the layout settles (iOS resizes the viewport on focus).
+    window.setTimeout(() => {
+      if (typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }, 50);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,18 +114,31 @@ export default function AuthPage() {
   return (
     <main
       style={{
-        minHeight: '100vh',
+        // Full viewport column: header (logo) stays put, form area scrolls
+        // independently so the iOS keyboard never hides the inputs.
+        height: '100vh',
+        maxHeight: '100vh',
         background: 'var(--bg-root, #141414)',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: `${tokens.spacing.xl}px ${tokens.spacing.lg}px`,
+        alignItems: 'stretch',
         fontFamily: tokens.fontFamily.body,
+        overflow: 'hidden',
       }}
     >
-      {/* Logo */}
-      <header style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 40 }}>
+      {/* Logo — fixed-height header, honors notch */}
+      <header
+        style={{
+          flex: '0 0 auto',
+          maxHeight: '30vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          padding: `calc(${tokens.spacing.lg}px + env(safe-area-inset-top, 0px)) ${tokens.spacing.lg}px ${tokens.spacing.lg}px`,
+        }}
+      >
         <img
           src={typeof FOUNDRY_ANVIL_IMG !== 'undefined' ? FOUNDRY_ANVIL_IMG : ''}
           alt="The Foundry"
@@ -114,197 +178,221 @@ export default function AuthPage() {
         </h2>
       </header>
 
-      {/* Card */}
+      {/* Scrollable form region. paddingBottom uses env(keyboard-inset-height)
+          which modern iOS WebKit exposes — it expands as the keyboard rises so
+          there's always room to scroll the focused input into view. */}
       <div
         style={{
-          width: '100%',
-          maxWidth: 400,
-          background: 'var(--bg-card, #1a1a1a)',
-          border: '1px solid var(--border, rgba(255,255,255,0.08))',
-          borderRadius: tokens.radius.xl,
-          padding: `28px ${tokens.spacing.xl}px`,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          flex: '1 1 auto',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: `${tokens.spacing.md}px ${tokens.spacing.lg}px`,
+          paddingBottom:
+            'max(24px, env(keyboard-inset-height, 0px), env(safe-area-inset-bottom, 0px))',
         }}
       >
-        {/* Mode toggle */}
+        {/* Card */}
         <div
           style={{
-            display: 'flex',
-            background: 'var(--bg-root, #141414)',
-            borderRadius: tokens.radius.lg,
-            padding: 3,
-            marginBottom: 24,
+            width: '100%',
+            maxWidth: 400,
+            background: 'var(--bg-card, #1a1a1a)',
+            border: '1px solid var(--border, rgba(255,255,255,0.08))',
+            borderRadius: tokens.radius.xl,
+            padding: `28px ${tokens.spacing.xl}px`,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           }}
         >
-          {['login', 'signup'].map((m) => (
-            <button
-              key={m}
-              onClick={() => { setMode(m); setError(''); setInfo(''); }}
-              style={{
-                flex: 1,
-                minHeight: 44,
-                padding: `${tokens.spacing.sm}px`,
-                borderRadius: tokens.radius.md,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: tokens.fontSize.sm,
-                fontWeight: tokens.fontWeight.bold,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                transition: 'background 0.15s, color 0.15s',
-                background: mode === m ? tokens.colors.accentMuted : 'transparent',
-                color: mode === m ? tokens.colors.accentDim : 'var(--text-muted, #666)',
-              }}
-            >
-              {m === 'login' ? 'Sign In' : 'Create Account'}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <label
-              htmlFor="email"
-              style={{
-                display: 'block',
-                fontSize: tokens.fontSize.xs,
-                fontWeight: tokens.fontWeight.semibold,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted, #666)',
-                marginBottom: 6,
-              }}
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-              style={{
-                width: '100%',
-                minHeight: 44,
-                padding: '11px 12px',
-                background: 'var(--bg-root, #141414)',
-                border: '1px solid var(--border, rgba(255,255,255,0.1))',
-                borderRadius: tokens.radius.lg,
-                color: 'var(--text-primary, #e5e5e5)',
-                fontSize: tokens.fontSize.base,
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              style={{
-                display: 'block',
-                fontSize: tokens.fontSize.xs,
-                fontWeight: tokens.fontWeight.semibold,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted, #666)',
-                marginBottom: 6,
-              }}
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              placeholder="••••••••"
-              style={{
-                width: '100%',
-                minHeight: 44,
-                padding: '11px 12px',
-                background: 'var(--bg-root, #141414)',
-                border: '1px solid var(--border, rgba(255,255,255,0.1))',
-                borderRadius: tokens.radius.lg,
-                color: 'var(--text-primary, #e5e5e5)',
-                fontSize: tokens.fontSize.base,
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {error && (
-            <div
-              style={{
-                padding: `10px ${tokens.spacing.md}px`,
-                background: tokens.colors.dangerBg,
-                border: `1px solid ${tokens.colors.dangerBorder}`,
-                borderRadius: tokens.radius.md,
-                color: tokens.colors.dangerText,
-                fontSize: tokens.fontSize.md,
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {info && (
-            <div
-              style={{
-                padding: `10px ${tokens.spacing.md}px`,
-                background: tokens.colors.accentSubtle,
-                border: `1px solid ${tokens.colors.accentBorder}`,
-                borderRadius: tokens.radius.md,
-                color: tokens.colors.accentDim,
-                fontSize: tokens.fontSize.md,
-              }}
-            >
-              {info}
-            </div>
-          )}
-
-          <Button type="submit" fullWidth disabled={loading} style={{ marginTop: 4 }}>
-            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
-          </Button>
-        </form>
-
-        {mode === 'login' && (
-          <button
-            onClick={handleForgotPassword}
-            disabled={loading}
+          {/* Mode toggle */}
+          <div
             style={{
-              display: 'block',
-              margin: '16px auto 0',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 12,
-              color: 'var(--text-muted, #666)',
-              textDecoration: 'underline',
-              letterSpacing: '0.02em',
-              padding: '12px 16px',
-              minHeight: 44,
+              display: 'flex',
+              background: 'var(--bg-root, #141414)',
+              borderRadius: tokens.radius.lg,
+              padding: 3,
+              marginBottom: 24,
             }}
           >
-            Forgot password?
-          </button>
-        )}
-      </div>
+            {['login', 'signup'].map((m) => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setError(''); setInfo(''); }}
+                style={{
+                  flex: 1,
+                  minHeight: 44,
+                  padding: `${tokens.spacing.sm}px`,
+                  borderRadius: tokens.radius.md,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: tokens.fontSize.sm,
+                  fontWeight: tokens.fontWeight.bold,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  transition: 'background 0.15s, color 0.15s',
+                  background: mode === m ? tokens.colors.accentMuted : 'transparent',
+                  color: mode === m ? tokens.colors.accentDim : 'var(--text-muted, #666)',
+                }}
+              >
+                {m === 'login' ? 'Sign In' : 'Create Account'}
+              </button>
+            ))}
+          </div>
 
-      {/* Ember line decoration */}
-      <div
-        style={{
-          marginTop: 32,
-          width: 120,
-          height: 1,
-          background: 'linear-gradient(90deg, transparent, rgba(232,101,26,0.4), transparent)',
-        }}
-      />
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label
+                htmlFor="email"
+                style={{
+                  display: 'block',
+                  fontSize: tokens.fontSize.xs,
+                  fontWeight: tokens.fontWeight.semibold,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted, #666)',
+                  marginBottom: 6,
+                }}
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onFocus={scrollFocusedIntoView}
+                required
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                inputMode="email"
+                placeholder="you@example.com"
+                style={{
+                  width: '100%',
+                  minHeight: 44,
+                  padding: '11px 12px',
+                  background: 'var(--bg-root, #141414)',
+                  border: '1px solid var(--border, rgba(255,255,255,0.1))',
+                  borderRadius: tokens.radius.lg,
+                  color: 'var(--text-primary, #e5e5e5)',
+                  fontSize: tokens.fontSize.base,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                style={{
+                  display: 'block',
+                  fontSize: tokens.fontSize.xs,
+                  fontWeight: tokens.fontWeight.semibold,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted, #666)',
+                  marginBottom: 6,
+                }}
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={scrollFocusedIntoView}
+                required
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                autoCapitalize="none"
+                autoCorrect="off"
+                placeholder="••••••••"
+                style={{
+                  width: '100%',
+                  minHeight: 44,
+                  padding: '11px 12px',
+                  background: 'var(--bg-root, #141414)',
+                  border: '1px solid var(--border, rgba(255,255,255,0.1))',
+                  borderRadius: tokens.radius.lg,
+                  color: 'var(--text-primary, #e5e5e5)',
+                  fontSize: tokens.fontSize.base,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  padding: `10px ${tokens.spacing.md}px`,
+                  background: tokens.colors.dangerBg,
+                  border: `1px solid ${tokens.colors.dangerBorder}`,
+                  borderRadius: tokens.radius.md,
+                  color: tokens.colors.dangerText,
+                  fontSize: tokens.fontSize.md,
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            {info && (
+              <div
+                style={{
+                  padding: `10px ${tokens.spacing.md}px`,
+                  background: tokens.colors.accentSubtle,
+                  border: `1px solid ${tokens.colors.accentBorder}`,
+                  borderRadius: tokens.radius.md,
+                  color: tokens.colors.accentDim,
+                  fontSize: tokens.fontSize.md,
+                }}
+              >
+                {info}
+              </div>
+            )}
+
+            <Button type="submit" fullWidth disabled={loading} style={{ marginTop: 4 }}>
+              {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            </Button>
+          </form>
+
+          {mode === 'login' && (
+            <button
+              onClick={handleForgotPassword}
+              disabled={loading}
+              style={{
+                display: 'block',
+                margin: '16px auto 0',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
+                color: 'var(--text-muted, #666)',
+                textDecoration: 'underline',
+                letterSpacing: '0.02em',
+                padding: '12px 16px',
+                minHeight: 44,
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
+        </div>
+
+        {/* Ember line decoration */}
+        <div
+          style={{
+            marginTop: 32,
+            width: 120,
+            height: 1,
+            background: 'linear-gradient(90deg, transparent, rgba(232,101,26,0.4), transparent)',
+          }}
+        />
+      </div>
     </main>
   );
 }
