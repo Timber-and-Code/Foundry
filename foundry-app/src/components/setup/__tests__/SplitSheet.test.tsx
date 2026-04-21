@@ -49,14 +49,13 @@ describe('SplitSheet', () => {
         onClose={() => {}}
       />,
     );
-    // At 4 days: upper_lower, push_pull, full_body, traditional, custom all qualify.
-    // ppl does NOT (its validDays are [3, 5, 6]).
+    // At 4 days: upper_lower (2-6), push_pull (2-6), full_body (2-5),
+    // traditional (4-5), and custom all qualify. ppl (3/5/6) does NOT.
     let recommended = screen.getAllByText(/^recommended$/i);
     expect(recommended.length).toBe(5);
 
-    // At 6 days: ppl, full_body (no, 2-5), custom. Actually: ppl ✓, upper_lower ✗ (2/4),
-    // push_pull ✗ (4), full_body ✗ (2-5), traditional ✗ (4-5), custom ✓.
-    // Expect 2 recommended.
+    // At 6 days: ppl (3/5/6) ✓, upper_lower (2-6) ✓, push_pull (2-6) ✓,
+    // full_body (2-5) ✗, traditional (4-5) ✗, custom ✓ → 4 recommended.
     rerender(
       <SplitSheet
         open
@@ -67,7 +66,7 @@ describe('SplitSheet', () => {
       />,
     );
     recommended = screen.getAllByText(/^recommended$/i);
-    expect(recommended.length).toBe(2);
+    expect(recommended.length).toBe(4);
   });
 
   it('fires onSelect then onClose when a card is tapped', () => {
