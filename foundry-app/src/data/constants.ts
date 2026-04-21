@@ -1068,7 +1068,7 @@ interface CongratsEntry {
 
 export const CONGRATS: readonly CongratsEntry[] = [
   {
-    headline: 'PAID IN.',
+    headline: 'PAID IN FULL.',
     sub: "The rep count doesn't care how you felt. You showed up.",
   },
   {
