@@ -6,7 +6,7 @@ import { getExerciseDB } from '../../data/exerciseDB';
 import { store } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
 import type { Beat1Values } from './Beat1Essentials';
-import type { Profile, TrainingDay } from '../../types';
+import type { Exercise, Profile, TrainingDay } from '../../types';
 import SplitSheet, { type SplitType } from './SplitSheet';
 import MesoLengthSheet, { type MesoLength } from './MesoLengthSheet';
 import SessionLengthSheet, { type SessionLength } from './SessionLengthSheet';
@@ -151,35 +151,87 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditE
   const handleSave = async () => {
     setSaving(true);
     setSaveError('');
-    // Serialize the user's current (possibly edited) days in the shape
-    // program.ts/ManualBuilder expects as a fallback when aiDays is not
-    // present.
-    const manualDayExercises: Record<string, unknown[]> = {};
-    days.forEach((d, i) => {
-      manualDayExercises[String(i)] = d.exercises.map((e, idx) => ({
-        id: e.id,
-        name: e.name,
-        muscle: e.muscle,
-        anchor: d.anchors.includes(idx),
-      }));
-    });
+    const dbNow = getExerciseDB();
+
+    // Lock in the user's current preview as the deterministic program.
+    // We hydrate each DayBuild back into a full TrainingDay using
+    // EXERCISE_DB so the Home view can render the exact program the user
+    // saw — regardless of whether the AI refinement below succeeds.
+    const lockedDays: TrainingDay[] = days
+      .map((d, i): TrainingDay => {
+        const exercises: Exercise[] = d.exercises.map((e, idx) => {
+          const isAnchor = d.anchors.includes(idx);
+          const match = dbNow.find((x) => x.id === e.id) as unknown as
+            | { [k: string]: unknown }
+            | undefined;
+          if (match) {
+            return {
+              id: String(match.id),
+              name: String(match.name),
+              muscle: String(match.muscle || e.muscle || 'other'),
+              muscles: (match.muscles as string[] | undefined) || [String(match.muscle || e.muscle)],
+              equipment: (match.equipment as string | string[] | undefined) || 'barbell',
+              tag: String(match.tag || d.tag || 'FULL'),
+              anchor: isAnchor,
+              sets: isAnchor ? 4 : 3,
+              reps: typeof match.reps === 'string' ? match.reps : '6-12',
+              rest: typeof match.rest === 'string' ? match.rest : isAnchor ? '3 min' : '2 min',
+              warmup: isAnchor ? 'Full protocol' : '1 feeler set',
+              progression: match.pattern === 'isolation' ? 'reps' : 'weight',
+              description: typeof match.description === 'string' ? match.description : '',
+              videoUrl: typeof match.videoUrl === 'string' ? match.videoUrl : '',
+              bw: !!match.bw,
+            } as Exercise;
+          }
+          return {
+            id: e.id,
+            name: e.name,
+            muscle: e.muscle,
+            muscles: [e.muscle],
+            equipment: 'barbell',
+            tag: d.tag,
+            anchor: isAnchor,
+            sets: isAnchor ? 4 : 3,
+            reps: '6-12',
+            rest: isAnchor ? '3 min' : '2 min',
+            warmup: isAnchor ? 'Full protocol' : '1 feeler set',
+            progression: 'weight',
+            description: '',
+            videoUrl: '',
+          } as Exercise;
+        });
+        return {
+          dayNum: i + 1,
+          label: d.label,
+          tag: d.tag,
+          muscles: '',
+          note: '',
+          cardio: null,
+          exercises,
+        };
+      })
+      .filter((d) => d.exercises.length > 0);
+
     const deterministicProfile: Profile = {
       ...(profileDraft as Profile),
-      manualDayExercises: manualDayExercises as Profile['manualDayExercises'],
+      aiDays: lockedDays,
       autoBuilt: split !== 'custom',
     };
     try {
-      const result = await callFoundryAI({
-        split: split === 'custom' ? 'ppl' : split,
-        daysPerWeek: beat1.daysPerWeek,
-        mesoLength: length,
-        experience: intake.experience,
-        equipment: [beat1.equipment],
-        name: intake.name,
-        gender: intake.gender,
-        goal,
-        goalNote: '',
-      });
+      const result = await callFoundryAI(
+        {
+          split: split === 'custom' ? 'ppl' : split,
+          daysPerWeek: beat1.daysPerWeek,
+          mesoLength: length,
+          experience: intake.experience,
+          equipment: [beat1.equipment],
+          name: intake.name,
+          gender: intake.gender,
+          goal,
+          goalNote: '',
+        },
+        dbNow as Parameters<typeof callFoundryAI>[1],
+      );
       const aiProfile: Profile = {
         ...deterministicProfile,
         aiDays: result.days,
@@ -238,9 +290,9 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditE
           zIndex: 2,
         }}
       >
-        <Chip label={SPLIT_LABEL[split]} onClick={() => setSplitOpen(true)} />
-        <Chip label={`${length} WEEKS`} onClick={() => setLengthOpen(true)} />
-        <Chip label={SESSION_LABEL[session]} onClick={() => setSessionOpen(true)} />
+        <Chip category="SPLIT" value={SPLIT_LABEL[split]} onClick={() => setSplitOpen(true)} />
+        <Chip category="TIME" value={SESSION_LABEL[session]} onClick={() => setSessionOpen(true)} />
+        <Chip category="WEEKS" value={String(length)} onClick={() => setLengthOpen(true)} />
       </div>
 
       <PhaseBar variant="static" />
@@ -322,25 +374,48 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditE
   );
 }
 
-function Chip({ label, onClick }: { label: string; onClick: () => void }) {
+function Chip({
+  category,
+  value,
+  onClick,
+}: {
+  category: string;
+  value: string;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={`${category}: ${value} — change`}
       style={{
         padding: '8px 14px',
         borderRadius: tokens.radius.pill,
         background: tokens.colors.bgCard,
         border: `1px solid ${tokens.colors.accentBorder}`,
         color: tokens.colors.textPrimary,
-        fontSize: 12,
-        fontWeight: 700,
-        letterSpacing: '0.04em',
-        textTransform: 'uppercase',
         cursor: 'pointer',
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 2,
+        lineHeight: 1.1,
       }}
     >
-      {label} <span aria-hidden="true" style={{ color: tokens.colors.accent }}>▾</span>
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 800,
+          letterSpacing: '0.1em',
+          color: tokens.colors.accent,
+          textTransform: 'uppercase',
+        }}
+      >
+        {category}
+      </span>
+      <span style={{ fontSize: 12, fontWeight: 700 }}>
+        {value} <span aria-hidden="true" style={{ color: tokens.colors.accent }}>▾</span>
+      </span>
     </button>
   );
 }

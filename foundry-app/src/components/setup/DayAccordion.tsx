@@ -59,13 +59,22 @@ export default function DayAccordion({
   /**
    * Exercises grouped by muscle, filtered by the day being swapped in.
    * Computed when a swap is opened — SwapSheet wants Record<muscle, Exercise[]>.
+   *
+   * EXERCISE_DB only uses tags PUSH / PULL / LEGS / CORE. Split-level day tags
+   * (UPPER / LOWER / FULL / CUSTOM) don't match anything directly, so map
+   * them to the real tag set — mirrors DayView's swapExGroups logic.
    */
   const swapGroups = useMemo<Record<string, ExerciseEntry[]>>(() => {
     if (!swapTarget) return {};
-    const dayTag = days[swapTarget.dayIdx]?.tag;
-    const pool = dayTag
-      ? db.filter((e) => !e.tag || e.tag === dayTag)
-      : db;
+    const dayTag = days[swapTarget.dayIdx]?.tag || '';
+    let tagFilter: string[];
+    if (dayTag === 'PUSH') tagFilter = ['PUSH', 'LEGS'];
+    else if (dayTag === 'PULL') tagFilter = ['PULL', 'LEGS'];
+    else if (dayTag === 'LEGS') tagFilter = ['LEGS'];
+    else if (dayTag === 'UPPER') tagFilter = ['PUSH', 'PULL'];
+    else if (dayTag === 'LOWER') tagFilter = ['LEGS'];
+    else tagFilter = ['PUSH', 'PULL', 'LEGS', 'CORE'];
+    const pool = db.filter((e) => tagFilter.includes(e.tag || ''));
     const groups: Record<string, ExerciseEntry[]> = {};
     for (const ex of pool) {
       const m = ex.muscle || 'other';
@@ -382,9 +391,9 @@ export default function DayAccordion({
                         type="button"
                         onClick={() => setSwapTarget({ dayIdx, exIdx })}
                         aria-label={`Swap ${ex.name}`}
-                        style={iconBtnStyle(false)}
+                        style={swapBtnStyle}
                       >
-                        <span aria-hidden="true">⇄</span>
+                        SWAP
                       </button>
                       <button
                         type="button"
@@ -440,3 +449,20 @@ function iconBtnStyle(disabled: boolean): React.CSSProperties {
     opacity: disabled ? 0.4 : 1,
   };
 }
+
+const swapBtnStyle: React.CSSProperties = {
+  height: 28,
+  padding: '0 10px',
+  borderRadius: tokens.radius.sm,
+  background: 'transparent',
+  border: `1px solid ${tokens.colors.accentBorder}`,
+  color: tokens.colors.accent,
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+};

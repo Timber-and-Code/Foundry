@@ -398,6 +398,11 @@ function App() {
           onComplete={(p: Profile) => {
             saveProfile(p);
             store.remove('foundry:storedProgram');
+            // Clear any latched meso-complete state from a prior meso so the
+            // overlay doesn't re-show on top of the fresh program.
+            store.remove('foundry:meso_complete_shown');
+            store.remove('foundry:meso_complete_emitted');
+            setShowMesoComplete(false);
             // v2 replaces TourOverlay with CoachMarkOrchestrator (no show_tour flag)
             if (!v2 && !store.get('foundry:toured')) {
               store.set('foundry:show_tour', '1');
