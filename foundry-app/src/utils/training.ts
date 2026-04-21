@@ -1,5 +1,6 @@
 import { store } from './storage';
 import { validateProfile } from './validate';
+import { loadMobilitySession } from './persistence';
 import { syncProfileToSupabase, syncBodyWeightToSupabase, syncMesocycleToSupabase, ensureTrainingStructureRemote } from './sync';
 import type {
   Profile,
@@ -659,4 +660,49 @@ export function getTimeGreeting(): string {
   if (h >= 5 && h < 12) return 'Good morning';
   if (h >= 12 && h < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+// ─── MOBILITY STREAK ────────────────────────────────────────────────────────
+
+/** Format a Date as `YYYY-MM-DD` in local time (matches mobility session keys). */
+function toLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Count consecutive days ending today (or yesterday if today is unfinished)
+ * where a completed mobility session exists.
+ *
+ * Gap tolerance: if today has no completed session but yesterday does, the
+ * streak begins at yesterday — so the pill does not reset to 0 just because
+ * the user has not yet done today's session.
+ *
+ * A session only counts when `session.completed === true`. A saved-but-
+ * uncompleted session breaks the streak.
+ *
+ * Walk is capped at 365 days to avoid pathological loops.
+ */
+export function computeMobilityStreak(today: Date = new Date()): number {
+  const MAX_DAYS = 365;
+  const hasCompleted = (d: Date): boolean => {
+    const sess = loadMobilitySession(toLocalDateStr(d));
+    return !!sess && sess.completed === true;
+  };
+
+  // Start cursor at the most recent day with a completed session — today,
+  // or yesterday if today is not done yet. Otherwise streak is 0.
+  const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (!hasCompleted(cursor)) {
+    cursor.setDate(cursor.getDate() - 1);
+    if (!hasCompleted(cursor)) return 0;
+  }
+
+  let streak = 1;
+  cursor.setDate(cursor.getDate() - 1);
+  for (let i = 0; i < MAX_DAYS; i++) {
+    if (!hasCompleted(cursor)) break;
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
 }
