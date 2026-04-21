@@ -17,6 +17,12 @@ interface SplitSheetProps {
   onClose: () => void;
 }
 
+interface SplitBodyProps {
+  current: SplitType;
+  daysPerWeek: number;
+  onSelect: (split: SplitType) => void;
+}
+
 interface SplitDef {
   key: SplitType;
   label: string;
@@ -51,7 +57,7 @@ const SPLITS: SplitDef[] = [
   },
   {
     key: 'traditional',
-    label: 'Traditional (Bro split)',
+    label: 'Traditional',
     desc: 'Body-part split: Arms / Shoulders / Back / Chest / Legs. Classic aesthetics-focused programming.',
     validDays: [4, 5],
   },
@@ -67,10 +73,84 @@ const isRecommended = (s: SplitDef, days: number): boolean =>
   s.validDays === 'any' || s.validDays.includes(days);
 
 /**
- * SplitSheet — bottom sheet for choosing a training split.
+ * SplitBody — the reusable body of the split picker.
  *
  * Six cards. The "Recommended" flag appears on splits whose validDays
  * list includes the user's current daysPerWeek. Custom is always valid.
+ * Rendered inline inside the Beat 2 AccordionBar and inside the legacy
+ * SplitSheet bottom-sheet wrapper below.
+ */
+export function SplitBody({ current, daysPerWeek, onSelect }: SplitBodyProps) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {SPLITS.map((s) => {
+        const selected = s.key === current;
+        const recommended = isRecommended(s, daysPerWeek);
+        return (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => onSelect(s.key)}
+            aria-pressed={selected}
+            style={{
+              textAlign: 'left',
+              padding: '14px 16px',
+              borderRadius: tokens.radius.md,
+              border: `1px solid ${selected ? tokens.colors.accent : 'rgba(255,255,255,0.08)'}`,
+              background: selected ? tokens.colors.accentMuted : tokens.colors.bgCard,
+              color: tokens.colors.textPrimary,
+              cursor: 'pointer',
+              transition: 'all 180ms ease',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                marginBottom: 4,
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700 }}>{s.label}</div>
+              {recommended && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: tokens.colors.accent,
+                    border: `1px solid ${tokens.colors.accentBorder}`,
+                    borderRadius: tokens.radius.pill,
+                    padding: '2px 8px',
+                  }}
+                >
+                  Recommended
+                </span>
+              )}
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: tokens.colors.textMuted,
+                lineHeight: 1.5,
+              }}
+            >
+              {s.desc}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * SplitSheet — legacy bottom-sheet wrapper for choosing a training split.
+ *
+ * Beat 2 now uses `SplitBody` directly inside an AccordionBar. This
+ * wrapper is retained for any standalone callers (and for the existing
+ * test suite).
  */
 export default function SplitSheet({
   open,
@@ -94,69 +174,14 @@ export default function SplitSheet({
         >
           Choose your split
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {SPLITS.map((s) => {
-            const selected = s.key === current;
-            const recommended = isRecommended(s, daysPerWeek);
-            return (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => {
-                  onSelect(s.key);
-                  onClose();
-                }}
-                aria-pressed={selected}
-                style={{
-                  textAlign: 'left',
-                  padding: '14px 16px',
-                  borderRadius: tokens.radius.md,
-                  border: `1px solid ${selected ? tokens.colors.accent : 'rgba(255,255,255,0.08)'}`,
-                  background: selected ? tokens.colors.accentMuted : tokens.colors.bgCard,
-                  color: tokens.colors.textPrimary,
-                  cursor: 'pointer',
-                  transition: 'all 180ms ease',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    marginBottom: 4,
-                  }}
-                >
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>{s.label}</div>
-                  {recommended && (
-                    <span
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 800,
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        color: tokens.colors.accent,
-                        border: `1px solid ${tokens.colors.accentBorder}`,
-                        borderRadius: tokens.radius.pill,
-                        padding: '2px 8px',
-                      }}
-                    >
-                      Recommended
-                    </span>
-                  )}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: tokens.colors.textMuted,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {s.desc}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <SplitBody
+          current={current}
+          daysPerWeek={daysPerWeek}
+          onSelect={(k) => {
+            onSelect(k);
+            onClose();
+          }}
+        />
       </div>
     </Sheet>
   );
