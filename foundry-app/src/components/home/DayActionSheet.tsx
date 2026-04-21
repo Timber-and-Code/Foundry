@@ -231,7 +231,9 @@ function DayActionSheet(props: DayActionSheetProps) {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* Existing session rows */}
+          {/* Existing session rows — "start" is home-tab only. From schedule,
+              completed sessions are viewable (notes/recap); active sessions
+              only surface move + add actions. */}
           {keys.map((key) => {
             const [dIdxStr, wIdxStr] = key.split(':');
             const dIdx = Number(dIdxStr);
@@ -239,18 +241,16 @@ function DayActionSheet(props: DayActionSheetProps) {
             const day = activeDays[dIdx];
             const done = completedDays.has(key);
             const label = day ? `${day.label} — Week ${wIdx + 1}` : `Day ${dIdx + 1} · Week ${wIdx + 1}`;
+            if (!done) return null;
             return (
               <ActionButton
                 key={key}
-                label={done ? `View ${label}` : `Open ${label}`}
-                description={done ? 'Completed — review sets, notes, and recap.' : day?.exercises?.length ? `${day.exercises.length} exercises` : undefined}
-                tone={done ? 'default' : 'accent'}
+                label={`View ${label}`}
+                description="Completed — review sets, notes, and recap."
                 onClick={() => {
                   onClose();
-                  if (done && onViewNotes) {
+                  if (onViewNotes) {
                     onViewNotes({ type: 'meso', dayIdx: dIdx, weekIdx: wIdx });
-                  } else {
-                    onOpenSession(dIdx, wIdx);
                   }
                 }}
               />
@@ -269,11 +269,11 @@ function DayActionSheet(props: DayActionSheetProps) {
             />
           )}
 
-          {/* Extra (non-meso) session row */}
-          {hasExtra && (
+          {/* Extra (non-meso) session — viewable only when already completed */}
+          {hasExtra && extraDone && (
             <ActionButton
-              label={extraDone ? 'View extra workout' : 'Open extra workout'}
-              description={extraDone ? 'Completed — review your logged session.' : undefined}
+              label="View extra workout"
+              description="Completed — review your logged session."
               onClick={() => {
                 onClose();
                 onOpenExtra(dateStr);
@@ -281,11 +281,11 @@ function DayActionSheet(props: DayActionSheetProps) {
             />
           )}
 
-          {/* Cardio if already logged/scheduled for this date */}
-          {cardioSession && (
+          {/* Cardio — viewable only when already completed */}
+          {cardioSession && cardioSession.completed && (
             <ActionButton
-              label={cardioSession.completed ? 'View cardio' : 'Open cardio'}
-              description={cardioSession.completed ? 'Logged cardio session' : 'Continue or edit'}
+              label="View cardio"
+              description="Logged cardio session"
               onClick={() => {
                 onClose();
                 onOpenCardio(dateStr, cardioSession.protocolId ?? null);

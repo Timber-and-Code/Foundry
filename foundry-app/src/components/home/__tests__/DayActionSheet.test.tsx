@@ -81,10 +81,10 @@ describe('DayActionSheet', () => {
     expect(screen.queryByText('Move this workout')).toBeNull();
   });
 
-  it('single scheduled session: open + move + add more', () => {
+  it('single scheduled session: move + add more (no open — schedule tab is view/manage only)', () => {
     const props = makeProps({ sessionEntry: '0:1' });
     render(<DayActionSheet {...props} />);
-    expect(screen.getByText(/Open Push Day — Week 2/)).toBeDefined();
+    expect(screen.queryByText(/Open Push Day/)).toBeNull();
     expect(screen.getByText('Move this workout')).toBeDefined();
     expect(screen.getByText('Add additional workout')).toBeDefined();
     expect(screen.getByText('Add additional cardio')).toBeDefined();
@@ -98,12 +98,12 @@ describe('DayActionSheet', () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
-  it('double-booked day: shows banner + both rows + cardio only, no additional workout', () => {
+  it('double-booked day: shows banner + cardio only, no open/move (schedule tab view/manage only)', () => {
     const props = makeProps({ sessionEntry: ['0:0', '1:0'] });
     render(<DayActionSheet {...props} />);
     expect(screen.getByText(/2 workouts scheduled/)).toBeDefined();
-    expect(screen.getByText(/Open Push Day — Week 1/)).toBeDefined();
-    expect(screen.getByText(/Open Pull Day — Week 1/)).toBeDefined();
+    expect(screen.queryByText(/Open Push Day/)).toBeNull();
+    expect(screen.queryByText(/Open Pull Day/)).toBeNull();
     expect(screen.queryByText('Add additional workout')).toBeNull();
     expect(screen.getByText('Add additional cardio')).toBeDefined();
     expect(screen.queryByText('Move this workout')).toBeNull();
