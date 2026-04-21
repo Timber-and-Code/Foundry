@@ -7,9 +7,10 @@ import { store } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
 import type { Beat1Values } from './Beat1Essentials';
 import type { Exercise, Profile, TrainingDay } from '../../types';
-import SplitSheet, { type SplitType } from './SplitSheet';
-import MesoLengthSheet, { type MesoLength } from './MesoLengthSheet';
-import SessionLengthSheet, { type SessionLength } from './SessionLengthSheet';
+import { SplitBody, type SplitType } from './SplitSheet';
+import { MesoLengthBody, type MesoLength } from './MesoLengthSheet';
+import { SessionLengthBody, type SessionLength } from './SessionLengthSheet';
+import AccordionBar from './AccordionBar';
 import DayAccordion, { type DayBuild } from './DayAccordion';
 
 interface Beat2Props {
@@ -78,9 +79,8 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditE
   const [split, setSplit] = useState<SplitType>('upper_lower');
   const [length, setLength] = useState<MesoLength>(6);
   const [session, setSession] = useState<SessionLength>('standard');
-  const [splitOpen, setSplitOpen] = useState(false);
-  const [lengthOpen, setLengthOpen] = useState(false);
-  const [sessionOpen, setSessionOpen] = useState(false);
+  // One-open-at-a-time: clicking any bar collapses the others. Null = all closed.
+  const [openBar, setOpenBar] = useState<'split' | 'session' | 'length' | null>(null);
 
   // Onboarding intake carries name/gender/goal/experience forward.
   const intake = useMemo(() => {
@@ -276,23 +276,60 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditE
         YOUR PROGRAM
       </div>
 
-      {/* Sticky chip row */}
+      {/* Stacked accordion bars — replaces the old chip-row + bottom-sheet
+          combo. Inline expansion keeps the user in one place and exposes
+          bigger tap targets. */}
       <div
         style={{
           display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
+          flexDirection: 'column',
+          gap: 10,
           marginBottom: 20,
-          position: 'sticky',
-          top: 0,
-          background: tokens.colors.bgRoot,
-          paddingBottom: 8,
-          zIndex: 2,
         }}
       >
-        <Chip category="SPLIT" value={SPLIT_LABEL[split]} onClick={() => setSplitOpen(true)} />
-        <Chip category="TIME" value={SESSION_LABEL[session]} onClick={() => setSessionOpen(true)} />
-        <Chip category="WEEKS" value={String(length)} onClick={() => setLengthOpen(true)} />
+        <AccordionBar
+          label="SPLIT"
+          value={SPLIT_LABEL[split]}
+          open={openBar === 'split'}
+          onToggle={() => setOpenBar(openBar === 'split' ? null : 'split')}
+        >
+          <SplitBody
+            current={split}
+            daysPerWeek={beat1.daysPerWeek}
+            onSelect={(s) => {
+              setSplit(s);
+              setOpenBar(null);
+            }}
+          />
+        </AccordionBar>
+        <AccordionBar
+          label="SESSION LENGTH"
+          value={SESSION_LABEL[session]}
+          open={openBar === 'session'}
+          onToggle={() => setOpenBar(openBar === 'session' ? null : 'session')}
+        >
+          <SessionLengthBody
+            current={session}
+            onSelect={(s) => {
+              setSession(s);
+              setOpenBar(null);
+            }}
+          />
+        </AccordionBar>
+        <AccordionBar
+          label="MESO LENGTH"
+          value={`${length} WEEKS`}
+          open={openBar === 'length'}
+          onToggle={() => setOpenBar(openBar === 'length' ? null : 'length')}
+        >
+          <MesoLengthBody
+            current={length}
+            onSelect={(l) => {
+              setLength(l);
+              setOpenBar(null);
+            }}
+          />
+        </AccordionBar>
       </div>
 
       <PhaseBar variant="static" />
@@ -350,72 +387,6 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditE
       >
         {saving ? 'Building…' : 'Save program'}
       </button>
-
-      <SplitSheet
-        open={splitOpen}
-        current={split}
-        daysPerWeek={beat1.daysPerWeek}
-        onSelect={setSplit}
-        onClose={() => setSplitOpen(false)}
-      />
-      <MesoLengthSheet
-        open={lengthOpen}
-        current={length}
-        onSelect={setLength}
-        onClose={() => setLengthOpen(false)}
-      />
-      <SessionLengthSheet
-        open={sessionOpen}
-        current={session}
-        onSelect={setSession}
-        onClose={() => setSessionOpen(false)}
-      />
     </div>
-  );
-}
-
-function Chip({
-  category,
-  value,
-  onClick,
-}: {
-  category: string;
-  value: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={`${category}: ${value} — change`}
-      style={{
-        padding: '8px 14px',
-        borderRadius: tokens.radius.pill,
-        background: tokens.colors.bgCard,
-        border: `1px solid ${tokens.colors.accentBorder}`,
-        color: tokens.colors.textPrimary,
-        cursor: 'pointer',
-        display: 'inline-flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 2,
-        lineHeight: 1.1,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: '0.1em',
-          color: tokens.colors.accent,
-          textTransform: 'uppercase',
-        }}
-      >
-        {category}
-      </span>
-      <span style={{ fontSize: 12, fontWeight: 700 }}>
-        {value} <span aria-hidden="true" style={{ color: tokens.colors.accent }}>▾</span>
-      </span>
-    </button>
   );
 }

@@ -10,6 +10,11 @@ interface SessionLengthSheetProps {
   onClose: () => void;
 }
 
+interface SessionLengthBodyProps {
+  current: SessionLength;
+  onSelect: (length: SessionLength) => void;
+}
+
 interface LengthDef {
   value: SessionLength;
   label: string;
@@ -43,7 +48,71 @@ const OPTIONS: LengthDef[] = [
 ];
 
 /**
- * SessionLengthSheet — bottom sheet for choosing session duration.
+ * SessionLengthBody — reusable picker body for session duration.
+ * Rendered inline inside the Beat 2 AccordionBar.
+ */
+export function SessionLengthBody({ current, onSelect }: SessionLengthBodyProps) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {OPTIONS.map((opt) => {
+        const selected = opt.value === current;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onSelect(opt.value)}
+            aria-pressed={selected}
+            style={{
+              textAlign: 'left',
+              padding: '14px 16px',
+              borderRadius: tokens.radius.md,
+              border: `1px solid ${selected ? tokens.colors.accent : 'rgba(255,255,255,0.08)'}`,
+              background: selected ? tokens.colors.accentMuted : tokens.colors.bgCard,
+              color: tokens.colors.textPrimary,
+              cursor: 'pointer',
+              transition: 'all 180ms ease',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+                gap: 10,
+                marginBottom: 4,
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700 }}>{opt.label}</div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: tokens.colors.textMuted,
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {opt.duration} · {opt.exerciseTarget}
+              </div>
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: tokens.colors.textMuted,
+                lineHeight: 1.5,
+              }}
+            >
+              {opt.desc}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * SessionLengthSheet — legacy bottom-sheet wrapper for session duration.
+ * Beat 2 now consumes `SessionLengthBody` directly inside an AccordionBar.
  * Maps to an exercise-count target per day that feeds program generation.
  */
 export default function SessionLengthSheet({
@@ -67,63 +136,13 @@ export default function SessionLengthSheet({
         >
           Session length
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {OPTIONS.map((opt) => {
-            const selected = opt.value === current;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => {
-                  onSelect(opt.value);
-                  onClose();
-                }}
-                aria-pressed={selected}
-                style={{
-                  textAlign: 'left',
-                  padding: '14px 16px',
-                  borderRadius: tokens.radius.md,
-                  border: `1px solid ${selected ? tokens.colors.accent : 'rgba(255,255,255,0.08)'}`,
-                  background: selected ? tokens.colors.accentMuted : tokens.colors.bgCard,
-                  color: tokens.colors.textPrimary,
-                  cursor: 'pointer',
-                  transition: 'all 180ms ease',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                    marginBottom: 4,
-                  }}
-                >
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>{opt.label}</div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: tokens.colors.textMuted,
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    {opt.duration} · {opt.exerciseTarget}
-                  </div>
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: tokens.colors.textMuted,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {opt.desc}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <SessionLengthBody
+          current={current}
+          onSelect={(v) => {
+            onSelect(v);
+            onClose();
+          }}
+        />
       </div>
     </Sheet>
   );

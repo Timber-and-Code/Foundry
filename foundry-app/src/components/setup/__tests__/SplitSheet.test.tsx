@@ -1,11 +1,12 @@
 /**
- * Tests for SplitSheet — bottom sheet split picker for Beat 2.
- * Verifies visibility, selection, and the "Recommended" flag logic.
+ * Tests for SplitSheet + SplitBody — the split picker used in Beat 2.
+ * Verifies sheet visibility, selection, "Recommended" flag logic, and
+ * the reusable `SplitBody` surface that the AccordionBar consumes.
  */
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
-import SplitSheet from '../SplitSheet';
+import SplitSheet, { SplitBody } from '../SplitSheet';
 
 describe('SplitSheet', () => {
   it('does not render when closed', () => {
@@ -35,8 +36,21 @@ describe('SplitSheet', () => {
     expect(screen.getByText(/upper \/ lower/i)).toBeInTheDocument();
     expect(screen.getByText(/^push \/ pull$/i)).toBeInTheDocument();
     expect(screen.getByText(/^full body$/i)).toBeInTheDocument();
-    expect(screen.getByText(/traditional/i)).toBeInTheDocument();
+    expect(screen.getByText(/^traditional$/i)).toBeInTheDocument();
     expect(screen.getByText(/^custom$/i)).toBeInTheDocument();
+  });
+
+  it('does not mention "bro split" anywhere', () => {
+    render(
+      <SplitSheet
+        open
+        current="upper_lower"
+        daysPerWeek={4}
+        onSelect={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.queryByText(/bro split/i)).not.toBeInTheDocument();
   });
 
   it('marks recommended flags based on daysPerWeek', () => {
@@ -100,5 +114,30 @@ describe('SplitSheet', () => {
     expect(fullBody).toHaveAttribute('aria-pressed', 'true');
     const ppl = screen.getByText(/push · pull · legs/i).closest('button');
     expect(ppl).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+describe('SplitBody', () => {
+  it('renders all six cards inline', () => {
+    render(<SplitBody current="upper_lower" daysPerWeek={4} onSelect={() => {}} />);
+    expect(screen.getByText(/push · pull · legs/i)).toBeInTheDocument();
+    expect(screen.getByText(/^upper \/ lower$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^push \/ pull$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^full body$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^traditional$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^custom$/i)).toBeInTheDocument();
+  });
+
+  it('fires onSelect only (no onClose) when a card is tapped', () => {
+    const onSelect = vi.fn();
+    render(<SplitBody current="upper_lower" daysPerWeek={3} onSelect={onSelect} />);
+    fireEvent.click(screen.getByText(/^traditional$/i));
+    expect(onSelect).toHaveBeenCalledWith('traditional');
+  });
+
+  it('labels the traditional split without the "bro split" phrase', () => {
+    render(<SplitBody current="upper_lower" daysPerWeek={4} onSelect={() => {}} />);
+    expect(screen.getByText(/^traditional$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/bro split/i)).not.toBeInTheDocument();
   });
 });
