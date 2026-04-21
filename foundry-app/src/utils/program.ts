@@ -363,7 +363,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       return [
         makeDay(
           1,
-          'Push Day',
+          'Push',
           'PUSH',
           'Chest · Shoulders · Triceps',
           dayNote('push', p1.anchor),
@@ -372,7 +372,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
         ),
         makeDay(
           2,
-          'Pull Day',
+          'Pull',
           'PULL',
           'Back · Biceps · Rear Delts',
           dayNote('pull', r1.anchor),
@@ -381,7 +381,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
         ),
         makeDay(
           3,
-          'Legs Day',
+          'Legs',
           'LEGS',
           'Quads · Hamstrings · Glutes · Calves',
           dayNote('legs', l1.anchor),
@@ -404,7 +404,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       return [
         makeDay(
           1,
-          'Push Day 1',
+          'Push 1',
           'PUSH',
           'Chest · Shoulders · Triceps',
           dayNote('push', p1.anchor),
@@ -413,7 +413,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
         ),
         makeDay(
           2,
-          'Pull Day 1',
+          'Pull 1',
           'PULL',
           'Back · Biceps · Rear Delts',
           dayNote('pull', r1.anchor),
@@ -422,7 +422,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
         ),
         makeDay(
           3,
-          'Legs Day',
+          'Legs',
           'LEGS',
           'Quads · Hamstrings · Glutes · Calves',
           dayNote('legs', l1.anchor),
@@ -431,7 +431,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
         ),
         makeDay(
           4,
-          'Push Day 2',
+          'Push 2',
           'PUSH',
           'Chest · Shoulders · Triceps (Variation)',
           dayNote('push', p2.anchor),
@@ -440,7 +440,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
         ),
         makeDay(
           5,
-          'Pull Day 2',
+          'Pull 2',
           'PULL',
           'Back · Biceps · Rear Delts (Variation)',
           dayNote('pull', r2.anchor),
@@ -454,7 +454,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
     return [
       makeDay(
         1,
-        'Push Day 1',
+        'Push 1',
         'PUSH',
         'Chest · Shoulders · Triceps',
         dayNote('push', p1.anchor),
@@ -463,7 +463,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       ),
       makeDay(
         2,
-        'Pull Day 1',
+        'Pull 1',
         'PULL',
         'Back · Biceps · Rear Delts',
         dayNote('pull', r1.anchor),
@@ -472,7 +472,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       ),
       makeDay(
         3,
-        'Legs Day 1',
+        'Legs 1',
         'LEGS',
         'Quads · Hamstrings · Glutes · Calves',
         dayNote('legs', l1.anchor),
@@ -481,7 +481,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       ),
       makeDay(
         4,
-        'Push Day 2',
+        'Push 2',
         'PUSH',
         'Chest · Shoulders · Triceps (Variation)',
         dayNote('push', p2.anchor),
@@ -490,7 +490,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       ),
       makeDay(
         5,
-        'Pull Day 2',
+        'Pull 2',
         'PULL',
         'Back · Biceps · Rear Delts (Variation)',
         dayNote('pull', r2.anchor),
@@ -499,7 +499,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       ),
       makeDay(
         6,
-        'Legs Day 2',
+        'Legs 2',
         'LEGS',
         'Hamstrings · Glutes · Quads (Variation)',
         dayNote('legs', l2.anchor),
@@ -509,100 +509,92 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
     ];
   }
 
-  // UPPER / LOWER SPLITS
+  // UPPER / LOWER SPLITS — 2..6 days, alternating primary (Upper) first.
+  // Odd day counts favor Upper (ceil(n/2) upper, floor(n/2) lower).
   if (splitType === 'upper_lower') {
     const upperPool = available.filter((e) => e.tag === 'PUSH' || e.tag === 'PULL');
     const lowerPool = available.filter((e) => e.tag === 'LEGS');
 
-    const usedUA = new Set<string | number | undefined>(),
-      usedLA = new Set<string | number | undefined>();
-    const u1 = buildDay(
-      upperPool,
-      ['push'],
-      ['Chest', 'Lats', 'Shoulders', 'Biceps', 'Triceps'],
-      usedUA
+    // Alternate tags: U, L, U, L, ... — odd counts end on Upper.
+    const tags: ('UPPER' | 'LOWER')[] = Array.from({ length: numDays }, (_, i) =>
+      i % 2 === 0 ? 'UPPER' : 'LOWER'
     );
-    if (u1.anchor) usedUA.add(u1.anchor.id);
+    const upperCount = tags.filter((t) => t === 'UPPER').length;
+    const lowerCount = tags.filter((t) => t === 'LOWER').length;
 
-    const l1 = buildDay(
-      lowerPool,
-      ['squat'],
-      ['Hamstrings', 'Quads', 'Glutes', 'Gastrocnemius'],
-      usedLA
-    );
-    if (l1.anchor) usedLA.add(l1.anchor.id);
-
-    if (numDays <= 2) {
-      return [
-        makeDay(
-          1,
-          'Upper Body',
-          'UPPER',
-          'Chest · Back · Shoulders · Arms',
-          dayNote('upper', u1.anchor),
-          u1.anchor,
-          u1.accessories
-        ),
-        makeDay(
-          2,
-          'Lower Body',
-          'LOWER',
-          'Quads · Hamstrings · Glutes · Calves',
-          dayNote('lower', l1.anchor),
-          l1.anchor,
-          l1.accessories
-        ),
-      ];
+    const usedUA = new Set<string | number | undefined>();
+    const usedLA = new Set<string | number | undefined>();
+    // Build one DayBuild per upper / lower slot; alternate anchor priority to
+    // spread squat / hinge (and push / pull-focused anchors) across sessions.
+    const upperBuilds: DayBuild[] = [];
+    for (let i = 0; i < upperCount; i++) {
+      const priority = i % 2 === 0 ? ['push'] : ['pull'];
+      const muscles =
+        i % 2 === 0
+          ? ['Chest', 'Lats', 'Shoulders', 'Biceps', 'Triceps']
+          : ['Chest', 'Back', 'Shoulders', 'Biceps', 'Long Head Tri'];
+      const b = buildDay(upperPool, priority, muscles, usedUA);
+      if (b.anchor) usedUA.add(b.anchor.id);
+      upperBuilds.push(b);
+    }
+    const lowerBuilds: DayBuild[] = [];
+    for (let i = 0; i < lowerCount; i++) {
+      const priority = i % 2 === 0 ? ['squat'] : ['hinge'];
+      const muscles =
+        i % 2 === 0
+          ? ['Hamstrings', 'Quads', 'Glutes', 'Gastrocnemius']
+          : ['Quads', 'Glutes', 'Hamstrings', 'Soleus'];
+      const b = buildDay(lowerPool, priority, muscles, usedLA);
+      if (b.anchor) usedLA.add(b.anchor.id);
+      lowerBuilds.push(b);
     }
 
-    const u2 = buildDay(
-      upperPool,
-      ['push'],
-      ['Chest', 'Back', 'Shoulders', 'Biceps', 'Long Head Tri'],
-      usedUA
-    );
-    if (u2.anchor) usedUA.add(u2.anchor.id);
+    // Simple labels when only one of each kind, letter-suffixed otherwise.
+    const upperLabel = (idx: number): string =>
+      upperCount === 1 ? 'Upper' : `Upper ${String.fromCharCode(65 + idx)}`;
+    const lowerLabel = (idx: number): string =>
+      lowerCount === 1 ? 'Lower' : `Lower ${String.fromCharCode(65 + idx)}`;
+    const upperMuscles = (idx: number): string =>
+      idx % 2 === 0
+        ? 'Chest · Back · Shoulders · Arms'
+        : 'Shoulders · Back · Arms (Variation)';
+    const lowerMuscles = (idx: number): string =>
+      idx % 2 === 0
+        ? 'Quads · Hamstrings · Glutes · Calves'
+        : 'Hamstrings · Glutes · Quads (Variation)';
 
-    const l2 = buildDay(lowerPool, ['hinge'], ['Quads', 'Glutes', 'Hamstrings', 'Soleus'], usedLA);
+    let upperIdx = 0;
+    let lowerIdx = 0;
+    const days: TrainingDay[] = tags.map((tag, i) => {
+      if (tag === 'UPPER') {
+        const b = upperBuilds[upperIdx];
+        const day = makeDay(
+          i + 1,
+          upperLabel(upperIdx),
+          'UPPER',
+          upperMuscles(upperIdx),
+          dayNote('upper', b.anchor),
+          b.anchor,
+          b.accessories
+        );
+        upperIdx++;
+        return day;
+      }
+      const b = lowerBuilds[lowerIdx];
+      const day = makeDay(
+        i + 1,
+        lowerLabel(lowerIdx),
+        'LOWER',
+        lowerMuscles(lowerIdx),
+        dayNote('lower', b.anchor),
+        b.anchor,
+        b.accessories
+      );
+      lowerIdx++;
+      return day;
+    });
 
-    return [
-      makeDay(
-        1,
-        'Upper A',
-        'UPPER',
-        'Chest · Back · Shoulders · Arms',
-        dayNote('upper', u1.anchor),
-        u1.anchor,
-        u1.accessories
-      ),
-      makeDay(
-        2,
-        'Lower A',
-        'LOWER',
-        'Quads · Hamstrings · Glutes · Calves',
-        dayNote('lower', l1.anchor),
-        l1.anchor,
-        l1.accessories
-      ),
-      makeDay(
-        3,
-        'Upper B',
-        'UPPER',
-        'Shoulders · Back · Arms (Variation)',
-        dayNote('upper', u2.anchor),
-        u2.anchor,
-        u2.accessories
-      ),
-      makeDay(
-        4,
-        'Lower B',
-        'LOWER',
-        'Hamstrings · Glutes · Quads (Variation)',
-        dayNote('lower', l2.anchor),
-        l2.anchor,
-        l2.accessories
-      ),
-    ];
+    return days;
   }
 
   // FULL BODY SPLITS
@@ -655,9 +647,13 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       }
 
       const exercises = [...pushEx, ...pullEx, ...legsEx, ...allAccessories];
+      const label =
+        numDays === 1
+          ? 'Full Body'
+          : `Full Body ${String.fromCharCode(64 + dayNum)}`; // 1→A, 2→B, 3→C, 4→D, 5→E
       return {
         dayNum,
-        label: `Full Body ${dayNum === 1 ? 'A' : dayNum === 2 ? 'B' : 'C'}`,
+        label,
         tag: 'FULL',
         muscles: 'Full Body — Push · Pull · Legs',
         note: 'Full body session — compound anchors for push, pull, and legs.',
@@ -666,17 +662,18 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       } as any;
     }
 
-    const fb1 = buildFullBodyDay(['push'], ['pull'], ['squat'], 1);
-    if (numDays <= 2) {
-      const fb2 = buildFullBodyDay(['push'], ['pull'], ['hinge'], 2);
-      return [fb1, fb2];
+    // Full Body — 2..5 days. Leg anchor alternates squat / hinge across sessions
+    // to spread stress; push / pull anchors both run every day by design.
+    const fullDays: TrainingDay[] = [];
+    for (let i = 0; i < numDays; i++) {
+      const legPriority = i % 2 === 0 ? ['squat'] : ['hinge'];
+      fullDays.push(buildFullBodyDay(['push'], ['pull'], legPriority, i + 1));
     }
-    const fb2 = buildFullBodyDay(['push'], ['pull'], ['hinge'], 2);
-    const fb3 = buildFullBodyDay(['push'], ['pull'], ['squat'], 3);
-    return [fb1, fb2, fb3];
+    return fullDays;
   }
 
-  // PUSH / PULL 4-DAY
+  // PUSH / PULL — 2..6 days, alternating primary (Push) first.
+  // Legs folded in — squats live on Push days, hinges on Pull days.
   if (splitType === 'push_pull') {
     const pushPlusLegs = available.filter(
       (e) => e.tag === 'PUSH' || (e.tag === 'LEGS' && e.pattern === 'squat')
@@ -685,68 +682,81 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       (e) => e.tag === 'PULL' || (e.tag === 'LEGS' && e.pattern === 'hinge')
     );
 
-    const usedPA = new Set<string | number | undefined>(),
-      usedRA = new Set<string | number | undefined>();
-    const p1 = buildDay(pushPlusLegs, ['push'], ['Chest', 'Shoulders', 'Quads', 'Triceps'], usedPA);
-    if (p1.anchor) usedPA.add(p1.anchor.id);
-    const r1 = buildDay(
-      pullPlusLegs,
-      ['pull'],
-      ['Lats', 'Back', 'Hamstrings', 'Biceps', 'Shoulders'],
-      usedRA
+    const tags: ('PUSH' | 'PULL')[] = Array.from({ length: numDays }, (_, i) =>
+      i % 2 === 0 ? 'PUSH' : 'PULL'
     );
-    if (r1.anchor) usedRA.add(r1.anchor.id);
-    const p2 = buildDay(
-      pushPlusLegs,
-      ['push'],
-      ['Chest', 'Shoulders', 'Quads', 'Long Head Tri'],
-      usedPA
-    );
-    const r2 = buildDay(
-      pullPlusLegs,
-      ['pull'],
-      ['Lats', 'Back', 'Hamstrings', 'Glutes', 'Biceps'],
-      usedRA
-    );
+    const pushCount = tags.filter((t) => t === 'PUSH').length;
+    const pullCount = tags.filter((t) => t === 'PULL').length;
 
-    return [
-      makeDay(
-        1,
-        'Push A',
-        'PUSH',
-        'Chest · Shoulders · Triceps · Quads',
-        dayNote('push', p1.anchor),
-        p1.anchor,
-        p1.accessories
-      ),
-      makeDay(
-        2,
-        'Pull A',
+    const usedPA = new Set<string | number | undefined>();
+    const usedRA = new Set<string | number | undefined>();
+
+    const pushBuilds: DayBuild[] = [];
+    for (let i = 0; i < pushCount; i++) {
+      const muscles =
+        i % 2 === 0
+          ? ['Chest', 'Shoulders', 'Quads', 'Triceps']
+          : ['Chest', 'Shoulders', 'Quads', 'Long Head Tri'];
+      const b = buildDay(pushPlusLegs, ['push'], muscles, usedPA);
+      if (b.anchor) usedPA.add(b.anchor.id);
+      pushBuilds.push(b);
+    }
+    const pullBuilds: DayBuild[] = [];
+    for (let i = 0; i < pullCount; i++) {
+      const muscles =
+        i % 2 === 0
+          ? ['Lats', 'Back', 'Hamstrings', 'Biceps', 'Shoulders']
+          : ['Lats', 'Back', 'Hamstrings', 'Glutes', 'Biceps'];
+      const b = buildDay(pullPlusLegs, ['pull'], muscles, usedRA);
+      if (b.anchor) usedRA.add(b.anchor.id);
+      pullBuilds.push(b);
+    }
+
+    const pushLabel = (idx: number): string =>
+      pushCount === 1 ? 'Push' : `Push ${String.fromCharCode(65 + idx)}`;
+    const pullLabel = (idx: number): string =>
+      pullCount === 1 ? 'Pull' : `Pull ${String.fromCharCode(65 + idx)}`;
+    const pushMuscles = (idx: number): string =>
+      idx % 2 === 0
+        ? 'Chest · Shoulders · Triceps · Quads'
+        : 'Shoulders · Chest · Triceps · Quads (Variation)';
+    const pullMuscles = (idx: number): string =>
+      idx % 2 === 0
+        ? 'Back · Biceps · Rear Delts · Hamstrings'
+        : 'Back · Biceps · Rear Delts · Hamstrings (Variation)';
+
+    let pushIdx = 0;
+    let pullIdx = 0;
+    const days: TrainingDay[] = tags.map((tag, i) => {
+      if (tag === 'PUSH') {
+        const b = pushBuilds[pushIdx];
+        const day = makeDay(
+          i + 1,
+          pushLabel(pushIdx),
+          'PUSH',
+          pushMuscles(pushIdx),
+          dayNote('push', b.anchor),
+          b.anchor,
+          b.accessories
+        );
+        pushIdx++;
+        return day;
+      }
+      const b = pullBuilds[pullIdx];
+      const day = makeDay(
+        i + 1,
+        pullLabel(pullIdx),
         'PULL',
-        'Back · Biceps · Rear Delts · Hamstrings',
-        dayNote('pull', r1.anchor),
-        r1.anchor,
-        r1.accessories
-      ),
-      makeDay(
-        3,
-        'Push B',
-        'PUSH',
-        'Shoulders · Chest · Triceps · Quads (Variation)',
-        dayNote('push', p2.anchor),
-        p2.anchor,
-        p2.accessories
-      ),
-      makeDay(
-        4,
-        'Pull B',
-        'PULL',
-        'Back · Biceps · Rear Delts · Hamstrings (Variation)',
-        dayNote('pull', r2.anchor),
-        r2.anchor,
-        r2.accessories
-      ),
-    ];
+        pullMuscles(pullIdx),
+        dayNote('pull', b.anchor),
+        b.anchor,
+        b.accessories
+      );
+      pullIdx++;
+      return day;
+    });
+
+    return days;
   }
 
   // Fallback

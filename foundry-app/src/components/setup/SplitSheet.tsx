@@ -35,13 +35,13 @@ const SPLITS: SplitDef[] = [
     key: 'upper_lower',
     label: 'Upper / Lower',
     desc: 'Upper body + lower body rotation. 2 sessions per muscle group. Strong recovery balance.',
-    validDays: [2, 4],
+    validDays: [2, 3, 4, 5, 6],
   },
   {
     key: 'push_pull',
     label: 'Push / Pull',
-    desc: '4-day split with legs folded in. No dedicated leg day.',
-    validDays: [4],
+    desc: 'Push / pull rotation with legs folded in. No dedicated leg day.',
+    validDays: [2, 3, 4, 5, 6],
   },
   {
     key: 'full_body',
