@@ -10,6 +10,7 @@ import {
 import {
   store,
   loadBwLog,
+  loadProfile,
   loadSessionDuration,
   loadSparklineData,
   loadDayWeek,
@@ -880,7 +881,12 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           );
         })()}
 
-        {/* Current weights by day */}
+        </>
+        )}
+
+        {progressTab === 'week' && (
+        <>
+        {/* Current weights by day — moved to Week tab */}
         <div
           style={{
             fontSize: 14,
@@ -888,6 +894,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             letterSpacing: '0.04em',
             color: 'var(--accent)',
             marginBottom: 8,
+            marginTop: 16,
           }}
         >
           CURRENT WEIGHTS
@@ -1063,6 +1070,115 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           );
         })}
 
+        {/* Cardio This Week — filtered to currentWeek's date range */}
+        {(() => {
+          const prof = loadProfile();
+          const startDateStr = prof?.startDate || null;
+          if (!startDateStr) return null;
+          const startDate = new Date(startDateStr + 'T00:00:00');
+          const weekStart = new Date(startDate);
+          weekStart.setDate(weekStart.getDate() + currentWeek * 7);
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekEnd.getDate() + 6);
+          const toYMD = (d: Date) =>
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const startYMD = toYMD(weekStart);
+          const endYMD = toYMD(weekEnd);
+          const sessions: { date: string; session: CardioSession }[] = [];
+          store
+            .keys('foundry:cardio:session:')
+            .map((k) => k.replace('foundry:cardio:session:', ''))
+            .filter((d) => d >= startYMD && d <= endYMD)
+            .sort((a, b) => b.localeCompare(a))
+            .forEach((dateStr) => {
+              const s = loadCardioSession(dateStr);
+              if (s) sessions.push({ date: dateStr, session: s });
+            });
+          if (sessions.length === 0) return null;
+          return (
+            <div style={{ marginTop: 16 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  color: 'var(--accent)',
+                  marginBottom: 8,
+                }}
+              >
+                CARDIO THIS WEEK
+              </div>
+              <div
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.lg,
+                  overflow: 'hidden',
+                }}
+              >
+                {sessions.map(({ date, session }, i) => (
+                  <div
+                    key={date}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 16px',
+                      borderBottom:
+                        i < sessions.length - 1 ? '1px solid var(--bg-surface)' : 'none',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {date}
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                        {session.type || 'Cardio'}{session.intensity ? ` · ${session.intensity}` : ''}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: tokens.colors.gold,
+                        textAlign: 'right',
+                      }}
+                    >
+                      {session.duration ? `${session.duration} min` : '—'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Full-width Analytics Dashboard entry — Week tab only */}
+        <button
+          onClick={() => goTo('analytics')}
+          style={{
+            width: '100%',
+            marginTop: 16,
+            padding: '16px',
+            borderRadius: tokens.radius.lg,
+            cursor: 'pointer',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            textAlign: 'center',
+            fontFamily: 'inherit',
+          }}
+        >
+          Analytics Dashboard
+        </button>
+        </>
+        )}
+
+        {progressTab === 'history' && (
+        <>
         {/* Cardio History */}
         {(() => {
           const cardioKeys = store.keys('foundry:cardio:session:');
@@ -1154,46 +1270,31 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             </div>
           );
         })()}
+
+        {/* Full-width Meso History entry — History tab only */}
+        <button
+          onClick={() => goTo('history')}
+          style={{
+            width: '100%',
+            marginTop: 16,
+            padding: '16px',
+            borderRadius: tokens.radius.lg,
+            cursor: 'pointer',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            textAlign: 'center',
+            fontFamily: 'inherit',
+          }}
+        >
+          Meso History →
+        </button>
         </>
         )}
 
-        {/* Quick links */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <button
-            onClick={() => goTo('analytics')}
-            style={{
-              flex: 1,
-              padding: '14px',
-              borderRadius: tokens.radius.lg,
-              cursor: 'pointer',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--accent)',
-              color: 'var(--accent)',
-              fontSize: 14,
-              fontWeight: 700,
-              textAlign: 'center',
-            }}
-          >
-            Analytics Dashboard
-          </button>
-          <button
-            onClick={() => goTo('history')}
-            style={{
-              flex: 1,
-              padding: '14px',
-              borderRadius: tokens.radius.lg,
-              cursor: 'pointer',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-              fontSize: 14,
-              fontWeight: 700,
-              textAlign: 'center',
-            }}
-          >
-            Meso History
-          </button>
-        </div>
       </div>
     </div>
   );
