@@ -94,7 +94,7 @@ export const COACH_MARKS: CoachMarkDef[] = [
     trigger: { type: 'event', name: 'foundry:schedule-tab-opened' },
     anchor: '[data-coach="schedule-calendar"]',
     title: 'Life happens',
-    copy: 'Tap a day to move it. Your program adjusts to fit your week.',
+    copy: 'Tap any day to move a workout, add one, or schedule cardio.',
   },
 ];
 

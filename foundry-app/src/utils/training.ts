@@ -479,6 +479,109 @@ export function ensureWorkoutDaysHistory(profile: Profile): Profile {
   return { ...profile, workoutDaysHistory: [{ fromWeek: 0, days }] };
 }
 
+// ─── SCHEDULE OVERRIDES ────────────────────────────────────────────────────
+// Per-date session moves applied as an overlay on top of the base schedule
+// walk. Profile-local only (not mirrored to Supabase) — the field is kept off
+// appProfileToSupabaseRow because user_profiles has a strict shape.
+
+type ScheduleOverrideMap = Record<string, { to: string; sessionKey: string }>;
+
+export function getScheduleOverrides(
+  profile: Profile | null | undefined,
+): ScheduleOverrideMap {
+  return profile?.scheduleOverrides ?? {};
+}
+
+export function setScheduleOverride(
+  profile: Profile,
+  sourceDateStr: string,
+  targetDateStr: string,
+  sessionKey: string,
+): Profile {
+  const existing = { ...(profile.scheduleOverrides || {}) };
+  // If the source already has an override pointing elsewhere, drop it first
+  // and chain-resolve by replacing whatever mapped to sourceDate (keeps the
+  // map 1:1 with sessionKeys, no orphan entries).
+  if (targetDateStr === sourceDateStr) {
+    delete existing[sourceDateStr];
+  } else {
+    existing[sourceDateStr] = { to: targetDateStr, sessionKey };
+  }
+  return { ...profile, scheduleOverrides: existing };
+}
+
+export function clearScheduleOverride(
+  profile: Profile,
+  sourceDateStr: string,
+): Profile {
+  if (!profile.scheduleOverrides || !(sourceDateStr in profile.scheduleOverrides)) {
+    return profile;
+  }
+  const next = { ...profile.scheduleOverrides };
+  delete next[sourceDateStr];
+  return { ...profile, scheduleOverrides: next };
+}
+
+/**
+ * Build the date → sessionKey map for the Schedule calendar and the Home
+ * "today" card. Values are `string | string[]` — a string for single-booked
+ * days, an array for double-booked days (after an override lands on an
+ * existing workout day).
+ */
+export function buildSessionDateMap(
+  profile: Profile | null | undefined,
+  totalDays: number,
+  weeksCount: number,
+): Record<string, string | string[]> {
+  const out: Record<string, string | string[]> = {};
+  if (!profile?.startDate || totalDays <= 0) return out;
+  const startDate = new Date(profile.startDate + 'T00:00:00');
+  if (Number.isNaN(startDate.getTime())) return out;
+
+  // Base walk: cursor advances day-by-day, stamping the next sessionKey when
+  // the cursor's DOW is one of the week's workout days.
+  const totalSessions = (weeksCount + 1) * totalDays;
+  let sessionCount = 0;
+  const cursor = new Date(startDate);
+  for (let d = 0; d < 400 && sessionCount < totalSessions; d++) {
+    const wkIdx = Math.floor(sessionCount / totalDays);
+    if (getWorkoutDaysForWeek(profile, wkIdx).includes(cursor.getDay())) {
+      const key = cursor.toISOString().slice(0, 10);
+      const sessionKey = `${sessionCount % totalDays}:${wkIdx}`;
+      out[key] = sessionKey;
+      sessionCount++;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // Apply overrides as an overlay. For each override: remove the sessionKey
+  // from the source date and merge it into the target.
+  const overrides = getScheduleOverrides(profile);
+  for (const [sourceDateStr, { to, sessionKey }] of Object.entries(overrides)) {
+    // Remove from source (only if the source still carries this sessionKey).
+    const current = out[sourceDateStr];
+    if (current === sessionKey) {
+      delete out[sourceDateStr];
+    } else if (Array.isArray(current)) {
+      const filtered = current.filter((k) => k !== sessionKey);
+      if (filtered.length === 0) delete out[sourceDateStr];
+      else if (filtered.length === 1) out[sourceDateStr] = filtered[0];
+      else out[sourceDateStr] = filtered;
+    }
+    // Place at target — stack when already occupied.
+    const existing = out[to];
+    if (existing === undefined) {
+      out[to] = sessionKey;
+    } else if (Array.isArray(existing)) {
+      if (!existing.includes(sessionKey)) out[to] = [...existing, sessionKey];
+    } else if (existing !== sessionKey) {
+      out[to] = [existing, sessionKey];
+    }
+  }
+
+  return out;
+}
+
 interface Dob {
   month?: string | number;
   day?: string | number;

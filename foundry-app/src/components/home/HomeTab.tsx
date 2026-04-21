@@ -11,9 +11,9 @@ import { findExercise } from '../../data/exerciseDB';
 import {
   store,
   loadCardioSession,
-  getWorkoutDaysForWeek,
   getTimeGreeting,
   getWeekSets,
+  buildSessionDateMap,
 } from '../../utils/store';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
@@ -391,28 +391,24 @@ function HomeTab({
   const nextDay = nextDayIdx >= 0 ? activeDays[nextDayIdx] : null;
   const nextDayAccent = nextDay ? (TAG_ACCENT as Record<string, string>)[nextDay.tag || ''] : 'var(--accent)';
 
-  // Build sessionDateMap
-  const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;
-  const sessionDateMap: Record<string, string> = {};
-  if (startDate && activeDays.length > 0) {
-    const total = (getMeso().weeks + 1) * activeDays.length;
-    let sc = 0,
-      cursor = new Date(startDate);
-    for (let d = 0; d < 400 && sc < total; d++) {
-      const wkIdx = Math.floor(sc / activeDays.length);
-      if (getWorkoutDaysForWeek(profile, wkIdx).includes(cursor.getDay())) {
-        sessionDateMap[cursor.toISOString().slice(0, 10)] = `${sc % activeDays.length}:${wkIdx}`;
-        sc++;
-      }
-      cursor.setDate(cursor.getDate() + 1);
-    }
-  }
+  // Build sessionDateMap via the shared helper so HomeTab and ScheduleTab
+  // agree on which date hosts which session — including per-date overrides
+  // that may stack 2 sessions on one day.
+  const sessionDateMap = buildSessionDateMap(profile, activeDays.length, getMeso().weeks);
 
-  const calendarEntry = sessionDateMap[todayCardioStr];
+  const calendarEntryRaw = sessionDateMap[todayCardioStr];
+  const todayKeys: string[] = calendarEntryRaw == null
+    ? []
+    : Array.isArray(calendarEntryRaw) ? calendarEntryRaw : [calendarEntryRaw];
+  // Use the first not-yet-done key as the "primary" today session. The
+  // second (if any) renders as a secondary stacked card below.
+  const primaryTodayKey = todayKeys.find((k) => !completedDays.has(k)) ?? todayKeys[0] ?? null;
+  const secondaryTodayKey = todayKeys.find((k) => k !== primaryTodayKey) ?? null;
+  const calendarEntry = primaryTodayKey;
   const isCalendarWorkoutDay = calendarEntry != null;
   const calDayIdx = isCalendarWorkoutDay ? parseInt(calendarEntry.split(':')[0]) : -1;
   const calWeekIdx = isCalendarWorkoutDay ? parseInt(calendarEntry.split(':')[1]) : -1;
-  const calendarSessionDone = isCalendarWorkoutDay && completedDays.has(calendarEntry);
+  const calendarSessionDone = isCalendarWorkoutDay && todayKeys.every((k) => completedDays.has(k));
   const displayWeekAllDone = activeDays.every((_, i) => completedDays.has(`${i}:${displayWeek}`));
   const isRestState = !isCalendarWorkoutDay || calendarSessionDone || displayWeekAllDone;
   const isRestDay = !isCalendarWorkoutDay && !todayCardioSlot;
@@ -602,6 +598,26 @@ function HomeTab({
           onSelectDayWeek={onSelectDayWeek}
         />
       ) : (
+        <>
+        {/* Double-booked banner — only when today has 2 scheduled sessions */}
+        {todayKeys.length > 1 && (
+          <div
+            data-testid="today-double-banner"
+            role="status"
+            style={{
+              padding: '10px 14px',
+              borderRadius: tokens.radius.md,
+              background: 'var(--phase-peak)14',
+              border: '1px solid var(--phase-peak)55',
+              fontSize: 13,
+              color: 'var(--text-primary)',
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ color: 'var(--phase-peak)' }}>2 workouts today.</strong> Tap either
+            card to start.
+          </div>
+        )}
         <div
           data-tour="today-card"
           style={{
@@ -696,6 +712,60 @@ function HomeTab({
             </div>
           )}
         </div>
+        {secondaryTodayKey && (() => {
+          const [sdIdxStr, swIdxStr] = secondaryTodayKey.split(':');
+          const sdIdx = Number(sdIdxStr);
+          const swIdx = Number(swIdxStr);
+          const sday = activeDays[sdIdx];
+          if (!sday) return null;
+          const sAccent = (TAG_ACCENT as Record<string, string>)[sday.tag || ''] || 'var(--accent)';
+          const sDone = completedDays.has(secondaryTodayKey);
+          return (
+            <div
+              data-testid="today-secondary-card"
+              style={{
+                background: 'var(--bg-card)',
+                border: `1px solid ${sAccent}55`,
+                borderLeft: `4px solid ${sAccent}`,
+                borderRadius: tokens.radius.lg,
+                overflow: 'hidden',
+                boxShadow: `0 2px 16px ${sAccent}15`,
+                marginTop: 8,
+              }}
+            >
+              <button
+                onClick={(e) => { e.stopPropagation(); goBack(); onSelectDayWeek(sdIdx, swIdx); }}
+                style={{
+                  width: '100%', background: `linear-gradient(135deg, ${sAccent}0d 0%, transparent 100%)`,
+                  border: 'none', cursor: 'pointer', padding: '14px 16px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: 12, color: 'var(--phase-peak)', fontWeight: 700, letterSpacing: '0.06em', marginBottom: 3 }}>
+                    {sDone ? 'SECOND WORKOUT · DONE' : 'SECOND WORKOUT · TODAY'}
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
+                    {sday.label}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+                    Week {swIdx + 1} · Day {sdIdx + 1}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    flexShrink: 0, fontSize: 14, fontWeight: 800, color: sAccent,
+                    background: sAccent + '18', border: `1px solid ${sAccent}44`,
+                    borderRadius: tokens.radius.md, padding: '6px 12px', letterSpacing: '0.04em',
+                  }}
+                >
+                  {sDone ? 'View' : 'Start'} <span aria-hidden="true">→</span>
+                </div>
+              </button>
+            </div>
+          );
+        })()}
+        </>
       )}
 
       {/* ═══ SECTION DIVIDER ═══ */}
