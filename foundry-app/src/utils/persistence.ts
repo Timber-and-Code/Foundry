@@ -7,6 +7,50 @@ import {
 } from './sync';
 import type { DayData, TrainingDay, Profile, CardioSession } from '../types';
 
+// ─── ACTIVE SESSION (top-of-shell bar) ────────────────────────────────────────
+// Persistent marker so the user always sees that a workout/cardio session is
+// running even after they navigate away. Separate from the completion-focused
+// `foundry:done:*` / `foundry:sessionStart:*` keys — this is *only* for the
+// ActiveSessionBar surface.
+export type ActiveSession =
+  | { kind: 'lifting'; label: string; route: string; startedAt: number; setsDone: number; totalSets: number }
+  | { kind: 'cardio'; label: string; route: string; startedAt: number; durationMin: number };
+
+const ACTIVE_SESSION_KEY = 'foundry:active_session';
+const STALE_MS = 6 * 60 * 60 * 1000; // 6h
+
+export function loadActiveSession(): ActiveSession | null {
+  try {
+    const raw = store.get(ACTIVE_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ActiveSession;
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (parsed.kind !== 'lifting' && parsed.kind !== 'cardio') return null;
+    if (typeof parsed.startedAt !== 'number') return null;
+    // Stale-session guard — drop anything older than 6h rather than showing
+    // a zombie bar from a prior day.
+    if (Date.now() - parsed.startedAt > STALE_MS) {
+      store.remove(ACTIVE_SESSION_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveActiveSession(session: ActiveSession): void {
+  try {
+    store.set(ACTIVE_SESSION_KEY, JSON.stringify(session));
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to save active session', e);
+  }
+}
+
+export function clearActiveSession(): void {
+  store.remove(ACTIVE_SESSION_KEY);
+}
+
 // ─── TRAINING DATA PERSISTENCE ────────────────────────────────────────────────
 
 export function loadDayWeek(dayIdx: number, weekIdx: number): DayData {
