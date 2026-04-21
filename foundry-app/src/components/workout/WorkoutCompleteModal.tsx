@@ -6,9 +6,18 @@ import {
   getWeekPhase,
   PHASE_COLOR,
   FOUNDRY_COOLDOWN,
+  TAG_ACCENT,
 } from '../../data/constants';
 import { store } from '../../utils/store';
 import FriendsStrip from '../social/FriendsStrip';
+
+// Local-time YYYY-MM-DD (not UTC) — matches the dateStr format used across
+// the codebase for per-day localStorage keys (mobility sessions, cardio
+// sessions, readiness blobs, etc.).
+function todayLocalStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -29,6 +38,10 @@ interface WorkoutCompleteModalProps {
   stats: WorkoutCompleteStats;
   weekIdx: number;
   onOk: () => void;
+  /** Tap handler for the post-workout "Cool down?" prompt. When provided,
+   *  the card is rendered after the volume recap unless the user has
+   *  dismissed it for today. */
+  onStartCooldown?: () => void;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -40,9 +53,19 @@ function WorkoutCompleteModal({
   stats,
   weekIdx,
   onOk,
+  onStartCooldown,
 }: WorkoutCompleteModalProps) {
   const [cooldownOpen, setCooldownOpen] = useState(false);
   const mesoId = store.get('foundry:active_meso_id');
+
+  // Post-workout mobility prompt — per-day dismissal so the nudge doesn't
+  // re-surface if the user closes and reopens the completion modal today.
+  const todayStr = todayLocalStr();
+  const cooldownDismissKey = `foundry:cooldown_dismissed:${todayStr}`;
+  const [cooldownDismissed, setCooldownDismissed] = useState(
+    () => store.get(cooldownDismissKey) === '1',
+  );
+  const mobilityAccent = TAG_ACCENT.MOBILITY || tokens.colors.gold;
 
   const phases = getWeekPhase();
   const phase = phases[weekIdx] || 'Accumulation';
@@ -224,6 +247,102 @@ function WorkoutCompleteModal({
             </div>
           ))}
         </div>
+
+        {/* Cool-down prompt — appears AFTER the volume recap so the user
+            gets the emotional payoff first, then a gentle nudge toward
+            parasympathetic recovery. Dismissal is per-day via localStorage. */}
+        {onStartCooldown && !cooldownDismissed && (
+          <div
+            role="status"
+            aria-label="Cool down prompt"
+            data-testid="cooldown-prompt"
+            style={{
+              width: '100%',
+              position: 'relative',
+              background: `${mobilityAccent}14`,
+              border: `1px solid ${mobilityAccent}55`,
+              borderRadius: tokens.radius.xl,
+              padding: '16px 18px',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                store.set(cooldownDismissKey, '1');
+                setCooldownDismissed(true);
+              }}
+              aria-label="Dismiss cool-down prompt"
+              style={{
+                position: 'absolute',
+                top: 8,
+                right: 10,
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                cursor: 'pointer',
+                padding: '6px 8px',
+                textTransform: 'uppercase',
+              }}
+            >
+              Dismiss
+            </button>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: '0.14em',
+                color: mobilityAccent,
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
+              Cool Down
+            </div>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                lineHeight: 1.25,
+                marginBottom: 6,
+                paddingRight: 64,
+              }}
+            >
+              Post-Training Downshift
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+                marginBottom: 12,
+              }}
+            >
+              8-minute parasympathetic flow. Eases you out of sympathetic drive.
+            </div>
+            <button
+              type="button"
+              onClick={onStartCooldown}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: tokens.radius.lg,
+                background: mobilityAccent,
+                border: 'none',
+                color: '#0A0A0C',
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: 'pointer',
+                letterSpacing: '0.04em',
+              }}
+            >
+              Start cool-down →
+            </button>
+          </div>
+        )}
 
         {/* PRs section */}
         {stats.prs.length > 0 && (
