@@ -93,6 +93,14 @@ export interface Profile {
   isStudent?: boolean;
   studentEmail?: string;
   studentVerifiedAt?: string;
+  /**
+   * Per-date session remap for the interactive Schedule tab. Keys are the
+   * ORIGINAL (source) date strings (YYYY-MM-DD) produced by the base
+   * schedule walk; values point at the target date plus the sessionKey
+   * "dayIdx:weekIdx" so we can tell which session moved when a day ends
+   * up double-booked.
+   */
+  scheduleOverrides?: Record<string, { to: string; sessionKey: string }>;
 }
 
 // ─── CARDIO ─────────────────────────────────────────────────────────────────

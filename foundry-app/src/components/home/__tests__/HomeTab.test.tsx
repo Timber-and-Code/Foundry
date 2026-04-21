@@ -13,6 +13,7 @@ const {
   mockLoadCardioSession,
   mockLoadMobilitySession,
   mockGetWorkoutDaysForWeek,
+  mockBuildSessionDateMap,
   mockGetReadinessScore,
   mockGetReadinessLabel,
   mockGetTimeGreeting,
@@ -22,6 +23,7 @@ const {
   mockLoadCardioSession: vi.fn(() => null),
   mockLoadMobilitySession: vi.fn(() => null),
   mockGetWorkoutDaysForWeek: vi.fn((): number[] => []),
+  mockBuildSessionDateMap: vi.fn((): Record<string, string | string[]> => ({})),
   mockGetReadinessScore: vi.fn(() => 0),
   mockGetReadinessLabel: vi.fn(() => ({ label: 'Not Set', advice: '' })),
   mockGetTimeGreeting: vi.fn(() => 'Good morning'),
@@ -33,6 +35,7 @@ vi.mock('../../../utils/store', () => ({
   loadCardioSession: mockLoadCardioSession,
   loadMobilitySession: mockLoadMobilitySession,
   getWorkoutDaysForWeek: mockGetWorkoutDaysForWeek,
+  buildSessionDateMap: mockBuildSessionDateMap,
   getReadinessScore: mockGetReadinessScore,
   getReadinessLabel: mockGetReadinessLabel,
   getTimeGreeting: mockGetTimeGreeting,
@@ -168,6 +171,7 @@ beforeEach(() => {
   mockGetReadinessScore.mockReturnValue(0);
   mockGetReadinessLabel.mockReturnValue({ label: 'Not Set', advice: '' });
   mockGetWorkoutDaysForWeek.mockReturnValue([]);
+  mockBuildSessionDateMap.mockReturnValue({});
   mockGetMeso.mockReturnValue({ weeks: 6, days: ['Push', 'Pull', 'Legs'] });
   mockLoadCardioSession.mockReturnValue(null);
 });
@@ -204,26 +208,22 @@ describe('HomeTab', () => {
   });
 
   it('shows today workout card when today is a workout day', () => {
-    // Make getWorkoutDaysForWeek return today's dow so sessionDateMap maps
-    // today to a valid session
-    const todayDow = new Date().getDay();
-    mockGetWorkoutDaysForWeek.mockReturnValue([todayDow]);
-
-    // Use a startDate that ensures today falls within the meso window.
-    // Set startDate to today so the very first session maps to today.
+    // Stub the sessionDateMap to place session 0:0 on today. The HomeTab
+    // reads from buildSessionDateMap directly.
     const today = new Date();
-    const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    mockBuildSessionDateMap.mockReturnValue({ [todayStr]: '0:0' });
 
     const props = makeProps({
       profile: {
         name: 'Alex',
         experience: 'intermediate',
-        startDate,
+        startDate: todayStr,
         cardioSchedule: [],
         splitType: 'PPL',
         daysPerWeek: 3,
         weight: 180,
-        workoutDays: [todayDow],
+        workoutDays: [today.getDay()],
         mesoLength: 6,
       },
     });
@@ -242,22 +242,20 @@ describe('HomeTab', () => {
 
   it('clicking Start Workout area calls navigation callbacks', () => {
     // Set up so today IS a workout day (same as test 5)
-    const todayDow = new Date().getDay();
-    mockGetWorkoutDaysForWeek.mockReturnValue([todayDow]);
-
     const today = new Date();
-    const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    mockBuildSessionDateMap.mockReturnValue({ [todayStr]: '0:0' });
 
     const props = makeProps({
       profile: {
         name: 'Alex',
         experience: 'intermediate',
-        startDate,
+        startDate: todayStr,
         cardioSchedule: [],
         splitType: 'PPL',
         daysPerWeek: 3,
         weight: 180,
-        workoutDays: [todayDow],
+        workoutDays: [today.getDay()],
         mesoLength: 6,
       },
     });

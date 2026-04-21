@@ -11,10 +11,12 @@ import {
   loadExtraExNotes,
   hasAnyNotes,
   hasAnyExtraNotes,
-  getWorkoutDaysForWeek,
+  buildSessionDateMap,
 } from '../../utils/store';
 import RestDaySheet from './RestDaySheet';
 import EditScheduleSheet from './EditScheduleSheet';
+import DayActionSheet from './DayActionSheet';
+import MoveWorkoutSheet from './MoveWorkoutSheet';
 
 // ── Inline icon helpers ────────────────────────────────────────────────────
 
@@ -242,6 +244,10 @@ function ScheduleTab({
     }
   }, []);
 
+  // Day action sheet (tap-a-day) + move-workout picker state.
+  const [activeDate, setActiveDate] = React.useState<string | null>(null);
+  const [moveState, setMoveState] = React.useState<{ sourceDateStr: string; sessionKey: string } | null>(null);
+
   const today = new Date();
   const displayDate = new Date(today.getFullYear(), today.getMonth() + calendarOffset, 1);
   const year = displayDate.getFullYear();
@@ -253,23 +259,13 @@ function ScheduleTab({
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Build sessionDateMap
-  const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;
-  const sessionDateMap: Record<string, any> = {};
-  if (startDate && activeDays.length > 0) {
-    const totalSessions = (getMeso().weeks + 1) * activeDays.length;
-    let sessionCount = 0;
-    let cursor = new Date(startDate);
-    for (let d = 0; d < 400 && sessionCount < totalSessions; d++) {
-      const wkIdx = Math.floor(sessionCount / activeDays.length);
-      if (getWorkoutDaysForWeek(profile, wkIdx).includes(cursor.getDay())) {
-        sessionDateMap[cursor.toISOString().slice(0, 10)] =
-          `${sessionCount % activeDays.length}:${wkIdx}`;
-        sessionCount++;
-      }
-      cursor.setDate(cursor.getDate() + 1);
-    }
-  }
+  // Build sessionDateMap via the shared helper so the Home tab and this tab
+  // agree on which date hosts which session — including per-date overrides
+  // that may double-book a day. Values are `string | string[]`.
+  const sessionDateMap: Record<string, string | string[]> = React.useMemo(
+    () => buildSessionDateMap(profile, activeDays.length, getMeso().weeks),
+    [profile, activeDays.length],
+  );
 
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const todayStr = today.toISOString().slice(0, 10);
@@ -425,8 +421,16 @@ function ScheduleTab({
             {cells.map((day, ci) => {
               if (day === null) return <div key={`b${ci}`} />;
               const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const sessionKey = sessionDateMap[dateStr];
-              const isDone = sessionKey ? completedDays.has(sessionKey) : false;
+              const entry = sessionDateMap[dateStr];
+              const sessionKeys: string[] = entry == null ? [] : Array.isArray(entry) ? entry : [entry];
+              // Primary session key for colouring — use the first that isn't
+              // completed (so a half-done double-booked day still shows the
+              // next session's accent).
+              const primaryKey =
+                sessionKeys.find((k) => !completedDays.has(k)) ?? sessionKeys[0] ?? null;
+              const hasDouble = sessionKeys.length > 1;
+              const allDone = sessionKeys.length > 0 && sessionKeys.every((k) => completedDays.has(k));
+              const isDone = allDone;
               const isToday = dateStr === todayStr;
               const isPast = dateStr < todayStr;
               const hasExtra = !!store.get(`foundry:extra:${dateStr}`);
@@ -436,8 +440,8 @@ function ScheduleTab({
 
               let hasNotes = false,
                 notesMeta: { type: string; dayIdx?: number; weekIdx?: number; dateStr?: string } | null = null;
-              if (isDone && sessionKey) {
-                const [dIdx, wIdx] = sessionKey.split(':').map(Number);
+              if (isDone && primaryKey) {
+                const [dIdx, wIdx] = primaryKey.split(':').map(Number);
                 hasNotes = hasAnyNotes(dIdx, wIdx);
                 if (hasNotes) notesMeta = { type: 'meso', dayIdx: dIdx, weekIdx: wIdx };
               } else if (hasExtra && store.get(`foundry:extra:done:${dateStr}`) === '1') {
@@ -445,7 +449,7 @@ function ScheduleTab({
                 if (hasNotes) notesMeta = { type: 'extra', dateStr };
               }
 
-              const sessionWeekIdx = sessionKey ? parseInt(sessionKey.split(':')[1]) : null;
+              const sessionWeekIdx = primaryKey ? parseInt(primaryKey.split(':')[1]) : null;
               const sessionPhase =
                 sessionWeekIdx !== null
                   ? getWeekPhase()[sessionWeekIdx] || 'Accumulation'
@@ -458,7 +462,7 @@ function ScheduleTab({
               let bg = 'transparent',
                 dateColor = 'var(--text-secondary)',
                 borderColor = 'transparent';
-              if (sessionKey && !isDone) {
+              if (primaryKey && !isDone) {
                 bg = isPast ? sessionPc + '28' : sessionPc + '30';
                 dateColor = isPast ? sessionPc + 'cc' : sessionPc;
                 borderColor = isPast ? sessionPc + '55' : sessionPc + '88';
@@ -472,19 +476,14 @@ function ScheduleTab({
               return (
                 <div
                   key={day}
-                  onClick={() => {
-                    if (sessionKey) {
-                      const [dIdx, wIdx] = sessionKey.split(':').map(Number);
-                      onSelectDayWeek(dIdx, wIdx);
-                    } else if (hasExtra) {
-                      onOpenExtra(dateStr);
-                    } else if (hasCardio) {
-                      onOpenCardio(dateStr, cardioSession?.protocolId || null);
-                    } else {
-                      setShowRestDay({
-                        dateStr,
-                        isPast: isPast && dateStr !== todayStr,
-                      });
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${dateStr}${hasDouble ? ' (2 workouts)' : ''}`}
+                  onClick={() => setActiveDate(dateStr)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActiveDate(dateStr);
                     }
                   }}
                   style={{
@@ -492,7 +491,7 @@ function ScheduleTab({
                     borderRadius: tokens.radius.sm,
                     background: bg,
                     border: isToday
-                      ? `2px solid ${isDone ? sessionPc : sessionKey ? sessionPc : 'var(--phase-intens)'}`
+                      ? `2px solid ${isDone ? sessionPc : primaryKey ? sessionPc : 'var(--phase-intens)'}`
                       : `1px solid ${borderColor}`,
                     display: 'flex',
                     flexDirection: 'column',
@@ -505,12 +504,12 @@ function ScheduleTab({
                 >
                   <div
                     style={{
-                      fontSize: sessionKey ? 15 : 13,
-                      fontWeight: isToday || sessionKey ? 800 : 500,
+                      fontSize: primaryKey ? 15 : 13,
+                      fontWeight: isToday || primaryKey ? 800 : 500,
                       color: isToday
                         ? isDone
                           ? sessionPc
-                          : sessionKey
+                          : primaryKey
                             ? sessionPc
                             : 'var(--phase-intens)'
                         : dateColor,
@@ -519,6 +518,27 @@ function ScheduleTab({
                   >
                     {day}
                   </div>
+                  {hasDouble && (
+                    <div
+                      aria-hidden="true"
+                      data-testid={`double-badge-${dateStr}`}
+                      style={{
+                        position: 'absolute',
+                        bottom: 2,
+                        left: 2,
+                        fontSize: 10,
+                        fontWeight: 800,
+                        color: 'var(--phase-peak)',
+                        background: 'var(--phase-peak)22',
+                        border: '1px solid var(--phase-peak)55',
+                        borderRadius: tokens.radius.xs,
+                        padding: '1px 4px',
+                        lineHeight: 1,
+                      }}
+                    >
+                      ×2
+                    </div>
+                  )}
                   {hasExtra && !hasNotes && (
                     <div
                       style={{
@@ -742,6 +762,73 @@ function ScheduleTab({
         onProfileUpdate={onProfileUpdate}
       />
       <NoteViewer noteViewer={noteViewer} setNoteViewer={setNoteViewer} />
+      <DayActionSheet
+        open={!!activeDate}
+        onClose={() => setActiveDate(null)}
+        dateStr={activeDate}
+        profile={profile}
+        activeDays={activeDays}
+        sessionEntry={activeDate ? sessionDateMap[activeDate] : undefined}
+        completedDays={completedDays}
+        onOpenSession={(dIdx, wIdx) => onSelectDayWeek(dIdx, wIdx)}
+        onOpenExtra={onOpenExtra}
+        onOpenCardio={onOpenCardio}
+        onAddWorkout={(ds) => {
+          setAddWorkoutModal(ds);
+          setAddWorkoutStep('type');
+          setAddWorkoutType(null);
+          setAddWorkoutDayType(null);
+        }}
+        onMoveSession={(sk) => {
+          if (!activeDate) return;
+          setMoveState({ sourceDateStr: activeDate, sessionKey: sk });
+        }}
+        onViewNotes={(arg) => {
+          if (arg.type === 'meso') {
+            const d = activeDays[arg.dayIdx];
+            setNoteViewer({
+              type: 'meso',
+              dayIdx: arg.dayIdx,
+              weekIdx: arg.weekIdx,
+              label: d ? `${d.label} — W${arg.weekIdx + 1}` : `Day ${arg.dayIdx + 1} W${arg.weekIdx + 1}`,
+              exercises: d ? d.exercises : [],
+              sessionNote: loadNotes(arg.dayIdx, arg.weekIdx),
+              exNotes: loadExNotes(arg.dayIdx, arg.weekIdx),
+            });
+          } else {
+            const extraDateStr = arg.dateStr;
+            let extra: { label?: string; exercises?: Exercise[] } | null = null;
+            try {
+              extra = JSON.parse(store.get(`foundry:extra:${extraDateStr}`) || 'null');
+            } catch { /* ignore */ }
+            setNoteViewer({
+              type: 'extra',
+              dateStr: extraDateStr,
+              label: extra?.label ?? 'Extra Session',
+              exercises: extra?.exercises ?? [],
+              sessionNote: store.get(`foundry:extra:notes:${extraDateStr}`) || '',
+              exNotes: loadExtraExNotes(extraDateStr),
+            });
+          }
+        }}
+      />
+      {moveState && (
+        <MoveWorkoutSheet
+          open={!!moveState}
+          onClose={() => setMoveState(null)}
+          profile={profile}
+          sourceDateStr={moveState.sourceDateStr}
+          sessionKey={moveState.sessionKey}
+          sessionDateMap={sessionDateMap}
+          completedDays={completedDays}
+          onProfileUpdate={onProfileUpdate}
+          sessionLabel={(() => {
+            const [dIdxStr, wIdxStr] = moveState.sessionKey.split(':');
+            const day = activeDays[Number(dIdxStr)];
+            return day ? `${day.label} — Week ${Number(wIdxStr) + 1}` : undefined;
+          })()}
+        />
+      )}
     </div>
   );
 }
