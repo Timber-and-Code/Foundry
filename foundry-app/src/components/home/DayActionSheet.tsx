@@ -17,8 +17,10 @@ export interface DayActionSheetProps {
   /** Session key(s) scheduled for this date — `string | string[]`. */
   sessionEntry: string | string[] | undefined;
   completedDays: Set<string>;
-  /** Open a scheduled session (meso day). */
-  onOpenSession: (dayIdx: number, weekIdx: number) => void;
+  /** Preview an active (not-completed) session read-only (exercises/sets/reps).
+   * Schedule tab is view-and-manage only — starting a workout happens on Home.
+   * Completed sessions open the notes/recap viewer via onViewNotes instead. */
+  onPreviewSession: (dayIdx: number, weekIdx: number) => void;
   /** Open an already-created extra session for this date. */
   onOpenExtra: (dateStr: string) => void;
   /** Open an already-scheduled/logged cardio session. */
@@ -109,7 +111,7 @@ function DayActionSheet(props: DayActionSheetProps) {
     activeDays,
     sessionEntry,
     completedDays,
-    onOpenSession,
+    onPreviewSession,
     onOpenExtra,
     onOpenCardio,
     onAddWorkout,
@@ -231,9 +233,9 @@ function DayActionSheet(props: DayActionSheetProps) {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* Existing session rows — "start" is home-tab only. From schedule,
-              completed sessions are viewable (notes/recap); active sessions
-              only surface move + add actions. */}
+          {/* Existing session rows — "start" is home-tab only. From schedule:
+              - Completed session: View notes/recap
+              - Active session:    View preview (exercises, sets, reps) read-only */}
           {keys.map((key) => {
             const [dIdxStr, wIdxStr] = key.split(':');
             const dIdx = Number(dIdxStr);
@@ -241,16 +243,23 @@ function DayActionSheet(props: DayActionSheetProps) {
             const day = activeDays[dIdx];
             const done = completedDays.has(key);
             const label = day ? `${day.label} — Week ${wIdx + 1}` : `Day ${dIdx + 1} · Week ${wIdx + 1}`;
-            if (!done) return null;
             return (
               <ActionButton
                 key={key}
                 label={`View ${label}`}
-                description="Completed — review sets, notes, and recap."
+                description={
+                  done
+                    ? 'Completed — review sets, notes, and recap.'
+                    : day?.exercises?.length
+                      ? `${day.exercises.length} exercises — preview`
+                      : 'Preview this session'
+                }
                 onClick={() => {
                   onClose();
-                  if (onViewNotes) {
+                  if (done && onViewNotes) {
                     onViewNotes({ type: 'meso', dayIdx: dIdx, weekIdx: wIdx });
+                  } else {
+                    onPreviewSession(dIdx, wIdx);
                   }
                 }}
               />

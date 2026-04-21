@@ -11,8 +11,12 @@ interface WorkoutSplashProps {
   weekIdx: number;
   exercises: Exercise[];
   mesoId?: string | null;
-  onStart: () => void;
+  onStart?: () => void;
   onBack: () => void;
+  /** When true, hides the start CTA and disables tap-to-start — used by the
+   * schedule tab's "View" affordance so users can peek at exercises/sets/reps
+   * without accidentally starting the workout. */
+  previewOnly?: boolean;
 }
 
 export default function WorkoutSplash({
@@ -23,6 +27,7 @@ export default function WorkoutSplash({
   mesoId,
   onStart,
   onBack,
+  previewOnly = false,
 }: WorkoutSplashProps) {
   const phase = getWeekPhase()[weekIdx] || 'Accumulation';
   const phaseColor = PHASE_COLOR[phase] || '#E8E4DC';
@@ -34,7 +39,7 @@ export default function WorkoutSplash({
       role="dialog"
       aria-modal="true"
       aria-labelledby="workout-splash-title"
-      onClick={onStart}
+      onClick={previewOnly ? undefined : onStart}
       style={{
         position: 'fixed',
         inset: 0,
@@ -43,7 +48,7 @@ export default function WorkoutSplash({
         display: 'flex',
         flexDirection: 'column',
         padding: 16,
-        cursor: 'pointer',
+        cursor: previewOnly ? 'default' : 'pointer',
       }}
     >
       <div
@@ -226,37 +231,54 @@ export default function WorkoutSplash({
           })}
         </div>
 
-        {/* Start CTA */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onStart();
-          }}
-          style={{
-            width: '100%',
-            padding: '20px',
-            borderRadius: tokens.radius.lg,
-            background: phaseColor,
-            border: 'none',
-            color: phaseColor === '#E8E4DC' || phaseColor === '#D4983C' ? '#0A0A0C' : '#0A0A0C',
-            fontSize: 16,
-            fontWeight: 900,
-            letterSpacing: '0.06em',
-            cursor: 'pointer',
-          }}
-        >
-          START WORKOUT <span aria-hidden="true">→</span>
-        </button>
-        <div
-          style={{
-            fontSize: 11,
-            color: 'var(--text-muted)',
-            textAlign: 'center',
-            marginTop: -10,
-          }}
-        >
-          Or tap anywhere to begin
-        </div>
+        {/* Start CTA — hidden in preview mode (schedule tab is view-only) */}
+        {!previewOnly && (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onStart?.();
+              }}
+              style={{
+                width: '100%',
+                padding: '20px',
+                borderRadius: tokens.radius.lg,
+                background: phaseColor,
+                border: 'none',
+                color: phaseColor === '#E8E4DC' || phaseColor === '#D4983C' ? '#0A0A0C' : '#0A0A0C',
+                fontSize: 16,
+                fontWeight: 900,
+                letterSpacing: '0.06em',
+                cursor: 'pointer',
+              }}
+            >
+              START WORKOUT <span aria-hidden="true">→</span>
+            </button>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                textAlign: 'center',
+                marginTop: -10,
+              }}
+            >
+              Or tap anywhere to begin
+            </div>
+          </>
+        )}
+        {previewOnly && (
+          <div
+            style={{
+              fontSize: 11,
+              color: 'var(--text-muted)',
+              textAlign: 'center',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Preview · Start this workout from Home
+          </div>
+        )}
       </div>
     </div>
   );

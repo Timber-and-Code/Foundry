@@ -16,6 +16,7 @@ import {
 import RestDaySheet from './RestDaySheet';
 import EditScheduleSheet from './EditScheduleSheet';
 import DayActionSheet from './DayActionSheet';
+import WorkoutSplash from '../workout/WorkoutSplash';
 import MoveWorkoutSheet from './MoveWorkoutSheet';
 
 // ── Inline icon helpers ────────────────────────────────────────────────────
@@ -221,7 +222,7 @@ function ScheduleTab({
   setSkipVersion: _setSkipVersion,
   goTo,
   onSelectDay: _onSelectDay,
-  onSelectDayWeek,
+  onSelectDayWeek: _onSelectDayWeek,
   onOpenExtra,
   onOpenCardio,
   setCurrentWeek: _setCurrentWeek,
@@ -247,6 +248,7 @@ function ScheduleTab({
   // Day action sheet (tap-a-day) + move-workout picker state.
   const [activeDate, setActiveDate] = React.useState<string | null>(null);
   const [moveState, setMoveState] = React.useState<{ sourceDateStr: string; sessionKey: string } | null>(null);
+  const [previewState, setPreviewState] = React.useState<{ dayIdx: number; weekIdx: number } | null>(null);
 
   const today = new Date();
   const displayDate = new Date(today.getFullYear(), today.getMonth() + calendarOffset, 1);
@@ -770,7 +772,7 @@ function ScheduleTab({
         activeDays={activeDays}
         sessionEntry={activeDate ? sessionDateMap[activeDate] : undefined}
         completedDays={completedDays}
-        onOpenSession={(dIdx, wIdx) => onSelectDayWeek(dIdx, wIdx)}
+        onPreviewSession={(dIdx, wIdx) => setPreviewState({ dayIdx: dIdx, weekIdx: wIdx })}
         onOpenExtra={onOpenExtra}
         onOpenCardio={onOpenCardio}
         onAddWorkout={(ds) => {
@@ -827,6 +829,16 @@ function ScheduleTab({
             const day = activeDays[Number(dIdxStr)];
             return day ? `${day.label} — Week ${Number(wIdxStr) + 1}` : undefined;
           })()}
+        />
+      )}
+      {previewState && activeDays[previewState.dayIdx] && (
+        <WorkoutSplash
+          previewOnly
+          dayName={activeDays[previewState.dayIdx].label || `Day ${previewState.dayIdx + 1}`}
+          dayIdx={previewState.dayIdx}
+          weekIdx={previewState.weekIdx}
+          exercises={activeDays[previewState.dayIdx].exercises}
+          onBack={() => setPreviewState(null)}
         />
       )}
     </div>
