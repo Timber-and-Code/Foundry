@@ -122,7 +122,7 @@ function HomeView({
 
   // ── Home tab UI state ───────────────────────────────────────────────────
   const [showNextSession, setShowNextSession] = useState(true);
-  const [showMorningMobility, setShowMorningMobility] = useState(true);
+  const [showMorningMobility, setShowMorningMobility] = useState(false);
   const [showRecoveryMorning, setShowRecoveryMorning] = useState(false);
   const [showRecoveryTag, setShowRecoveryTag] = useState(false);
 

@@ -775,6 +775,11 @@ function ScheduleTab({
         onPreviewSession={(dIdx, wIdx) => setPreviewState({ dayIdx: dIdx, weekIdx: wIdx })}
         onOpenExtra={onOpenExtra}
         onOpenCardio={onOpenCardio}
+        onOpenMobility={(ds, protocolId) => {
+          window.dispatchEvent(
+            new CustomEvent('foundry:openMobility', { detail: { dateStr: ds, protocolId } })
+          );
+        }}
         onAddWorkout={(ds) => {
           setAddWorkoutModal(ds);
           setAddWorkoutStep('type');

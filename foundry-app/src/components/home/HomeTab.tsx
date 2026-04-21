@@ -620,6 +620,69 @@ function HomeTab({
         </div>
       )}
 
+      {/* Pre-workout mobility — workout days only, collapsed by default, above the Today Card */}
+      {isToday && showDay && (
+        <div
+          style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: tokens.radius.lg, overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <button
+            onClick={() => setShowMorningMobility((p: boolean) => !p)}
+            style={{
+              width: '100%', background: 'var(--bg-inset)', border: 'none',
+              borderBottom: showMorningMobility ? '1px solid var(--border)' : 'none',
+              padding: '10px 16px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+                BEFORE YOU TRAIN
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {showDay.tag && (
+                <span style={{
+                  fontSize: 14, fontWeight: 700, color: showDayAccent,
+                  background: showDayAccent + '18', border: `1px solid ${showDayAccent}33`,
+                  borderRadius: tokens.radius.sm, padding: '2px 8px', letterSpacing: '0.06em',
+                }}>
+                  {showDay.tag}
+                </span>
+              )}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: showMorningMobility ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </div>
+          </button>
+          {showMorningMobility && (() => {
+            const warmupProtocol = pickWarmupForDay(showDay?.tag);
+            return (
+              <div style={{ padding: '12px 16px' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  {warmupProtocol.name.toUpperCase()} · {warmupProtocol.duration.toUpperCase()}
+                </div>
+                {warmupProtocol.moves.map((move, i) => (
+                  <div key={i} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', marginBottom: 5, border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 2 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{move.name}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em', flexShrink: 0 }}>{move.reps}</div>
+                    </div>
+                    <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       {/* Today Card — THE HERO */}
       {isRestState || isRestDay ? (
         <RestStateCard
@@ -685,8 +748,15 @@ function HomeTab({
             onMouseLeave={(e) => (e.currentTarget.style.background = `linear-gradient(135deg, ${showDayAccent}0d 0%, transparent 100%)`)}
           >
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 14, color: 'var(--phase-accum)', fontWeight: 700, letterSpacing: '0.06em', marginBottom: 3 }}>
-                {isToday ? 'TODAY' : 'NEXT SESSION'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                <div style={{ fontSize: 14, color: 'var(--phase-accum)', fontWeight: 700, letterSpacing: '0.06em' }}>
+                  {isToday ? 'TODAY' : 'NEXT SESSION'}
+                </div>
+                {isToday && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em' }}>
+                    · {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}
+                  </div>
+                )}
               </div>
               <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
                 {showDay!.label}
@@ -909,68 +979,6 @@ function HomeTab({
           </div>
           <span style={{ fontSize: 16, color: 'var(--text-muted)', fontWeight: 700 }}>+</span>
         </button>
-      )}
-
-      {/* Pre-workout mobility — workout days only */}
-      {isToday && showDay && (
-        <div
-          style={{
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg, overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          <button
-            onClick={() => setShowMorningMobility((p: boolean) => !p)}
-            style={{
-              width: '100%', background: 'var(--bg-inset)', border: 'none',
-              borderBottom: '1px solid var(--border)', padding: '10px 16px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-              </svg>
-              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
-                BEFORE YOU TRAIN
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {showDay.tag && (
-                <span style={{
-                  fontSize: 14, fontWeight: 700, color: showDayAccent,
-                  background: showDayAccent + '18', border: `1px solid ${showDayAccent}33`,
-                  borderRadius: tokens.radius.sm, padding: '2px 8px', letterSpacing: '0.06em',
-                }}>
-                  {showDay.tag}
-                </span>
-              )}
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transform: showMorningMobility ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </div>
-          </button>
-          {showMorningMobility && (() => {
-            const warmupProtocol = pickWarmupForDay(showDay?.tag);
-            return (
-              <div style={{ padding: '12px 16px' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                  {warmupProtocol.name.toUpperCase()} · {warmupProtocol.duration.toUpperCase()}
-                </div>
-                {warmupProtocol.moves.map((move, i) => (
-                  <div key={i} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', marginBottom: 5, border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 2 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{move.name}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em', flexShrink: 0 }}>{move.reps}</div>
-                    </div>
-                    <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
       )}
 
       <div style={{ height: 8 }} />

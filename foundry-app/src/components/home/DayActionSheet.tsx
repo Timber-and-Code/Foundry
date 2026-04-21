@@ -1,7 +1,7 @@
 import React from 'react';
 import { tokens } from '../../styles/tokens';
 import Sheet from '../ui/Sheet';
-import { CARDIO_WORKOUTS, TAG_ACCENT } from '../../data/constants';
+import { CARDIO_WORKOUTS, MOBILITY_PROTOCOLS, TAG_ACCENT } from '../../data/constants';
 import { store, loadCardioSession } from '../../utils/store';
 import type { Profile, TrainingDay } from '../../types';
 
@@ -25,6 +25,8 @@ export interface DayActionSheetProps {
   onOpenExtra: (dateStr: string) => void;
   /** Open an already-scheduled/logged cardio session. */
   onOpenCardio: (dateStr: string, protocolId: string | null) => void;
+  /** Open or pre-seed a mobility session for this date with the chosen protocol. */
+  onOpenMobility: (dateStr: string, protocolId: string) => void;
   /** Kick off the existing AddWorkoutModal wizard for this date. */
   onAddWorkout: (dateStr: string) => void;
   /** Open the move sheet for the given sessionKey (only passed when movable). */
@@ -34,6 +36,7 @@ export interface DayActionSheetProps {
 }
 
 const CARDIO_COLOR = TAG_ACCENT['CARDIO'];
+const MOBILITY_COLOR = TAG_ACCENT['MOBILITY'];
 
 function formatDate(dateStr: string): string {
   const dt = new Date(dateStr + 'T00:00:00');
@@ -114,15 +117,20 @@ function DayActionSheet(props: DayActionSheetProps) {
     onPreviewSession,
     onOpenExtra,
     onOpenCardio,
+    onOpenMobility,
     onAddWorkout,
     onMoveSession,
     onViewNotes,
   } = props;
 
   const [cardioOpen, setCardioOpen] = React.useState(false);
+  const [mobilityOpen, setMobilityOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (!open) setCardioOpen(false);
+    if (!open) {
+      setCardioOpen(false);
+      setMobilityOpen(false);
+    }
   }, [open]);
 
   if (!open || !dateStr) return null;
@@ -387,6 +395,93 @@ function DayActionSheet(props: DayActionSheetProps) {
                   <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>›</span>
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Add mobility — inline picker, grouped by category */}
+          {!isPast && (
+            <ActionButton
+              label="Add mobility session"
+              description="Warmup, recovery, or targeted protocol."
+              onClick={() => setMobilityOpen((v) => !v)}
+            />
+          )}
+
+          {mobilityOpen && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                padding: '8px 10px',
+                background: 'var(--bg-inset)',
+                border: '1px solid var(--border)',
+                borderRadius: tokens.radius.lg,
+              }}
+            >
+              {(['warmup', 'recovery', 'targeted'] as const).map((cat) => {
+                const group = MOBILITY_PROTOCOLS.filter((p) => p.category === cat);
+                if (group.length === 0) return null;
+                return (
+                  <React.Fragment key={cat}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 800,
+                        letterSpacing: '0.08em',
+                        color: 'var(--text-muted)',
+                        padding: '6px 4px 2px',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {cat}
+                    </div>
+                    {group.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenMobility(dateStr, p.id);
+                        }}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: tokens.radius.md,
+                          cursor: 'pointer',
+                          background: 'var(--bg-surface)',
+                          border: `1px solid ${MOBILITY_COLOR}33`,
+                          color: 'var(--text-primary)',
+                          textAlign: 'left',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 8,
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: MOBILITY_COLOR }}>
+                            {p.name} · {p.duration}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: 'var(--text-secondary)',
+                              lineHeight: 1.4,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {p.description}
+                          </div>
+                        </div>
+                        <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>›</span>
+                      </button>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
 

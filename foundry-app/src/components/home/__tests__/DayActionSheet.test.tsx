@@ -59,6 +59,7 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     onPreviewSession: vi.fn(),
     onOpenExtra: vi.fn(),
     onOpenCardio: vi.fn(),
+    onOpenMobility: vi.fn(),
     onAddWorkout: vi.fn(),
     onMoveSession: vi.fn(),
     onViewNotes: vi.fn(),
