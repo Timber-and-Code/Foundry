@@ -99,7 +99,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
     // Base set count — short sessions compress to 4-5 sets across the board so
     // the session still produces enough stimulus; longer sessions respect the
     // DB's per-exercise set suggestion.
-    const baseSets = exCount <= 3 ? 5 : exCount <= 4 ? 4 : (e.sets || 3);
+    const baseSets = exCount <= 3 ? 5 : exCount <= 4 ? 4 : (Number(e.sets) || 3);
     // Pure Strength tweak — keep anchors at full sets (the heavy work), trim
     // accessory volume by one set (floor 2) so total volume stays sane.
     const sets = isPureStrength && !isAnchor ? Math.max(2, baseSets - 1) : baseSets;

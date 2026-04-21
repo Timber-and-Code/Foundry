@@ -70,18 +70,20 @@ describe('ActiveSessionContext', () => {
     localStorage.clear();
   });
 
-  it('throws when useActiveSession is used outside the provider', () => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    function BadConsumer() {
-      useActiveSession();
+  it('returns a safe no-op context when used outside the provider', () => {
+    let captured: ReturnType<typeof useActiveSession> | null = null;
+    function BareConsumer() {
+      captured = useActiveSession();
       return null;
     }
-    expect(() => {
-      act(() => {
-        createRoot(container).render(<BadConsumer />);
-      });
-    }).toThrow(/ActiveSessionProvider/);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    act(() => {
+      createRoot(container).render(<BareConsumer />);
+    });
+    expect(captured).not.toBeNull();
+    expect(captured!.session).toBeNull();
+    expect(typeof captured!.setActiveSession).toBe('function');
     document.body.removeChild(container);
   });
 

@@ -74,8 +74,13 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
   );
 }
 
+const NOOP_CONTEXT: ActiveSessionContextValue = {
+  session: null,
+  setActiveSession: () => {},
+  updateActiveSession: () => {},
+  clearActiveSession: () => {},
+};
+
 export function useActiveSession(): ActiveSessionContextValue {
-  const ctx = useContext(ActiveSessionContext);
-  if (!ctx) throw new Error('useActiveSession must be used within ActiveSessionProvider');
-  return ctx;
+  return useContext(ActiveSessionContext) ?? NOOP_CONTEXT;
 }

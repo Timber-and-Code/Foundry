@@ -18,6 +18,7 @@ import type { ExerciseEntry } from '../data/exerciseDB';
  *   LEGS           → [LEGS]
  *   UPPER          → [PUSH, PULL]
  *   LOWER          → [LEGS]
+ *   ARMS           → [PUSH, PULL]   // triceps are PUSH, biceps are PULL
  *   FULL / CUSTOM  → [PUSH, PULL, LEGS, CORE]   (everything)
  *   anything else  → same fallback              (safest default)
  */
@@ -33,6 +34,8 @@ export function tagsForDay(dayTag: string | undefined | null): string[] {
       return ['PUSH', 'PULL'];
     case 'LOWER':
       return ['LEGS'];
+    case 'ARMS':
+      return ['PUSH', 'PULL'];
     default:
       return ['PUSH', 'PULL', 'LEGS', 'CORE'];
   }
