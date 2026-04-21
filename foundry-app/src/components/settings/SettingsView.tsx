@@ -9,6 +9,7 @@ import type { Profile, WorkoutSet, TrainingDay } from '../../types';
 
 const AccountSection = React.lazy(() => import('../auth/UserMenu'));
 const SaveProgressSheet = React.lazy(() => import('../auth/SaveProgressSheet'));
+const AboutModal = React.lazy(() => import('./AboutModal'));
 
 const FOUNDRY_AI_WORKER_URL = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 const FOUNDRY_APP_KEY = import.meta.env.VITE_FOUNDRY_APP_KEY;
@@ -37,6 +38,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState('');
   const [feedbackStatus, setFeedbackStatus] = useState('');
+  const [showAbout, setShowAbout] = useState(false);
 
   // ── Meso context ──────────────────────────────────────────────────────────
   const meso = (() => {
@@ -594,6 +596,19 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             </button>
           </div>
 
+          {/* About */}
+          {divider}
+          {sectionLabel('ABOUT')}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={() => setShowAbout(true)}
+              style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
+            >
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>The Foundry</span>
+              <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>Read</span>
+            </button>
+          </div>
+
           {/* Data — collapsed by default */}
           {divider}
           <button
@@ -779,6 +794,13 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
       {showSyncSheet && (
         <Suspense fallback={null}>
           <SaveProgressSheet trigger="settings" onDismiss={() => setShowSyncSheet(false)} />
+        </Suspense>
+      )}
+
+      {/* About The Foundry modal */}
+      {showAbout && (
+        <Suspense fallback={null}>
+          <AboutModal open={showAbout} onClose={() => setShowAbout(false)} />
         </Suspense>
       )}
     </div>
