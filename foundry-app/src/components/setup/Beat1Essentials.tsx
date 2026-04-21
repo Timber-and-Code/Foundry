@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 
 /**
- * PHASE 2 SCAFFOLD — Beat 1 "three essentials" screen.
+ * Beat 1 — "Four essentials" screen.
  *
- * TODO(phase-2): wire values into Beat2Preview. Smart defaults from
- * foundry:onboarding_data (experience): Just starting → 3 days, Under
- * 2 years → 4, 2+ years → 5. Equipment branches Auto/Manual exercise
- * selection in program.ts. Start date defaults to next Monday unless
- * the user overrides.
+ * Smart defaults keep this a 30-second pass. Days-per-week auto-fills a
+ * sensible weekday pattern; the user can adjust. Start date defaults to
+ * today.
  */
 export interface Beat1Values {
   daysPerWeek: number;
+  /** Weekday indices 0..6 (Sunday..Saturday). length === daysPerWeek. */
+  workoutDays: number[];
   equipment: 'full_gym' | 'home_gym' | 'minimal';
   startDate: string; // yyyy-mm-dd
 }
@@ -21,19 +21,50 @@ interface Beat1Props {
   onContinue: (values: Beat1Values) => void;
 }
 
+// Weekday 0..6 (Sun..Sat). Defaults favour Mon/Wed/Fri style patterns.
+const DEFAULT_WORKOUT_DAYS: Record<number, number[]> = {
+  3: [1, 3, 5],
+  4: [1, 2, 4, 5],
+  5: [1, 2, 3, 5, 6],
+  6: [1, 2, 3, 4, 5, 6],
+};
+
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const WEEKDAY_ARIA = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 export default function Beat1Essentials({ initial, onContinue }: Beat1Props) {
   const [days, setDays] = useState<number>(initial?.daysPerWeek ?? 4);
+  const [workoutDays, setWorkoutDays] = useState<number[]>(
+    () => initial?.workoutDays ?? DEFAULT_WORKOUT_DAYS[initial?.daysPerWeek ?? 4] ?? [1, 2, 4, 5],
+  );
   const [equipment, setEquipment] = useState<Beat1Values['equipment']>(
     initial?.equipment ?? 'full_gym',
   );
   const [startDate, setStartDate] = useState<string>(() => {
     if (initial?.startDate) return initial.startDate;
-    // Default to today
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
 
-  const ready = !!days && !!equipment && !!startDate;
+  // Auto-adjust workoutDays when daysPerWeek changes — either use the
+  // stored default pattern or trim/extend the user's current selection.
+  useEffect(() => {
+    setWorkoutDays((prev) => {
+      if (prev.length === days) return prev;
+      if (prev.length > days) return [...prev].slice(0, days).sort((a, b) => a - b);
+      const fill = DEFAULT_WORKOUT_DAYS[days] ?? prev;
+      return [...fill].sort((a, b) => a - b);
+    });
+  }, [days]);
+
+  const toggleWorkoutDay = (dow: number) => {
+    setWorkoutDays((prev) =>
+      prev.includes(dow) ? prev.filter((d) => d !== dow) : [...prev, dow].sort((a, b) => a - b),
+    );
+  };
+
+  const workoutDaysValid = workoutDays.length === days;
+  const ready = !!days && workoutDaysValid && !!equipment && !!startDate;
 
   return (
     <div
@@ -65,7 +96,7 @@ export default function Beat1Essentials({ initial, onContinue }: Beat1Props) {
           marginBottom: 28,
         }}
       >
-        Three quick answers. Everything else has a smart default.
+        Four quick answers. Everything else has a smart default.
       </div>
 
       <FieldLabel>How many days per week?</FieldLabel>
@@ -76,6 +107,54 @@ export default function Beat1Essentials({ initial, onContinue }: Beat1Props) {
         onSelect={setDays}
         renderLabel={(n) => String(n)}
       />
+
+      <FieldLabel>Which days?</FieldLabel>
+      <div
+        role="group"
+        aria-label="Workout days"
+        style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}
+      >
+        {WEEKDAY_LABELS.map((label, dow) => {
+          const on = workoutDays.includes(dow);
+          return (
+            <button
+              key={dow}
+              type="button"
+              role="checkbox"
+              aria-checked={on}
+              aria-label={WEEKDAY_ARIA[dow]}
+              onClick={() => toggleWorkoutDay(dow)}
+              style={{
+                flex: 1,
+                padding: '12px 0',
+                borderRadius: tokens.radius.md,
+                border: `1px solid ${on ? tokens.colors.accent : 'rgba(255,255,255,0.12)'}`,
+                background: on ? tokens.colors.accentMuted : 'transparent',
+                color: on ? tokens.colors.textPrimary : tokens.colors.textSecondary,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 160ms ease',
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <div
+        aria-live="polite"
+        style={{
+          fontSize: 12,
+          marginTop: 6,
+          color: workoutDaysValid ? tokens.colors.textMuted : tokens.colors.danger,
+          fontWeight: 600,
+        }}
+      >
+        {workoutDaysValid
+          ? `${workoutDays.length} of 7 selected`
+          : `Pick exactly ${days} day${days === 1 ? '' : 's'} (${workoutDays.length} selected)`}
+      </div>
 
       <FieldLabel>Where do you train?</FieldLabel>
       <PillRow<Beat1Values['equipment']>
@@ -110,7 +189,7 @@ export default function Beat1Essentials({ initial, onContinue }: Beat1Props) {
       <button
         type="button"
         disabled={!ready}
-        onClick={() => ready && onContinue({ daysPerWeek: days, equipment, startDate })}
+        onClick={() => ready && onContinue({ daysPerWeek: days, workoutDays, equipment, startDate })}
         style={{
           width: '100%',
           padding: '16px',
