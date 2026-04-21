@@ -1,6 +1,39 @@
+/* ── Self-hosted fonts ── */
+/* Inter Variable — single weight-axis file replaces the six individually
+   weighted Inter files we used to pull from Google Fonts. Variable axis:
+   wght 100–900. */
+@font-face {
+  font-family: 'InterVariable';
+  src: url('/fonts/InterVariable.woff2') format('woff2-variations'),
+       url('/fonts/InterVariable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bebas Neue — display-only. Single weight. */
+@font-face {
+  font-family: 'Bebas Neue';
+  src: url('/fonts/BebasNeue.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ── Reset & base ── */
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { background: var(--bg-root); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; transition: background 0.25s, color 0.25s; }
+/* Global font-feature-settings:
+   - tnum: tabular numerals — keeps numeric columns (ExerciseCard weight/reps,
+     rest timer, PR cards) aligned without requiring per-component fontVariantNumeric.
+   - ss01: Inter stylistic set 1 — rounder tail shapes, subtly more modern.
+   - cv11: Inter character variant for single-story 'a' with a curved tail. */
+body {
+  background: var(--bg-root);
+  color: var(--text-primary);
+  font-family: 'InterVariable', 'Inter', system-ui, sans-serif;
+  font-feature-settings: 'tnum', 'ss01', 'cv11';
+  transition: background 0.25s, color 0.25s;
+}
 
 /* ── Interactive states ── */
 .btn-row {

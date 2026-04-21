@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { useExerciseDB, getSamplePrograms } from '../../data/exerciseDB';
 import { CARDIO_WORKOUTS, MOBILITY_PROTOCOLS } from '../../data/constants';
+import { store } from '../../utils/store';
 import ExerciseBrowser from './ExerciseBrowser';
 import SamplePrograms from './SamplePrograms';
 import LearnSection from './LearnSection';
@@ -17,7 +18,18 @@ interface ExplorePageProps {
 
 function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
   const EXERCISE_DB = useExerciseDB();
-  const [section, setSection] = useState<Section>('home');
+  // Deep-link: when MesoCompleteSheet routes here via "Try a Foundry
+  // program", it sets foundry:pending_samples. Open the programs
+  // view directly on mount so the user doesn't land on the Explore
+  // home and have to tap in.
+  const [section, setSection] = useState<Section>(() =>
+    store.get('foundry:pending_samples') === '1' ? 'programs' : 'home',
+  );
+  useEffect(() => {
+    if (store.get('foundry:pending_samples') === '1') {
+      store.remove('foundry:pending_samples');
+    }
+  }, []);
 
   if (section === 'library') return <ExerciseBrowser onBack={() => setSection('home')} />;
   if (section === 'programs')

@@ -135,6 +135,15 @@ export const tokens = {
     black:    '800',
   },
 
+  // Font-family stacks. Mirror src/styles/theme.css --ff-* custom
+  // properties. Prefer tokens.fontFamily over inline string literals so
+  // a swap (e.g. adding JetBrains Mono later) propagates across the app.
+  fontFamily: {
+    display: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+    body:    "'InterVariable', 'Inter', system-ui, sans-serif",
+    mono:    "ui-monospace, 'SFMono-Regular', 'Menlo', monospace",
+  },
+
   zIndex: {
     sheet:   300,
     modal:   300,

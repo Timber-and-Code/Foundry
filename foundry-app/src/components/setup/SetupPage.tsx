@@ -5,7 +5,32 @@ import FoundryBanner from '../shared/FoundryBanner';
 import AutoBuilderFlow from './AutoBuilderFlow';
 import ManualBuilderFlow from './ManualBuilderFlow';
 import CardioSetupFlow from './CardioSetupFlow';
+import Beat1Essentials, { type Beat1Values } from './Beat1Essentials';
+import Beat2Preview from './Beat2Preview';
+import ProgramReady from './ProgramReady';
 import type { Profile } from '../../types';
+
+/**
+ * foundry:setup_v2 flag — default ON for fresh users, OFF when carrying
+ * a meso forward or when an archive already exists. Explicit opt-in/out
+ * via the 1/0 values overrides the auto-default.
+ */
+function shouldUseSetupV2(): boolean {
+  const explicit = store.get('foundry:setup_v2');
+  if (explicit === '1') return true;
+  if (explicit === '0') return false;
+  try {
+    const transition = JSON.parse(store.get('foundry:meso_transition') || 'null');
+    if (transition && transition.profile) return false;
+  } catch { /* meso_transition parse fallback */ }
+  try {
+    const archive = JSON.parse(store.get('foundry:archive') || '[]');
+    if (Array.isArray(archive) && archive.length > 0) return false;
+  } catch { /* archive parse fallback */ }
+  return true;
+}
+
+type V2Step = 'beat1' | 'beat2' | 'ready';
 
 interface SetupPageProps {
   onComplete: (profile: Profile) => void;
@@ -390,7 +415,60 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
   };
 
   // ════════════════════════════════════════════════════════
-  // RENDER
+  // Phase 2 v2 state machine (Beat 1 → Beat 2 → ProgramReady)
+  // ════════════════════════════════════════════════════════
+  const [setupV2] = useState<boolean>(() => shouldUseSetupV2());
+  const [v2Step, setV2Step] = useState<V2Step>('beat1');
+  const [beat1Values, setBeat1Values] = useState<Beat1Values | null>(null);
+  const [v2Profile, setV2Profile] = useState<Profile | null>(null);
+
+  if (setupV2) {
+    if (v2Step === 'beat1') {
+      return (
+        <Beat1Essentials
+          onContinue={(values) => {
+            setBeat1Values(values);
+            setV2Step('beat2');
+            window.scrollTo(0, 0);
+          }}
+        />
+      );
+    }
+    if (v2Step === 'beat2' && beat1Values) {
+      return (
+        <Beat2Preview
+          beat1={beat1Values}
+          onSave={(p) => {
+            setV2Profile(p);
+            setV2Step('ready');
+            window.scrollTo(0, 0);
+          }}
+          onEditEssentials={() => {
+            setV2Step('beat1');
+            window.scrollTo(0, 0);
+          }}
+        />
+      );
+    }
+    if (v2Step === 'ready' && v2Profile) {
+      return (
+        <ProgramReady
+          profile={{
+            name: v2Profile.name,
+            mesoLength: v2Profile.mesoLength,
+            splitType: v2Profile.splitType,
+            startDate: v2Profile.startDate,
+          }}
+          onContinue={() => onComplete(v2Profile)}
+        />
+      );
+    }
+    // v2 fell out of a valid state — drop to the legacy render. Shouldn't
+    // happen in normal flow; guards against stale branch state.
+  }
+
+  // ════════════════════════════════════════════════════════
+  // RENDER (legacy path — v2 flag OFF)
   // ════════════════════════════════════════════════════════
   return (
     <>

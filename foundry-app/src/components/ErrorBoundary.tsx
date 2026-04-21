@@ -32,7 +32,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
           minHeight: '100vh',
           background: 'var(--bg-root)',
           color: 'var(--text-primary)',
-          fontFamily: "'Inter',system-ui,sans-serif",
+          fontFamily: tokens.fontFamily.body,
           maxWidth: 480,
           margin: '0 auto',
           padding: 24,
