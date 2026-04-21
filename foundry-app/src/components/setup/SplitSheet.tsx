@@ -52,7 +52,7 @@ const SPLITS: SplitDef[] = [
   {
     key: 'traditional',
     label: 'Traditional (Bro split)',
-    desc: 'One body part per day. Classic aesthetics-focused split.',
+    desc: 'Body-part split: Arms / Shoulders / Back / Chest / Legs. Classic aesthetics-focused programming.',
     validDays: [4, 5],
   },
   {

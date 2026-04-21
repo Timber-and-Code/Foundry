@@ -31,32 +31,46 @@ const mkEx = (overrides: Record<string, unknown>) => ({
 
 // Minimal exercise DB covering all three tags, multiple patterns, and enough
 // variety that buildDay can pick unique anchors for up to 6 days.
+// Each exercise sets `muscle` explicitly — the traditional split filters by
+// `muscle` not `tag`, so falling back to the mkEx default ('Chest') would
+// mis-bucket everything.
 const EXERCISE_DB = [
-  // PUSH
-  mkEx({ id: 'bench', name: 'Bench Press', tag: 'PUSH', muscles: ['Chest', 'Shoulders', 'Triceps'] }),
-  mkEx({ id: 'ohp', name: 'OHP', tag: 'PUSH', muscles: ['Shoulders', 'Triceps'] }),
-  mkEx({ id: 'incline', name: 'Incline Press', tag: 'PUSH', muscles: ['Chest', 'Shoulders'], equipment: 'dumbbell' }),
-  mkEx({ id: 'dip', name: 'Dip', tag: 'PUSH', muscles: ['Chest', 'Triceps'], equipment: 'bodyweight' }),
-  mkEx({ id: 'tricep', name: 'Tricep Pushdown', tag: 'PUSH', anchor: false, muscles: ['Triceps'], equipment: 'cable', pattern: 'isolation' }),
-  mkEx({ id: 'lat_raise', name: 'Lat Raise', tag: 'PUSH', anchor: false, muscles: ['Shoulders'], equipment: 'dumbbell', pattern: 'isolation' }),
-  mkEx({ id: 'fly', name: 'Cable Fly', tag: 'PUSH', anchor: false, muscles: ['Chest'], equipment: 'cable', pattern: 'isolation' }),
-  // PULL
-  mkEx({ id: 'row', name: 'Barbell Row', tag: 'PULL', muscles: ['Lats', 'Back', 'Biceps'], pattern: 'pull' }),
-  mkEx({ id: 'pullup', name: 'Pull-up', tag: 'PULL', muscles: ['Lats', 'Back'], equipment: 'bodyweight', pattern: 'pull' }),
-  mkEx({ id: 'cable_row', name: 'Cable Row', tag: 'PULL', muscles: ['Lats', 'Back'], equipment: 'cable', pattern: 'pull' }),
-  mkEx({ id: 'rdl', name: 'RDL', tag: 'PULL', muscles: ['Hamstrings', 'Glutes'], pattern: 'hinge' }),
-  mkEx({ id: 'curl', name: 'Bicep Curl', tag: 'PULL', anchor: false, muscles: ['Biceps'], equipment: 'dumbbell', pattern: 'isolation' }),
-  mkEx({ id: 'face', name: 'Face Pull', tag: 'PULL', anchor: false, muscles: ['Shoulders'], equipment: 'cable', pattern: 'isolation' }),
-  mkEx({ id: 'shrug', name: 'Shrug', tag: 'PULL', anchor: false, muscles: ['Upper Traps'], equipment: 'dumbbell', pattern: 'isolation' }),
+  // PUSH — Chest
+  mkEx({ id: 'bench', name: 'Bench Press', tag: 'PUSH', muscle: 'Chest', muscles: ['Chest', 'Shoulders', 'Triceps'] }),
+  mkEx({ id: 'incline', name: 'Incline Press', tag: 'PUSH', muscle: 'Chest', muscles: ['Chest', 'Shoulders'], equipment: 'dumbbell' }),
+  mkEx({ id: 'dip', name: 'Dip', tag: 'PUSH', muscle: 'Chest', muscles: ['Chest', 'Triceps'], equipment: 'bodyweight' }),
+  mkEx({ id: 'fly', name: 'Cable Fly', tag: 'PUSH', anchor: false, muscle: 'Chest', muscles: ['Chest'], equipment: 'cable', pattern: 'isolation' }),
+  // PUSH — Shoulders
+  mkEx({ id: 'ohp', name: 'OHP', tag: 'PUSH', muscle: 'Shoulders', muscles: ['Shoulders', 'Triceps'], pattern: 'push' }),
+  mkEx({ id: 'db_ohp', name: 'DB OHP', tag: 'PUSH', muscle: 'Shoulders', muscles: ['Shoulders'], equipment: 'dumbbell', pattern: 'push' }),
+  mkEx({ id: 'lat_raise', name: 'Lat Raise', tag: 'PUSH', anchor: false, muscle: 'Shoulders', muscles: ['Shoulders'], equipment: 'dumbbell', pattern: 'isolation' }),
+  mkEx({ id: 'rear_delt_fly', name: 'Rear Delt Fly', tag: 'PULL', anchor: false, muscle: 'Shoulders', muscles: ['Shoulders'], equipment: 'dumbbell', pattern: 'isolation' }),
+  // PUSH — Triceps
+  mkEx({ id: 'cg_bench', name: 'Close Grip Bench', tag: 'PUSH', muscle: 'Triceps', muscles: ['Triceps', 'Chest'], equipment: 'barbell', pattern: 'push' }),
+  mkEx({ id: 'tricep', name: 'Tricep Pushdown', tag: 'PUSH', anchor: false, muscle: 'Triceps', muscles: ['Triceps'], equipment: 'cable', pattern: 'isolation' }),
+  mkEx({ id: 'skullcrusher', name: 'Skull Crushers', tag: 'PUSH', anchor: false, muscle: 'Triceps', muscles: ['Triceps'], equipment: 'barbell', pattern: 'isolation' }),
+  // PULL — Back / Lats
+  mkEx({ id: 'row', name: 'Barbell Row', tag: 'PULL', muscle: 'Back', muscles: ['Lats', 'Back', 'Biceps'], pattern: 'pull' }),
+  mkEx({ id: 'pullup', name: 'Pull-up', tag: 'PULL', muscle: 'Lats', muscles: ['Lats', 'Back'], equipment: 'bodyweight', pattern: 'pull' }),
+  mkEx({ id: 'cable_row', name: 'Cable Row', tag: 'PULL', muscle: 'Back', muscles: ['Lats', 'Back'], equipment: 'cable', pattern: 'pull' }),
+  mkEx({ id: 'lat_pulldown', name: 'Lat Pulldown', tag: 'PULL', muscle: 'Lats', muscles: ['Lats', 'Back'], equipment: 'cable', pattern: 'pull' }),
+  mkEx({ id: 'rdl', name: 'RDL', tag: 'PULL', muscle: 'Hamstrings', muscles: ['Hamstrings', 'Glutes'], pattern: 'hinge' }),
+  // PULL — Biceps
+  mkEx({ id: 'curl', name: 'Bicep Curl', tag: 'PULL', anchor: false, muscle: 'Biceps', muscles: ['Biceps'], equipment: 'dumbbell', pattern: 'isolation' }),
+  mkEx({ id: 'hammer_curl', name: 'Hammer Curl', tag: 'PULL', anchor: false, muscle: 'Biceps', muscles: ['Biceps'], equipment: 'dumbbell', pattern: 'isolation' }),
+  mkEx({ id: 'ez_curl', name: 'EZ Bar Curl', tag: 'PULL', anchor: false, muscle: 'Biceps', muscles: ['Biceps'], equipment: 'barbell', pattern: 'isolation' }),
+  // PULL — other
+  mkEx({ id: 'face', name: 'Face Pull', tag: 'PULL', anchor: false, muscle: 'Shoulders', muscles: ['Shoulders'], equipment: 'cable', pattern: 'isolation' }),
+  mkEx({ id: 'shrug', name: 'Shrug', tag: 'PULL', anchor: false, muscle: 'Traps', muscles: ['Upper Traps'], equipment: 'dumbbell', pattern: 'isolation' }),
   // LEGS
-  mkEx({ id: 'squat', name: 'Barbell Squat', tag: 'LEGS', muscles: ['Quads', 'Hamstrings', 'Glutes'], pattern: 'squat' }),
-  mkEx({ id: 'front_squat', name: 'Front Squat', tag: 'LEGS', muscles: ['Quads', 'Glutes'], pattern: 'squat' }),
-  mkEx({ id: 'deadlift', name: 'Deadlift', tag: 'LEGS', muscles: ['Hamstrings', 'Glutes', 'Back'], pattern: 'hinge' }),
-  mkEx({ id: 'good_morning', name: 'Good Morning', tag: 'LEGS', muscles: ['Hamstrings', 'Glutes'], pattern: 'hinge' }),
-  mkEx({ id: 'leg_press', name: 'Leg Press', tag: 'LEGS', anchor: false, muscles: ['Quads', 'Hamstrings'], equipment: 'machine', pattern: 'push' }),
-  mkEx({ id: 'leg_curl', name: 'Leg Curl', tag: 'LEGS', anchor: false, muscles: ['Hamstrings'], equipment: 'machine', pattern: 'isolation' }),
-  mkEx({ id: 'calf', name: 'Calf Raise', tag: 'LEGS', anchor: false, muscles: ['Gastrocnemius'], equipment: 'machine', pattern: 'isolation' }),
-  mkEx({ id: 'lunge', name: 'Lunge', tag: 'LEGS', anchor: false, muscles: ['Quads', 'Glutes'], equipment: 'dumbbell', pattern: 'squat' }),
+  mkEx({ id: 'squat', name: 'Barbell Squat', tag: 'LEGS', muscle: 'Quads', muscles: ['Quads', 'Hamstrings', 'Glutes'], pattern: 'squat' }),
+  mkEx({ id: 'front_squat', name: 'Front Squat', tag: 'LEGS', muscle: 'Quads', muscles: ['Quads', 'Glutes'], pattern: 'squat' }),
+  mkEx({ id: 'deadlift', name: 'Deadlift', tag: 'LEGS', muscle: 'Hamstrings', muscles: ['Hamstrings', 'Glutes', 'Back'], pattern: 'hinge' }),
+  mkEx({ id: 'good_morning', name: 'Good Morning', tag: 'LEGS', muscle: 'Hamstrings', muscles: ['Hamstrings', 'Glutes'], pattern: 'hinge' }),
+  mkEx({ id: 'leg_press', name: 'Leg Press', tag: 'LEGS', anchor: false, muscle: 'Quads', muscles: ['Quads', 'Hamstrings'], equipment: 'machine', pattern: 'push' }),
+  mkEx({ id: 'leg_curl', name: 'Leg Curl', tag: 'LEGS', anchor: false, muscle: 'Hamstrings', muscles: ['Hamstrings'], equipment: 'machine', pattern: 'isolation' }),
+  mkEx({ id: 'calf', name: 'Calf Raise', tag: 'LEGS', anchor: false, muscle: 'Calves', muscles: ['Gastrocnemius'], equipment: 'machine', pattern: 'isolation' }),
+  mkEx({ id: 'lunge', name: 'Lunge', tag: 'LEGS', anchor: false, muscle: 'Quads', muscles: ['Quads', 'Glutes'], equipment: 'dumbbell', pattern: 'squat' }),
 ];
 
 const BASE_PROFILE = {
@@ -66,9 +80,9 @@ const BASE_PROFILE = {
   goal: 'build_muscle',
 };
 
-type Split = 'ppl' | 'upper_lower' | 'push_pull' | 'full_body';
+type Split = 'ppl' | 'upper_lower' | 'push_pull' | 'full_body' | 'traditional';
 
-// Mirrors SplitSheet.tsx validDays, minus custom/traditional.
+// Mirrors SplitSheet.tsx validDays, minus custom.
 const COMBOS: { splitType: Split; days: number; validTags: string[] }[] = [
   // PPL
   { splitType: 'ppl', days: 3, validTags: ['PUSH', 'PULL', 'LEGS'] },
@@ -91,6 +105,9 @@ const COMBOS: { splitType: Split; days: number; validTags: string[] }[] = [
   { splitType: 'full_body', days: 3, validTags: ['FULL'] },
   { splitType: 'full_body', days: 4, validTags: ['FULL'] },
   { splitType: 'full_body', days: 5, validTags: ['FULL'] },
+  // Traditional (Bro split)
+  { splitType: 'traditional', days: 4, validTags: ['PUSH', 'PULL', 'LEGS'] },
+  { splitType: 'traditional', days: 5, validTags: ['PUSH', 'PULL', 'LEGS', 'ARMS'] },
 ];
 
 describe('generateProgram — split tag coverage for every valid (splitType, daysPerWeek)', () => {
@@ -171,5 +188,80 @@ describe('generateProgram — push_pull alternation', () => {
       EXERCISE_DB as any
     );
     expect(days.map((d) => d.tag)).toEqual(['PUSH', 'PULL', 'PUSH', 'PULL', 'PUSH']);
+  });
+});
+
+describe('generateProgram — traditional (bro split) body-part days', () => {
+  it('traditional × 5 → Arms · Shoulders · Back · Chest · Legs', () => {
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'traditional', daysPerWeek: 5 },
+      EXERCISE_DB as any
+    );
+    expect(days.length).toBe(5);
+    expect(days.map((d) => d.label)).toEqual([
+      'Arms',
+      'Shoulders',
+      'Back',
+      'Chest',
+      'Legs',
+    ]);
+    expect(days.map((d) => d.tag)).toEqual(['ARMS', 'PUSH', 'PULL', 'PUSH', 'LEGS']);
+  });
+
+  it('traditional × 5 → each day filters by its body-part muscle', () => {
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'traditional', daysPerWeek: 5 },
+      EXERCISE_DB as any
+    );
+    const [armsDay, shouldersDay, backDay, chestDay, legsDay] = days;
+
+    // Arms day — every exercise is Biceps or Triceps primary
+    for (const ex of armsDay.exercises) {
+      expect(['Biceps', 'Triceps']).toContain((ex as any).muscle);
+    }
+    // Shoulders day — every exercise is Shoulders primary
+    for (const ex of shouldersDay.exercises) {
+      expect((ex as any).muscle).toBe('Shoulders');
+    }
+    // Back day — Back or Lats primary
+    for (const ex of backDay.exercises) {
+      expect(['Back', 'Lats']).toContain((ex as any).muscle);
+    }
+    // Chest day — Chest primary
+    for (const ex of chestDay.exercises) {
+      expect((ex as any).muscle).toBe('Chest');
+    }
+    // Legs day — reuses LEGS tag pool (Quads/Hamstrings/Glutes/Calves)
+    for (const ex of legsDay.exercises) {
+      expect(['Quads', 'Hamstrings', 'Glutes', 'Calves']).toContain(
+        (ex as any).muscle
+      );
+    }
+  });
+
+  it('traditional × 4 → Chest · Back · Legs · Shoulders + Arms', () => {
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'traditional', daysPerWeek: 4 },
+      EXERCISE_DB as any
+    );
+    expect(days.length).toBe(4);
+    expect(days.map((d) => d.label)).toEqual([
+      'Chest',
+      'Back',
+      'Legs',
+      'Shoulders + Arms',
+    ]);
+    expect(days.map((d) => d.tag)).toEqual(['PUSH', 'PULL', 'LEGS', 'PUSH']);
+  });
+
+  it('traditional × 4 → Shoulders+Arms day pulls from all three muscles', () => {
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'traditional', daysPerWeek: 4 },
+      EXERCISE_DB as any
+    );
+    const shoulArmsDay = days[3];
+    for (const ex of shoulArmsDay.exercises) {
+      expect(['Shoulders', 'Biceps', 'Triceps']).toContain((ex as any).muscle);
+    }
   });
 });
