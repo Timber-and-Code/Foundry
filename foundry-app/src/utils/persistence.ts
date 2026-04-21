@@ -14,7 +14,8 @@ import type { DayData, TrainingDay, Profile, CardioSession } from '../types';
 // ActiveSessionBar surface.
 export type ActiveSession =
   | { kind: 'lifting'; label: string; route: string; startedAt: number; setsDone: number; totalSets: number }
-  | { kind: 'cardio'; label: string; route: string; startedAt: number; durationMin: number };
+  | { kind: 'cardio'; label: string; route: string; startedAt: number; durationMin: number }
+  | { kind: 'mobility'; label: string; route: string; startedAt: number; durationMin?: number };
 
 const ACTIVE_SESSION_KEY = 'foundry:active_session';
 const STALE_MS = 6 * 60 * 60 * 1000; // 6h
@@ -25,7 +26,7 @@ export function loadActiveSession(): ActiveSession | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ActiveSession;
     if (!parsed || typeof parsed !== 'object') return null;
-    if (parsed.kind !== 'lifting' && parsed.kind !== 'cardio') return null;
+    if (parsed.kind !== 'lifting' && parsed.kind !== 'cardio' && parsed.kind !== 'mobility') return null;
     if (typeof parsed.startedAt !== 'number') return null;
     // Stale-session guard — drop anything older than 6h rather than showing
     // a zombie bar from a prior day.

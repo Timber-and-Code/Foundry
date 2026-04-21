@@ -140,6 +140,35 @@ describe('ActiveSessionContext', () => {
     await cleanup();
   });
 
+  it('hydrates a fresh mobility session from localStorage on mount', async () => {
+    const fresh: ActiveSession = {
+      kind: 'mobility',
+      label: 'Hip Reset',
+      route: '/mobility/2026-04-21',
+      startedAt: Date.now() - 2 * 60 * 1000,
+      durationMin: 10,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    const { cleanup } = await mountProvider();
+    expect(capturedCtx!.session).toEqual(fresh);
+    await cleanup();
+  });
+
+  it('drops a stale (>6h old) mobility session on hydration', async () => {
+    const stale: ActiveSession = {
+      kind: 'mobility',
+      label: 'Hip Reset',
+      route: '/mobility/2026-04-21',
+      startedAt: Date.now() - 7 * 60 * 60 * 1000,
+      durationMin: 10,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stale));
+    const { cleanup } = await mountProvider();
+    expect(capturedCtx!.session).toBeNull();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    await cleanup();
+  });
+
   it('setActiveSession writes through to localStorage', async () => {
     const { cleanup } = await mountProvider();
     const next: ActiveSession = {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import { TAG_ACCENT } from '../../data/constants';
@@ -33,6 +33,30 @@ function PulseIcon({ size = 18, color }: { size?: number; color: string }) {
 }
 
 /**
+ * Generic stretch/yoga glyph — paired arcs suggesting a bend/extension. The
+ * app doesn't ship a dedicated mobility icon in /shared yet, so we match
+ * PulseIcon's stroke style rather than MobilityCard's emoji.
+ */
+function MobilityIcon({ size = 18, color }: { size?: number; color: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
+    >
+      <path d="M4 17c3-4 5-6 8-6s5 2 8 6" />
+      <path d="M4 7c3 4 5 6 8 6s5-2 8-6" />
+    </svg>
+  );
+}
+
+/**
  * Sticky banner announcing an in-flight workout or cardio session. Rendered
  * once at the top of the HomeView shell. Hides itself when:
  *   - there is no active session, or
@@ -58,23 +82,37 @@ function ActiveSessionBar() {
   if (!session) return null;
   if (location.pathname === session.route) return null;
 
-  const isLifting = session.kind === 'lifting';
-  const accent = isLifting ? TAG_ACCENT.PUSH : TAG_ACCENT.CARDIO;
   // Reference `tick` so the interval above re-renders this component every
   // second and the elapsed clock stays live.
   void tick;
   const elapsed = Date.now() - session.startedAt;
 
+  let accent: string;
   let label: string;
   let stat: string;
+  let icon: ReactNode;
+  let ariaPrefix: string;
   if (session.kind === 'lifting') {
+    accent = TAG_ACCENT.PUSH;
     label = session.label.toUpperCase();
     stat = `SET ${Math.min(session.setsDone + 1, session.totalSets)}/${session.totalSets} · ${formatElapsed(elapsed)}`;
-  } else {
+    icon = <HammerIcon size={18} />;
+    ariaPrefix = 'Workout';
+  } else if (session.kind === 'cardio') {
+    accent = TAG_ACCENT.CARDIO;
     const elapsedMin = Math.floor(elapsed / 60000);
     const elapsedSec = Math.floor((elapsed % 60000) / 1000);
     label = session.label.toUpperCase();
     stat = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')} / ${session.durationMin}:00`;
+    icon = <PulseIcon size={18} color={accent} />;
+    ariaPrefix = 'Cardio';
+  } else {
+    // mobility
+    accent = TAG_ACCENT.MOBILITY || TAG_ACCENT.CARDIO;
+    label = session.label.toUpperCase();
+    stat = `MOBILITY · ${formatElapsed(elapsed)}`;
+    icon = <MobilityIcon size={18} color={accent} />;
+    ariaPrefix = 'Mobility';
   }
 
   const showClose = elapsed > IDLE_CLOSE_MS;
@@ -85,7 +123,7 @@ function ActiveSessionBar() {
     <div
       role="status"
       aria-live="polite"
-      aria-label={`${isLifting ? 'Workout' : 'Cardio'} in progress — ${label}`}
+      aria-label={`${ariaPrefix} in progress — ${label}`}
       style={{
         position: 'sticky',
         top: 0,
@@ -113,7 +151,7 @@ function ActiveSessionBar() {
           textAlign: 'left',
         }}
       >
-        {isLifting ? <HammerIcon size={18} /> : <PulseIcon size={18} color={accent} />}
+        {icon}
         <span
           style={{
             fontSize: tokens.fontSize.sm,

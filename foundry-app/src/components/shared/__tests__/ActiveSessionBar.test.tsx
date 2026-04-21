@@ -101,6 +101,26 @@ describe('ActiveSessionBar', () => {
     expect(bar).toHaveTextContent(/\/ 30:00/);
   });
 
+  it('renders a mobility session with elapsed timer', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        kind: 'mobility',
+        label: 'Hip Reset',
+        route: '/mobility/2026-04-21',
+        startedAt: Date.now() - 12 * 60 * 1000 - 30 * 1000,
+        durationMin: 10,
+      }),
+    );
+    renderAt('/');
+    const bar = screen.getByRole('status');
+    expect(bar).toHaveTextContent(/HIP RESET/);
+    expect(bar).toHaveTextContent(/MOBILITY/);
+    // Elapsed should show 12:30 mm:ss
+    expect(bar).toHaveTextContent(/12:30/);
+    expect(bar.getAttribute('aria-label')).toMatch(/Mobility in progress/);
+  });
+
   it('hides when the current route matches the session route', () => {
     localStorage.setItem(
       STORAGE_KEY,
