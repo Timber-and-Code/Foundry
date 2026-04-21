@@ -278,44 +278,344 @@ export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
 
 // ─── MOBILITY PROTOCOLS ──────────────────────────────────────────────────────
 // Longer, structured mobility routines for deep work and injury prevention
+export type MobilityCategory = 'warmup' | 'recovery' | 'targeted';
+
 interface MobilityProtocolMove {
   name: string;
   reps: string;
   cue: string;
+  /** YouTube search URL. Matches exercise library pattern so results stay fresh. */
+  videoUrl?: string;
 }
 
 interface MobilityProtocol {
   id: string;
   name: string;
   duration: string;
+  /** Warmup = pre-training; Recovery = rest-day/post-training; Targeted = prehab/rehab. */
+  category: MobilityCategory;
+  /** One-line purpose shown on cards and protocol detail. */
+  description: string;
+  /** Optional — day tags this warmup pairs with (e.g. ['PUSH','UPPER']). */
+  dayTags?: string[];
   moves: MobilityProtocolMove[];
 }
 
+const YT = (q: string) =>
+  `https://www.youtube.com/results?search_query=${q.replace(/\s+/g, '+')}`;
+
 export const MOBILITY_PROTOCOLS: readonly MobilityProtocol[] = [
+  // ── WARMUP ─────────────────────────────────────────────────────────────────
+  {
+    id: 'daily_warmup',
+    name: 'Daily Mobility',
+    duration: '3 min',
+    category: 'warmup',
+    description: 'Neutral, tag-agnostic mobility. Safe default before any session or on its own as a morning routine.',
+    moves: [
+      {
+        name: 'Cat-Cow',
+        reps: '10 slow reps',
+        cue: 'On hands and knees, alternate arching up (cat) and dropping belly down (cow). Breathe with each rep.',
+        videoUrl: YT('cat cow stretch form tutorial'),
+      },
+      {
+        name: '90/90 Hip Stretch',
+        reps: '30 sec / side',
+        cue: 'Sit with one leg bent in front (90°), one to side (90°). Fold forward gently. Deep hip opener.',
+        videoUrl: YT('90 90 hip stretch form tutorial'),
+      },
+      {
+        name: "Child's Pose",
+        reps: '45 sec',
+        cue: 'Knees wide, sink hips to heels, arms extended forward. Decompresses the lower back.',
+        videoUrl: YT('childs pose yoga form tutorial'),
+      },
+      {
+        name: 'Quadruped Rocks',
+        reps: '20 rocks',
+        cue: 'Hands and knees, rock hips back and forth over heels. Opens hip flexors, quiets the nervous system.',
+        videoUrl: YT('quadruped rocking mobility tutorial'),
+      },
+      {
+        name: 'Seated Spinal Twist',
+        reps: '30 sec / side',
+        cue: 'Sit tall, cross one leg over, hug top knee, twist gently. Decompresses the spine.',
+        videoUrl: YT('seated spinal twist form tutorial'),
+      },
+    ],
+  },
+  {
+    id: 'push_warmup',
+    name: 'Push Day Warmup',
+    duration: '3 min',
+    category: 'warmup',
+    description: 'Primes scapula, thoracic spine, and shoulders for bench and press days.',
+    dayTags: ['PUSH', 'UPPER'],
+    moves: [
+      {
+        name: 'Band Pull-Aparts',
+        reps: '15',
+        cue: 'Arms straight, pull band apart at chest height. Shoulder blades squeeze.',
+        videoUrl: YT('band pull apart form tutorial'),
+      },
+      {
+        name: 'Scapular Wall Slides',
+        reps: '10',
+        cue: 'Back flat to wall, slide arms up overhead without losing wall contact.',
+        videoUrl: YT('scapular wall slide form tutorial'),
+      },
+      {
+        name: 'Open Book (T-Spine Rotation)',
+        reps: '8 / side',
+        cue: 'Side-lying, top arm sweeps open to the floor. Eyes track the hand.',
+        videoUrl: YT('open book thoracic rotation tutorial'),
+      },
+      {
+        name: 'Shoulder Dislocations',
+        reps: '10',
+        cue: 'Wide grip on band or dowel, arms straight, rotate overhead and behind, return.',
+        videoUrl: YT('shoulder dislocations mobility tutorial'),
+      },
+      {
+        name: 'Push-Up to Downward Dog',
+        reps: '8',
+        cue: 'Full extension at top, drive hips back and up. Hamstring stretch at the bottom.',
+        videoUrl: YT('push up to downward dog tutorial'),
+      },
+    ],
+  },
+  {
+    id: 'pull_warmup',
+    name: 'Pull Day Warmup',
+    duration: '3 min',
+    category: 'warmup',
+    description: 'Wakes up lats, rhomboids, and rear delts for row and pull-up days.',
+    dayTags: ['PULL'],
+    moves: [
+      {
+        name: 'Dead Hangs',
+        reps: '30 sec',
+        cue: 'Full hang from a bar. Shoulders active, not shrugged. Breathe.',
+        videoUrl: YT('dead hang form tutorial'),
+      },
+      {
+        name: 'Scapular Pulls',
+        reps: '10',
+        cue: 'Hanging from a bar, pull shoulder blades down and together. No elbow bend.',
+        videoUrl: YT('scapular pull hang tutorial'),
+      },
+      {
+        name: 'Cat-Cow',
+        reps: '10 slow',
+        cue: 'Flow through full spine, sync with breath.',
+        videoUrl: YT('cat cow stretch form tutorial'),
+      },
+      {
+        name: 'Banded Face Pulls',
+        reps: '15',
+        cue: 'Pull band to forehead, elbows high and wide. Rear delts squeeze.',
+        videoUrl: YT('banded face pull form tutorial'),
+      },
+      {
+        name: 'Thoracic Extensions',
+        reps: '10',
+        cue: 'Hands behind head, arch upper back over a foam roller or bench edge.',
+        videoUrl: YT('thoracic extension foam roller tutorial'),
+      },
+    ],
+  },
+  {
+    id: 'legs_warmup',
+    name: 'Legs Day Warmup',
+    duration: '3 min',
+    category: 'warmup',
+    description: 'Hip, ankle, and knee prep for squat and hinge patterns.',
+    dayTags: ['LEGS', 'LOWER'],
+    moves: [
+      {
+        name: 'Hip Circles',
+        reps: '10 each direction / side',
+        cue: 'Standing, circle one knee wide then back. Big range of motion.',
+        videoUrl: YT('hip circle mobility tutorial'),
+      },
+      {
+        name: '90/90 Hip Switches',
+        reps: '10',
+        cue: 'Sit, flip legs from one 90/90 position to the other. Active hip mobility.',
+        videoUrl: YT('90 90 hip switch tutorial'),
+      },
+      {
+        name: 'Deep Bodyweight Squat Hold',
+        reps: '60 sec',
+        cue: 'Feet shoulder-width, drop as deep as possible, heels down, spine long.',
+        videoUrl: YT('deep squat hold mobility tutorial'),
+      },
+      {
+        name: 'Half-Kneeling Ankle Pulses',
+        reps: '15 / side',
+        cue: 'Drive front knee over toes and back. Heel stays down.',
+        videoUrl: YT('half kneeling ankle mobility tutorial'),
+      },
+      {
+        name: 'Glute Bridges',
+        reps: '15',
+        cue: 'Feet flat, drive hips up. Squeeze glutes hard at the top.',
+        videoUrl: YT('glute bridge form tutorial'),
+      },
+    ],
+  },
+
+  // ── RECOVERY ───────────────────────────────────────────────────────────────
+  {
+    id: 'post_training_downshift',
+    name: 'Post-Training Downshift',
+    duration: '8 min',
+    category: 'recovery',
+    description: 'Shift out of sympathetic drive. Parasympathetic activation via slow breathing + inversions.',
+    moves: [
+      {
+        name: 'Legs Up the Wall',
+        reps: '3 min',
+        cue: 'Hips near wall, legs vertical. Hands on belly. Slow nasal breaths.',
+        videoUrl: YT('legs up the wall pose tutorial'),
+      },
+      {
+        name: 'Box Breathing',
+        reps: '5 min',
+        cue: '4 in · 4 hold · 4 out · 4 hold. Eyes closed, count.',
+        videoUrl: YT('box breathing technique tutorial'),
+      },
+      {
+        name: 'Supine Spinal Twist',
+        reps: '60 sec / side',
+        cue: 'On back, drop knees to one side, arms wide. Look opposite direction.',
+        videoUrl: YT('supine spinal twist tutorial'),
+      },
+      {
+        name: 'Happy Baby',
+        reps: '45 sec',
+        cue: 'On back, knees to armpits, grab outside of feet. Rock gently side to side.',
+        videoUrl: YT('happy baby pose tutorial'),
+      },
+    ],
+  },
+  {
+    id: 'full_body_foam_roll',
+    name: 'Full-Body Foam Roll',
+    duration: '10 min',
+    category: 'recovery',
+    description: 'Myofascial release for DOMS reduction. 10–20 min post-training is the evidence-backed window.',
+    moves: [
+      {
+        name: 'Upper Back Roll',
+        reps: '90 sec',
+        cue: 'Roller across mid-back, arms crossed. Roll bra line to shoulder blades.',
+        videoUrl: YT('upper back foam roll tutorial'),
+      },
+      {
+        name: 'Lats Roll',
+        reps: '60 sec / side',
+        cue: 'Side-lying, arm overhead, roll from armpit to waist.',
+        videoUrl: YT('lat foam roll tutorial'),
+      },
+      {
+        name: 'Glutes Roll',
+        reps: '90 sec / side',
+        cue: 'Sit on roller, cross ankle over opposite knee, lean into target glute.',
+        videoUrl: YT('glute foam roll tutorial'),
+      },
+      {
+        name: 'Quads Roll',
+        reps: '60 sec / side',
+        cue: 'Prone on roller, roll from above the knee to the hip. Slow.',
+        videoUrl: YT('quad foam roll tutorial'),
+      },
+      {
+        name: 'IT Band / Lateral Thigh',
+        reps: '60 sec / side',
+        cue: 'Side-lying on roller, roll outer thigh. Breathe through discomfort.',
+        videoUrl: YT('it band foam roll tutorial'),
+      },
+      {
+        name: 'Calves Roll',
+        reps: '60 sec / side',
+        cue: 'Calf on roller, cross other leg on top for pressure. Ankle to below knee.',
+        videoUrl: YT('calf foam roll tutorial'),
+      },
+    ],
+  },
+  {
+    id: 'off_day_flow',
+    name: 'Off-Day Flow',
+    duration: '7 min',
+    category: 'recovery',
+    description: 'Light restorative movement on rest days. Maintains range of motion without loading.',
+    moves: [
+      {
+        name: 'Cat-Cow',
+        reps: '10 slow',
+        cue: 'Breathe with the movement.',
+        videoUrl: YT('cat cow stretch form tutorial'),
+      },
+      {
+        name: 'Thread the Needle',
+        reps: '45 sec / side',
+        cue: 'On all fours, slide one arm under the other. Shoulder and temple to the floor.',
+        videoUrl: YT('thread the needle stretch tutorial'),
+      },
+      {
+        name: "World's Greatest Stretch",
+        reps: '5 / side',
+        cue: 'Deep lunge, rotate torso up, touch the ground. Hits everything.',
+        videoUrl: YT('worlds greatest stretch tutorial'),
+      },
+      {
+        name: 'Seated Forward Fold',
+        reps: '60 sec',
+        cue: "Sit tall, hinge at the hips. Don't round to reach further.",
+        videoUrl: YT('seated forward fold tutorial'),
+      },
+      {
+        name: 'Reclined Butterfly',
+        reps: '90 sec',
+        cue: 'Lie back, soles of feet together, knees fall wide. Passive hip opener.',
+        videoUrl: YT('reclined butterfly pose tutorial'),
+      },
+    ],
+  },
+
+  // ── TARGETED ───────────────────────────────────────────────────────────────
   {
     id: 'shoulder_rehab',
     name: 'Shoulder Rehab & Prevention',
     duration: '15 min',
+    category: 'targeted',
+    description: 'Prehab circuit for chronically cranky shoulders. Good every 2–3 days if you press heavy.',
     moves: [
       {
         name: 'Shoulder Dislocations',
         reps: '12 each direction',
         cue: 'Light band or dowel. Start narrow, move through full range.',
+        videoUrl: YT('shoulder dislocations mobility tutorial'),
       },
       {
         name: 'Wall Slides',
         reps: '15',
         cue: 'Back against wall, slide arms up and down, keeping contact.',
+        videoUrl: YT('wall slide shoulder tutorial'),
       },
       {
         name: 'YTWs',
         reps: '10 each position',
         cue: 'Prone, form Y, T, W shapes. Light weight or bodyweight.',
+        videoUrl: YT('YTW shoulder rehab tutorial'),
       },
       {
         name: 'Dead Hangs',
-        reps: '30 sec hold',
-        cue: 'Relax shoulders into stretch. 3 sets.',
+        reps: '30 sec hold × 3',
+        cue: 'Relax shoulders into the stretch. Active, not shrugged.',
+        videoUrl: YT('dead hang form tutorial'),
       },
     ],
   },
@@ -323,26 +623,32 @@ export const MOBILITY_PROTOCOLS: readonly MobilityProtocol[] = [
     id: 'hip_mobility',
     name: 'Deep Hip Opener',
     duration: '20 min',
+    category: 'targeted',
+    description: 'Long-hold positions for tight hips. Good for desk workers and heavy squatters.',
     moves: [
       {
         name: '90/90 Stretch',
         reps: '45 sec each side',
         cue: 'One leg forward, one to side, fold gently over front leg.',
+        videoUrl: YT('90 90 hip stretch form tutorial'),
       },
       {
         name: 'Pigeon Pose',
         reps: '60 sec each side',
-        cue: 'Quad stretched leg in back, hip-opener leg in front. Relax torso forward.',
+        cue: 'Back leg extended, front leg in front. Relax torso forward.',
+        videoUrl: YT('pigeon pose form tutorial'),
       },
       {
         name: "World's Greatest Stretch",
         reps: '5 each side',
         cue: 'Lunge, rotate, touch ground. Hits everything.',
+        videoUrl: YT('worlds greatest stretch tutorial'),
       },
       {
         name: 'Lizard Pose',
         reps: '45 sec each side',
         cue: 'Low lunge, forearms down. Feel the groin and hip flexor.',
+        videoUrl: YT('lizard pose yoga tutorial'),
       },
     ],
   },
@@ -350,26 +656,32 @@ export const MOBILITY_PROTOCOLS: readonly MobilityProtocol[] = [
     id: 'spine_decompression',
     name: 'Spine Decompression & Breathing',
     duration: '10 min',
+    category: 'targeted',
+    description: 'Unloads the spine after heavy deadlifts or long sitting days. Finishes with breath work.',
     moves: [
       {
         name: 'Dead Hangs',
         reps: '30 sec × 3',
         cue: 'Let gravity do the work. Relax.',
+        videoUrl: YT('dead hang form tutorial'),
       },
       {
         name: "Child's Pose",
         reps: '60 sec',
-        cue: 'Wide knees, sink hips, breathe into lower back.',
+        cue: 'Wide knees, sink hips, breathe into the lower back.',
+        videoUrl: YT('childs pose yoga form tutorial'),
       },
       {
         name: 'Sphinx Pose',
         reps: '30 sec × 2',
         cue: "Gentle backbend on forearms. Don't force extension.",
+        videoUrl: YT('sphinx pose form tutorial'),
       },
       {
         name: 'Box Breathing',
         reps: '5 min',
         cue: '4 count in, 4 hold, 4 out, 4 hold. Settle the nervous system.',
+        videoUrl: YT('box breathing technique tutorial'),
       },
     ],
   },
@@ -377,32 +689,44 @@ export const MOBILITY_PROTOCOLS: readonly MobilityProtocol[] = [
     id: 'full_body_flow',
     name: 'Full-Body Mobility Flow',
     duration: '25 min',
+    category: 'targeted',
+    description: 'Long flow hitting every major joint. Good once a week as a standalone mobility session.',
     moves: [
-      { name: 'Cat-Cow', reps: '10 slow', cue: 'Move with breath.' },
+      {
+        name: 'Cat-Cow',
+        reps: '10 slow',
+        cue: 'Move with breath.',
+        videoUrl: YT('cat cow stretch form tutorial'),
+      },
       {
         name: 'Inchworms',
         reps: '8',
         cue: 'Walk hands out to plank, walk feet to hands, stand.',
+        videoUrl: YT('inchworm exercise tutorial'),
       },
       {
         name: "World's Greatest Stretch",
         reps: '3 each side',
         cue: 'Lunge, rotate, reach. Covers everything.',
+        videoUrl: YT('worlds greatest stretch tutorial'),
       },
       {
         name: 'Downward Dog to Upward Dog',
         reps: '10',
         cue: 'Alternate between poses, breathe steadily.',
+        videoUrl: YT('down dog up dog flow tutorial'),
       },
       {
         name: 'Walking Lunges with Twist',
         reps: '10 each leg',
         cue: 'Step, rotate torso, feel the hip opening.',
+        videoUrl: YT('walking lunge with twist tutorial'),
       },
       {
         name: 'Spinal Twists',
         reps: '30 sec each side',
         cue: 'Lying on back, pull one knee across, let gravity twist.',
+        videoUrl: YT('supine spinal twist tutorial'),
       },
     ],
   },
