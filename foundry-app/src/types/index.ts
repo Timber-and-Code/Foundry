@@ -85,6 +85,7 @@ export interface Profile {
   workoutDaysHistory?: WorkoutDaysHistoryEntry[];
   birthdate?: string;
   cardioSchedule?: CardioScheduleSlot[];
+  mobilitySchedule?: MobilityScheduleSlot[];
   addedDayExercises?: Record<string, Exercise[]>;
   dayMuscleConfig?: Record<number, { primary: string[]; accessory: string[] }>;
   pplLegBalance?: boolean;
@@ -118,6 +119,19 @@ export interface CardioSession {
   protocolId?: string;
   startedAt?: number | string;
   data?: Record<string, unknown>;
+}
+
+// ─── MOBILITY ───────────────────────────────────────────────────────────────
+
+/**
+ * A scheduled mobility protocol for a specific day of the week. Mirrors the
+ * CardioScheduleSlot shape so sync / calendar rendering plumbing stays
+ * parallel. Local-only today (not synced to Supabase); follow the same
+ * pattern as cardioSchedule.
+ */
+export interface MobilityScheduleSlot {
+  dayOfWeek: number;
+  protocol: string;
 }
 
 // ─── MESO CONFIG ─────────────────────────────────────────────────────────────
