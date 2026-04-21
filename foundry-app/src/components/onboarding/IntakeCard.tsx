@@ -6,7 +6,12 @@ const MicroTour = React.lazy(() => import('./MicroTour'));
 
 type Experience = 'new' | 'intermediate' | 'advanced';
 type Gender = 'm' | 'f' | 'nb';
-type GoalKey = 'muscle_and_strength' | 'lose_fat' | 'improve_fitness' | 'sport_performance';
+type GoalKey =
+  | 'muscle_and_strength'
+  | 'pure_strength'
+  | 'lose_fat'
+  | 'improve_fitness'
+  | 'sport_performance';
 
 interface GoalPill {
   key: GoalKey;
@@ -14,6 +19,7 @@ interface GoalPill {
   sub: string;
   storageGoal: string;
   anchorStrengthBias: boolean;
+  pureStrength?: boolean;
 }
 
 const GOAL_PILLS: GoalPill[] = [
@@ -23,6 +29,14 @@ const GOAL_PILLS: GoalPill[] = [
     sub: 'Grow, and get stronger doing it.',
     storageGoal: 'build_muscle',
     anchorStrengthBias: true,
+  },
+  {
+    key: 'pure_strength',
+    label: 'Pure Strength',
+    sub: 'Get stronger on the big lifts.',
+    storageGoal: 'build_strength',
+    anchorStrengthBias: true,
+    pureStrength: true,
   },
   {
     key: 'lose_fat',
@@ -155,6 +169,14 @@ export default function IntakeCard({ onDone }: IntakeCardProps) {
       store.set('foundry:anchor_strength_bias', '1');
     } else {
       store.remove('foundry:anchor_strength_bias');
+    }
+    // Pure Strength is a stricter variant — program.ts reads profile.goal to
+    // branch, but we persist a flag too so the intake→setup bridge can surface
+    // the intent (e.g. UI copy, future analytics).
+    if (pill.pureStrength) {
+      store.set('foundry:pure_strength', '1');
+    } else {
+      store.remove('foundry:pure_strength');
     }
     onDone();
   };
