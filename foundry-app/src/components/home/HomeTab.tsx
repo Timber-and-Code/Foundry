@@ -637,15 +637,20 @@ function HomeTab({
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
               </svg>
-              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
-                BEFORE YOU TRAIN
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
+                  BEFORE YOU TRAIN
+                </span>
+                <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '0.02em', color: 'var(--text-primary)' }}>
+                  {pickWarmupForDay(showDay?.tag).name.toUpperCase()} · {pickWarmupForDay(showDay?.tag).duration.toUpperCase()}
+                </span>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               {showDay.tag && (
                 <span style={{
                   fontSize: 14, fontWeight: 700, color: showDayAccent,
@@ -665,9 +670,6 @@ function HomeTab({
             const warmupProtocol = pickWarmupForDay(showDay?.tag);
             return (
               <div style={{ padding: '12px 16px' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                  {warmupProtocol.name.toUpperCase()} · {warmupProtocol.duration.toUpperCase()}
-                </div>
                 {warmupProtocol.moves.map((move, i) => (
                   <div key={i} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', marginBottom: 5, border: '1px solid var(--border-subtle)' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 2 }}>
