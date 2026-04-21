@@ -8,15 +8,17 @@ import SamplePrograms from './SamplePrograms';
 import LearnSection from './LearnSection';
 import MobilityBrowser from './MobilityBrowser';
 import CardioBrowser from './CardioBrowser';
+import type { Profile } from '../../types';
 
 type Section = 'home' | 'library' | 'programs' | 'mobility' | 'cardio' | 'learn';
 
 interface ExplorePageProps {
-  profile: Record<string, unknown> | null;
+  profile: Profile | null;
   onStartProgram?: (program: Record<string, unknown>) => void;
+  onProfileUpdate?: (updates: Partial<Profile>) => void;
 }
 
-function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
+function ExplorePage({ profile, onStartProgram, onProfileUpdate }: ExplorePageProps) {
   const EXERCISE_DB = useExerciseDB();
   // Deep-link: when MesoCompleteSheet routes here via "Try a Foundry
   // program", it sets foundry:pending_samples. Open the programs
@@ -35,13 +37,20 @@ function ExplorePage({ profile, onStartProgram }: ExplorePageProps) {
   if (section === 'programs')
     return (
       <SamplePrograms
-        profile={profile}
+        profile={profile as unknown as Record<string, unknown> | null}
         onBack={() => setSection('home')}
         onStartProgram={onStartProgram}
       />
     );
   if (section === 'mobility') return <MobilityBrowser onBack={() => setSection('home')} />;
-  if (section === 'cardio') return <CardioBrowser onBack={() => setSection('home')} />;
+  if (section === 'cardio')
+    return (
+      <CardioBrowser
+        onBack={() => setSection('home')}
+        profile={profile}
+        onProfileUpdate={onProfileUpdate}
+      />
+    );
   if (section === 'learn') return <LearnSection onBack={() => setSection('home')} />;
 
   const tiles: {

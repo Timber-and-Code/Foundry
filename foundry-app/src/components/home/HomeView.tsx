@@ -45,7 +45,7 @@ interface HomeViewProps {
   profile: Profile;
   openWeekly: boolean;
   onOpenWeeklyHandled: () => void;
-  onProfileUpdate: (v: Profile) => void;
+  onProfileUpdate: (updates: Partial<Profile>) => void;
 }
 
 function HomeView({
@@ -794,11 +794,12 @@ function HomeView({
 
       {tab === 'explore' && (
         <ExplorePage
-          profile={profile as unknown as Record<string, unknown> | null}
+          profile={profile}
           onStartProgram={(newProfile) => {
             saveProfile(newProfile as unknown as Profile);
             window.location.reload();
           }}
+          onProfileUpdate={onProfileUpdate}
         />
       )}
 
