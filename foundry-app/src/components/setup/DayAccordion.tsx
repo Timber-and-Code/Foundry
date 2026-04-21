@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import HammerIcon from '../shared/HammerIcon';
-import SwapSheet from '../workout/SwapSheet';
+import SwapMenu from '../workout/SwapMenu';
 import { getExerciseDB, type ExerciseEntry } from '../../data/exerciseDB';
+import { buildSwapGroups } from '../../utils/swapGroups';
 import { useToast } from '../../contexts/ToastContext';
 import { store } from '../../utils/store';
 
@@ -58,30 +59,15 @@ export default function DayAccordion({
 
   /**
    * Exercises grouped by muscle, filtered by the day being swapped in.
-   * Computed when a swap is opened — SwapSheet wants Record<muscle, Exercise[]>.
+   * Computed when a swap is opened — SwapMenu wants Record<muscle, Exercise[]>.
    *
-   * EXERCISE_DB only uses tags PUSH / PULL / LEGS / CORE. Split-level day tags
-   * (UPPER / LOWER / FULL / CUSTOM) don't match anything directly, so map
-   * them to the real tag set — mirrors DayView's swapExGroups logic.
+   * Mapping lives in `utils/swapGroups.ts` so this stays in lock-step with
+   * DayView's swap path (EXERCISE_DB only uses PUSH / PULL / LEGS / CORE).
    */
   const swapGroups = useMemo<Record<string, ExerciseEntry[]>>(() => {
     if (!swapTarget) return {};
     const dayTag = days[swapTarget.dayIdx]?.tag || '';
-    let tagFilter: string[];
-    if (dayTag === 'PUSH') tagFilter = ['PUSH', 'LEGS'];
-    else if (dayTag === 'PULL') tagFilter = ['PULL', 'LEGS'];
-    else if (dayTag === 'LEGS') tagFilter = ['LEGS'];
-    else if (dayTag === 'UPPER') tagFilter = ['PUSH', 'PULL'];
-    else if (dayTag === 'LOWER') tagFilter = ['LEGS'];
-    else tagFilter = ['PUSH', 'PULL', 'LEGS', 'CORE'];
-    const pool = db.filter((e) => tagFilter.includes(e.tag || ''));
-    const groups: Record<string, ExerciseEntry[]> = {};
-    for (const ex of pool) {
-      const m = ex.muscle || 'other';
-      if (!groups[m]) groups[m] = [];
-      groups[m].push(ex);
-    }
-    return groups;
+    return buildSwapGroups(db, dayTag);
   }, [db, days, swapTarget]);
 
   const autoExpandMuscle = swapTarget
@@ -412,7 +398,7 @@ export default function DayAccordion({
         );
       })}
 
-      <SwapSheet
+      <SwapMenu
         open={swapTarget !== null}
         onClose={() => setSwapTarget(null)}
         replacingName={replacingName}

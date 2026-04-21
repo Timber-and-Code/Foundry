@@ -8,7 +8,7 @@ import {
   getWeekPhase,
 } from '../../data/constants';
 import { loadArchive } from '../../utils/archive';
-import { getExerciseDB, findExercise, type ExerciseEntry } from '../../data/exerciseDB';
+import { getExerciseDB, findExercise } from '../../data/exerciseDB';
 
 // UI
 
@@ -52,7 +52,8 @@ import CardioPromptModal from './CardioPromptModal';
 import UnfinishedPromptModal from './UnfinishedPromptModal';
 import NoteReviewSheet from './NoteReviewSheet';
 import ReadinessSheet from './ReadinessSheet';
-import SwapSheet from './SwapSheet';
+import SwapMenu from './SwapMenu';
+import { buildSwapGroups } from '../../utils/swapGroups';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
 interface DayViewProps {
@@ -445,25 +446,13 @@ function DayView({
   const [, setShowAddExercise] = useState(false);
 
   /* ── Swap: build exercise groups for picker ─────────────────────────────── */
-  const swapExGroups = useMemo(() => {
-    const tag = day?.tag || 'FULL';
-    let tagFilter: string[];
-    // Push/Pull split includes leg exercises (squats in push, hinges in pull),
-    // so the swap picker must show LEGS alongside PUSH/PULL.
-    if (tag === 'PUSH') tagFilter = ['PUSH', 'LEGS'];
-    else if (tag === 'PULL') tagFilter = ['PULL', 'LEGS'];
-    else if (tag === 'LEGS') tagFilter = ['LEGS'];
-    else if (tag === 'UPPER') tagFilter = ['PUSH', 'PULL'];
-    else if (tag === 'LOWER') tagFilter = ['LEGS'];
-    else tagFilter = ['PUSH', 'PULL', 'LEGS'];
-    const exs = getExerciseDB().filter((e: Exercise) => tagFilter.includes(e.tag || ''));
-    const groups: Record<string, ExerciseEntry[]> = {};
-    exs.forEach((e: ExerciseEntry) => {
-      if (!groups[e.muscle]) groups[e.muscle] = [];
-      groups[e.muscle].push(e);
-    });
-    return groups;
-  }, [day?.tag]);
+  // Day-tag → EXERCISE_DB tag-set mapping lives in swapGroups.ts so the
+  // setup builder (DayAccordion) and the workout view share one source of
+  // truth. See `foundry/beat2_preview_fixes.md` #2.
+  const swapExGroups = useMemo(
+    () => buildSwapGroups(getExerciseDB(), day?.tag),
+    [day?.tag],
+  );
 
   const swapMuscle = swapTarget !== null ? exercises[swapTarget.exIdx]?.muscle : undefined;
   const userEquipment = Array.isArray(profile?.equipment) ? profile.equipment : profile?.equipment ? [profile.equipment] : undefined;
@@ -1283,7 +1272,7 @@ function DayView({
         )}
 
         {/* ── Exercise Swap (pre-workout) ──────────────────────────── */}
-        <SwapSheet
+        <SwapMenu
           open={swapTarget !== null}
           onClose={() => setSwapTarget(null)}
           replacingName={swapTarget !== null ? exercises[swapTarget.exIdx]?.name || '' : ''}
@@ -1692,7 +1681,7 @@ function DayView({
       )}
 
       {/* ── Exercise Swap (in-workout) ──────────────────────────────── */}
-      <SwapSheet
+      <SwapMenu
         open={swapTarget !== null}
         onClose={() => setSwapTarget(null)}
         replacingName={swapTarget !== null ? exercises[swapTarget.exIdx]?.name || '' : ''}
@@ -1700,6 +1689,7 @@ function DayView({
         autoExpandMuscle={swapMuscle}
         userEquipment={userEquipment}
         onSelect={handleSwap}
+        onCustomExercise={handleCustomExercise}
         scopePending={swapPending ? { exerciseName: exercises[swapPending.exIdx]?.name || '' } : null}
         onScopeMeso={() => executeSwap('meso')}
         onScopeWeek={() => executeSwap('week')}

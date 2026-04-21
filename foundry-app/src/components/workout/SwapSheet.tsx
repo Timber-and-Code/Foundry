@@ -2,6 +2,11 @@ import React from 'react';
 import Sheet from '../ui/Sheet';
 import ExercisePicker from '../ui/ExercisePicker';
 import SwapScopeSelector from './SwapScopeSelector';
+
+/**
+ * @deprecated Use `SwapMenu` instead. Kept temporarily as a fallback
+ * while the new submenu soaks. Follow-up PR will remove this file.
+ */
 interface ExerciseItem {
   id: string;
   name: string;

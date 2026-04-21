@@ -1,7 +1,7 @@
 /**
  * Tests for DayAccordion — Beat 2 per-day exercise list editor.
  * Verifies expand/collapse, anchor toggle (2-max), remove, reorder,
- * and swap open. SwapSheet + ExercisePicker are mocked because their
+ * and swap open. SwapMenu + ExerciseBrowser are mocked because their
  * own tests cover the picker; here we only care about DayAccordion's
  * state transitions and the swap surface contract.
  */
@@ -17,8 +17,8 @@ vi.mock('../../../contexts/ToastContext', () => ({
   useToast: () => ({ showToast: showToastMock }),
 }));
 
-// Mock SwapSheet so we don't pull in ExercisePicker + Sheet primitives.
-vi.mock('../../workout/SwapSheet', () => ({
+// Mock SwapMenu so we don't pull in ExerciseBrowser + overlay primitives.
+vi.mock('../../workout/SwapMenu', () => ({
   default: ({ open, replacingName }: { open: boolean; replacingName: string }) =>
     open ? <div data-testid="swap-sheet-mock">Swap: {replacingName}</div> : null,
 }));
@@ -145,7 +145,7 @@ describe('DayAccordion', () => {
     expect(next[0].anchors).toEqual([1]);
   });
 
-  it('tapping swap opens the SwapSheet with the exercise name', () => {
+  it('tapping swap opens the SwapMenu with the exercise name', () => {
     render(<DayAccordion days={makeDays()} onDaysChange={() => {}} />);
     fireEvent.click(screen.getByLabelText(/swap flat barbell bench press/i));
     expect(screen.getByTestId('swap-sheet-mock')).toHaveTextContent(
