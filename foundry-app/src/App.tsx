@@ -226,6 +226,39 @@ function App() {
     return unsub;
   }, [navigate]);
 
+  // Listen for mobility open requests (e.g. post-workout cool-down prompt).
+  // Pre-selects the protocol by seeding the mobility session blob, then
+  // routes into MobilitySessionView which reads it via loadMobilitySession.
+  useEffect(() => {
+    const unsub = on('foundry:openMobility', (detail) => {
+      const { dateStr, protocolId } = detail;
+      if (!dateStr) return;
+      if (protocolId) {
+        // Mirror MobilityProtocolDetail "Start now": seed the session so the
+        // view lands directly in the first exercise instead of the picker.
+        try {
+          const raw = store.get(`foundry:mobility:session:${dateStr}`);
+          const prev = raw ? JSON.parse(raw) : null;
+          // Only pre-select if no completed session already exists. We don't
+          // want to clobber a finished protocol from earlier today.
+          if (!prev || !prev.completed) {
+            store.set(
+              `foundry:mobility:session:${dateStr}`,
+              JSON.stringify({ protocolId, completed: false, completedAt: null }),
+            );
+          }
+        } catch {
+          store.set(
+            `foundry:mobility:session:${dateStr}`,
+            JSON.stringify({ protocolId, completed: false, completedAt: null }),
+          );
+        }
+      }
+      navigate(`/mobility/${dateStr}`);
+    });
+    return unsub;
+  }, [navigate]);
+
   // Listen for "delete current meso" requests from SettingsView. The drawer
   // has already wiped the meso-specific localStorage keys; we clear the
   // in-memory profile/meso cache and flip showSetup=true so the early-return

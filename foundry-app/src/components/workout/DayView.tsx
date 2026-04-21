@@ -1717,6 +1717,27 @@ function DayView({
               onComplete && onComplete(pendingData);
             }
           }}
+          onStartCooldown={() => {
+            // Mirror the onOk completion side-effects (mark day done, drop
+            // the lifting session bar) but skip the cardio prompt and route
+            // straight into the post-training downshift mobility protocol.
+            setShowWorkoutModal(false);
+            const pendingData = pendingCompletionRef.current;
+            pendingCompletionRef.current = null;
+            clearActiveSessionBar();
+            if (pendingData) {
+              onComplete && onComplete(pendingData);
+            }
+            const d = new Date();
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            onBack();
+            // Defer the nav so onBack's route change commits first (mirrors
+            // the cardio-prompt pattern a few lines down).
+            setTimeout(
+              () => emit('foundry:openMobility', { dateStr, protocolId: 'post_training_downshift' }),
+              80,
+            );
+          }}
         />
       )}
 

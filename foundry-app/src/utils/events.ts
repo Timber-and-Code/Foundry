@@ -11,6 +11,7 @@ interface FoundryEventMap {
   'foundry:toast': { message: string; type: ToastType };
   'foundry:pull-complete': void;
   'foundry:openCardio': { dateStr: string; protocolId?: string };
+  'foundry:openMobility': { dateStr: string; protocolId?: string };
   'foundry:showPricing': void;
   'foundry:wants_auth': void;
   'foundry:welcomed': void;
