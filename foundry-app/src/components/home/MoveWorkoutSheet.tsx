@@ -59,26 +59,27 @@ function MoveWorkoutSheet({
   }, []);
   const todayStr = toDateStr(today);
 
-  const cells = useMemo(() => {
+  type DateCell = {
+    dateStr: string;
+    day: number;
+    dow: number;
+    label: string;
+    disabled: boolean;
+    disabledReason?: string;
+    isSource: boolean;
+    isToday: boolean;
+    hasConflict: boolean;
+  };
+
+  const cells = useMemo<(DateCell | null)[]>(() => {
     const source = new Date(sourceDateStr + 'T00:00:00');
-    const out: {
-      dateStr: string;
-      day: number;
-      dow: number;
-      label: string;
-      disabled: boolean;
-      disabledReason?: string;
-      isSource: boolean;
-      isToday: boolean;
-      hasConflict: boolean;
-    }[] = [];
+    const dateCells: DateCell[] = [];
     for (let offset = -7; offset <= 7; offset++) {
       const dt = new Date(source);
       dt.setDate(dt.getDate() + offset);
       const ds = toDateStr(dt);
       const isSource = ds === sourceDateStr;
       const isPast = ds < todayStr;
-      // Disallow if past OR the target already has a completed session.
       const occupant = sessionDateMap[ds];
       const occupantKeys = occupant == null ? [] : Array.isArray(occupant) ? occupant : [occupant];
       const occupantCompleted = occupantKeys.some((k) => completedDays.has(k));
@@ -97,7 +98,7 @@ function MoveWorkoutSheet({
         disabledReason = 'Completed';
       }
 
-      out.push({
+      dateCells.push({
         dateStr: ds,
         day: dt.getDate(),
         dow: dt.getDay(),
@@ -109,10 +110,15 @@ function MoveWorkoutSheet({
         hasConflict,
       });
     }
-    return out;
+    // Align cells to real DOW columns: pad leading blanks for the first row
+    // and trailing blanks for the last row so each date sits under the correct
+    // S / M / T / W / T / F / S header.
+    const leading: null[] = Array(dateCells[0].dow).fill(null);
+    const trailing: null[] = Array(6 - dateCells[dateCells.length - 1].dow).fill(null);
+    return [...leading, ...dateCells, ...trailing];
   }, [sourceDateStr, sessionKey, sessionDateMap, completedDays, todayStr]);
 
-  const selectedCell = selected ? cells.find((c) => c.dateStr === selected) : null;
+  const selectedCell = selected ? cells.find((c) => c !== null && c.dateStr === selected) : null;
   const selectedHasConflict = selectedCell?.hasConflict === true;
 
   const confirm = () => {
@@ -220,7 +226,10 @@ function MoveWorkoutSheet({
             gap: 4,
           }}
         >
-          {cells.map((c) => {
+          {cells.map((c, i) => {
+            if (c === null) {
+              return <div key={`blank-${i}`} aria-hidden="true" style={{ aspectRatio: '1' }} />;
+            }
             const isSelected = selected === c.dateStr;
             const bg = isSelected
               ? 'var(--accent)33'
