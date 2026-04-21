@@ -45,6 +45,7 @@ import type { Profile, TrainingDay } from './types';
 
 // Hooks
 import { useMesoState } from './hooks/useMesoState';
+import { useHealthSync } from './hooks/useHealthSync';
 
 const OnboardingFlow = React.lazy(() => import('./components/onboarding/OnboardingFlow'));
 const IntakeCard = React.lazy(() => import('./components/onboarding/IntakeCard'));
@@ -209,6 +210,9 @@ function App() {
     dismissRestTimer,
     timerDayRef,
   } = useRestTimer();
+
+  // ── Apple Health bodyweight sync (no-op off iOS native) ──
+  useHealthSync();
 
   // Listen for cardio open requests from DayView
   useEffect(() => {

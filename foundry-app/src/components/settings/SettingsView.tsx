@@ -9,6 +9,7 @@ import type { Profile, WorkoutSet, TrainingDay } from '../../types';
 
 const AccountSection = React.lazy(() => import('../auth/UserMenu'));
 const SaveProgressSheet = React.lazy(() => import('../auth/SaveProgressSheet'));
+const HealthSection = React.lazy(() => import('./HealthSection'));
 
 const FOUNDRY_AI_WORKER_URL = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 const FOUNDRY_APP_KEY = import.meta.env.VITE_FOUNDRY_APP_KEY;
@@ -580,6 +581,11 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             </span>
           </button>
           )}
+
+          {/* Apple Health */}
+          <Suspense fallback={null}>
+            <HealthSection />
+          </Suspense>
 
           {/* Support */}
           {divider}
