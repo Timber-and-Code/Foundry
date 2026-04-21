@@ -18,6 +18,7 @@ const {
   mockGetReadinessLabel,
   mockGetTimeGreeting,
   mockGetMeso,
+  mockComputeMobilityStreak,
 } = vi.hoisted(() => ({
   mockStoreGet: vi.fn(() => null),
   mockLoadCardioSession: vi.fn(() => null),
@@ -28,6 +29,7 @@ const {
   mockGetReadinessLabel: vi.fn(() => ({ label: 'Not Set', advice: '' })),
   mockGetTimeGreeting: vi.fn(() => 'Good morning'),
   mockGetMeso: vi.fn(() => ({ weeks: 6, days: ['Push', 'Pull', 'Legs'] })),
+  mockComputeMobilityStreak: vi.fn(() => 0),
 }));
 
 vi.mock('../../../utils/store', () => ({
@@ -40,14 +42,18 @@ vi.mock('../../../utils/store', () => ({
   getReadinessLabel: mockGetReadinessLabel,
   getTimeGreeting: mockGetTimeGreeting,
   getWeekSets: vi.fn((sets: number) => sets),
+  computeMobilityStreak: mockComputeMobilityStreak,
 }));
 
 vi.mock('../../../data/constants', () => ({
-  TAG_ACCENT: { PUSH: '#FF6B6B', PULL: '#4ECDC4', LEGS: '#FFD93D' },
+  TAG_ACCENT: { PUSH: '#FF6B6B', PULL: '#4ECDC4', LEGS: '#FFD93D', MOBILITY: '#D4983C' },
   getMeso: mockGetMeso,
   DAILY_MOBILITY: [],
   CARDIO_WORKOUTS: [],
   FOUNDRY_COOLDOWN: {},
+  MOBILITY_PROTOCOLS: [
+    { id: 'daily_warmup', name: 'Daily Mobility', duration: '3 min', category: 'warmup', description: '', moves: [] },
+  ],
 }));
 
 vi.mock('../../../data/exercises', () => ({
@@ -174,6 +180,7 @@ beforeEach(() => {
   mockBuildSessionDateMap.mockReturnValue({});
   mockGetMeso.mockReturnValue({ weeks: 6, days: ['Push', 'Pull', 'Legs'] });
   mockLoadCardioSession.mockReturnValue(null);
+  mockComputeMobilityStreak.mockReturnValue(0);
 });
 
 describe('HomeTab', () => {
@@ -270,5 +277,24 @@ describe('HomeTab', () => {
 
     expect(props.goBack).toHaveBeenCalled();
     expect(props.onSelectDayWeek).toHaveBeenCalledWith(0, 0);
+  });
+
+  it('hides the mobility streak pill when streak is 0', () => {
+    mockComputeMobilityStreak.mockReturnValue(0);
+    render(<HomeTab {...makeProps()} />);
+    expect(screen.queryByText(/MOBILITY STREAK/)).toBeNull();
+  });
+
+  it('renders "1 DAY" (singular) when mobility streak is 1', () => {
+    mockComputeMobilityStreak.mockReturnValue(1);
+    render(<HomeTab {...makeProps()} />);
+    expect(screen.getByText(/MOBILITY STREAK · 1 DAY$/)).toBeDefined();
+  });
+
+  it('renders "N DAYS" (plural) for streak > 1 with aria-label', () => {
+    mockComputeMobilityStreak.mockReturnValue(7);
+    render(<HomeTab {...makeProps()} />);
+    expect(screen.getByText(/MOBILITY STREAK · 7 DAYS/)).toBeDefined();
+    expect(screen.getByLabelText('Mobility streak 7 days')).toBeDefined();
   });
 });

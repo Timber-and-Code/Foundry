@@ -30,14 +30,18 @@ vi.mock('../../../utils/store', () => ({
   getTimeGreeting: mockGetTimeGreeting,
   getWeekSets: (sets: number) => sets,
   buildSessionDateMap: mockBuildSessionDateMap,
+  computeMobilityStreak: vi.fn(() => 0),
 }));
 
 vi.mock('../../../data/constants', () => ({
-  TAG_ACCENT: { PUSH: '#FF0', PULL: '#0FF', LEGS: '#F0F', CARDIO: '#AAA' },
+  TAG_ACCENT: { PUSH: '#FF0', PULL: '#0FF', LEGS: '#F0F', CARDIO: '#AAA', MOBILITY: '#D4983C' },
   getMeso: mockGetMeso,
   DAILY_MOBILITY: [],
   CARDIO_WORKOUTS: [],
   FOUNDRY_COOLDOWN: {},
+  MOBILITY_PROTOCOLS: [
+    { id: 'daily_warmup', name: 'Daily Mobility', duration: '3 min', category: 'warmup', description: '', moves: [] },
+  ],
 }));
 
 vi.mock('../../../data/exerciseDB', () => ({ findExercise: () => null }));

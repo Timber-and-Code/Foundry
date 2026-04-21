@@ -5,6 +5,7 @@ import {
   DAILY_MOBILITY,
   CARDIO_WORKOUTS,
   FOUNDRY_COOLDOWN,
+  MOBILITY_PROTOCOLS,
 } from '../../data/constants';
 import { tokens } from '../../styles/tokens';
 import { findExercise } from '../../data/exerciseDB';
@@ -14,11 +15,25 @@ import {
   getTimeGreeting,
   getWeekSets,
   buildSessionDateMap,
+  computeMobilityStreak,
 } from '../../utils/store';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
-import MobilityCard from './MobilityCard';
 import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
+
+// ── Warmup protocol picker ────────────────────────────────────────────────
+// Select the warmup protocol that matches today's day tag (PUSH/PULL/LEGS/
+// UPPER/LOWER). Falls back to `daily_warmup` when no tag-specific match.
+function pickWarmupForDay(dayTag?: string | null) {
+  const fallback = MOBILITY_PROTOCOLS.find((p) => p.id === 'daily_warmup')!;
+  if (!dayTag) return fallback;
+  const upper = dayTag.toUpperCase();
+  return (
+    MOBILITY_PROTOCOLS.find(
+      (p) => p.category === 'warmup' && p.dayTags?.includes(upper),
+    ) || fallback
+  );
+}
 
 // ── Section Divider ───────────────────────────────────────────────────────
 
@@ -374,7 +389,7 @@ function HomeTab({
   onSelectDayWeek,
   setShowSkipConfirm,
   onOpenCardio,
-  onOpenMobility,
+  onOpenMobility: _onOpenMobility,
   setShowPricing: _setShowPricing,
 }: HomeTabProps) {
   const todayCardioStr = (() => {
@@ -386,6 +401,8 @@ function HomeTab({
   const todayCardioSlot = cardioSchedule.find((s: CardioScheduleSlot) => s.dayOfWeek === todayDow) || null;
   const todayCardioSession = loadCardioSession(todayCardioStr);
   const CARDIO_COLOR = TAG_ACCENT['CARDIO'];
+  const MOBILITY_COLOR = TAG_ACCENT['MOBILITY'];
+  const mobilityStreak = computeMobilityStreak();
 
   const nextDayIdx = activeDays.findIndex((_, i) => !completedDays.has(`${i}:${activeWeek}`));
   const nextDay = nextDayIdx >= 0 ? activeDays[nextDayIdx] : null;
@@ -575,6 +592,33 @@ function HomeTab({
           </div>
         </div>
       </button>
+
+      {/* Mobility streak pill — subtle gold chip, hidden at 0 */}
+      {mobilityStreak > 0 && (
+        <div
+          role="status"
+          aria-label={`Mobility streak ${mobilityStreak} day${mobilityStreak === 1 ? '' : 's'}`}
+          style={{
+            alignSelf: 'flex-start',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            color: MOBILITY_COLOR,
+            background: `${MOBILITY_COLOR}18`,
+            border: `1px solid ${MOBILITY_COLOR}44`,
+            borderRadius: tokens.radius.pill,
+            padding: '4px 10px',
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={MOBILITY_COLOR} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+          </svg>
+          MOBILITY STREAK · {mobilityStreak} DAY{mobilityStreak === 1 ? '' : 'S'}
+        </div>
+      )}
 
       {/* Today Card — THE HERO */}
       {isRestState || isRestDay ? (
@@ -907,24 +951,27 @@ function HomeTab({
               </svg>
             </div>
           </button>
-          {showMorningMobility && (
-            <div style={{ padding: '12px 16px' }}>
-              <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                DAILY MOBILITY · {DAILY_MOBILITY.length} MOVES
-              </div>
-              {DAILY_MOBILITY.map((move, i) => (
-                <div key={i} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', marginBottom: 5, border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{move.name}</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
+          {showMorningMobility && (() => {
+            const warmupProtocol = pickWarmupForDay(showDay?.tag);
+            return (
+              <div style={{ padding: '12px 16px' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  {warmupProtocol.name.toUpperCase()} · {warmupProtocol.duration.toUpperCase()}
                 </div>
-              ))}
-            </div>
-          )}
+                {warmupProtocol.moves.map((move, i) => (
+                  <div key={i} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', marginBottom: 5, border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 2 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{move.name}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em', flexShrink: 0 }}>{move.reps}</div>
+                    </div>
+                    <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{move.cue}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
-
-      {/* Mobility soft CTA */}
-      <MobilityCard todayCardioStr={todayCardioStr} onOpenMobility={onOpenMobility} />
 
       <div style={{ height: 8 }} />
     </div>

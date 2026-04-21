@@ -36,6 +36,7 @@ export {
   getTimeGreeting,
   resolveAccountTier,
   isEduEmail,
+  computeMobilityStreak,
 } from './training';
 
 export * from './persistence';
