@@ -40,6 +40,7 @@ import {
 } from '../../utils/sync';
 import { useRestTimer } from '../../contexts/RestTimerContext';
 import { useToast } from '../../contexts/ToastContext';
+import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import { useWorkoutTimer, formatElapsed } from '../../hooks/useWorkoutTimer';
 import { useCompletionFlow } from '../../hooks/useCompletionFlow';
 
@@ -82,6 +83,10 @@ function DayView({
   const { restTimer, restTimerMinimized, setRestTimerMinimized, startRestTimer, dismissRestTimer } =
     useRestTimer();
   const { showToast } = useToast();
+  const {
+    setActiveSession: setActiveSessionBar,
+    clearActiveSession: clearActiveSessionBar,
+  } = useActiveSession();
   const notStartedWarnRef = React.useRef(0);
   const day = activeDays[dayIdx];
 
@@ -712,6 +717,46 @@ function DayView({
               queueMicrotask(() => emit('foundry:second-exercise-complete'));
             }
           }
+
+        }
+
+        // ActiveSessionBar — first confirmed set plants the persistent
+        // session; every subsequent confirm/uncheck keeps setsDone in sync
+        // so the bar's SET X/Y counter tracks reality. Session survives
+        // route changes via localStorage. We fire on any confirmed toggle
+        // (true OR false) so un-checking the only confirmed set still
+        // decrements the displayed count.
+        if (field === 'confirmed') {
+          const mergedWeek = next as Record<
+            string | number,
+            Record<string, { confirmed?: boolean; warmup?: boolean }>
+          >;
+          let setsDoneCount = 0;
+          let totalWorkSetsCount = 0;
+          exercises.forEach((ex: Exercise, i: number) => {
+            const workSets = Number(ex?.sets ?? 0);
+            if (workSets <= 0) return;
+            totalWorkSetsCount += workSets;
+            const exData = (mergedWeek[i] || {}) as Record<
+              string,
+              { confirmed?: boolean; warmup?: boolean } | undefined
+            >;
+            for (const k of Object.keys(exData)) {
+              const s = exData[k];
+              if (s && s.confirmed && !s.warmup) setsDoneCount++;
+            }
+          });
+          queueMicrotask(() => {
+            const dayLabel = (day.label || day.tag || day.name || 'WORKOUT') as string;
+            setActiveSessionBar({
+              kind: 'lifting',
+              label: dayLabel,
+              route: `/day/${dayIdx}/${weekIdx}`,
+              startedAt: sessionStartRef.current || Date.now(),
+              setsDone: setsDoneCount,
+              totalSets: totalWorkSetsCount,
+            });
+          });
         }
 
         // Chunk 4a: sync this set to workout_sets (debounced per-set to
@@ -1674,6 +1719,9 @@ function DayView({
             const pendingData = pendingCompletionRef.current;
             pendingCompletionRef.current = null;
             setShowCardioPrompt(true);
+            // Workout fully done — drop the persistent session bar so the
+            // user doesn't keep seeing "SET N/N" on Home.
+            clearActiveSessionBar();
             // Fire onComplete with the saved completion data
             if (pendingData) {
               onComplete && onComplete(pendingData);

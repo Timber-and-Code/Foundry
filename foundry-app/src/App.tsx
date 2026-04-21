@@ -10,6 +10,7 @@ import {
 import { RestTimerProvider, useRestTimer } from './contexts/RestTimerContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { ActiveSessionProvider } from './contexts/ActiveSessionContext';
 import { PageSkeleton } from './components/ui/Skeleton';
 const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
 const WelcomeScreen = React.lazy(() => import('./components/onboarding/WelcomeScreen'));
@@ -730,7 +731,9 @@ export default function WrappedApp() {
         <ToastProvider>
           <AuthProvider>
             <RestTimerProvider>
-              <AuthGate />
+              <ActiveSessionProvider>
+                <AuthGate />
+              </ActiveSessionProvider>
             </RestTimerProvider>
           </AuthProvider>
         </ToastProvider>

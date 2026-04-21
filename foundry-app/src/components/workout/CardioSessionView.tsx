@@ -4,6 +4,7 @@ import { haptic } from '../../utils/helpers';
 import { TAG_ACCENT, CARDIO_WORKOUTS } from '../../data/constants';
 import CardioIntervalTimer from './CardioIntervalTimer';
 import { tokens } from '../../styles/tokens';
+import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import type { Profile } from '../../types';
 
 interface CardioWorkout {
@@ -37,6 +38,10 @@ interface CardioSessionViewProps {
 
 function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: CardioSessionViewProps) {
   const CARDIO_COLOR = TAG_ACCENT['CARDIO'];
+  const {
+    setActiveSession: setActiveSessionBar,
+    clearActiveSession: clearActiveSessionBar,
+  } = useActiveSession();
 
   // ── Derived helpers ─────────────────────────────────────────────────────────
   // todayStr helper — reserved for date comparison
@@ -132,6 +137,21 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     haptic('tap');
     save({ startedAt: now });
     setStarted(true);
+    // Plant the persistent session bar so the user still sees the timer
+    // ticking after navigating back to Home.
+    const proto = session.protocolId
+      ? CARDIO_WORKOUTS.find((w) => w.id === session.protocolId)
+      : null;
+    const label = proto?.label || session.type || 'CARDIO';
+    const durationMin =
+      parseInt(session.duration, 10) || proto?.defaultDuration || 30;
+    setActiveSessionBar({
+      kind: 'cardio',
+      label,
+      route: `/cardio/${dateStr}/${session.protocolId || 'none'}`,
+      startedAt: now,
+      durationMin,
+    });
   };
 
   // ── Timer complete ────────────────────────────────────────────────────────────
@@ -155,6 +175,8 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     }
     save(updates);
     setShowComplete(false);
+    // Cardio finished — drop the persistent session bar.
+    clearActiveSessionBar();
     // Navigate home automatically
     setTimeout(() => onBack(), 400);
   };
