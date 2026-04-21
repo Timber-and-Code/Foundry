@@ -1068,20 +1068,23 @@ interface CongratsEntry {
 
 export const CONGRATS: readonly CongratsEntry[] = [
   {
-    headline: 'SESSION LOGGED.',
-    sub: 'Work done. Rest, recover, come back stronger.',
+    headline: 'EARNED.',
+    sub: "The rep count doesn't care how you felt. You showed up.",
+  },
+  {
+    headline: "THAT'S THE WORK.",
+    sub: 'Progress is built in increments. This was one.',
+  },
+  { headline: 'RESPECT.', sub: 'You made a commitment and you kept it.' },
+  { headline: 'SHOWED UP.', sub: 'Not everyone did today. You did.' },
+  {
+    headline: 'CONSISTENT.',
+    sub: "Consistency over time. That's the whole system.",
   },
   {
     headline: 'STANDARD MET.',
     sub: 'Every session is a deposit. This one counts.',
   },
-  { headline: 'WORK COMPLETE.', sub: 'Not everyone showed up today. You did.' },
-  {
-    headline: 'SESSION RECORDED.',
-    sub: 'Progress is built in increments. This was one.',
-  },
-  { headline: 'DONE.', sub: "Consistency over time. That's the whole system." },
-  { headline: 'LOGGED.', sub: 'You made a commitment and you kept it.' },
   {
     headline: 'ANOTHER ONE IN.',
     sub: 'Strength is built in sessions exactly like this one.',
@@ -1089,6 +1092,14 @@ export const CONGRATS: readonly CongratsEntry[] = [
   {
     headline: 'WEEK ADVANCES.',
     sub: 'Rest well. The next session is already on the schedule.',
+  },
+  {
+    headline: 'GROUND GAINED.',
+    sub: 'Small increments compound. This is the math.',
+  },
+  {
+    headline: 'THE BAR MOVED.',
+    sub: 'Literally and figuratively. Put it away clean.',
   },
 ];
 

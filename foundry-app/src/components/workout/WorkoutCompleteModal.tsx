@@ -158,26 +158,13 @@ function WorkoutCompleteModal({
           </svg>
         </div>
 
-        {/* SESSION COMPLETE label */}
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: '0.16em',
-            color: phaseColor,
-            textTransform: 'uppercase',
-          }}
-        >
-          SESSION COMPLETE
-        </div>
-
-        {/* Day label */}
+        {/* Day · Week · Phase meta (phase-colored) */}
         <div
           style={{
             fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--text-muted)',
-            marginTop: -12,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            color: phaseColor,
           }}
         >
           {dayLabel} &middot; Week {weekIdx + 1} &middot; {phase}
