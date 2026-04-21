@@ -1068,7 +1068,7 @@ interface CongratsEntry {
 
 export const CONGRATS: readonly CongratsEntry[] = [
   {
-    headline: 'EARNED.',
+    headline: 'PAID IN.',
     sub: "The rep count doesn't care how you felt. You showed up.",
   },
   {
@@ -1078,7 +1078,7 @@ export const CONGRATS: readonly CongratsEntry[] = [
   { headline: 'RESPECT.', sub: 'You made a commitment and you kept it.' },
   { headline: 'SHOWED UP.', sub: 'Not everyone did today. You did.' },
   {
-    headline: 'CONSISTENT.',
+    headline: 'UNBROKEN.',
     sub: "Consistency over time. That's the whole system.",
   },
   {
@@ -1090,11 +1090,11 @@ export const CONGRATS: readonly CongratsEntry[] = [
     sub: 'Strength is built in sessions exactly like this one.',
   },
   {
-    headline: 'WEEK ADVANCES.',
+    headline: 'ONE STEP CLOSER.',
     sub: 'Rest well. The next session is already on the schedule.',
   },
   {
-    headline: 'GROUND GAINED.',
+    headline: 'BRICK BY BRICK.',
     sub: 'Small increments compound. This is the math.',
   },
   {
