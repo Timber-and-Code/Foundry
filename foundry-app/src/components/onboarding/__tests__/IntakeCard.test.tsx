@@ -118,6 +118,40 @@ describe('IntakeCard', () => {
     expect(mockStoreSet).toHaveBeenCalledWith('foundry:anchor_strength_bias', '1');
   });
 
+  it('renders Pure Strength pill with the new copy', () => {
+    render(<IntakeCard onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });
+    fireEvent.click(screen.getByRole('radio', { name: /^Male$/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /1–3 years/i }));
+    const pureStrengthBtn = screen.getByRole('button', { name: /pure strength/i });
+    expect(pureStrengthBtn).toBeInTheDocument();
+    expect(pureStrengthBtn).toHaveTextContent(/get stronger on the big lifts/i);
+  });
+
+  it('Pure Strength writes build_strength goal, bias flag, and pure_strength flag', () => {
+    render(<IntakeCard onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });
+    fireEvent.click(screen.getByRole('radio', { name: /^Male$/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /1–3 years/i }));
+    fireEvent.click(screen.getByRole('button', { name: /pure strength/i }));
+    fireEvent.click(screen.getByRole('button', { name: /build my program/i }));
+
+    expect(mockStoreSet).toHaveBeenCalledWith('foundry:onboarding_goal', 'build_strength');
+    expect(mockStoreSet).toHaveBeenCalledWith('foundry:anchor_strength_bias', '1');
+    expect(mockStoreSet).toHaveBeenCalledWith('foundry:pure_strength', '1');
+  });
+
+  it('non–Pure Strength goals clear the pure_strength flag', () => {
+    render(<IntakeCard onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });
+    fireEvent.click(screen.getByRole('radio', { name: /^Male$/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /1–3 years/i }));
+    fireEvent.click(screen.getByRole('button', { name: /lose fat/i }));
+    fireEvent.click(screen.getByRole('button', { name: /build my program/i }));
+
+    expect(mockStoreRemove).toHaveBeenCalledWith('foundry:pure_strength');
+  });
+
   it('maps sport performance to sport_conditioning', () => {
     render(<IntakeCard onDone={() => {}} />);
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Tim' } });

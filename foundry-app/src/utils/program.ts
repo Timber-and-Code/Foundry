@@ -68,8 +68,14 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
   // Goal-based rep range suggestions
   // Compounds: strength=4-6, hypertrophy=6-10, lose_fat=8-12, fitness=8-15
   // Isolations: strength=6-10, hypertrophy=10-15, lose_fat=12-18, fitness=12-20
+  //
+  // Pure Strength (profile.goal === 'build_strength') is the strictest tier —
+  // anchors drop to 3-6 and accessories shed one set (floor 2) to keep total
+  // volume sustainable under heavy loading. Matched to the IntakeCard
+  // "Pure Strength" pill; muscle+strength bias users stay on the standard
+  // hypertrophy ranges.
   const goalId = profile?.goal || '';
-  const isStrength = goalId === 'build_strength';
+  const isPureStrength = goalId === 'build_strength';
   const isLoseFat = goalId === 'lose_fat';
   const isFitness =
     goalId === 'general_fitness' ||
@@ -77,7 +83,7 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
     goalId === 'sport_conditioning';
   function goalReps(e: DbExercise): string {
     const isCompound = ['push', 'pull', 'squat', 'hinge'].includes(e.pattern ?? '');
-    if (isStrength) return isCompound ? '4-6' : '6-10';
+    if (isPureStrength) return isCompound ? '4-6' : '6-10';
     if (isLoseFat) return isCompound ? '8-12' : '12-18';
     if (isFitness) return isCompound ? '8-15' : '12-20';
     // build_muscle — pure hypertrophy ranges
@@ -90,6 +96,16 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
         ? '2 ramp sets — time is tight, be thorough'
         : e.warmup
       : e.warmup || '1 feeler set';
+    // Base set count — short sessions compress to 4-5 sets across the board so
+    // the session still produces enough stimulus; longer sessions respect the
+    // DB's per-exercise set suggestion.
+    const baseSets = exCount <= 3 ? 5 : exCount <= 4 ? 4 : (e.sets || 3);
+    // Pure Strength tweak — keep anchors at full sets (the heavy work), trim
+    // accessory volume by one set (floor 2) so total volume stays sane.
+    const sets = isPureStrength && !isAnchor ? Math.max(2, baseSets - 1) : baseSets;
+    // Pure Strength anchors: stricter 3-6 range. Accessories still follow the
+    // usual goalReps mapping so you keep a hypertrophy backstop.
+    const reps = isPureStrength && isAnchor ? '3-6' : goalReps(e);
     return {
       id: e.id,
       name: e.name,
@@ -98,8 +114,8 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       equipment: e.equipment,
       tag: e.tag,
       anchor: !!isAnchor,
-      sets: exCount <= 3 ? 5 : exCount <= 4 ? 4 : (e.sets || 3),
-      reps: goalReps(e),
+      sets,
+      reps,
       rest: e.rest,
       warmup: wu,
       progression: e.pattern === 'isolation' ? 'reps' : 'weight',
