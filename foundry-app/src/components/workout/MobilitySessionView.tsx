@@ -3,6 +3,7 @@ import { loadMobilitySession, saveMobilitySession } from '../../utils/store';
 import { MOBILITY_PROTOCOLS } from '../../data/constants';
 import { haptic } from '../../utils/helpers';
 import { tokens } from '../../styles/tokens';
+import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import type { Profile } from '../../types';
 
 interface MobilityExercise {
@@ -36,6 +37,10 @@ interface MobilitySessionViewProps {
 
 function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySessionViewProps) {
   const MOBILITY_COLOR = tokens.colors.gold; // warm gold — forge palette
+  const {
+    setActiveSession: setActiveSessionBar,
+    clearActiveSession: clearActiveSessionBar,
+  } = useActiveSession();
 
   const displayDate = (() => {
     try {
@@ -144,6 +149,8 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
       const now = Date.now();
       save({ completed: true, completedAt: now });
       haptic('victory');
+      // Mobility done — drop the persistent session bar.
+      clearActiveSessionBar();
       setShowComplete(true);
       return;
     }
@@ -863,6 +870,15 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
             key={p.id}
             onClick={() => {
               save({ protocolId: p.id });
+              // Plant the persistent session bar so the user still sees the
+              // mobility session after navigating back to Home.
+              setActiveSessionBar({
+                kind: 'mobility',
+                label: p.name,
+                route: `/mobility/${dateStr}`,
+                startedAt: Date.now(),
+                durationMin: p.duration,
+              });
               goToExercise(0);
             }}
             style={{

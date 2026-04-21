@@ -21,6 +21,10 @@ export const TAG_ACCENT: Record<string, string> = {
   LOWER: '#D47830',
   FULL: '#E8651A',
   CARDIO: '#D4A03C',
+  // Mobility shares the warm-gold palette (tokens.colors.gold) used by
+  // MobilityCard + MobilitySessionView so the ActiveSessionBar matches the
+  // in-session chrome.
+  MOBILITY: '#D4983C',
 };
 
 // ─── VOLUME LANDMARKS ────────────────────────────────────────────────────────

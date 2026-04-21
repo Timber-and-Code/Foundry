@@ -14,6 +14,7 @@ import {
 import { haptic } from '../../utils/helpers';
 import { TAG_ACCENT, getMeso } from '../../data/constants';
 import { useWorkoutTimer, formatElapsed } from '../../hooks/useWorkoutTimer';
+import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import ExerciseCard from './ExerciseCard';
 import NoteReviewSheet from './NoteReviewSheet';
 import type { Profile, TrainingDay, Exercise } from '../../types';
@@ -288,6 +289,10 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     strengthEndKey: strengthKey,
     isDone: !!store.get(doneKey),
   });
+  const {
+    setActiveSession: setActiveSessionBar,
+    clearActiveSession: clearActiveSessionBar,
+  } = useActiveSession();
   const [showBwCheckin, setShowBwCheckin] = React.useState(false);
   const [bwCheckinInput, setBwCheckinInput] = React.useState(() => {
     const log = loadBwLog();
@@ -390,6 +395,43 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
         },
       };
       store.set(dataKey, JSON.stringify(next));
+
+      // ActiveSessionBar — mirror DayView's pattern: every confirmed toggle
+      // (true or false) re-plants the session with an accurate setsDone
+      // count so the bar's SET X/Y tracks reality even if the user unchecks.
+      if (field === 'confirmed') {
+        const mergedWeek = next as Record<
+          string | number,
+          Record<string, { confirmed?: boolean; warmup?: boolean }>
+        >;
+        let setsDoneCount = 0;
+        let totalWorkSetsCount = 0;
+        exercises.forEach((ex: Exercise, i: number) => {
+          const workSets = Number(ex?.sets ?? 0);
+          if (workSets <= 0) return;
+          totalWorkSetsCount += workSets;
+          const exData = (mergedWeek[i] || {}) as Record<
+            string,
+            { confirmed?: boolean; warmup?: boolean } | undefined
+          >;
+          for (const k of Object.keys(exData)) {
+            const s = exData[k];
+            if (s && s.confirmed && !s.warmup) setsDoneCount++;
+          }
+        });
+        const dayLabel = (day?.label || day?.tag || 'EXTRA SESSION') as string;
+        queueMicrotask(() => {
+          setActiveSessionBar({
+            kind: 'lifting',
+            label: dayLabel,
+            route: `/extra/${dateStr}`,
+            startedAt: sessionStartRef.current || Date.now(),
+            setsDone: setsDoneCount,
+            totalSets: totalWorkSetsCount,
+          });
+        });
+      }
+
       return next;
     });
     // Un-done the exercise if user edits it
@@ -1061,10 +1103,14 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
           })()}
           onDone={() => {
             setShowWorkoutModal(false);
+            // Extra session fully done — drop the persistent session bar so
+            // the user doesn't keep seeing "SET N/N" on Home.
+            clearActiveSessionBar();
             onBack();
           }}
           onClose={() => {
             setShowWorkoutModal(false);
+            clearActiveSessionBar();
             onBack();
           }}
         />
