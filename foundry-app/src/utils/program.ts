@@ -759,6 +759,186 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
     return days;
   }
 
+  // TRADITIONAL (Bro Split) — one body-part per day.
+  // 5-day: Arms · Shoulders · Back · Chest · Legs (classic bodybuilding order).
+  // 4-day: Chest · Back · Legs · Shoulders+Arms (combined — the most common
+  //   4-day bro variant; user didn't specify, chose the convention that keeps
+  //   legs isolated and pairs the two smaller muscle groups).
+  //
+  // Note: EXERCISE_DB's `tag` field is only PUSH/PULL/LEGS/CORE, so this split
+  // filters pools by `muscle` (the primary muscle group) instead. Day-level
+  // tags map each day back to an existing bucket (PUSH/PULL/LEGS) plus a new
+  // ARMS tag for arm-focused days — verified via grep that nothing currently
+  // consumes 'ARMS' as a day-level tag.
+  if (splitType === 'traditional') {
+    const chestPool = available.filter((e) => e.muscle === 'Chest');
+    const backPool = available.filter(
+      (e) => e.muscle === 'Back' || e.muscle === 'Lats'
+    );
+    const shouldersPool = available.filter((e) => e.muscle === 'Shoulders');
+    const armsPool = available.filter(
+      (e) => e.muscle === 'Biceps' || e.muscle === 'Triceps'
+    );
+    const legsPool = available.filter((e) => e.tag === 'LEGS');
+    const shouldersArmsPool = available.filter((e) =>
+      ['Shoulders', 'Biceps', 'Triceps'].includes(e.muscle)
+    );
+
+    const usedCA = new Set<string | number | undefined>();
+    const usedBA = new Set<string | number | undefined>();
+    const usedSA = new Set<string | number | undefined>();
+    const usedAA = new Set<string | number | undefined>();
+    const usedLA = new Set<string | number | undefined>();
+
+    if (numDays === 4) {
+      const chest = buildDay(
+        chestPool,
+        ['push'],
+        dayMusclePriority(0, ['Chest', 'Shoulders', 'Triceps']),
+        usedCA
+      );
+      const back = buildDay(
+        backPool,
+        ['pull'],
+        dayMusclePriority(1, ['Lats', 'Back', 'Biceps', 'Upper Traps']),
+        usedBA
+      );
+      const legs = buildDay(
+        legsPool,
+        ['squat'],
+        dayMusclePriority(2, ['Hamstrings', 'Quads', 'Glutes', 'Gastrocnemius']),
+        usedLA
+      );
+      const shoulArms = buildDay(
+        shouldersArmsPool,
+        ['push'],
+        dayMusclePriority(3, ['Shoulders', 'Biceps', 'Triceps']),
+        new Set<string | number | undefined>()
+      );
+
+      return [
+        makeDay(
+          1,
+          'Chest',
+          'PUSH',
+          'Chest',
+          dayNote('push', chest.anchor),
+          chest.anchor,
+          chest.accessories
+        ),
+        makeDay(
+          2,
+          'Back',
+          'PULL',
+          'Back · Lats',
+          dayNote('pull', back.anchor),
+          back.anchor,
+          back.accessories
+        ),
+        makeDay(
+          3,
+          'Legs',
+          'LEGS',
+          'Quads · Hamstrings · Glutes · Calves',
+          dayNote('legs', legs.anchor),
+          legs.anchor,
+          legs.accessories
+        ),
+        makeDay(
+          4,
+          'Shoulders + Arms',
+          'PUSH',
+          'Shoulders · Biceps · Triceps',
+          dayNote('push', shoulArms.anchor),
+          shoulArms.anchor,
+          shoulArms.accessories
+        ),
+      ];
+    }
+
+    // 5-day: Arms · Shoulders · Back · Chest · Legs
+    // Arms pool has no `anchor: true` exercises — buildDay falls back to the
+    // compound-pattern sort (close-grip bench, diamond push-up, etc.).
+    const arms = buildDay(
+      armsPool,
+      ['push'],
+      dayMusclePriority(0, ['Triceps', 'Biceps']),
+      usedAA
+    );
+    const shoulders = buildDay(
+      shouldersPool,
+      ['push'],
+      dayMusclePriority(1, ['Shoulders']),
+      usedSA
+    );
+    const back = buildDay(
+      backPool,
+      ['pull'],
+      dayMusclePriority(2, ['Lats', 'Back', 'Biceps', 'Upper Traps']),
+      usedBA
+    );
+    const chest = buildDay(
+      chestPool,
+      ['push'],
+      dayMusclePriority(3, ['Chest', 'Shoulders', 'Triceps']),
+      usedCA
+    );
+    const legs = buildDay(
+      legsPool,
+      ['squat'],
+      dayMusclePriority(4, ['Hamstrings', 'Quads', 'Glutes', 'Gastrocnemius']),
+      usedLA
+    );
+
+    return [
+      makeDay(
+        1,
+        'Arms',
+        'ARMS',
+        'Biceps · Triceps',
+        dayNote('push', arms.anchor),
+        arms.anchor,
+        arms.accessories
+      ),
+      makeDay(
+        2,
+        'Shoulders',
+        'PUSH',
+        'Shoulders',
+        dayNote('push', shoulders.anchor),
+        shoulders.anchor,
+        shoulders.accessories
+      ),
+      makeDay(
+        3,
+        'Back',
+        'PULL',
+        'Back · Lats',
+        dayNote('pull', back.anchor),
+        back.anchor,
+        back.accessories
+      ),
+      makeDay(
+        4,
+        'Chest',
+        'PUSH',
+        'Chest',
+        dayNote('push', chest.anchor),
+        chest.anchor,
+        chest.accessories
+      ),
+      makeDay(
+        5,
+        'Legs',
+        'LEGS',
+        'Quads · Hamstrings · Glutes · Calves',
+        dayNote('legs', legs.anchor),
+        legs.anchor,
+        legs.accessories
+      ),
+    ];
+  }
+
   // Fallback
   return generateProgram(
     { ...profile, splitType: 'ppl', daysPerWeek: 3, workoutDays: [1, 3, 5] },
