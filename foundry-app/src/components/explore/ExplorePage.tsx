@@ -42,7 +42,14 @@ function ExplorePage({ profile, onStartProgram, onProfileUpdate }: ExplorePagePr
         onStartProgram={onStartProgram}
       />
     );
-  if (section === 'mobility') return <MobilityBrowser onBack={() => setSection('home')} />;
+  if (section === 'mobility')
+    return (
+      <MobilityBrowser
+        onBack={() => setSection('home')}
+        profile={profile}
+        onProfileUpdate={onProfileUpdate}
+      />
+    );
   if (section === 'cardio')
     return (
       <CardioBrowser

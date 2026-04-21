@@ -1,15 +1,33 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tokens } from '../../styles/tokens';
 import { MOBILITY_PROTOCOLS } from '../../data/constants';
-import { saveMobilitySession } from '../../utils/store';
+import { saveMobilitySession, saveProfile } from '../../utils/store';
+import { useToast } from '../../contexts/ToastContext';
+import MobilityApplySheet, { applyMobilityScheduleUpdate } from './MobilityApplySheet';
+import type { MobilityScheduleSlot, Profile } from '../../types';
+
+const DOW_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 interface MobilityProtocolDetailProps {
   protocolId: string;
+  profile?: Profile | null;
+  onProfileUpdate?: (updates: Partial<Profile>) => void;
   onBack: () => void;
 }
 
-function MobilityProtocolDetail({ protocolId, onBack }: MobilityProtocolDetailProps) {
+function MobilityProtocolDetail({
+  protocolId,
+  profile,
+  onProfileUpdate,
+  onBack,
+}: MobilityProtocolDetailProps) {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [showSheet, setShowSheet] = useState(false);
+  // Local mirror for optimistic rendering if parent doesn't provide onProfileUpdate
+  const [localSchedule, setLocalSchedule] = useState<MobilityScheduleSlot[] | null>(null);
+
   const proto = MOBILITY_PROTOCOLS.find((p) => p.id === protocolId);
 
   if (!proto) {
@@ -23,6 +41,9 @@ function MobilityProtocolDetail({ protocolId, onBack }: MobilityProtocolDetailPr
     );
   }
 
+  const schedule = localSchedule ?? profile?.mobilitySchedule ?? [];
+  const scheduledDays = schedule.filter((s) => s.protocol === protocolId).map((s) => s.dayOfWeek);
+
   const handleStart = () => {
     const today = new Date().toISOString().slice(0, 10);
     saveMobilitySession(today, {
@@ -33,8 +54,28 @@ function MobilityProtocolDetail({ protocolId, onBack }: MobilityProtocolDetailPr
     navigate(`/mobility/${today}`);
   };
 
+  const handleApply = (nextSchedule: MobilityScheduleSlot[], addedCount: number) => {
+    if (!profile) return;
+    const updated = applyMobilityScheduleUpdate(profile, nextSchedule);
+    saveProfile(updated);
+    setLocalSchedule(nextSchedule);
+    if (onProfileUpdate) onProfileUpdate({ mobilitySchedule: nextSchedule });
+    setShowSheet(false);
+    const scheduledCount = nextSchedule.filter((s) => s.protocol === protocolId).length;
+    if (scheduledCount === 0) {
+      showToast(`Removed ${proto.name} from schedule`, 'info');
+    } else if (addedCount > 0) {
+      showToast(
+        `${proto.name} scheduled · ${scheduledCount} day${scheduledCount === 1 ? '' : 's'}/week`,
+        'success'
+      );
+    } else {
+      showToast('Schedule updated', 'info');
+    }
+  };
+
   return (
-    <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 120 }}>
+    <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 180 }}>
       <div
         style={{
           display: 'flex',
@@ -90,7 +131,7 @@ function MobilityProtocolDetail({ protocolId, onBack }: MobilityProtocolDetailPr
             marginBottom: 6,
           }}
         >
-          MOBILITY ROUTINE
+          {proto.category.toUpperCase()}
         </div>
         <div
           style={{
@@ -104,7 +145,7 @@ function MobilityProtocolDetail({ protocolId, onBack }: MobilityProtocolDetailPr
         >
           {proto.name}
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
           <span
             style={{
               fontSize: 12,
@@ -131,7 +172,69 @@ function MobilityProtocolDetail({ protocolId, onBack }: MobilityProtocolDetailPr
           >
             {proto.moves.length} MOVES
           </span>
+          {proto.dayTags?.map((t) => (
+            <span
+              key={t}
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+                color: 'var(--text-secondary)',
+                background: 'var(--bg-inset)',
+                padding: '4px 10px',
+                borderRadius: tokens.radius.sm,
+              }}
+            >
+              {t}
+            </span>
+          ))}
         </div>
+        <div
+          style={{
+            fontSize: 15,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.65,
+            marginBottom: 20,
+          }}
+        >
+          {proto.description}
+        </div>
+
+        {scheduledDays.length > 0 && (
+          <div
+            style={{
+              marginBottom: 20,
+              padding: '14px 16px',
+              background: 'rgba(var(--accent-rgb),0.07)',
+              border: '1px solid rgba(var(--accent-rgb),0.2)',
+              borderRadius: tokens.radius.lg,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                color: 'var(--accent)',
+                marginBottom: 6,
+              }}
+            >
+              SCHEDULED
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-primary)',
+                lineHeight: 1.6,
+              }}
+            >
+              {scheduledDays
+                .sort((a, b) => a - b)
+                .map((d) => DOW_FULL[d])
+                .join(', ')}
+            </div>
+          </div>
+        )}
 
         <div
           style={{
@@ -186,16 +289,44 @@ function MobilityProtocolDetail({ protocolId, onBack }: MobilityProtocolDetailPr
                   fontSize: 13,
                   color: 'var(--text-secondary)',
                   lineHeight: 1.6,
+                  marginBottom: move.videoUrl ? 10 : 0,
                 }}
               >
                 {move.cue}
               </div>
+              {move.videoUrl && (
+                <a
+                  href={move.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Watch ${move.name} technique on YouTube`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 10px',
+                    borderRadius: tokens.radius.sm,
+                    background: '#ff000018',
+                    border: '1px solid #ff000044',
+                    color: '#ff4444',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#ff4444" aria-hidden="true">
+                    <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.8 15.5V8.5l6.3 3.5-6.3 3.5z" />
+                  </svg>
+                  Video
+                </a>
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Sticky bottom CTA */}
+      {/* Sticky bottom CTAs — Start now + Add to schedule */}
       <div
         style={{
           position: 'fixed',
@@ -206,6 +337,9 @@ function MobilityProtocolDetail({ protocolId, onBack }: MobilityProtocolDetailPr
           background: 'var(--bg-deep)',
           borderTop: '1px solid var(--border)',
           zIndex: 20,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
         }}
       >
         <button
@@ -225,7 +359,35 @@ function MobilityProtocolDetail({ protocolId, onBack }: MobilityProtocolDetailPr
         >
           Start now
         </button>
+        <button
+          onClick={() => setShowSheet(true)}
+          disabled={!profile}
+          style={{
+            width: '100%',
+            padding: '12px',
+            borderRadius: tokens.radius.lg,
+            background: 'var(--bg-inset)',
+            border: `1px solid ${profile ? 'var(--accent)' : 'var(--border)'}`,
+            color: profile ? 'var(--accent)' : 'var(--text-muted)',
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: profile ? 'pointer' : 'not-allowed',
+            letterSpacing: '0.04em',
+          }}
+        >
+          {scheduledDays.length > 0 ? 'Edit schedule' : 'Add to schedule'}
+        </button>
       </div>
+
+      {showSheet && profile && (
+        <MobilityApplySheet
+          protocolId={proto.id}
+          protocolLabel={proto.name}
+          schedule={schedule}
+          onApply={handleApply}
+          onClose={() => setShowSheet(false)}
+        />
+      )}
     </div>
   );
 }
