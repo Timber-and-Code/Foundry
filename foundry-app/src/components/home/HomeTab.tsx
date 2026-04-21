@@ -910,7 +910,7 @@ function HomeTab({
           {showMorningMobility && (
             <div style={{ padding: '12px 16px' }}>
               <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                DAILY MOBILITY · 3 MOVES
+                DAILY MOBILITY · {DAILY_MOBILITY.length} MOVES
               </div>
               {DAILY_MOBILITY.map((move, i) => (
                 <div key={i} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', marginBottom: 5, border: '1px solid var(--border-subtle)' }}>
