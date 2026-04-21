@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import {
   randomCongrats,
@@ -10,6 +10,8 @@ import {
 } from '../../data/constants';
 import { store } from '../../utils/store';
 import FriendsStrip from '../social/FriendsStrip';
+import ShareCard from './ShareCard';
+import { shareWorkoutCard } from '../../utils/shareWorkout';
 
 // Local-time YYYY-MM-DD (not UTC) — matches the dateStr format used across
 // the codebase for per-day localStorage keys (mobility sessions, cardio
@@ -73,6 +75,36 @@ function WorkoutCompleteModal({
 
   const [congrats] = useState(() => randomCongrats());
   const [quote] = useState(() => randomQuote(gender));
+  const [sharing, setSharing] = useState(false);
+  const shareCardRef = useRef<HTMLDivElement>(null);
+
+  const handleShare = async () => {
+    const node = shareCardRef.current;
+    if (!node || sharing) return;
+    setSharing(true);
+    try {
+      const prLine =
+        stats.prs.length > 0
+          ? `🏆 NEW PR: ${stats.prs[0].name} ${stats.prs[0].newBest} lbs\n`
+          : '';
+      const text =
+        `${prLine}Crushed ${dayLabel} — Week ${weekIdx + 1} · ${phase}.\n` +
+        `${stats.sets} sets · ${stats.reps} reps · ${Math.round(stats.volume).toLocaleString()} lbs total.\n\n` +
+        `🔨 thefoundry.coach`;
+      const safeDay = dayLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      await shareWorkoutCard(node, {
+        title: `Crushed ${dayLabel}`,
+        text,
+        fileName: `foundry-${safeDay}-w${weekIdx + 1}.png`,
+      });
+    } catch (e) {
+      // Toast-style banner isn't wired in this modal; log for diagnostics.
+      // Sentry already captured it from inside shareWorkoutCard.
+      console.warn('[Foundry] Share failed', e);
+    } finally {
+      setSharing(false);
+    }
+  };
 
   // Cooldown moves from tag
   const tag = (dayTag || 'FULL').toUpperCase();
@@ -547,25 +579,127 @@ function WorkoutCompleteModal({
           </div>
         )}
 
-        {/* CTA Button */}
-        <button
-          onClick={onOk}
+        {/* CTA row — SHARE + NEXT SESSION side by side. Share button is
+            the accent color (warm orange) so it reads as a secondary action
+            calling attention without competing with the phase-colored primary. */}
+        <div
           style={{
             width: '100%',
-            padding: '18px',
-            borderRadius: tokens.radius.lg,
-            background: phaseColor,
-            border: 'none',
-            color: phaseColor === '#E8E4DC' || phaseColor === '#D4983C' ? '#0A0A0C' : '#E8E4DC',
-            fontSize: 15,
-            fontWeight: 800,
-            cursor: 'pointer',
-            letterSpacing: '0.04em',
+            display: 'flex',
+            gap: 10,
             marginTop: 4,
           }}
         >
-          NEXT SESSION →
-        </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            disabled={sharing}
+            aria-label="Share this workout"
+            data-testid="share-workout-button"
+            style={{
+              flex: '0 0 auto',
+              padding: '18px 20px',
+              borderRadius: tokens.radius.lg,
+              background: 'transparent',
+              border: `1.5px solid ${tokens.colors.accent}`,
+              color: tokens.colors.accent,
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: sharing ? 'default' : 'pointer',
+              letterSpacing: '0.08em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              opacity: sharing ? 0.6 : 1,
+            }}
+          >
+            {sharing ? (
+              <span
+                aria-hidden="true"
+                data-testid="share-spinner"
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: '50%',
+                  border: `2px solid ${tokens.colors.accent}`,
+                  borderTopColor: 'transparent',
+                  display: 'inline-block',
+                  animation: 'foundry-spin 0.8s linear infinite',
+                }}
+              />
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 3v12m0-12l-4 4m4-4l4 4M5 21h14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+            SHARE
+          </button>
+          <button
+            onClick={onOk}
+            style={{
+              flex: 1,
+              padding: '18px',
+              borderRadius: tokens.radius.lg,
+              background: phaseColor,
+              border: 'none',
+              color: phaseColor === '#E8E4DC' || phaseColor === '#D4983C' ? '#0A0A0C' : '#E8E4DC',
+              fontSize: 15,
+              fontWeight: 800,
+              cursor: 'pointer',
+              letterSpacing: '0.04em',
+            }}
+          >
+            NEXT SESSION →
+          </button>
+        </div>
+        {/* Keyframe for the SHARE spinner. Scoped <style> is fine for a
+            modal-level one-off; avoids a cross-file CSS edit. */}
+        <style>{'@keyframes foundry-spin { to { transform: rotate(360deg); } }'}</style>
+      </div>
+
+      {/* Off-screen ShareCard — DOM-present so html-to-image can walk it,
+          but pushed far off the visual viewport. aria-hidden + inert to
+          keep it out of the a11y tree / tab order. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: -99999,
+          top: 0,
+          width: 1080,
+          height: 1350,
+          pointerEvents: 'none',
+        }}
+      >
+        <ShareCard
+          ref={shareCardRef}
+          dayLabel={dayLabel}
+          weekIdx={weekIdx}
+          phase={phase}
+          phaseColor={phaseColor}
+          stats={{
+            sets: stats.sets,
+            reps: stats.reps,
+            volume: stats.volume,
+            duration: stats.duration,
+          }}
+          prs={stats.prs.map((pr) => ({
+            name: pr.name,
+            weight: pr.newBest,
+            // Completion stats don't track the rep count that produced the
+            // PR (only newBest/prevBest). Default to 1 for display; future
+            // work: thread the rep count through from session logs.
+            reps: 1,
+          }))}
+          congratsHeadline={congrats.headline}
+          congratsSub={congrats.sub}
+        />
       </div>
     </div>
   );
