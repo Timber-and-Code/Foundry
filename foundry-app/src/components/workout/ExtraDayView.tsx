@@ -9,6 +9,7 @@ import {
   detectSessionPRs,
   loadCompleted,
   bwPromptShownThisWeek,
+  bwLoggedThisWeek,
   markBwPromptShown,
 } from '../../utils/store';
 import { haptic } from '../../utils/helpers';
@@ -381,7 +382,8 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   // ── Begin workout ────────────────────────────────────────────────────────────
   const beginWorkout = () => {
     startTimer();
-    if (!bwPromptShownThisWeek()) setShowBwCheckin(true);
+    // Skip the prompt when HK sync has already logged a weight this week.
+    if (!bwPromptShownThisWeek() && !bwLoggedThisWeek()) setShowBwCheckin(true);
   };
 
   // ── Handlers ─────────────────────────────────────────────────────────────────

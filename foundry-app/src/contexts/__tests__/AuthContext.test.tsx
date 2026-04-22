@@ -247,10 +247,12 @@ describe('AuthProvider — SIGNED_IN multi-user wipe', () => {
     capturedCtx = null;
     onAuthCallback = null;
     mockGetSession.mockResolvedValue({ data: { session: null } });
-    mockOnAuthStateChange.mockImplementation((cb: (e: string, s: any) => void) => {
-      onAuthCallback = cb;
-      return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
-    });
+    (mockOnAuthStateChange as unknown as { mockImplementation: (fn: (...args: any[]) => unknown) => void }).mockImplementation(
+      (cb: (e: string, s: any) => void) => {
+        onAuthCallback = cb;
+        return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
+      },
+    );
   });
 
   afterEach(() => {

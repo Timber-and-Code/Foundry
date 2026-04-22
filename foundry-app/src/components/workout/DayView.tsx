@@ -24,6 +24,7 @@ import {
   loadExOverride,
   saveExOverride,
   bwPromptShownThisWeek,
+  bwLoggedThisWeek,
   markBwPromptShown,
   addBwEntry,
   loadBwLog,
@@ -311,10 +312,14 @@ function DayView({
   const commitStartWorkout = () => {
     startTimer();
     setShowSplash(false);
-    // Weekly bodyweight check-in: only prompt when this day actually has a
-    // BW-based exercise and we haven't asked yet this week.
+    // Weekly bodyweight check-in: prompt only when (a) this day has a
+    // BW-based exercise, (b) we haven't already prompted this week, and
+    // (c) we don't already have a bodyweight entry this week (HealthKit
+    // sync may have populated it silently — no need to interrupt the user).
     const hasBwExercise = (day.exercises || []).some((e: Exercise) => e.bw);
-    if (hasBwExercise && !bwPromptShownThisWeek()) setShowBwCheckin(true);
+    if (hasBwExercise && !bwPromptShownThisWeek() && !bwLoggedThisWeek()) {
+      setShowBwCheckin(true);
+    }
     const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
     upsertWorkoutSessionRemote(dayIdx, weekIdx, {
       sessionId,

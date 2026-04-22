@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { App } from '@capacitor/app';
-import { store, loadProfile, saveProfile } from '../utils/store';
+import { store, loadProfile, saveProfile, loadBwLog, addBwEntry } from '../utils/store';
 import { getHealthService } from '../utils/health';
 import type { Profile } from '../types';
 
@@ -37,11 +37,26 @@ async function syncBodyWeight() {
     ? profile.weight
     : parseFloat(String(profile.weight ?? ''));
 
-  // Skip if the HK reading matches what we already have (within 0.2 lb)
-  if (!isNaN(currentLbs) && Math.abs(currentLbs - reading.pounds) < 0.2) return;
+  // Skip if the HK reading matches what we already have (within 0.2 lb).
+  const matchesProfile = !isNaN(currentLbs) && Math.abs(currentLbs - reading.pounds) < 0.2;
+  if (matchesProfile) return;
 
+  // 1) Update the profile's "current weight" (used by the workout BW
+  //    prefill + Settings).
   const updated: Profile = { ...profile, weight: reading.pounds };
   saveProfile(updated);
+
+  // 2) Append to the bodyweight log so HK readings show up in app trends.
+  //    addBwEntry already de-dupes by date (latest per day wins). Only push
+  //    when our most-recent log entry differs by ≥0.2 lb so we don't churn
+  //    the log on no-op syncs.
+  const log = loadBwLog();
+  const latest = log[0];
+  const latestLbs = latest ? Number(latest.weight) : NaN;
+  const matchesLog = !isNaN(latestLbs) && Math.abs(latestLbs - reading.pounds) < 0.2;
+  if (!matchesLog) {
+    addBwEntry(reading.pounds);
+  }
 }
 
 /**
