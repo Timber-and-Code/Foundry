@@ -16,6 +16,7 @@ import {
   getWeekSets,
   buildSessionDateMap,
   computeMobilityStreak,
+  saveMobilitySession,
 } from '../../utils/store';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
@@ -641,52 +642,81 @@ function HomeTab({
       )}
 
       {/* Pre-workout mobility — workout days only, collapsed by default, above the Today Card */}
-      {isToday && showDay && (
-        <div
-          style={{
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg, overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          <button
-            onClick={() => setShowMorningMobility((p: boolean) => !p)}
+      {isToday && showDay && (() => {
+        const warmupProtocol = pickWarmupForDay(showDay?.tag);
+        const startWarmup = () => {
+          // Match MobilityProtocolDetail.handleStart: seed today's session
+          // with the warmup protocol id (uncompleted), then jump into the
+          // mobility session view. MobilitySessionView marks completed:true
+          // when the user finishes — that's what increments the streak.
+          const today = new Date().toISOString().slice(0, 10);
+          saveMobilitySession(today, {
+            protocolId: warmupProtocol.id,
+            completed: false,
+            completedAt: null,
+          });
+          window.dispatchEvent(
+            new CustomEvent('foundry:openMobility', {
+              detail: { dateStr: today, protocolId: warmupProtocol.id },
+            }),
+          );
+        };
+        return (
+          <div
             style={{
-              width: '100%', background: 'var(--bg-inset)', border: 'none',
-              borderBottom: showMorningMobility ? '1px solid var(--border)' : 'none',
-              padding: '10px 16px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: tokens.radius.lg, overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-              </svg>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
-                  BEFORE YOU TRAIN
-                </span>
-                <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '0.02em', color: 'var(--text-primary)' }}>
-                  {pickWarmupForDay(showDay?.tag).name.toUpperCase()} · {pickWarmupForDay(showDay?.tag).duration.toUpperCase()}
-                </span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <span style={{
-                fontSize: 13, fontWeight: 800, color: showDayAccent,
-                background: showDayAccent + '18', border: `1px solid ${showDayAccent}44`,
-                borderRadius: tokens.radius.md, padding: '4px 10px', letterSpacing: '0.06em',
-              }}>
+            <div
+              style={{
+                width: '100%', background: 'var(--bg-inset)',
+                borderBottom: showMorningMobility ? '1px solid var(--border)' : 'none',
+                padding: '10px 16px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+              }}
+            >
+              <button
+                onClick={() => setShowMorningMobility((p: boolean) => !p)}
+                aria-expanded={showMorningMobility}
+                aria-label={showMorningMobility ? 'Hide warmup moves' : 'Show warmup moves'}
+                style={{
+                  flex: 1, minWidth: 0,
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  padding: 0, textAlign: 'left',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
+                    BEFORE YOU TRAIN
+                  </span>
+                  <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '0.02em', color: 'var(--text-primary)' }}>
+                    {warmupProtocol.name.toUpperCase()} · {warmupProtocol.duration.toUpperCase()}
+                  </span>
+                </div>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ marginLeft: 'auto', transform: showMorningMobility ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+              <button
+                onClick={startWarmup}
+                aria-label={`Start ${warmupProtocol.name} warmup`}
+                style={{
+                  fontSize: 13, fontWeight: 800, color: showDayAccent,
+                  background: showDayAccent + '18', border: `1px solid ${showDayAccent}44`,
+                  borderRadius: tokens.radius.md, padding: '6px 12px', letterSpacing: '0.06em',
+                  cursor: 'pointer', flexShrink: 0,
+                }}
+              >
                 START <span aria-hidden="true">▶</span>
-              </span>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transform: showMorningMobility ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
+              </button>
             </div>
-          </button>
-          {showMorningMobility && (() => {
-            const warmupProtocol = pickWarmupForDay(showDay?.tag);
-            return (
+            {showMorningMobility && (
               <div style={{ padding: '12px 16px' }}>
                 {warmupProtocol.moves.map((move, i) => (
                   <div key={i} style={{ padding: '9px 12px', borderRadius: tokens.radius.md, background: 'var(--bg-deep)', marginBottom: 5, border: '1px solid var(--border-subtle)' }}>
@@ -698,10 +728,10 @@ function HomeTab({
                   </div>
                 ))}
               </div>
-            );
-          })()}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {/* Today Card — THE HERO */}
       {isRestState || isRestDay ? (
