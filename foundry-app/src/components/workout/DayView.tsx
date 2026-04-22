@@ -500,37 +500,30 @@ function DayView({
   // ── Rest timer (state lives in App, received as props) ──────────────────────
   const [pendingRest, setPendingRest] = useState<{ exIdx: number; setIdx: number; partnerIdx: number; restStr: string; exName: string } | null>(null);
 
-  // Superset-aware set logger: defers rest until both exercises in pair have logged the same set
+  // Superset-aware set logger: defers rest until both exercises in pair have logged the same set.
+  // Rest timer NEVER fires after the last set of an exercise — the user is moving on, not resting.
   const handleSetLogged = React.useCallback(
     (restStr: string, exName: string, setIdx: number, isLastSet = false) => {
-      // Find if this exercise is part of a superset pair
       const exIdx = exercises.findIndex((e) => e.name === exName);
 
-      // On the last set of an exercise, use the next exercise's rest period
-      // so the timer guides the transition between exercises
-      let effectiveRestStr = restStr;
-      if (isLastSet && exIdx !== -1) {
-        const nextEx = exercises[exIdx + 1];
-        if (nextEx && nextEx.rest) {
-          effectiveRestStr = nextEx.rest;
-        } else if (!nextEx) {
-          // Final exercise of the session — short rest, they're done
-          effectiveRestStr = '90 sec';
+      // Auto-advance to the next exercise card on the last set, but skip the
+      // rest timer entirely — between exercises is transition, not rest.
+      if (isLastSet) {
+        if (exIdx !== -1 && exIdx + 1 < exercises.length) {
+          const nextIdx = exIdx + 1;
+          setExpandedIdx(nextIdx);
+          setTimeout(() => {
+            const el = document.getElementById(`ex-${nextIdx}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 150);
         }
-      }
-
-      // Auto-advance: expand next exercise card and scroll to it
-      if (isLastSet && exIdx !== -1 && exIdx + 1 < exercises.length) {
-        const nextIdx = exIdx + 1;
-        setExpandedIdx(nextIdx);
-        setTimeout(() => {
-          const el = document.getElementById(`ex-${nextIdx}`);
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 150);
+        // Drop any pending superset partner rest — it would also be a last-set rest.
+        if (pendingRest) setPendingRest(null);
+        return;
       }
 
       if (exIdx === -1) {
-        startRestTimer(effectiveRestStr, exName, dayIdx, weekIdx);
+        startRestTimer(restStr, exName, dayIdx, weekIdx);
         return;
       }
 
@@ -539,7 +532,7 @@ function DayView({
       const isSecondary = !isPrimary && exercises.some((e) => e.supersetWith === exIdx);
 
       if (!isPrimary && !isSecondary) {
-        startRestTimer(effectiveRestStr, exName, dayIdx, weekIdx);
+        startRestTimer(restStr, exName, dayIdx, weekIdx);
         return;
       }
 
@@ -548,14 +541,14 @@ function DayView({
         : exercises.findIndex((e) => e.supersetWith === exIdx);
 
       if (pendingRest && pendingRest.partnerIdx === exIdx && pendingRest.setIdx === setIdx) {
-        startRestTimer(pendingRest.restStr || effectiveRestStr, exName, dayIdx, weekIdx);
+        startRestTimer(pendingRest.restStr || restStr, exName, dayIdx, weekIdx);
         setPendingRest(null);
       } else {
         setPendingRest({
           exIdx,
           setIdx,
           partnerIdx,
-          restStr: effectiveRestStr,
+          restStr,
           exName,
         });
       }
@@ -1236,36 +1229,59 @@ function DayView({
         padding: '20px',
       }}
     >
-      {/* Header with Timer */}
+      {/* Sticky session timer bar — escapes parent padding via negative margins
+          and sits above the FoundryBanner (zIndex 60 > banner's 50) so it
+          remains the persistent top surface during a workout. */}
       <div
         style={{
-          display: 'flex',
+          position: 'sticky',
+          top: 0,
+          zIndex: 60,
+          marginTop: -20,
+          marginLeft: -20,
+          marginRight: -20,
+          marginBottom: 20,
+          padding: '12px 16px',
+          background: 'var(--bg-root)',
+          borderBottom: '1px solid var(--border)',
+          display: 'grid',
+          gridTemplateColumns: '72px 1fr 72px',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 24,
         }}
       >
         <button
           onClick={onBack}
           aria-label="Go back"
           style={{
-            fontSize: 18,
+            justifySelf: 'start',
+            fontSize: 14,
+            fontWeight: 700,
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
             color: 'var(--text-accent)',
+            padding: '8px 6px',
           }}
         >
           <span aria-hidden="true">←</span> Back
         </button>
         <div
           aria-live="polite"
+          aria-atomic="true"
           aria-label={`Elapsed time: ${formatElapsed(elapsedSecs)}`}
-          style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-accent)' }}
+          style={{
+            fontSize: 28,
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            textAlign: 'center',
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '0.04em',
+            lineHeight: 1,
+          }}
         >
           {formatElapsed(elapsedSecs)}
         </div>
-        <div style={{ width: 72 }} aria-hidden="true" />
+        <div aria-hidden="true" />
       </div>
 
       {/* Exercise Cards */}

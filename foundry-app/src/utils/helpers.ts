@@ -10,6 +10,8 @@ export function parseRestSeconds(restStr: string | undefined | null): number {
   return 90;
 }
 
+import { Capacitor } from '@capacitor/core';
+
 type HapticType = 'tap' | 'done' | 'complete' | 'victory';
 
 const HAPTIC: Record<HapticType, number[]> = {
@@ -20,8 +22,31 @@ const HAPTIC: Record<HapticType, number[]> = {
 };
 
 export function haptic(type: HapticType): void {
+  // iOS Safari/WKWebView does NOT implement navigator.vibrate — without the
+  // native branch below, every haptic on TestFlight + production iOS is silent.
+  if (Capacitor.isNativePlatform()) {
+    void (async () => {
+      try {
+        const { Haptics, ImpactStyle, NotificationType } = await import('@capacitor/haptics');
+        if (type === 'complete' || type === 'victory') {
+          await Haptics.notification({ type: NotificationType.Success });
+          return;
+        }
+        await Haptics.impact({
+          style: type === 'tap' ? ImpactStyle.Light : ImpactStyle.Medium,
+        });
+      } catch (e) {
+        console.warn('[Foundry]', 'Capacitor haptic failed', e);
+      }
+    })();
+    return;
+  }
+
+  // Web fallback — Android Chrome supports this; iOS Safari ignores it.
   try {
-    navigator.vibrate && navigator.vibrate(HAPTIC[type] || HAPTIC.tap);
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(HAPTIC[type] || HAPTIC.tap);
+    }
   } catch (e) {
     console.warn('[Foundry]', 'Failed to trigger haptic feedback', e);
   }
