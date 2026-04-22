@@ -361,7 +361,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
   // ── Find last logged weight for an exercise by ID across all meso data ──────
   const getCarryoverWeight = (exId: string | number | undefined) => {
     if (!activeDays) return '';
-    const weeks = getMeso().weeks;
+    const weeks = getMeso().totalWeeks;
     for (let w = weeks; w >= 0; w--) {
       for (let d = 0; d < activeDays.length; d++) {
         const idx = activeDays[d].exercises.findIndex((e) => e.id === exId);
@@ -1096,10 +1096,10 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
           weekIdx={(() => {
             const cd = loadCompleted(getMeso());
             const ad = activeDays;
-            for (let w = 0; w < getMeso().weeks; w++) {
+            for (let w = 0; w < getMeso().totalWeeks; w++) {
               if (!ad.every((_, i) => cd.has(`${i}:${w}`))) return w;
             }
-            return getMeso().weeks;
+            return getMeso().totalWeeks;
           })()}
           onDone={() => {
             setShowWorkoutModal(false);

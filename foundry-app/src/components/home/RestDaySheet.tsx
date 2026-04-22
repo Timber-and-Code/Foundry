@@ -44,7 +44,7 @@ function RestDaySheet({
     const startDate = new Date(profile.startDate + 'T00:00:00');
     let sc = 0;
     let cursor = new Date(startDate);
-    const total = (getMeso().weeks + 1) * activeDays.length;
+    const total = getMeso().totalWeeks * activeDays.length;
     for (let d = 0; d < 400 && sc < total; d++) {
       const wkIdx = Math.floor(sc / activeDays.length);
       if (getWorkoutDaysForWeek(profile, wkIdx).includes(cursor.getDay())) {
@@ -68,7 +68,7 @@ function RestDaySheet({
     const startDate3 = new Date(profile.startDate + 'T00:00:00');
     let sc3 = 0;
     let cursor3 = new Date(startDate3);
-    const total3 = (getMeso().weeks + 1) * activeDays.length;
+    const total3 = getMeso().totalWeeks * activeDays.length;
     const fromDate = new Date(showRestDay.dateStr + 'T00:00:00');
     fromDate.setDate(fromDate.getDate() + 1);
     for (let d = 0; d < 400 && sc3 < total3; d++) {

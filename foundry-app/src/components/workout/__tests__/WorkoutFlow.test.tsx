@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => ({
   archiveCurrentMeso: vi.fn(),
   resetMeso: vi.fn(),
 
-  getMeso: vi.fn(() => ({ days: 3, weeks: 4 })),
+  getMeso: vi.fn(() => ({ days: 3, totalWeeks: 4, workWeeks: 3 })),
   getWeekPhase: vi.fn(() => ['accumulation']),
   getProgTargets: vi.fn(() => ({ linear: ['5x5'] })),
   resetMesoCache: vi.fn(),
@@ -221,7 +221,7 @@ function setupStoreGet(completedKeys: Set<string> = new Set()) {
 describe('WorkoutFlow integration – useMesoState', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getMeso.mockReturnValue({ days: 3, weeks: 4 });
+    mocks.getMeso.mockReturnValue({ days: 3, totalWeeks: 4, workWeeks: 3 });
     mocks.loadCompleted.mockReturnValue(new Set<string>());
     mocks.loadCurrentWeek.mockReturnValue(0);
     setupStoreGet();
@@ -265,8 +265,8 @@ describe('WorkoutFlow integration – useMesoState', () => {
   });
 
   /* 4 */ it('weekCompleteModal has isFinal=true when last week completed', () => {
-    // With days: 2, weeks: 2, isFinal is true when weekIdx === getMeso().weeks === 2
-    mocks.getMeso.mockReturnValue({ days: 2, weeks: 2 });
+    // With days: 2, totalWeeks: 2, isFinal is true when weekIdx === getMeso().totalWeeks === 2
+    mocks.getMeso.mockReturnValue({ days: 2, totalWeeks: 2, workWeeks: 1 });
     mocks.loadCompleted.mockReturnValue(new Set(['0:0', '1:0', '0:1', '1:1', '0:2']));
 
     const { result } = renderHook(() => useMesoState(defaultHookParams));

@@ -29,7 +29,7 @@ describe('buildSessionDateMap', () => {
   it('produces the base walk when no overrides are set', () => {
     // 2030-01-07 is a Monday. Workout days Mon/Wed/Fri → Week 0 sessions
     // land on 01-07 (0:0), 01-09 (1:0), 01-11 (2:0). Pass weeksCount=7 to
-    // mirror production (getMeso().weeks for a 6-week meso = 6 work + deload).
+    // mirror production (getMeso().totalWeeks for a 6-week meso = 6 work + deload).
     const profile = {
       experience: 'intermediate' as const,
       startDate: '2030-01-07',

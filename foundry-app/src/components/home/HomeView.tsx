@@ -130,7 +130,7 @@ function HomeView({
 
   // Active workout detection
   const hasActiveWorkout = useMemo(() => {
-    for (let w = 0; w <= getMeso().weeks; w++) {
+    for (let w = 0; w < getMeso().totalWeeks; w++) {
       for (let d = 0; d < getMeso().days; d++) {
         const start = store.get(`foundry:sessionStart:d${d}:w${w}`);
         const done = store.get(`foundry:done:d${d}:w${w}`);
@@ -149,11 +149,11 @@ function HomeView({
   }, [tab]);
 
   const activeWeek = useMemo(() => {
-    for (let w = 0; w < getMeso().weeks; w++) {
+    for (let w = 0; w < getMeso().totalWeeks; w++) {
       const allDone = activeDays.every((_, i) => completedDays.has(`${i}:${w}`));
       if (!allDone) return w;
     }
-    return getMeso().weeks;
+    return getMeso().totalWeeks;
   }, [completedDays, activeDays]);
 
   const calendarWeek = useMemo(() => {
@@ -164,7 +164,7 @@ function HomeView({
     let lastWk = 0,
       sessionCount = 0;
     let cursor = new Date(startDate);
-    const total = (getMeso().weeks + 1) * activeDays.length;
+    const total = getMeso().totalWeeks * activeDays.length;
     for (let d = 0; d < 400 && sessionCount < total; d++) {
       const wkIdx = Math.floor(sessionCount / activeDays.length);
       const curWkDays = getWorkoutDaysForWeek(profile, wkIdx);
@@ -180,15 +180,15 @@ function HomeView({
 
   const displayWeek = Math.min(activeWeek, calendarWeek);
 
-  const phase = getWeekPhase()[Math.min(displayWeek, getMeso().weeks - 1)] || 'Deload';
+  const phase = getWeekPhase()[Math.min(displayWeek, getMeso().totalWeeks - 1)] || 'Deload';
   const pc = (PHASE_COLOR as Record<string, string>)[phase];
-  const rir = getWeekRir()[Math.min(displayWeek, getMeso().weeks - 1)] || 'N/A';
+  const rir = getWeekRir()[Math.min(displayWeek, getMeso().totalWeeks - 1)] || 'N/A';
 
   const weekDone = activeDays.filter((_, i) => completedDays.has(`${i}:${displayWeek}`)).length;
   const weekTotal = activeDays.length;
   const weekPct = weekTotal > 0 ? Math.round((weekDone / weekTotal) * 100) : 0;
 
-  const totalSessions = getMeso().weeks * getMeso().days;
+  const totalSessions = getMeso().totalWeeks * getMeso().days;
   const doneSessions = completedDays.size;
   const mesoPct = totalSessions > 0 ? Math.round((doneSessions / totalSessions) * 100) : 0;
 

@@ -472,7 +472,7 @@ function App() {
       navigate(`/day/${nextDayIdx}/${weekIdx}`);
     } else {
       const nextWeek = weekIdx + 1;
-      if (nextWeek <= getMeso().weeks - 1) {
+      if (nextWeek <= getMeso().totalWeeks - 1) {
         setCurrentWeek(nextWeek);
         saveCurrentWeek(nextWeek);
         navigate(`/day/0/${nextWeek}`);

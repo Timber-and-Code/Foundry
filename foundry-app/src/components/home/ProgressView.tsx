@@ -45,7 +45,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
 
   const sessionDurations = useMemo(() => {
     const all: { week: number; day: number; duration: number }[] = [];
-    for (let w = 0; w <= (getMeso()?.weeks || 6); w++) {
+    for (let w = 0; w < (getMeso()?.totalWeeks || 7); w++) {
       for (let d = 0; d < (getMeso()?.days || 6); d++) {
         const dur = loadSessionDuration(d, w);
         if (dur !== null) all.push({ week: w, day: d, duration: dur });

@@ -80,7 +80,7 @@ export function calcMuscleSetsByTag(
 ): Record<string, Record<string, number>> {
   const byTag: Record<string, Record<string, number>> = { PUSH: {}, PULL: {}, LEGS: {} };
   activeDays.forEach((day: TrainingDay, dayIdx: number) => {
-    for (let w = 0; w <= getMeso().weeks; w++) {
+    for (let w = 0; w < getMeso().totalWeeks; w++) {
       if (weekFilter !== null && w !== weekFilter) continue;
       if (!completedDays.has(`${dayIdx}:${w}`)) continue;
       const raw = store.get(`foundry:day${dayIdx}:week${w}`);
@@ -122,7 +122,7 @@ export function calcSessionStats(
   completedDays: Set<string>,
 ): SessionStats {
   const meso = getMeso();
-  const mesoWeeks = meso.weeks;
+  const mesoWeeks = meso.totalWeeks;
   let tonnage = 0;
   let totalSets = 0;
 
@@ -186,7 +186,7 @@ export function buildPRTimeline(
   activeDays: TrainingDay[],
 ): PRTimelineEntry[] {
   const meso = getMeso();
-  const mesoWeeks = meso.weeks;
+  const mesoWeeks = meso.totalWeeks;
   const entries: PRTimelineEntry[] = [];
 
   activeDays.forEach((day, dayIdx) => {
@@ -234,7 +234,7 @@ export function loadAnchorCharts(activeDays: TrainingDay[]): AnchorChartData[] {
   activeDays.forEach((day, dayIdx) => {
     day.exercises.forEach((ex, exIdx) => {
       if (!ex.anchor) return;
-      const pts = loadSparklineData(dayIdx, exIdx, meso.weeks + 1);
+      const pts = loadSparklineData(dayIdx, exIdx, meso.totalWeeks);
       if (!pts.length) return;
       const best = pts.reduce((a, b) => (b.e1rm > a.e1rm ? b : a), pts[0]);
       const latest = pts[pts.length - 1];

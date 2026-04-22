@@ -5,7 +5,6 @@ import { syncProfileToSupabase, syncBodyWeightToSupabase, syncMesocycleToSupabas
 import type {
   Profile,
   Exercise,
-  MesoConfig,
   BodyWeightEntry,
   WorkoutDaysHistoryEntry,
 } from '../types';
@@ -405,10 +404,18 @@ export function saveCurrentWeek(w: number): void {
   store.set('foundry:currentWeek', String(w));
 }
 
-export function loadCompleted(mesoConfig: MesoConfig | null | undefined): Set<string> {
+// Accepts either the runtime MesoConfigResult (preferred — has totalWeeks) or
+// the legacy/input MesoConfig (which only carried `weeks` meaning user
+// mesoLength). Inline shape avoids a circular import on data/constants.
+export function loadCompleted(
+  mesoConfig:
+    | { days?: number; totalWeeks?: number; weeks?: number }
+    | null
+    | undefined,
+): Set<string> {
   const done = new Set<string>();
   const days = mesoConfig?.days || 6;
-  const weeks = mesoConfig?.weeks || 6;
+  const weeks = mesoConfig?.totalWeeks ?? mesoConfig?.weeks ?? 7;
   for (let d = 0; d < days; d++)
     for (let w = 0; w < weeks; w++)
       if (store.get(`foundry:done:d${d}:w${w}`) === '1') done.add(`${d}:${w}`);
@@ -542,7 +549,7 @@ export function buildSessionDateMap(
   // Base walk: cursor advances day-by-day, stamping the next sessionKey when
   // the cursor's DOW is one of the week's workout days.
   // weeksCount is the total span the caller wants generated INCLUDING the
-  // deload week (production callers pass getMeso().weeks, which equals
+  // deload week (production callers pass getMeso().totalWeeks, which equals
   // mesoLen + 1). No off-by-one — generating an extra week here would paint
   // a ghost "Establish" session onto the calendar after Deload.
   const totalSessions = weeksCount * totalDays;

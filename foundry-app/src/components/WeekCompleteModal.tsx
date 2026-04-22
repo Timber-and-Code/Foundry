@@ -77,7 +77,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
               }}
             >
               {profile?.name ? `${profile.name} — ` : ''}
-              {getMeso().weeks} Weeks. Done.
+              {getMeso().totalWeeks} Weeks. Done.
             </div>
             <div
               style={{

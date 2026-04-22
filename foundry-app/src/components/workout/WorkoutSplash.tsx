@@ -32,7 +32,7 @@ export default function WorkoutSplash({
   const phase = getWeekPhase()[weekIdx] || 'Accumulation';
   const phaseColor = PHASE_COLOR[phase] || '#E8E4DC';
   const rir = getWeekRir()[weekIdx] || '';
-  const totalWeeks = getMeso().weeks;
+  const totalWeeks = getMeso().totalWeeks;
 
   return (
     <div
@@ -214,18 +214,18 @@ export default function WorkoutSplash({
         {/* Action row — Back (secondary, bordered) + Start (primary amber).
             No more tap-anywhere-to-start; the user gets a clear binary choice. */}
         {!previewOnly && (
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={onBack}
               aria-label="Go back without starting"
               style={{
-                flex: '0 0 38%',
-                padding: '20px 12px',
+                flex: '0 0 36%',
+                padding: '14px 10px',
                 borderRadius: tokens.radius.lg,
                 background: 'transparent',
                 border: '2px solid var(--border)',
                 color: 'var(--text-primary)',
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: 800,
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
@@ -238,12 +238,12 @@ export default function WorkoutSplash({
               onClick={onStart}
               style={{
                 flex: 1,
-                padding: '20px',
+                padding: '14px',
                 borderRadius: tokens.radius.lg,
                 background: tokens.colors.gold,
                 border: 'none',
                 color: '#0A0A0C',
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: 900,
                 letterSpacing: '0.06em',
                 cursor: 'pointer',
@@ -254,18 +254,18 @@ export default function WorkoutSplash({
           </div>
         )}
         {previewOnly && (
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={onBack}
               aria-label="Close preview"
               style={{
                 flex: 1,
-                padding: '20px 12px',
+                padding: '14px 10px',
                 borderRadius: tokens.radius.lg,
                 background: 'transparent',
                 border: '2px solid var(--border)',
                 color: 'var(--text-primary)',
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: 800,
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',

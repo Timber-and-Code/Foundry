@@ -1,4 +1,4 @@
-import type { MesoConfig, SplitType } from '../types';
+import type { SplitType } from '../types';
 import { store } from '../utils/storage';
 
 // ─── PHASE COLORS ────────────────────────────────────────────────────────────
@@ -743,8 +743,18 @@ interface MesoLengthConfig {
   mesoRows: MesoRow[];
 }
 
-export interface MesoConfigResult extends MesoConfig {
-  weeks: number;
+/**
+ * Runtime mesocycle config returned by getMeso(). Distinct from `MesoConfig`,
+ * which is the user-input shape (where `weeks` means the user's chosen
+ * mesoLength = work weeks only). Here the two senses are spelled out:
+ *   - `workWeeks`: the lifting block (4 / 6 / 8)
+ *   - `totalWeeks`: workWeeks + 1 deload, the span every calendar/loop walks
+ * The previous `weeks` field collapsed both meanings and led to off-by-one
+ * bugs across the schedule/analytics codepaths.
+ */
+export interface MesoConfigResult {
+  workWeeks: number;
+  totalWeeks: number;
   days: number;
   splitType: string;
   phases: string[];
@@ -886,7 +896,8 @@ export function buildMesoConfig(
   weekPhases.push('Deload');
 
   return {
-    weeks: mesoLen + 1,
+    workWeeks: mesoLen,
+    totalWeeks: mesoLen + 1,
     days: daysPerWeek || 6,
     splitType: splitType || 'ppl',
     phases: weekPhases,

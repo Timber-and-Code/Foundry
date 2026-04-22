@@ -105,11 +105,11 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
   }, [profile, exerciseDB]);
 
   const activeWeek = (() => {
-    for (let w = 0; w < getMeso().weeks; w++) {
+    for (let w = 0; w < getMeso().totalWeeks; w++) {
       const allDone = activeDays.every((_: TrainingDay, i: number) => completedDays.has(`${i}:${w}`));
       if (!allDone) return w;
     }
-    return getMeso().weeks;
+    return getMeso().totalWeeks;
   })();
 
   const handleComplete = (dayIdx: number, weekIdx: number) => {
@@ -180,22 +180,22 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
         } catch { /* JSON parse fallback — data optional */ }
       });
 
-      const isFinal = weekIdx === getMeso().weeks;
+      const isFinal = weekIdx === getMeso().totalWeeks;
 
       // Meso retrospective data (isFinal only)
       let mesoAnchorGains: AnchorGain[] = [];
       let mesoTotalVolume = 0;
       let mesoTotalPRs = 0;
       let mesoCompletedSessions = 0;
-      const mesoTotalSessions = getMeso().weeks * getMeso().days;
+      const mesoTotalSessions = getMeso().totalWeeks * getMeso().days;
 
       if (isFinal) {
-        for (let w = 0; w < getMeso().weeks; w++) {
+        for (let w = 0; w < getMeso().totalWeeks; w++) {
           for (let d = 0; d < getMeso().days; d++) {
             if (newCompleted.has(`${d}:${w}`)) mesoCompletedSessions++;
           }
         }
-        for (let w = 0; w <= getMeso().weeks; w++) {
+        for (let w = 0; w < getMeso().totalWeeks; w++) {
           prog.forEach((day: TrainingDay, d: number) => {
             const raw = store.get(`foundry:day${d}:week${w}`);
             if (!raw) return;
@@ -254,7 +254,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
             }
             let peakBest = 0;
             let peakWeek = 0;
-            for (let w = 0; w < getMeso().weeks; w++) {
+            for (let w = 0; w < getMeso().totalWeeks; w++) {
               const raw = store.get(`foundry:day${d}:week${w}`);
               if (!raw) continue;
               try {
@@ -315,7 +315,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       }
 
       const nextWeek = weekIdx + 1;
-      if (nextWeek <= getMeso().weeks) {
+      if (nextWeek <= getMeso().totalWeeks) {
         setCurrentWeek(nextWeek);
         saveCurrentWeek(nextWeek);
       }

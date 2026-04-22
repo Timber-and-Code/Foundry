@@ -46,7 +46,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     try { return getMeso(); } catch { /* no active meso */ return null; }
   })();
   const currentWeek = parseInt(store.get('foundry:currentWeek') || '0');
-  const totalWeeks = meso?.weeks || saved.mesoLength || null;
+  const totalWeeks = meso?.totalWeeks || saved.mesoLength || null;
   const phase = meso?.phases?.[currentWeek] || '';
   const splitLabel = (() => {
     // Derive from actual day tags in the stored program (most accurate)

@@ -320,7 +320,7 @@ function RestStateCard({
                           {dbEx ? dbEx.name : ex.name}
                         </div>
                         <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 1 }}>
-                          {getWeekSets(Number(ex.sets) || 0, activeWeek, getMeso().weeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
+                          {getWeekSets(Number(ex.sets) || 0, activeWeek, getMeso().totalWeeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
                         </div>
                       </div>
                     </div>
@@ -431,7 +431,7 @@ function HomeTab({
   // Build sessionDateMap via the shared helper so HomeTab and ScheduleTab
   // agree on which date hosts which session — including per-date overrides
   // that may stack 2 sessions on one day.
-  const sessionDateMap = buildSessionDateMap(profile, activeDays.length, getMeso().weeks);
+  const sessionDateMap = buildSessionDateMap(profile, activeDays.length, getMeso().totalWeeks);
 
   const calendarEntryRaw = sessionDateMap[todayCardioStr];
   const todayKeys: string[] = calendarEntryRaw == null
@@ -563,7 +563,7 @@ function HomeTab({
               {phase.toUpperCase()}
             </span>
             <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>
-              WK {displayWeek + 1}/{getMeso().weeks}
+              WK {displayWeek + 1}/{getMeso().totalWeeks}
             </span>
             {phase !== 'Accumulation' && (
               <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 'auto' }}>
@@ -818,7 +818,7 @@ function HomeTab({
                       {dbEx ? dbEx.name : ex.name}
                     </div>
                     <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 1 }}>
-                      {getWeekSets(Number(ex.sets) || 0, showDayWeek, getMeso().weeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
+                      {getWeekSets(Number(ex.sets) || 0, showDayWeek, getMeso().totalWeeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
                     </div>
                   </div>
                   {!!prevWeight && (

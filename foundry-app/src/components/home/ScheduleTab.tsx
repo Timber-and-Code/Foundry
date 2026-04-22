@@ -265,7 +265,7 @@ function ScheduleTab({
   // agree on which date hosts which session — including per-date overrides
   // that may double-book a day. Values are `string | string[]`.
   const sessionDateMap: Record<string, string | string[]> = React.useMemo(
-    () => buildSessionDateMap(profile, activeDays.length, getMeso().weeks),
+    () => buildSessionDateMap(profile, activeDays.length, getMeso().totalWeeks),
     [profile, activeDays.length],
   );
 
@@ -281,7 +281,7 @@ function ScheduleTab({
   const minOffset = startD
     ? (startD.getFullYear() - today.getFullYear()) * 12 + (startD.getMonth() - today.getMonth())
     : -6;
-  const totalDays = ((getMeso().weeks || 6) + 1) * 7 + 30;
+  const totalDays = ((getMeso().totalWeeks || 6) + 1) * 7 + 30;
   const endD = startD ? new Date(startD.getTime() + totalDays * 86400000) : null;
   const maxOffset = endD
     ? (endD.getFullYear() - today.getFullYear()) * 12 + (endD.getMonth() - today.getMonth())
@@ -724,7 +724,7 @@ function ScheduleTab({
               marginLeft: 12,
             }}
           >
-            {Array.from({ length: getMeso().weeks }, (_, w) => {
+            {Array.from({ length: getMeso().totalWeeks }, (_, w) => {
               const wColor = (PHASE_COLOR as Record<string, any>)[getWeekPhase()[w]] || 'var(--accent)';
               const isActive = w === activeWeek;
               return (

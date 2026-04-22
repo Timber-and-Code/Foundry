@@ -20,7 +20,8 @@ const mockStoreUtils = vi.hoisted(() => ({
 
 const mockConstants = vi.hoisted(() => ({
   getMeso: vi.fn(() => ({
-    weeks: 4,
+    workWeeks: 3,
+    totalWeeks: 4,
     days: ['Push', 'Pull', 'Legs'],
     phases: ['accumulation', 'accumulation', 'intensification', 'deload'],
     rirs: [3, 2, 1, 0],
@@ -98,7 +99,8 @@ describe('useMesoState', () => {
     // which means slice(0, ['Push','Pull','Legs']) => slice(0, NaN) => [].
     // Let's override getMeso to return a numeric days count instead.
     mockConstants.getMeso.mockReturnValue({
-      weeks: 4,
+      workWeeks: 3,
+      totalWeeks: 4,
       days: 3 as unknown as string[],
       phases: ['accumulation', 'accumulation', 'intensification', 'deload'],
       rirs: [3, 2, 1, 0],

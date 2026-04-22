@@ -193,17 +193,17 @@ function DayView({
     ...day,
     exercises: day.exercises.map((ex: Exercise) => ({
       ...ex,
-      sets: getWeekSets(Number(ex.sets ?? 0), weekIdx, getMeso().weeks),
+      sets: getWeekSets(Number(ex.sets ?? 0), weekIdx, getMeso().totalWeeks),
     })),
   };
 
   // Compute active week from completedDays (first week not fully done)
   const activeWeek = (() => {
-    for (let w = 0; w < getMeso().weeks; w++) {
+    for (let w = 0; w < getMeso().totalWeeks; w++) {
       const allDone = activeDays.every((_: TrainingDay, i: number) => completedDays.has(`${i}:${w}`));
       if (!allDone) return w;
     }
-    return getMeso().weeks;
+    return getMeso().totalWeeks;
   })();
 
   // Future sessions are normally locked; user can opt in via the
@@ -373,7 +373,7 @@ function DayView({
         equipment: resolved.equipment || 'other',
         tag: resolved.tag || ex.tag,
         anchor: ex.anchor,
-        sets: getWeekSets(Number((resolved.sets || ex.sets) ?? 0), weekIdx, getMeso().weeks),
+        sets: getWeekSets(Number((resolved.sets || ex.sets) ?? 0), weekIdx, getMeso().totalWeeks),
         reps: resolved.reps || ex.reps,
         rest: resolved.rest || ex.rest,
         warmup: wu,

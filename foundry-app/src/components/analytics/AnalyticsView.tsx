@@ -390,7 +390,7 @@ function VolumeCard({
             }}
           >
             <option value="all">All Weeks</option>
-            {Array.from({ length: meso.weeks + 1 }, (_, i) => (
+            {Array.from({ length: meso.totalWeeks }, (_, i) => (
               <option key={i} value={i}>
                 Week {i + 1}
               </option>
