@@ -39,7 +39,6 @@ export default function WorkoutSplash({
       role="dialog"
       aria-modal="true"
       aria-labelledby="workout-splash-title"
-      onClick={previewOnly ? undefined : onStart}
       style={{
         position: 'fixed',
         inset: 0,
@@ -48,7 +47,6 @@ export default function WorkoutSplash({
         display: 'flex',
         flexDirection: 'column',
         padding: 16,
-        cursor: previewOnly ? 'default' : 'pointer',
       }}
     >
       <div
@@ -64,26 +62,8 @@ export default function WorkoutSplash({
             'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0) 100%)',
         }}
       >
-        {/* Header row: back, phase chip */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onBack();
-            }}
-            aria-label="Go back"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-accent)',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              padding: '4px 6px',
-            }}
-          >
-            <span aria-hidden="true">←</span> Back
-          </button>
+        {/* Header row: phase chip only — Back lives at the bottom alongside Start */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
           <div
             style={{
               fontSize: 11,
@@ -231,21 +211,38 @@ export default function WorkoutSplash({
           })}
         </div>
 
-        {/* Start CTA — hidden in preview mode (schedule tab is view-only) */}
+        {/* Action row — Back (secondary, bordered) + Start (primary amber).
+            No more tap-anywhere-to-start; the user gets a clear binary choice. */}
         {!previewOnly && (
-          <>
+          <div style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onStart?.();
-              }}
+              onClick={onBack}
+              aria-label="Go back without starting"
               style={{
-                width: '100%',
+                flex: '0 0 38%',
+                padding: '20px 12px',
+                borderRadius: tokens.radius.lg,
+                background: 'transparent',
+                border: '2px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontSize: 14,
+                fontWeight: 800,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              <span aria-hidden="true">←</span> Back
+            </button>
+            <button
+              onClick={onStart}
+              style={{
+                flex: 1,
                 padding: '20px',
                 borderRadius: tokens.radius.lg,
-                background: phaseColor,
+                background: tokens.colors.gold,
                 border: 'none',
-                color: phaseColor === '#E8E4DC' || phaseColor === '#D4983C' ? '#0A0A0C' : '#0A0A0C',
+                color: '#0A0A0C',
                 fontSize: 16,
                 fontWeight: 900,
                 letterSpacing: '0.06em',
@@ -254,29 +251,29 @@ export default function WorkoutSplash({
             >
               START WORKOUT <span aria-hidden="true">→</span>
             </button>
-            <div
-              style={{
-                fontSize: 11,
-                color: 'var(--text-muted)',
-                textAlign: 'center',
-                marginTop: -10,
-              }}
-            >
-              Or tap anywhere to begin
-            </div>
-          </>
+          </div>
         )}
         {previewOnly && (
-          <div
-            style={{
-              fontSize: 11,
-              color: 'var(--text-muted)',
-              textAlign: 'center',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Preview · Start this workout from Home
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={onBack}
+              aria-label="Close preview"
+              style={{
+                flex: 1,
+                padding: '20px 12px',
+                borderRadius: tokens.radius.lg,
+                background: 'transparent',
+                border: '2px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontSize: 14,
+                fontWeight: 800,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              <span aria-hidden="true">←</span> Close
+            </button>
           </div>
         )}
       </div>

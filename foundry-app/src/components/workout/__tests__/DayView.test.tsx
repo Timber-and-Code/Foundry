@@ -214,16 +214,21 @@ describe('DayView', () => {
     expect(screen.getByText(/Push Day/)).toBeInTheDocument();
   });
 
-  it('shows "Begin Workout" button when workout has not started', () => {
+  it('shows the splash START WORKOUT CTA when workout has not started', () => {
     render(<DayView {...defaultProps()} />);
-    const beginButtons = screen.getAllByText('Begin Workout');
-    expect(beginButtons.length).toBeGreaterThanOrEqual(1);
+    // WorkoutSplash is the single start gate. The standalone "Begin Workout"
+    // and meso-overlay CTAs were removed; users start via the splash only.
+    expect(screen.getByText(/START WORKOUT/i)).toBeInTheDocument();
   });
 
   it('renders exercise cards for each exercise in the day', () => {
-    // Simulate workout already started so we get the main view with ExerciseCards
+    // Simulate workout already started so splash is skipped AND the main view
+    // (which gates on workoutStarted) renders ExerciseCards. The splash check
+    // reads via the mocked store; useWorkoutTimer reads the REAL localStorage.
+    const startTime = String(Date.now() - 60000);
+    localStorage.setItem('foundry:sessionStart:d0:w0', startTime);
     mocks.store.get.mockImplementation((key: string) => {
-      if (key === 'foundry:sessionStart:d0:w0') return String(Date.now() - 60000);
+      if (key === 'foundry:sessionStart:d0:w0') return startTime;
       return null;
     });
 
@@ -245,19 +250,12 @@ describe('DayView', () => {
   it('shows locked state when session is in the future (weekIdx > activeWeek)', () => {
     // activeWeek is computed as the first week that isn't fully complete.
     // With empty completedDays, activeWeek = 0. weekIdx = 2 means future/locked.
-    // In locked state, the "Begin Workout" button should not appear
-    // and "Add Exercise" should not appear.
+    // In locked state, neither the splash nor any start CTA should render.
     const props = defaultProps();
     props.weekIdx = 2;
     render(<DayView {...props} />);
-
-    // The component renders the pre-workout view for locked sessions too,
-    // but should not render Begin Workout since isLocked = true
-    // (showMesoOverlay is false when isLocked)
-    const beginButtons = screen.queryAllByText('Begin Workout');
-    // In locked state, the bottom Begin Workout is gated by !isLocked
-    // The overlay Begin Workout is gated by showMesoOverlay which is false when isLocked
-    expect(beginButtons).toHaveLength(0);
+    expect(screen.queryByText(/START WORKOUT/i)).toBeNull();
+    expect(screen.queryByText('Begin Workout')).toBeNull();
   });
 
   it('shows elapsed timer once workout is started', () => {
@@ -273,40 +271,28 @@ describe('DayView', () => {
 
     const { container } = render(<DayView {...defaultProps()} />);
 
-    // When workoutStarted is true, the started view renders with
-    // a Back button and an elapsed timer. Check if workoutStarted
-    // is true by looking for the "Begin Workout" button (absent in started view).
-    const beginButtons = screen.queryAllByText('Begin Workout');
-    if (beginButtons.length === 0) {
-      // We're in the started view — look for timer
-      const timerEl = container.querySelector('[aria-live="polite"]');
-      expect(timerEl).toBeInTheDocument();
-      expect(timerEl!.textContent).toMatch(/\d+:\d{2}/);
-    } else {
-      // workoutStarted is false — verify Begin Workout is present
-      // and click it to start, which should add timer
-      fireEvent.click(beginButtons[0]);
-      // After clicking, the component re-renders with started view
-      const timerEl = container.querySelector('[aria-live="polite"]');
-      expect(timerEl).toBeInTheDocument();
-      expect(timerEl!.textContent).toMatch(/\d+:\d{2}/);
+    // When workoutStarted is true, the started view renders with a timer.
+    // Splash is skipped via mocked + real sessionStart key. If for any reason
+    // the splash is showing, click START WORKOUT to commit.
+    const splashCta = screen.queryByText(/START WORKOUT/i);
+    if (splashCta) {
+      fireEvent.click(splashCta);
     }
+    const timerEl = container.querySelector('[aria-live="polite"]');
+    expect(timerEl).toBeInTheDocument();
+    expect(timerEl!.textContent).toMatch(/\d+:\d{2}/);
   });
 
-  it('notes persistence - clicking Begin Workout stores session start', () => {
+  it('notes persistence - clicking the splash START WORKOUT stores session start', () => {
     // Readiness must be complete in real localStorage — DayView's readiness
-    // check reads the real store, not the mock (the mock registers at a path
-    // the real DayView import doesn't resolve to). Seeding localStorage is
-    // the working path.
+    // check reads the real store, not the mock.
     localStorage.setItem(todayReadinessKey(), completeReadiness());
 
-    // Render the pre-workout view
     render(<DayView {...defaultProps()} />);
     expect(screen.getByText(/Push Day/)).toBeInTheDocument();
 
-    // Click "Begin Workout" to start the session
-    const beginButtons = screen.getAllByText('Begin Workout');
-    fireEvent.click(beginButtons[0]);
+    // Click the splash's START WORKOUT button to commit the start.
+    fireEvent.click(screen.getByText(/START WORKOUT/i));
 
     // After starting, the component stores the session start time in localStorage.
     const sessionKey = 'foundry:sessionStart:d0:w0';

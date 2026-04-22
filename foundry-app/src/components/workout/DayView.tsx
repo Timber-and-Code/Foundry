@@ -28,7 +28,6 @@ import {
   addBwEntry,
   loadBwLog,
   getWeekSets,
-  getWorkoutDaysForWeek,
 } from '../../utils/store';
 import {
   syncExerciseSwapRemote,
@@ -252,46 +251,19 @@ function DayView({
     return restored;
   });
   const [, setDialog] = useState<{ exIdx: number; exName?: string; restStr?: string; isLastSet?: boolean } | null>(null);
-  const [showMesoOverlay, setShowMesoOverlay] = useState(() => {
-    const freshDone = store.get(`foundry:done:d${dayIdx}:w${weekIdx}`) === '1';
-    const alreadyStarted = !!store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
-    return !freshDone && !isLocked && !alreadyStarted;
-  });
 
-  // Splash: auto-fires when this day is today's scheduled session OR the most
-  // overdue incomplete scheduled session (a "behind" day). First entry only —
-  // once dismissed it won't re-appear for this (day, week) pair.
+  // Splash gates every entry to a not-yet-started session. It's the single
+  // start surface — there are no other "Begin Workout" buttons in DayView.
+  // Skipped only when the session is locked, already in progress, or done.
   const [showSplash, setShowSplash] = useState(() => {
     if (isLocked) return false;
     const freshDone = store.get(`foundry:done:d${dayIdx}:w${weekIdx}`) === '1';
     if (freshDone) return false;
     const alreadyStarted = !!store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
     if (alreadyStarted) return false;
-    if (store.get(`foundry:splash-seen:d${dayIdx}:w${weekIdx}`) === '1') return false;
-    // Find earliest scheduled session on or before today that is NOT completed.
-    const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;
-    if (!startDate || activeDays.length === 0) return false;
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const total = (getMeso().weeks + 1) * activeDays.length;
-    const cursor = new Date(startDate);
-    let count = 0;
-    for (let d = 0; d < 400 && count < total; d++) {
-      const wk = Math.floor(count / activeDays.length);
-      if (getWorkoutDaysForWeek(profile, wk).includes(cursor.getDay())) {
-        const di = count % activeDays.length;
-        const cursorStr = cursor.toISOString().slice(0, 10);
-        if (cursorStr > todayStr) return false;
-        if (!completedDays.has(`${di}:${wk}`)) {
-          return di === dayIdx && wk === weekIdx;
-        }
-        count++;
-      }
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return false;
+    return true;
   });
   const dismissSplash = () => {
-    store.set(`foundry:splash-seen:d${dayIdx}:w${weekIdx}`, '1');
     setShowSplash(false);
   };
   // warmupOpen, readinessBannerDismissed — reserved for warmup/readiness UI
@@ -338,8 +310,6 @@ function DayView({
   // confirmed intent (either directly, or via the readiness sheet).
   const commitStartWorkout = () => {
     startTimer();
-    setShowMesoOverlay(false);
-    store.set(`foundry:splash-seen:d${dayIdx}:w${weekIdx}`, '1');
     setShowSplash(false);
     // Weekly bodyweight check-in: only prompt when this day actually has a
     // BW-based exercise and we haven't asked yet this week.
@@ -1151,36 +1121,8 @@ function DayView({
           );
         })()}
 
-        {/* Meso Overlay */}
-        {showMesoOverlay && (
-          <div
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: tokens.radius.lg,
-              padding: 20,
-              marginBottom: 20,
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Ready to train?</div>
-            <button
-              onClick={beginWorkout}
-              style={{
-                width: '100%',
-                padding: 16,
-                borderRadius: tokens.radius.lg,
-                background: 'var(--btn-primary-bg)',
-                border: '1px solid var(--btn-primary-border)',
-                color: 'var(--btn-primary-text)',
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Begin Workout
-            </button>
-          </div>
-        )}
+        {/* WorkoutSplash is the single start gate; pre-start "Ready to train?"
+            overlay was redundant and has been removed. */}
 
         {/* Exercise Cards */}
         {exercises.map((ex: Exercise, i: number) => {
@@ -1249,27 +1191,7 @@ function DayView({
           </div>
         )}
 
-        {/* Complete Button */}
-        {!isDone && !isLocked && (
-          <div style={{ marginBottom: 20 }}>
-            <button
-              onClick={() => beginWorkout()}
-              style={{
-                width: '100%',
-                padding: '16px',
-                borderRadius: tokens.radius.lg,
-                background: 'var(--btn-primary-bg)',
-                border: '1px solid var(--btn-primary-border)',
-                color: 'var(--btn-primary-text)',
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Begin Workout
-            </button>
-          </div>
-        )}
+        {/* Pre-start "Begin Workout" CTA removed — WorkoutSplash gates entry. */}
 
         {/* ── Exercise Swap (pre-workout) ──────────────────────────── */}
         <SwapMenu
