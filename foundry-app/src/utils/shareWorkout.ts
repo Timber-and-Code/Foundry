@@ -52,6 +52,42 @@ async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
   return new File([blob], fileName, { type: 'image/png' });
 }
 
+async function inlineImagesAsDataUrls(node: HTMLElement): Promise<void> {
+  // html-to-image fetches each <img src> at capture time. On Capacitor that
+  // fetch can race the WKWebView asset server (capacitor:// scheme) and
+  // silently drop the image — the F logo was missing from shared cards
+  // for this exact reason. Pre-fetching every image into a data URL on the
+  // element itself sidesteps the second fetch entirely.
+  const imgs = Array.from(node.querySelectorAll('img'));
+  await Promise.all(
+    imgs.map(async (img) => {
+      const src = img.getAttribute('src') || '';
+      if (!src || src.startsWith('data:')) return;
+      try {
+        const res = await fetch(src);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+        img.setAttribute('src', dataUrl);
+        if (!img.complete || img.naturalWidth === 0) {
+          await new Promise<void>((resolve) => {
+            img.addEventListener('load', () => resolve(), { once: true });
+            img.addEventListener('error', () => resolve(), { once: true });
+          });
+        }
+      } catch {
+        // Best-effort: leave img alone. html-to-image may still succeed on
+        // its own internal fetch path.
+      }
+    }),
+  );
+}
+
 async function captureNodeToPng(node: HTMLElement): Promise<string> {
   // Wait for fonts. `document.fonts` is supported everywhere we care about
   // (Safari 10+, Chrome 35+). Guard anyway so tests running under a
@@ -64,9 +100,10 @@ async function captureNodeToPng(node: HTMLElement): Promise<string> {
     }
   }
 
+  await inlineImagesAsDataUrls(node);
+
   return htmlToImage.toPng(node, {
     pixelRatio: 2,
-    cacheBust: true,
     // Explicit size avoids layout-dependent cropping if the node sits in
     // an off-screen position:absolute wrapper.
     width: node.offsetWidth || 1080,

@@ -1,65 +1,64 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '../../contexts/ToastContext';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../utils/supabase';
+import { useToast } from '../../contexts/ToastContext';
 import Button from '../ui/Button';
 import { FOUNDRY_ANVIL_IMG } from '../../data/images-core';
 import { tokens } from '../../styles/tokens';
 
-export default function AuthPage() {
-  const { login, signup } = useAuth();
+/**
+ * ResetPasswordPage — landing page for the Supabase password-recovery email.
+ *
+ * Flow:
+ *   1. AuthPage's "Forgot password?" sends an email with a redirect to
+ *      `${origin}/reset-password#access_token=...&type=recovery`.
+ *   2. supabase-js auto-detects the hash on load and sets the session.
+ *      The PASSWORD_RECOVERY event fires from onAuthStateChange.
+ *   3. We render this page and call `supabase.auth.updateUser({ password })`
+ *      with the new password the user types in.
+ *   4. On success we navigate('/') — the user is now signed in normally and
+ *      the app's standard auth gate takes them to home/setup.
+ *
+ * Mounted from AuthGate via a path-prefix check that runs BEFORE the normal
+ * "do they have a session?" gate, so the recovery session doesn't get
+ * misinterpreted as a fresh sign-in.
+ */
+export default function ResetPasswordPage() {
+  const navigate = useNavigate();
   const { showToast } = useToast();
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
 
-  // Keyboard handling: on iOS (Capacitor), when the keyboard opens, scroll the
-  // active input into view so the user can see what they're typing. We load
-  // the plugin lazily + defensively — on web builds the dynamic import resolves
-  // but `addListener` is a no-op, and if anything throws we silently fall back
-  // to the onFocus scrollIntoView handler on each input.
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
     let cancelled = false;
-
-    (async () => {
-      try {
-        const mod = await import('@capacitor/keyboard');
-        if (cancelled || !mod?.Keyboard?.addListener) return;
-        const handle = await mod.Keyboard.addListener('keyboardWillShow', () => {
-          const el = document.activeElement as HTMLElement | null;
-          if (el && typeof el.scrollIntoView === 'function') {
-            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          }
-        });
-        cleanup = () => {
-          try {
-            handle?.remove?.();
-          } catch {
-            /* noop */
-          }
-        };
-      } catch {
-        // Plugin not available (web build, test env, etc.) — onFocus fallback covers us.
-      }
-    })();
-
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setHasSession(!!data.session);
+        if (!data.session) {
+          setError(
+            'This password reset link has expired or is invalid. Request a new one from the sign-in screen.',
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHasSession(false);
+          setError('Could not verify the reset link. Try requesting a new one.');
+        }
+      });
     return () => {
       cancelled = true;
-      cleanup?.();
     };
   }, []);
 
-  // onFocus fallback — works everywhere (web + native) and is cheap. The
-  // Capacitor listener above is the primary fix on iOS because the keyboard
-  // animates in AFTER the focus event fires; keyboardWillShow gives us the
-  // right moment to re-scroll.
   const scrollFocusedIntoView = (e: React.FocusEvent<HTMLInputElement>) => {
     const el = e.currentTarget;
-    // Defer slightly so the layout settles (iOS resizes the viewport on focus).
     window.setTimeout(() => {
       if (typeof el.scrollIntoView === 'function') {
         el.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -71,50 +70,22 @@ export default function AuthPage() {
     e.preventDefault();
     setError('');
     setInfo('');
-    setLoading(true);
-    try {
-      const fn = mode === 'login' ? login : signup;
-      const { error: authError } = await fn(email, password);
-      if (authError) {
-        setError(authError.message);
-      } else if (mode === 'signup') {
-        setInfo('Check your email for a confirmation link.');
-        showToast('Account created!', 'success');
-      } else {
-        showToast('Welcome back!', 'success');
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError('Enter your email address first.');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
       return;
     }
-    setError('');
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
     setLoading(true);
     try {
-      // redirectTo MUST point at our /reset-password route. Without it,
-      // Supabase falls back to the project Site URL — which on this app
-      // lands the user on Setup (the auth gate routes signed-in users
-      // without a profile straight to onboarding) instead of an
-      // update-password screen.
-      const redirectTo =
-        typeof window !== 'undefined'
-          ? `${window.location.origin}/reset-password`
-          : undefined;
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email,
-        redirectTo ? { redirectTo } : undefined,
-      );
-      if (resetError) {
-        setError(resetError.message);
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) {
+        setError(updateError.message);
       } else {
-        setInfo('Password reset email sent.');
+        showToast('Password updated. Welcome back.', 'success');
+        navigate('/', { replace: true });
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
@@ -126,8 +97,6 @@ export default function AuthPage() {
   return (
     <main
       style={{
-        // Full viewport column: header (logo) stays put, form area scrolls
-        // independently so the iOS keyboard never hides the inputs.
         height: '100vh',
         maxHeight: '100vh',
         background: 'var(--bg-root, #141414)',
@@ -138,7 +107,6 @@ export default function AuthPage() {
         overflow: 'hidden',
       }}
     >
-      {/* Logo — fixed-height header, honors notch */}
       <header
         style={{
           flex: '0 0 auto',
@@ -162,8 +130,6 @@ export default function AuthPage() {
             boxShadow: '0 0 32px rgba(232,101,26,0.3)',
           }}
         />
-        {/* Typography pass: 0.25em stretched the F off the right edge on
-            iPhone SE. 0.16em matches the locked WelcomeScreen/CTA spec. */}
         <h1
           style={{
             fontSize: tokens.fontSize.xxl,
@@ -174,7 +140,7 @@ export default function AuthPage() {
             margin: 0,
           }}
         >
-          THE FOUNDRY
+          NEW PASSWORD
         </h1>
         <h2
           style={{
@@ -186,13 +152,10 @@ export default function AuthPage() {
             fontWeight: 600,
           }}
         >
-          Forge your strength
+          Pick something you'll remember
         </h2>
       </header>
 
-      {/* Scrollable form region. paddingBottom uses env(keyboard-inset-height)
-          which modern iOS WebKit exposes — it expands as the keyboard rises so
-          there's always room to scroll the focused input into view. */}
       <div
         style={{
           flex: '1 1 auto',
@@ -206,7 +169,6 @@ export default function AuthPage() {
             'max(24px, env(keyboard-inset-height, 0px), env(safe-area-inset-bottom, 0px))',
         }}
       >
-        {/* Card */}
         <div
           style={{
             width: '100%',
@@ -218,45 +180,10 @@ export default function AuthPage() {
             boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           }}
         >
-          {/* Mode toggle */}
-          <div
-            style={{
-              display: 'flex',
-              background: 'var(--bg-root, #141414)',
-              borderRadius: tokens.radius.lg,
-              padding: 3,
-              marginBottom: 24,
-            }}
-          >
-            {['login', 'signup'].map((m) => (
-              <button
-                key={m}
-                onClick={() => { setMode(m); setError(''); setInfo(''); }}
-                style={{
-                  flex: 1,
-                  minHeight: 44,
-                  padding: `${tokens.spacing.sm}px`,
-                  borderRadius: tokens.radius.md,
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: tokens.fontSize.sm,
-                  fontWeight: tokens.fontWeight.bold,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  transition: 'background 0.15s, color 0.15s',
-                  background: mode === m ? tokens.colors.accentMuted : 'transparent',
-                  color: mode === m ? tokens.colors.accentDim : 'var(--text-muted, #666)',
-                }}
-              >
-                {m === 'login' ? 'Sign In' : 'Create Account'}
-              </button>
-            ))}
-          </div>
-
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label
-                htmlFor="email"
+                htmlFor="new-password"
                 style={{
                   display: 'block',
                   fontSize: tokens.fontSize.xs,
@@ -267,20 +194,21 @@ export default function AuthPage() {
                   marginBottom: 6,
                 }}
               >
-                Email
+                New password
               </label>
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="new-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 onFocus={scrollFocusedIntoView}
                 required
-                autoComplete="email"
+                minLength={6}
+                autoComplete="new-password"
                 autoCapitalize="none"
                 autoCorrect="off"
-                inputMode="email"
-                placeholder="you@example.com"
+                placeholder="••••••••"
+                disabled={hasSession === false}
                 style={{
                   width: '100%',
                   minHeight: 44,
@@ -292,13 +220,14 @@ export default function AuthPage() {
                   fontSize: tokens.fontSize.base,
                   outline: 'none',
                   boxSizing: 'border-box',
+                  opacity: hasSession === false ? 0.5 : 1,
                 }}
               />
             </div>
 
             <div>
               <label
-                htmlFor="password"
+                htmlFor="confirm-password"
                 style={{
                   display: 'block',
                   fontSize: tokens.fontSize.xs,
@@ -309,19 +238,21 @@ export default function AuthPage() {
                   marginBottom: 6,
                 }}
               >
-                Password
+                Confirm password
               </label>
               <input
-                id="password"
+                id="confirm-password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
                 onFocus={scrollFocusedIntoView}
                 required
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                minLength={6}
+                autoComplete="new-password"
                 autoCapitalize="none"
                 autoCorrect="off"
                 placeholder="••••••••"
+                disabled={hasSession === false}
                 style={{
                   width: '100%',
                   minHeight: 44,
@@ -333,6 +264,7 @@ export default function AuthPage() {
                   fontSize: tokens.fontSize.base,
                   outline: 'none',
                   boxSizing: 'border-box',
+                  opacity: hasSession === false ? 0.5 : 1,
                 }}
               />
             </div>
@@ -367,43 +299,31 @@ export default function AuthPage() {
               </div>
             )}
 
-            <Button type="submit" fullWidth disabled={loading} style={{ marginTop: 4 }}>
-              {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            <Button type="submit" fullWidth disabled={loading || hasSession === false} style={{ marginTop: 4 }}>
+              {loading ? 'Saving…' : 'Update password'}
             </Button>
           </form>
 
-          {mode === 'login' && (
-            <button
-              onClick={handleForgotPassword}
-              disabled={loading}
-              style={{
-                display: 'block',
-                margin: '16px auto 0',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                color: 'var(--text-muted, #666)',
-                textDecoration: 'underline',
-                letterSpacing: '0.02em',
-                padding: '12px 16px',
-                minHeight: 44,
-              }}
-            >
-              Forgot password?
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => navigate('/', { replace: true })}
+            style={{
+              display: 'block',
+              margin: '16px auto 0',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 12,
+              color: 'var(--text-muted, #666)',
+              textDecoration: 'underline',
+              letterSpacing: '0.02em',
+              padding: '12px 16px',
+              minHeight: 44,
+            }}
+          >
+            Back to sign in
+          </button>
         </div>
-
-        {/* Ember line decoration */}
-        <div
-          style={{
-            marginTop: 32,
-            width: 120,
-            height: 1,
-            background: 'linear-gradient(90deg, transparent, rgba(232,101,26,0.4), transparent)',
-          }}
-        />
       </div>
     </main>
   );

@@ -13,6 +13,7 @@ import { ToastProvider } from './contexts/ToastContext';
 import { ActiveSessionProvider } from './contexts/ActiveSessionContext';
 import { PageSkeleton } from './components/ui/Skeleton';
 const AuthPage = React.lazy(() => import('./components/auth/AuthPage'));
+const ResetPasswordPage = React.lazy(() => import('./components/auth/ResetPasswordPage'));
 const WelcomeScreen = React.lazy(() => import('./components/onboarding/WelcomeScreen'));
 
 // Data
@@ -691,6 +692,22 @@ function App() {
 
 function AuthGate() {
   const { user, loading, authUnavailable } = useAuth();
+  const location = useLocation();
+
+  // Password recovery deep link must take precedence over every other gate.
+  // Supabase puts the recovery token in the URL hash, supabase-js sets a
+  // transient session, and PASSWORD_RECOVERY fires from onAuthStateChange.
+  // Without this short-circuit, the existence of that session would route
+  // the user through the normal "signed in" path — which lands them on
+  // SetupPage (no profile yet) instead of an update-password screen.
+  if (location.pathname === '/reset-password') {
+    return (
+      <React.Suspense fallback={null}>
+        <ResetPasswordPage />
+      </React.Suspense>
+    );
+  }
+
   // Track welcome + explicit auth-request state. Persisted to localStorage
   // so it survives reloads; driven by custom events so AuthGate can react
   // without a page reload when WelcomeScreen or OnboardingFlow updates it.

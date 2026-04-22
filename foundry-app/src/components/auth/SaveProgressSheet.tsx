@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { tokens } from '../../styles/tokens';
@@ -70,6 +70,52 @@ export default function SaveProgressSheet({
   const [isStudent, setIsStudent] = useState(false);
   const [studentEmail, setStudentEmail] = useState('');
   const [studentEmailError, setStudentEmailError] = useState('');
+
+  // Mirror AuthPage's iOS keyboard handling. The sheet is bottom-anchored
+  // (alignItems: flex-end), so when the software keyboard rises it covers
+  // the email/password inputs. env(keyboard-inset-height) on the outer
+  // container lifts the sheet on modern iOS WebKit; the Capacitor listener
+  // covers older WKWebView builds where that env var isn't exposed.
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const mod = await import('@capacitor/keyboard');
+        if (cancelled || !mod?.Keyboard?.addListener) return;
+        const handle = await mod.Keyboard.addListener('keyboardWillShow', () => {
+          const el = document.activeElement as HTMLElement | null;
+          if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }
+        });
+        cleanup = () => {
+          try {
+            handle?.remove?.();
+          } catch {
+            /* noop */
+          }
+        };
+      } catch {
+        // Plugin not available (web build, test env). onFocus fallback covers us.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, []);
+
+  const scrollFocusedIntoView = (e: React.FocusEvent<HTMLInputElement>) => {
+    const el = e.currentTarget;
+    window.setTimeout(() => {
+      if (typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }, 50);
+  };
 
   const selectStyle: React.CSSProperties = {
     padding: '14px 10px',
@@ -159,6 +205,11 @@ export default function SaveProgressSheet({
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
+        // Lift the sheet above the iOS software keyboard so email/password
+        // inputs stay visible while the user types.
+        paddingBottom: 'env(keyboard-inset-height, 0px)',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
       }}
       onClick={handleSkip}
     >
@@ -172,6 +223,8 @@ export default function SaveProgressSheet({
           maxWidth: 480,
           width: '100%',
           boxSizing: 'border-box',
+          maxHeight: '100%',
+          overflowY: 'auto',
         }}
       >
         {/* Header */}
@@ -323,6 +376,9 @@ export default function SaveProgressSheet({
                         inputMode="email"
                         placeholder="your.name@school.edu"
                         value={studentEmail}
+                        onFocus={scrollFocusedIntoView}
+                        autoCapitalize="none"
+                        autoCorrect="off"
                         onChange={(e) => { setStudentEmail(e.target.value); setStudentEmailError(''); }}
                         onBlur={() => {
                           if (studentEmail.trim() && !isEduEmail(studentEmail)) {
@@ -374,8 +430,12 @@ export default function SaveProgressSheet({
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onFocus={scrollFocusedIntoView}
             required
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            inputMode="email"
             style={{
               padding: '14px 16px',
               borderRadius: tokens.radius.md,
@@ -391,9 +451,12 @@ export default function SaveProgressSheet({
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onFocus={scrollFocusedIntoView}
             required
             minLength={6}
             autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+            autoCapitalize="none"
+            autoCorrect="off"
             style={{
               padding: '14px 16px',
               borderRadius: tokens.radius.md,
