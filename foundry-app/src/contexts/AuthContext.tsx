@@ -2,12 +2,42 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { User, Session } from '@supabase/supabase-js';
 import * as Sentry from '@sentry/react';
 import { supabase } from '../utils/supabase';
+import { store } from '../utils/storage';
 import {
   pullFromSupabase,
   pushToSupabase,
   flushDirty,
   migrateLocalWorkoutsToSupabase,
 } from '../utils/sync';
+
+// Multi-user safety: when a different user signs in than was last cached
+// on this device, wipe the prior user's local data BEFORE migrate runs.
+// Otherwise migrateLocalWorkoutsToSupabase walks User A's day/week keys
+// and pushes them into User B's Supabase rows.
+//
+// Preserves a tiny set of keys that aren't user data: welcomed (no
+// re-splash), the onboarding-v2 feature flag opt-out, the one-time
+// ppl→foundry migration latch, and the currently-selected theme.
+//
+// Sign-out itself does NOT wipe — that would lose debounced unsynced
+// edits if the same user signs back in (the more common case).
+const PRESERVE_ON_USER_SWITCH = new Set([
+  'foundry:welcomed',
+  'foundry:onboarding_v2',
+  'foundry:migrated_from_ppl',
+  'foundry:last_user_id',
+]);
+
+function clearPriorUserData(): void {
+  try {
+    for (const key of store.keys('foundry:')) {
+      if (PRESERVE_ON_USER_SWITCH.has(key)) continue;
+      store.remove(key);
+    }
+  } catch (e) {
+    console.warn('[Foundry Auth] Failed to clear prior user data', e);
+  }
+}
 
 interface AuthContextValue {
   user: User | null;
@@ -46,7 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (event === 'SIGNED_IN') {
-          if (session?.user) Sentry.setUser({ email: session.user.email, id: session.user.id });
+          if (session?.user) {
+            Sentry.setUser({ email: session.user.email, id: session.user.id });
+            // Multi-user safety: if a DIFFERENT user signed in than was
+            // last on this device, wipe prior local data before migrate
+            // walks it into the new user's Supabase rows.
+            const lastUserId = store.get('foundry:last_user_id');
+            if (lastUserId && lastUserId !== session.user.id) {
+              clearPriorUserData();
+            }
+            store.set('foundry:last_user_id', session.user.id);
+          }
           // Pull remote state first (merges into local, marks local-newer
           // keys dirty), then walk local dayWeek keys and migrate any
           // pre-auth workout sessions/sets (onboarding v2 defer-auth),

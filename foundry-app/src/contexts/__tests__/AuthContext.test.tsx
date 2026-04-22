@@ -39,6 +39,9 @@ vi.mock('../../utils/supabase', () => ({
       signInWithPassword: mockSignInWithPassword,
       signUp: mockSignUp,
       signOut: mockSignOut,
+      // Stubbed for SIGNED_IN tests that trigger pullFromSupabase. Returning
+      // null user makes the pull early-return cleanly.
+      getUser: vi.fn(() => Promise.resolve({ data: { user: null }, error: null })),
     },
   },
 }));
@@ -228,6 +231,79 @@ describe('AuthProvider — action delegates to supabase', () => {
     const { cleanup } = await mountProvider();
     await capturedCtx!.logout();
     expect(mockSignOut).toHaveBeenCalled();
+    await cleanup();
+  });
+});
+
+// ============================================================================
+// Multi-user safety on SIGNED_IN — wipe prior user's data when a different
+// user signs in. Prevents User A's local data from being pushed to User B's
+// Supabase rows during migrateLocalWorkoutsToSupabase.
+// ============================================================================
+describe('AuthProvider — SIGNED_IN multi-user wipe', () => {
+  let onAuthCallback: ((event: string, session: any) => void) | null = null;
+
+  beforeEach(() => {
+    capturedCtx = null;
+    onAuthCallback = null;
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockOnAuthStateChange.mockImplementation((cb: (e: string, s: any) => void) => {
+      onAuthCallback = cb;
+      return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it('wipes prior user data when a DIFFERENT user signs in, preserves UI flags', async () => {
+    // Seed prior user's data + UI flags.
+    localStorage.setItem('foundry:last_user_id', 'user-A');
+    localStorage.setItem('foundry:welcomed', '1');
+    localStorage.setItem('foundry:onboarding_v2', '0');
+    localStorage.setItem('foundry:migrated_from_ppl', '1');
+    localStorage.setItem('foundry:profile', JSON.stringify({ name: 'Atlas' }));
+    localStorage.setItem('foundry:day0:week0', JSON.stringify({}));
+    localStorage.setItem('foundry:active_meso_id', 'meso-xyz');
+
+    const { cleanup } = await mountProvider();
+    expect(onAuthCallback).not.toBeNull();
+    await act(async () => {
+      onAuthCallback!('SIGNED_IN', { user: { id: 'user-B', email: 'b@example.com' } });
+    });
+
+    // UI flags preserved
+    expect(localStorage.getItem('foundry:welcomed')).toBe('1');
+    expect(localStorage.getItem('foundry:onboarding_v2')).toBe('0');
+    expect(localStorage.getItem('foundry:migrated_from_ppl')).toBe('1');
+    // Prior user data wiped
+    expect(localStorage.getItem('foundry:profile')).toBeNull();
+    expect(localStorage.getItem('foundry:day0:week0')).toBeNull();
+    expect(localStorage.getItem('foundry:active_meso_id')).toBeNull();
+    // last_user_id updated to the new user
+    expect(localStorage.getItem('foundry:last_user_id')).toBe('user-B');
+
+    await cleanup();
+  });
+
+  it('preserves local data when the SAME user signs back in (resume case)', async () => {
+    localStorage.setItem('foundry:last_user_id', 'user-A');
+    localStorage.setItem('foundry:profile', JSON.stringify({ name: 'Atlas' }));
+    localStorage.setItem('foundry:day0:week0', JSON.stringify({ '0': { '0': { reps: '8' } } }));
+
+    const { cleanup } = await mountProvider();
+    await act(async () => {
+      onAuthCallback!('SIGNED_IN', { user: { id: 'user-A', email: 'a@example.com' } });
+    });
+
+    expect(localStorage.getItem('foundry:profile')).toBe(JSON.stringify({ name: 'Atlas' }));
+    expect(localStorage.getItem('foundry:day0:week0')).toBe(
+      JSON.stringify({ '0': { '0': { reps: '8' } } }),
+    );
+    expect(localStorage.getItem('foundry:last_user_id')).toBe('user-A');
+
     await cleanup();
   });
 });

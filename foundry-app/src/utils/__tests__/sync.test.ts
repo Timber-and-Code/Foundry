@@ -268,12 +268,12 @@ describe('flushDirty', () => {
     expect(set).not.toContain('foundry:profile');
   });
 
-  it('clears legacy workout jsonb dirty keys without upserting (chunk 4a uses per-set writes)', async () => {
-    // Chunk 4a migrated workouts to the normalized schema but the new model
-    // uses per-set upserts fired directly from DayView (not via flushDirty).
-    // The legacy foundry:day{d}:week{w} jsonb keys are no longer the source
-    // of truth for remote writes, so flushDirty should clear them without
-    // attempting any upsert.
+  it('defers dirty workout keys when no profile is available (no silent data loss)', async () => {
+    // The dayWeek branch needs a profile + cached program to resolve
+    // exercise_ids before it can push workout_sets. Without those, the key
+    // MUST stay in the dirty queue — the prior "clear as no-op" behavior
+    // was a silent data-loss bug for sets that hadn't reached Supabase yet
+    // via DayView's debounced per-set upsert.
     const workoutData = { 0: { 0: { weight: '100', reps: '8' } } };
     localStorage.setItem('foundry:day2:week3', JSON.stringify(workoutData));
     markDirty('foundry:day2:week3');
@@ -282,9 +282,10 @@ describe('flushDirty', () => {
 
     await flushDirty();
 
+    // No profile in localStorage → resolver returns null → defer.
     expect(mockUpsert).not.toHaveBeenCalled();
     const set = JSON.parse(localStorage.getItem('foundry:sync:dirty') ?? '[]');
-    expect(set).not.toContain('foundry:day2:week3'); // cleared as a no-op
+    expect(set).toContain('foundry:day2:week3'); // still queued for next flush
   });
 
   it('retains a dirty key when all 3 upsert attempts fail', async () => {
