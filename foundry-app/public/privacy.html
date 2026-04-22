@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy — The Foundry</title>
+  <meta name="description" content="Privacy policy for The Foundry training app." />
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0A0A0C;
+      color: #E8E4DC;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+      line-height: 1.6;
+      font-size: 16px;
+    }
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+    h1 {
+      font-size: 28px;
+      margin: 0 0 4px;
+      letter-spacing: -0.01em;
+    }
+    .brand {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      color: #E8651A;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .updated {
+      color: #9a938a;
+      font-size: 13px;
+      margin: 0 0 32px;
+    }
+    h2 {
+      font-size: 18px;
+      color: #E8651A;
+      letter-spacing: 0.02em;
+      margin: 28px 0 8px;
+    }
+    p { margin: 0 0 12px; color: #cfc8bf; }
+    ul {
+      margin: 0 0 12px 0;
+      padding-left: 20px;
+      color: #cfc8bf;
+    }
+    li { margin-bottom: 4px; }
+    strong { color: #E8E4DC; font-weight: 700; }
+    a {
+      color: #E8651A;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(232,101,26,0.4);
+    }
+    a:hover { border-bottom-color: #E8651A; }
+    hr {
+      border: 0;
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 32px 0;
+    }
+    footer {
+      color: #7a7269;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">The Foundry</div>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: April 21, 2026</p>
+
+    <h2>Who we are</h2>
+    <p>The Foundry is a training app developed by Timber &amp; Code Columbus Collective. Contact: <a href="mailto:timberandcode3@gmail.com">timberandcode3@gmail.com</a>.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><strong>Account info:</strong> email and password (if you create an account). Passwords are hashed by our auth provider — we never see or store plaintext passwords.</li>
+      <li><strong>Training data:</strong> your workouts, sets, reps, weights, exercise history, program configuration, and workout notes. Tied to your account.</li>
+      <li><strong>Body metrics:</strong> bodyweight, only if you grant access to Apple Health.</li>
+      <li><strong>Error reports:</strong> anonymous crash and error data via Sentry, used to fix bugs. No personal identifiers beyond a randomly-generated session ID.</li>
+    </ul>
+
+    <h2>What we don't collect</h2>
+    <ul>
+      <li>No advertising identifiers.</li>
+      <li>No location data.</li>
+      <li>No contacts, photos, or social-graph data.</li>
+      <li>No third-party analytics trackers (no Google Analytics, Facebook Pixel, etc.).</li>
+    </ul>
+
+    <h2>Where it's stored</h2>
+    <ul>
+      <li><strong>Account + training data:</strong> Supabase (PostgreSQL, US region).</li>
+      <li><strong>Static site hosting:</strong> Cloudflare Pages and GitHub Pages.</li>
+      <li><strong>AI training-plan generation:</strong> The app sends your setup inputs (name, goal, experience, days per week, equipment) to a Cloudflare Worker, which calls Anthropic's Claude API to generate your program. No identifying information beyond what you enter in the setup form is sent.</li>
+      <li><strong>Error logs:</strong> Sentry (anonymized).</li>
+    </ul>
+
+    <h2>What we never do</h2>
+    <ul>
+      <li>Sell your data.</li>
+      <li>Share your data with third-party advertisers.</li>
+      <li>Use your training data to train AI models.</li>
+    </ul>
+
+    <h2>Apple Health (iOS)</h2>
+    <p>If you grant access, The Foundry reads your bodyweight from Apple Health to display trends in the app. We do not yet write workouts to Apple Health — that's planned for a future release, and this policy will be updated before that change ships. You can revoke access at any time in <strong>iOS Settings → Privacy &amp; Security → Health → The Foundry</strong>.</p>
+
+    <h2>Your rights</h2>
+    <ul>
+      <li><strong>Access:</strong> email us and we'll send you an export of your data.</li>
+      <li><strong>Deletion:</strong> in-app, go to <strong>Settings → Account → Delete Account</strong> — this permanently deletes your account and all associated training data. You can also email us to request the same.</li>
+      <li><strong>Correction:</strong> you can edit all profile and training data from within the app.</li>
+    </ul>
+
+    <h2>Children</h2>
+    <p>The Foundry is not intended for users under 13. We do not knowingly collect data from anyone under 13. If we learn we have collected such data, we will delete it.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If our practices change, we will update this page and the "Last updated" date above. Significant changes will also be communicated in-app.</p>
+
+    <h2>Contact</h2>
+    <p>Questions or requests: <a href="mailto:timberandcode3@gmail.com">timberandcode3@gmail.com</a></p>
+
+    <hr />
+    <footer>
+      The Foundry · <a href="https://thefoundry.coach">thefoundry.coach</a>
+    </footer>
+  </div>
+</body>
+</html>
