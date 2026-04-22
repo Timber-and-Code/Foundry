@@ -541,7 +541,11 @@ export function buildSessionDateMap(
 
   // Base walk: cursor advances day-by-day, stamping the next sessionKey when
   // the cursor's DOW is one of the week's workout days.
-  const totalSessions = (weeksCount + 1) * totalDays;
+  // weeksCount is the total span the caller wants generated INCLUDING the
+  // deload week (production callers pass getMeso().weeks, which equals
+  // mesoLen + 1). No off-by-one — generating an extra week here would paint
+  // a ghost "Establish" session onto the calendar after Deload.
+  const totalSessions = weeksCount * totalDays;
   let sessionCount = 0;
   const cursor = new Date(startDate);
   for (let d = 0; d < 400 && sessionCount < totalSessions; d++) {

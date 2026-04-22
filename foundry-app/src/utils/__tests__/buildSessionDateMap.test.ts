@@ -28,7 +28,8 @@ import { buildSessionDateMap } from '../training';
 describe('buildSessionDateMap', () => {
   it('produces the base walk when no overrides are set', () => {
     // 2030-01-07 is a Monday. Workout days Mon/Wed/Fri → Week 0 sessions
-    // land on 01-07 (0:0), 01-09 (1:0), 01-11 (2:0).
+    // land on 01-07 (0:0), 01-09 (1:0), 01-11 (2:0). Pass weeksCount=7 to
+    // mirror production (getMeso().weeks for a 6-week meso = 6 work + deload).
     const profile = {
       experience: 'intermediate' as const,
       startDate: '2030-01-07',
@@ -36,10 +37,31 @@ describe('buildSessionDateMap', () => {
       daysPerWeek: 3,
       mesoLength: 6,
     };
-    const map = buildSessionDateMap(profile, 3, 6);
+    const map = buildSessionDateMap(profile, 3, 7);
     expect(map['2030-01-07']).toBe('0:0');
     expect(map['2030-01-09']).toBe('1:0');
     expect(map['2030-01-11']).toBe('2:0');
+  });
+
+  it('does NOT generate sessions past the meso end (no ghost Establish after Deload)', () => {
+    // 6-week meso + deload = 7 weeks total. With Mon/Wed/Fri schedule,
+    // last deload session lands inside week 6. Anything in week 7 would
+    // be the bug we just fixed.
+    const profile = {
+      experience: 'intermediate' as const,
+      startDate: '2030-01-07',
+      workoutDays: [1, 3, 5],
+      daysPerWeek: 3,
+      mesoLength: 6,
+    };
+    const map = buildSessionDateMap(profile, 3, 7);
+    const weeks = Object.values(map)
+      .flatMap((v) => (Array.isArray(v) ? v : [v]))
+      .map((k) => Number(k.split(':')[1]));
+    // Total sessions for a 7-week span on 3 workout days = 21.
+    expect(weeks).toHaveLength(21);
+    // Highest week index must be 6 (deload week of a mesoLen=6 meso).
+    expect(Math.max(...weeks)).toBe(6);
   });
 
   it('applies a single override: source removed, target populated', () => {
@@ -53,7 +75,7 @@ describe('buildSessionDateMap', () => {
         '2030-01-07': { to: '2030-01-08', sessionKey: '0:0' },
       },
     };
-    const map = buildSessionDateMap(profile, 3, 6);
+    const map = buildSessionDateMap(profile, 3, 7);
     expect(map['2030-01-07']).toBeUndefined();
     expect(map['2030-01-08']).toBe('0:0');
   });
@@ -70,7 +92,7 @@ describe('buildSessionDateMap', () => {
         '2030-01-07': { to: '2030-01-09', sessionKey: '0:0' },
       },
     };
-    const map = buildSessionDateMap(profile, 3, 6);
+    const map = buildSessionDateMap(profile, 3, 7);
     expect(map['2030-01-07']).toBeUndefined();
     const wed = map['2030-01-09'];
     expect(Array.isArray(wed)).toBe(true);
