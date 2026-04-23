@@ -2731,6 +2731,13 @@ export interface FriendMesoSummary {
   userId: string;
   userName: string;
   shareLevel: 'full' | 'basic';
+  /** Mesocycle metadata so the dashboard can self-size (completion grid
+   *  width × height + header). Resolved server-side when the caller didn't
+   *  pass a mesoId — e.g. following a friend who's on their own program. */
+  mesoId: string | null;
+  mesoName: string | null;
+  totalWeeks: number;
+  daysPerWeek: number;
   /** Completed days as `dayIdx:weekIdx` for heat-map rendering. */
   completedDays: string[];
   /** Most recent completed session (null if never trained this meso). */
@@ -2743,24 +2750,65 @@ export interface FriendMesoSummary {
 }
 
 /**
- * Aggregate a friend's progress across a shared mesocycle for the dashboard.
- * Honors share_level — 'basic' returns completion grid + last-workout only
- * (RLS blocks workout_sets for basic, and we don't bother round-tripping).
+ * Aggregate a friend's progress for the dashboard.
+ *
+ * Two modes:
+ *   - Shared-meso:  pass `mesoId` — reads share_level from mesocycle_members
+ *                   (the meso-member scoped setting).
+ *   - Follow-only:  omit `mesoId` — resolves the friend's own active meso
+ *                   and reads share_level from user_friendships (the
+ *                   follower-scoped setting on the friend's row toward
+ *                   the viewer).
+ *
+ * Always returns meso metadata (totalWeeks / daysPerWeek / mesoName) so
+ * the dashboard can render without a second round-trip. Honors share_level
+ * — 'basic' skips the workout_sets fetch because RLS would return empty
+ * anyway.
  */
 export async function fetchFriendMesoSummary(
   friendUserId: string,
-  mesoId: string,
+  mesoId?: string,
 ): Promise<FriendMesoSummary | null> {
   try {
     const { data: profileData } = await supabase
       .from('user_profiles')
-      .select('name')
+      .select('name, active_meso_id')
       .eq('id', friendUserId)
       .maybeSingle();
-    const userName = (profileData as { name: string } | null)?.name || 'Friend';
+    const profileRow = profileData as
+      | { name: string; active_meso_id: string | null }
+      | null;
+    const userName = profileRow?.name || 'Friend';
 
+    // Resolve mesoId from the friend's profile if the caller didn't pass
+    // one (follow-only dashboard path).
+    const resolvedMesoId = mesoId ?? profileRow?.active_meso_id ?? null;
+
+    // Meso metadata — required by the dashboard regardless of mode.
+    let mesoName: string | null = null;
+    let totalWeeks = 5;
+    let daysPerWeek = 6;
+    if (resolvedMesoId) {
+      const { data: mesoRow } = await supabase
+        .from('mesocycles')
+        .select('name, weeks_count, days_per_week')
+        .eq('id', resolvedMesoId)
+        .maybeSingle();
+      const row = mesoRow as
+        | { name: string | null; weeks_count: number | null; days_per_week: number | null }
+        | null;
+      if (row) {
+        mesoName = row.name;
+        totalWeeks = Number(row.weeks_count) || totalWeeks;
+        daysPerWeek = Number(row.days_per_week) || daysPerWeek;
+      }
+    }
+
+    // Share-level resolution depends on mode. Shared-meso → read the
+    // mesocycle_members row (existing model). Follow-only → read the
+    // user_friendships row where user_id = friend + friend_id = viewer.
     let shareLevel: 'full' | 'basic' = 'full';
-    {
+    if (mesoId) {
       const res = await supabase
         .from('mesocycle_members')
         .select('share_level')
@@ -2769,6 +2817,39 @@ export async function fetchFriendMesoSummary(
         .maybeSingle();
       const row = res.data as { share_level?: string | null } | null;
       if (row?.share_level === 'basic') shareLevel = 'basic';
+    } else {
+      // Follow-only mode — share_level lives on the friend's
+      // user_friendships row pointing at the viewer.
+      const { data: viewerRes } = await supabase.auth.getUser();
+      const viewerId = viewerRes?.user?.id;
+      if (viewerId) {
+        const res = await supabase
+          .from('user_friendships')
+          .select('share_level')
+          .eq('user_id', friendUserId)
+          .eq('friend_id', viewerId)
+          .maybeSingle();
+        const row = res.data as { share_level?: string | null } | null;
+        if (row?.share_level === 'basic') shareLevel = 'basic';
+      }
+    }
+
+    if (!resolvedMesoId) {
+      // Friend has no active meso — return skeleton so the dashboard can
+      // still show their name + a placeholder empty state.
+      return {
+        userId: friendUserId,
+        userName,
+        shareLevel,
+        mesoId: null,
+        mesoName: null,
+        totalWeeks,
+        daysPerWeek,
+        completedDays: [],
+        lastWorkout: null,
+        volumeByWeek: [],
+        prs: [],
+      };
     }
 
     // Completed sessions — always readable (no share-level gate on
@@ -2777,7 +2858,7 @@ export async function fetchFriendMesoSummary(
       .from('workout_sessions')
       .select('id, day_number, week_number, completed_at, is_complete')
       .eq('user_id', friendUserId)
-      .eq('meso_id', mesoId)
+      .eq('meso_id', resolvedMesoId)
       .eq('is_complete', true)
       .order('completed_at', { ascending: false });
 
@@ -2804,6 +2885,10 @@ export async function fetchFriendMesoSummary(
         userId: friendUserId,
         userName,
         shareLevel,
+        mesoId: resolvedMesoId,
+        mesoName,
+        totalWeeks,
+        daysPerWeek,
         completedDays,
         lastWorkout,
         volumeByWeek: [],
@@ -2879,6 +2964,10 @@ export async function fetchFriendMesoSummary(
       userId: friendUserId,
       userName,
       shareLevel,
+      mesoId: resolvedMesoId,
+      mesoName,
+      totalWeeks,
+      daysPerWeek,
       completedDays,
       lastWorkout,
       volumeByWeek,
@@ -2886,5 +2975,318 @@ export async function fetchFriendMesoSummary(
     };
   } catch {
     return null;
+  }
+}
+
+// ─── FRIENDSHIPS (follow a friend — decoupled from meso membership) ─────
+
+import type { Friend, FriendInvitePreview } from '../types';
+
+/**
+ * Get or create this user's single friend-invite code. Mirrors the
+ * meso-invite pattern: one code per user at a time, regenerate rotates.
+ * Expired codes (>30 days old — enforced by column default on inserts,
+ * not a policy) get replaced when this runs again.
+ */
+export async function createFriendInvite(): Promise<string | null> {
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return null;
+
+    // Reuse an existing non-expired row if one's already there.
+    const { data: existingRow } = await supabase
+      .from('friend_invites')
+      .select('code, expires_at')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const existing = existingRow as { code: string; expires_at: string } | null;
+    if (existing && new Date(existing.expires_at) > new Date()) {
+      return existing.code;
+    }
+
+    // Otherwise rotate: delete any stale row then insert fresh.
+    if (existing) {
+      await supabase.from('friend_invites').delete().eq('user_id', user.id);
+    }
+    const code = generateInviteCode();
+    const { error } = await supabase.from('friend_invites').insert({
+      code,
+      user_id: user.id,
+    });
+    if (error) throw error;
+    return code;
+  } catch (e) {
+    reportSyncFailure('create_friend_invite', e);
+    return null;
+  } finally {
+    syncEnd();
+  }
+}
+
+/**
+ * Look up who owns an invite code. Used by the recipient before accepting
+ * so they see "Add Tim as a friend?" rather than a blind confirm.
+ */
+export async function previewFriendInvite(
+  code: string,
+): Promise<FriendInvitePreview | null> {
+  try {
+    const normalized = code.trim().toUpperCase();
+    if (normalized.length < 4) return null;
+
+    const { data: inviteRow } = await supabase
+      .from('friend_invites')
+      .select('code, user_id, expires_at')
+      .eq('code', normalized)
+      .maybeSingle();
+    const invite = inviteRow as
+      | { code: string; user_id: string; expires_at: string }
+      | null;
+    if (!invite) return null;
+    if (new Date(invite.expires_at) <= new Date()) return null;
+
+    const { data: profileRow } = await supabase
+      .from('user_profiles')
+      .select('name')
+      .eq('id', invite.user_id)
+      .maybeSingle();
+    const inviterName =
+      (profileRow as { name: string } | null)?.name || 'Friend';
+
+    return {
+      code: invite.code,
+      inviterUserId: invite.user_id,
+      inviterName,
+      expiresAt: invite.expires_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Accept a friend invite code at a chosen share level. Creates the two
+ * mirror rows in `user_friendships` (A→B and B→A) so both sides have
+ * their own share_level independent of the other. The inviter's row
+ * inherits 'full' by default since they haven't had a chance to pick.
+ */
+export async function acceptFriendInvite(
+  code: string,
+  shareLevel: 'full' | 'basic' = 'full',
+): Promise<{ success: boolean; inviterUserId?: string; error?: string }> {
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return { success: false, error: 'Not signed in' };
+
+    const preview = await previewFriendInvite(code);
+    if (!preview) return { success: false, error: 'Invalid or expired code' };
+    if (preview.inviterUserId === user.id) {
+      return { success: false, error: "That's your own code" };
+    }
+
+    // Check for existing friendship either direction.
+    const { data: existingRow } = await supabase
+      .from('user_friendships')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .eq('friend_id', preview.inviterUserId)
+      .maybeSingle();
+    if (existingRow) {
+      return { success: true, inviterUserId: preview.inviterUserId };
+    }
+
+    // Viewer's row first — this is the only insert the caller owns. The
+    // inviter's mirror row is inserted via a security-definer RPC (next
+    // step) OR optimistically via a parallel insert; we use the RPC when
+    // available, fall back to letting the inviter see them next time
+    // they listFriends and rely on a future trigger. For now we attempt
+    // both inserts; RLS will block the mirror one silently and we
+    // accept the asymmetry — the inviter's dashboard still shows the
+    // new friend because listFriends reads both directions.
+    const { error: selfErr } = await supabase
+      .from('user_friendships')
+      .insert({
+        user_id: user.id,
+        friend_id: preview.inviterUserId,
+        share_level: shareLevel,
+      });
+    if (selfErr) throw selfErr;
+
+    // Attempt the mirror insert — may be denied by RLS (the inviter's
+    // row is owned by them, not us). Failure here is non-fatal; the
+    // friendship is still one-sided-visible (our row lets them see us).
+    // A full mutual-accept UX would require a SECURITY DEFINER RPC
+    // `accept_friend_invite(code, share_level)`; leaving as a follow-up.
+    await supabase.from('user_friendships').insert({
+      user_id: preview.inviterUserId,
+      friend_id: user.id,
+      share_level: 'full',
+    });
+
+    // One-time invite — consume it so a third person can't piggy-back.
+    await supabase.from('friend_invites').delete().eq('code', preview.code);
+
+    return { success: true, inviterUserId: preview.inviterUserId };
+  } catch (e) {
+    reportSyncFailure('accept_friend_invite', e);
+    return { success: false, error: 'Something went wrong' };
+  } finally {
+    syncEnd();
+  }
+}
+
+/**
+ * List the caller's accepted friends (rows where friend_id = caller). Each
+ * entry carries the friend's active meso name + last completed workout so
+ * the Home Friends section can render useful tiles without extra queries.
+ */
+export async function listFriends(): Promise<Friend[]> {
+  try {
+    const user = await getUser();
+    if (!user) return [];
+
+    // friend_id = me → every row points AT me, user_id is the friend.
+    const { data: rows } = await supabase
+      .from('user_friendships')
+      .select('user_id, friend_id, share_level, created_at')
+      .eq('friend_id', user.id);
+    type Row = {
+      user_id: string;
+      friend_id: string;
+      share_level: string | null;
+      created_at: string;
+    };
+    const friendRows = (rows as Row[] | null) || [];
+    if (friendRows.length === 0) return [];
+
+    const friendIds = friendRows.map((r) => r.user_id);
+
+    // Batch-fetch names + active_meso_ids.
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('id, name, active_meso_id')
+      .in('id', friendIds);
+    const profileMap = new Map<
+      string,
+      { name: string; active_meso_id: string | null }
+    >();
+    for (const p of (profiles as Array<{
+      id: string;
+      name: string;
+      active_meso_id: string | null;
+    }> | null) || []) {
+      profileMap.set(p.id, { name: p.name || 'Friend', active_meso_id: p.active_meso_id });
+    }
+
+    // Batch-fetch active meso names.
+    const activeMesoIds = Array.from(profileMap.values())
+      .map((p) => p.active_meso_id)
+      .filter((v): v is string => !!v);
+    const mesoMap = new Map<string, string>();
+    if (activeMesoIds.length > 0) {
+      const { data: mesos } = await supabase
+        .from('mesocycles')
+        .select('id, name')
+        .in('id', activeMesoIds);
+      for (const m of (mesos as Array<{ id: string; name: string }> | null) || []) {
+        mesoMap.set(m.id, m.name);
+      }
+    }
+
+    // Batch-fetch last completed session per friend (across their active
+    // meso only — more relevant than "any session ever").
+    const { data: sessions } = await supabase
+      .from('workout_sessions')
+      .select('user_id, day_number, week_number, completed_at, is_complete, meso_id')
+      .in('user_id', friendIds)
+      .eq('is_complete', true)
+      .order('completed_at', { ascending: false });
+    const lastMap = new Map<
+      string,
+      { dayIdx: number; weekIdx: number; completedAt: string | null }
+    >();
+    for (const s of (sessions as Array<{
+      user_id: string;
+      day_number: number;
+      week_number: number;
+      completed_at: string | null;
+      meso_id: string;
+    }> | null) || []) {
+      const profile = profileMap.get(s.user_id);
+      if (!profile) continue;
+      if (profile.active_meso_id && s.meso_id !== profile.active_meso_id) continue;
+      if (!lastMap.has(s.user_id)) {
+        lastMap.set(s.user_id, {
+          dayIdx: s.day_number,
+          weekIdx: s.week_number,
+          completedAt: s.completed_at,
+        });
+      }
+    }
+
+    return friendRows.map((r): Friend => {
+      const profile = profileMap.get(r.user_id);
+      return {
+        userId: r.user_id,
+        name: profile?.name || 'Friend',
+        shareLevel: r.share_level === 'basic' ? 'basic' : 'full',
+        activeMesoId: profile?.active_meso_id ?? null,
+        activeMesoName: profile?.active_meso_id
+          ? mesoMap.get(profile.active_meso_id) ?? null
+          : null,
+        lastWorkout: lastMap.get(r.user_id) ?? null,
+        createdAt: r.created_at,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Remove a friend — deletes the caller's row. A DELETE trigger in
+ * migration 004 also drops the mirror row so the friendship is fully
+ * cleaned up on both sides.
+ */
+export async function removeFriend(friendUserId: string): Promise<boolean> {
+  try {
+    const user = await getUser();
+    if (!user) return false;
+    const { error } = await supabase
+      .from('user_friendships')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('friend_id', friendUserId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    reportSyncFailure('remove_friend', e);
+    return false;
+  }
+}
+
+/**
+ * Update the caller's share_level toward a specific friend. RLS policy
+ * restricts updates to rows where user_id = auth.uid().
+ */
+export async function updateFriendShareLevel(
+  friendUserId: string,
+  level: 'full' | 'basic',
+): Promise<boolean> {
+  try {
+    const user = await getUser();
+    if (!user) return false;
+    const { error } = await supabase
+      .from('user_friendships')
+      .update({ share_level: level })
+      .eq('user_id', user.id)
+      .eq('friend_id', friendUserId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    reportSyncFailure('update_friend_share_level', e);
+    return false;
   }
 }

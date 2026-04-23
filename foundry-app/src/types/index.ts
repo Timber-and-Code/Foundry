@@ -222,3 +222,43 @@ export interface FriendWorkoutData {
     }[];
   }[];
 }
+
+/**
+ * A user the current viewer has friended (follow-a-friend model — distinct
+ * from MesoMember which is scoped to a shared mesocycle). Two rows exist
+ * per symmetric friendship in `user_friendships`; this shape represents
+ * the row where `user_id = friend.userId` (the friend) and
+ * `friend_id = viewer`.
+ */
+export interface Friend {
+  userId: string;
+  name: string;
+  /** Their share_level toward the viewer — governs whether the dashboard
+   *  can render weights/BW. */
+  shareLevel: MesoShareLevel;
+  /** Friend's currently active mesocycle, if any. Resolved by
+   *  listFriends for the Home tile labels. */
+  activeMesoId: string | null;
+  activeMesoName: string | null;
+  /** Most recent completed session across their active meso. */
+  lastWorkout: {
+    dayIdx: number;
+    weekIdx: number;
+    completedAt: string | null;
+  } | null;
+  createdAt: string;
+}
+
+export interface FriendInvite {
+  code: string;
+  userId: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface FriendInvitePreview {
+  code: string;
+  inviterUserId: string;
+  inviterName: string;
+  expiresAt: string;
+}

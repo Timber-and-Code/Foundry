@@ -25,13 +25,17 @@ interface FriendDashboardModalProps {
   open: boolean;
   onClose: () => void;
   member: MesoMember | null;
-  mesoId: string;
-  /** Total weeks in the active mesocycle (including deload). Used to size
-   *  the completion grid — passed in so this modal doesn't need to import
-   *  getMeso() and create a circular dep through constants. */
-  totalWeeks: number;
-  /** Days-per-week in the active mesocycle. Same reasoning as totalWeeks. */
-  daysPerWeek: number;
+  /** Shared-meso mode: pass the meso id the viewer and friend are both
+   *  on. Follow-only mode: omit — the dashboard resolves the friend's
+   *  own active meso via fetchFriendMesoSummary and self-sizes from the
+   *  returned metadata. */
+  mesoId?: string;
+  /** Fallback grid size — used while the summary is loading (shared-meso
+   *  callers still pass these so the empty grid looks right before
+   *  fetch resolves). When the summary returns, its totalWeeks /
+   *  daysPerWeek take precedence. */
+  totalWeeks?: number;
+  daysPerWeek?: number;
 }
 
 function initials(name: string): string {
@@ -61,8 +65,8 @@ export default function FriendDashboardModal({
   onClose,
   member,
   mesoId,
-  totalWeeks,
-  daysPerWeek,
+  totalWeeks: fallbackTotalWeeks = 5,
+  daysPerWeek: fallbackDaysPerWeek = 6,
 }: FriendDashboardModalProps) {
   const [summary, setSummary] = useState<FriendMesoSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,6 +86,10 @@ export default function FriendDashboardModal({
   const maxVolume = summary
     ? Math.max(1, ...summary.volumeByWeek.map((v) => v.volume))
     : 1;
+  // Grid size — prefer server-returned meso metadata, fall back to the
+  // viewer's own (shared-meso callers pass these).
+  const gridTotalWeeks = summary?.totalWeeks ?? fallbackTotalWeeks;
+  const gridDaysPerWeek = summary?.daysPerWeek ?? fallbackDaysPerWeek;
 
   return (
     <Modal open={open} onClose={onClose} maxWidth={420}>
@@ -118,16 +126,34 @@ export default function FriendDashboardModal({
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
               {member?.name || 'Friend'}
             </div>
+            {summary?.mesoName && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'var(--text-dim, var(--text-muted))',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  marginTop: 2,
+                }}
+              >
+                {summary.mesoName}
+              </div>
+            )}
             {summary?.lastWorkout && (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                 Last workout: D{summary.lastWorkout.dayIdx + 1} W
                 {summary.lastWorkout.weekIdx + 1} &middot;{' '}
                 {relativeTime(summary.lastWorkout.completedAt)}
               </div>
             )}
-            {summary && !summary.lastWorkout && (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            {summary && !summary.lastWorkout && summary.mesoId && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                 Hasn't trained on this program yet.
+              </div>
+            )}
+            {summary && !summary.mesoId && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                Not on an active program.
               </div>
             )}
           </div>
@@ -178,14 +204,14 @@ export default function FriendDashboardModal({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: `auto repeat(${daysPerWeek}, 1fr)`,
+                  gridTemplateColumns: `auto repeat(${gridDaysPerWeek}, 1fr)`,
                   gap: 6,
                   alignItems: 'center',
                 }}
               >
                 {/* Top row: blank + day numbers */}
                 <div />
-                {Array.from({ length: daysPerWeek }, (_, i) => (
+                {Array.from({ length: gridDaysPerWeek }, (_, i) => (
                   <div
                     key={`h-${i}`}
                     style={{
@@ -199,7 +225,7 @@ export default function FriendDashboardModal({
                     D{i + 1}
                   </div>
                 ))}
-                {Array.from({ length: totalWeeks }, (_, w) => (
+                {Array.from({ length: gridTotalWeeks }, (_, w) => (
                   <>
                     <div
                       key={`wk-${w}`}
@@ -213,7 +239,7 @@ export default function FriendDashboardModal({
                     >
                       W{w + 1}
                     </div>
-                    {Array.from({ length: daysPerWeek }, (_, d) => {
+                    {Array.from({ length: gridDaysPerWeek }, (_, d) => {
                       const done = doneSet.has(`${d}:${w}`);
                       return (
                         <div

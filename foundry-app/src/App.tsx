@@ -67,6 +67,9 @@ const NotFoundPage = React.lazy(() => import('./components/NotFoundPage'));
 const ShareModalPreview = React.lazy(
   () => import('./components/workout/ShareModalPreview'),
 );
+const FriendInvitePage = React.lazy(
+  () => import('./components/social/FriendInvitePage'),
+);
 
 // Onboarding v2 feature flag. Defaults ON for the TestFlight testing cut.
 // Explicit opt-out via localStorage.setItem('foundry:onboarding_v2', '0') lets
@@ -633,6 +636,7 @@ function App() {
             element={<MobilityViewRoute profile={profile} />}
           />
           <Route path="/preview/share" element={<ShareModalPreview />} />
+          <Route path="/friend/:code" element={<FriendInvitePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </main>

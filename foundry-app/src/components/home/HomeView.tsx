@@ -29,6 +29,7 @@ import ExplorePage from '../explore/ExplorePage';
 import { PricingPage } from '../settings/PricingPage';
 import ShareMesoModal from '../social/ShareMesoModal';
 import JoinMesoFlow from '../social/JoinMesoFlow';
+import FriendsSection from '../social/FriendsSection';
 import type { Profile, TrainingDay } from '../../types';
 
 interface HomeViewProps {
@@ -708,7 +709,14 @@ function HomeView({
             setShowPricing={setShowPricing}
           />
 
-          {/* Train with Friends */}
+          {/* Friends — follow-a-friend section. Renders a horizontal
+              row of friend tiles + an Add button. Sits above the
+              Share/Join buttons which are scoped to shared mesos. */}
+          {user && <FriendsSection />}
+
+          {/* Train with Friends — share or join a mesocycle. Distinct
+              from the Friends section: this is program-sharing, not
+              progress-following. */}
           {user && (
             <div
               style={{
