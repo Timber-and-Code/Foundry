@@ -177,12 +177,26 @@ export interface ArchiveEntry {
 
 // ─── SOCIAL (Train with Friends) ────────────────────────────────────────────
 
+/**
+ * Privacy level a member exposes on a shared mesocycle.
+ *  - `full`  — completion status + workout sets (weight/reps/RPE) + bodyweight
+ *  - `basic` — completion status only (did they train this day yes/no)
+ *
+ * Enforced by RLS on workout_sets and body_weight_log (see migration 003).
+ * Client reads also honour it so the UI matches what the server will
+ * return (e.g. the friend dashboard hides PRs + volume on 'basic').
+ */
+export type MesoShareLevel = 'full' | 'basic';
+
 export interface MesoMember {
   mesoId: string;
   userId: string;
   role: 'owner' | 'member';
   name: string;
   joinedAt: string;
+  /** Privacy level the member has set on this meso. Defaults to 'full'
+   *  when the server column hasn't been backfilled yet. */
+  shareLevel: MesoShareLevel;
   latestActivity?: {
     dayIdx: number;
     weekIdx: number;
@@ -195,6 +209,9 @@ export interface FriendWorkoutData {
   userName: string;
   dayIdx: number;
   weekIdx: number;
+  /** Mirrors MesoMember.shareLevel so consumers can render the right empty
+   *  state (e.g. "Basic sharing — completion only" vs "No sets logged"). */
+  shareLevel: MesoShareLevel;
   exercises: {
     name: string;
     muscle: string;

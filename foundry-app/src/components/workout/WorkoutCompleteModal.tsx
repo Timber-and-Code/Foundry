@@ -12,6 +12,9 @@ import FriendsStrip from '../social/FriendsStrip';
 import ShareCard from './ShareCard';
 import ShareSheet, { type ShareSheetPayload } from './ShareSheet';
 import { captureShareCardPayload } from '../../utils/shareWorkout';
+import FriendDashboardModal from '../social/FriendDashboardModal';
+import { getMeso } from '../../data/constants';
+import type { MesoMember, Profile } from '../../types';
 
 // Local-time YYYY-MM-DD (not UTC) — matches the dateStr format used across
 // the codebase for per-day localStorage keys (mobility sessions, cardio
@@ -59,6 +62,9 @@ interface WorkoutCompleteModalProps {
    *  the card is rendered after the volume recap unless the user has
    *  dismissed it for today. */
   onStartCooldown?: () => void;
+  /** Optional: used to size the friend dashboard's completion grid when
+   *  a FriendsStrip avatar is tapped. Falls back to 6 days/week. */
+  profile?: Profile;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -71,8 +77,10 @@ function WorkoutCompleteModal({
   weekIdx,
   onOk,
   onStartCooldown,
+  profile,
 }: WorkoutCompleteModalProps) {
   const mesoId = store.get('foundry:active_meso_id');
+  const [dashboardMember, setDashboardMember] = useState<MesoMember | null>(null);
 
   // Post-workout mobility prompt — per-day dismissal so the nudge doesn't
   // re-surface if the user closes and reopens the completion modal today.
@@ -625,10 +633,14 @@ function WorkoutCompleteModal({
           </div>
         </div>
 
-        {/* Friends strip — presence of crew members on this shared meso */}
+        {/* Friends strip — presence of crew members on this shared meso.
+            Tap an avatar → FriendDashboardModal (aggregate view). */}
         {mesoId && (
           <div style={{ width: '100%' }}>
-            <FriendsStrip mesoId={mesoId} onSelectFriend={() => { /* #8: Friend Progress View */ }} />
+            <FriendsStrip
+              mesoId={mesoId}
+              onSelectFriend={(m) => setDashboardMember(m)}
+            />
           </div>
         )}
 
@@ -750,6 +762,18 @@ function WorkoutCompleteModal({
           congratsSub={congrats.sub}
         />
       </div>
+
+      {/* Friend dashboard — opens when a FriendsStrip avatar is tapped. */}
+      {mesoId && (
+        <FriendDashboardModal
+          open={dashboardMember !== null}
+          onClose={() => setDashboardMember(null)}
+          member={dashboardMember}
+          mesoId={mesoId}
+          totalWeeks={getMeso().totalWeeks}
+          daysPerWeek={profile?.workoutDays?.length || profile?.daysPerWeek || 6}
+        />
+      )}
     </div>
   );
 }

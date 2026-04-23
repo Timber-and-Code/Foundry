@@ -992,6 +992,7 @@ function DayView({
         weekIdx={weekIdx}
         exercises={exercises}
         mesoId={mesoId}
+        profile={profile}
         onStart={beginWorkout}
         onBack={() => {
           dismissSplash();
@@ -1649,6 +1650,7 @@ function DayView({
           dayLabel={day.label || day.name || ''}
           dayTag={day.tag}
           gender={profile?.gender}
+          profile={profile}
           stats={workoutStats}
           weekIdx={completionWeekIdx !== null ? completionWeekIdx : weekIdx}
           onOk={() => {

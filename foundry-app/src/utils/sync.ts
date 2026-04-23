@@ -2312,7 +2312,10 @@ export async function previewInviteCode(code: string): Promise<{
   }
 }
 
-export async function joinMesoByCode(code: string): Promise<{
+export async function joinMesoByCode(
+  code: string,
+  shareLevel: 'full' | 'basic' = 'full',
+): Promise<{
   success: boolean;
   mesoName?: string;
   ownerName?: string;
@@ -2340,14 +2343,30 @@ export async function joinMesoByCode(code: string): Promise<{
     // Archive current meso first (non-destructive — just marks as abandoned)
     await archiveMesocycleRemote();
 
-    // Insert member row
-    const { error: insertError } = await supabase
-      .from('mesocycle_members')
-      .insert({
-        mesocycle_id: mesoId,
-        user_id: user.id,
-        role: 'member',
-      });
+    // Insert member row. share_level is optimistically included; if the
+    // column doesn't exist yet (migration 003 not applied), retry without.
+    let insertError: unknown;
+    {
+      const res = await supabase
+        .from('mesocycle_members')
+        .insert({
+          mesocycle_id: mesoId,
+          user_id: user.id,
+          role: 'member',
+          share_level: shareLevel,
+        });
+      insertError = res.error;
+    }
+    if (insertError) {
+      const res = await supabase
+        .from('mesocycle_members')
+        .insert({
+          mesocycle_id: mesoId,
+          user_id: user.id,
+          role: 'member',
+        });
+      insertError = res.error;
+    }
     if (insertError) throw insertError;
 
     // Clear the old meso's local data so it doesn't bleed through if the
@@ -2489,13 +2508,36 @@ export async function fetchMesoMembers(mesoId: string): Promise<MesoMember[]> {
     const user = await getUser();
     if (!user) return [];
 
-    const { data: members, error } = await supabase
-      .from('mesocycle_members')
-      .select('mesocycle_id, user_id, role, joined_at')
-      .eq('mesocycle_id', mesoId);
-    if (error || !members) return [];
+    // Select share_level optimistically. If the column doesn't exist yet
+    // (migration 003 not run), Supabase returns an error → fall back to a
+    // select without it and treat everyone as 'full'.
+    let members: unknown;
+    let selectError: unknown;
+    {
+      const res = await supabase
+        .from('mesocycle_members')
+        .select('mesocycle_id, user_id, role, joined_at, share_level')
+        .eq('mesocycle_id', mesoId);
+      members = res.data;
+      selectError = res.error;
+    }
+    if (selectError) {
+      const res = await supabase
+        .from('mesocycle_members')
+        .select('mesocycle_id, user_id, role, joined_at')
+        .eq('mesocycle_id', mesoId);
+      members = res.data;
+      selectError = res.error;
+    }
+    if (selectError || !members) return [];
 
-    type MemberRow = { mesocycle_id: string; user_id: string; role: string; joined_at: string };
+    type MemberRow = {
+      mesocycle_id: string;
+      user_id: string;
+      role: string;
+      joined_at: string;
+      share_level?: string | null;
+    };
     const rows = members as MemberRow[];
 
     // Filter out current user
@@ -2543,10 +2585,39 @@ export async function fetchMesoMembers(mesoId: string): Promise<MesoMember[]> {
       role: r.role as 'owner' | 'member',
       name: nameMap.get(r.user_id) || 'User',
       joinedAt: r.joined_at,
+      shareLevel: r.share_level === 'basic' ? 'basic' : 'full',
       latestActivity: activityMap.get(r.user_id) ?? null,
     }));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Update the caller's own share_level on a mesocycle. RLS policy (migration
+ * 003) restricts updates to `auth.uid() = user_id`, so this can't be used
+ * to edit someone else's row. Returns `true` on success.
+ */
+export async function updateMesoShareLevel(
+  mesoId: string,
+  level: 'full' | 'basic',
+): Promise<boolean> {
+  try {
+    const user = await getUser();
+    if (!user) return false;
+    const { error } = await supabase
+      .from('mesocycle_members')
+      .update({ share_level: level })
+      .eq('mesocycle_id', mesoId)
+      .eq('user_id', user.id);
+    if (error) {
+      reportSyncFailure('update_share_level', error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    reportSyncFailure('update_share_level', e);
+    return false;
   }
 }
 
@@ -2565,6 +2636,21 @@ export async function fetchFriendWorkout(
       .maybeSingle();
     const userName = (profileData as { name: string } | null)?.name || 'Friend';
 
+    // Read the friend's share_level so the UI can render the right empty
+    // state on 'basic' — "they're sharing completion only" vs "no sets".
+    // Falls back to 'full' if the column isn't there yet.
+    let shareLevel: 'full' | 'basic' = 'full';
+    {
+      const res = await supabase
+        .from('mesocycle_members')
+        .select('share_level')
+        .eq('mesocycle_id', mesoId)
+        .eq('user_id', friendUserId)
+        .maybeSingle();
+      const row = res.data as { share_level?: string | null } | null;
+      if (row?.share_level === 'basic') shareLevel = 'basic';
+    }
+
     // Get the workout session
     const { data: sessionData } = await supabase
       .from('workout_sessions')
@@ -2576,7 +2662,13 @@ export async function fetchFriendWorkout(
       .maybeSingle();
 
     if (!sessionData) {
-      return { userId: friendUserId, userName, dayIdx, weekIdx, exercises: [] };
+      return { userId: friendUserId, userName, dayIdx, weekIdx, shareLevel, exercises: [] };
+    }
+
+    // On 'basic' we intentionally skip the sets fetch — RLS would return an
+    // empty set anyway and round-tripping for nothing is wasteful.
+    if (shareLevel === 'basic') {
+      return { userId: friendUserId, userName, dayIdx, weekIdx, shareLevel, exercises: [] };
     }
 
     const sessionId = (sessionData as { id: string }).id;
@@ -2589,7 +2681,7 @@ export async function fetchFriendWorkout(
       .order('set_number', { ascending: true });
 
     if (!setRows || setRows.length === 0) {
-      return { userId: friendUserId, userName, dayIdx, weekIdx, exercises: [] };
+      return { userId: friendUserId, userName, dayIdx, weekIdx, shareLevel, exercises: [] };
     }
 
     type SetRow = {
@@ -2627,7 +2719,171 @@ export async function fetchFriendWorkout(
       });
     }
 
-    return { userId: friendUserId, userName, dayIdx, weekIdx, exercises };
+    return { userId: friendUserId, userName, dayIdx, weekIdx, shareLevel, exercises };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Friend dashboard ────────────────────────────────────────────────────────
+
+export interface FriendMesoSummary {
+  userId: string;
+  userName: string;
+  shareLevel: 'full' | 'basic';
+  /** Completed days as `dayIdx:weekIdx` for heat-map rendering. */
+  completedDays: string[];
+  /** Most recent completed session (null if never trained this meso). */
+  lastWorkout: { dayIdx: number; weekIdx: number; completedAt: string | null } | null;
+  /** Per-week total working volume in lbs. Empty on 'basic'. */
+  volumeByWeek: Array<{ weekIdx: number; volume: number }>;
+  /** Anchor-lift PRs set during this meso (by max weight across sessions).
+   *  Empty on 'basic'. */
+  prs: Array<{ exerciseName: string; weight: number; reps: number; weekIdx: number }>;
+}
+
+/**
+ * Aggregate a friend's progress across a shared mesocycle for the dashboard.
+ * Honors share_level — 'basic' returns completion grid + last-workout only
+ * (RLS blocks workout_sets for basic, and we don't bother round-tripping).
+ */
+export async function fetchFriendMesoSummary(
+  friendUserId: string,
+  mesoId: string,
+): Promise<FriendMesoSummary | null> {
+  try {
+    const { data: profileData } = await supabase
+      .from('user_profiles')
+      .select('name')
+      .eq('id', friendUserId)
+      .maybeSingle();
+    const userName = (profileData as { name: string } | null)?.name || 'Friend';
+
+    let shareLevel: 'full' | 'basic' = 'full';
+    {
+      const res = await supabase
+        .from('mesocycle_members')
+        .select('share_level')
+        .eq('mesocycle_id', mesoId)
+        .eq('user_id', friendUserId)
+        .maybeSingle();
+      const row = res.data as { share_level?: string | null } | null;
+      if (row?.share_level === 'basic') shareLevel = 'basic';
+    }
+
+    // Completed sessions — always readable (no share-level gate on
+    // workout_sessions, only on workout_sets).
+    const { data: sessionRows } = await supabase
+      .from('workout_sessions')
+      .select('id, day_number, week_number, completed_at, is_complete')
+      .eq('user_id', friendUserId)
+      .eq('meso_id', mesoId)
+      .eq('is_complete', true)
+      .order('completed_at', { ascending: false });
+
+    type SessionRow = {
+      id: string;
+      day_number: number;
+      week_number: number;
+      completed_at: string | null;
+      is_complete: boolean;
+    };
+    const sessions = (sessionRows as SessionRow[] | null) || [];
+
+    const completedDays = sessions.map((s) => `${s.day_number}:${s.week_number}`);
+    const lastWorkout = sessions.length
+      ? {
+          dayIdx: sessions[0].day_number,
+          weekIdx: sessions[0].week_number,
+          completedAt: sessions[0].completed_at,
+        }
+      : null;
+
+    if (shareLevel === 'basic' || sessions.length === 0) {
+      return {
+        userId: friendUserId,
+        userName,
+        shareLevel,
+        completedDays,
+        lastWorkout,
+        volumeByWeek: [],
+        prs: [],
+      };
+    }
+
+    // Full: pull working sets for volume + PR aggregation.
+    const sessionIds = sessions.map((s) => s.id);
+    const { data: setRows } = await supabase
+      .from('workout_sets')
+      .select('workout_session_id, exercise_id, weight_lbs, reps, is_warmup')
+      .in('workout_session_id', sessionIds);
+
+    type SetRow = {
+      workout_session_id: string;
+      exercise_id: string;
+      weight_lbs: number | null;
+      reps: number | null;
+      is_warmup: boolean;
+    };
+    const sets = (setRows as SetRow[] | null) || [];
+
+    // Map session → week for volume bucketing.
+    const sessionToWeek = new Map<string, number>();
+    for (const s of sessions) sessionToWeek.set(s.id, s.week_number);
+
+    const volumeMap = new Map<number, number>();
+    const prMap = new Map<
+      string,
+      { weight: number; reps: number; weekIdx: number }
+    >();
+
+    for (const s of sets) {
+      if (s.is_warmup) continue;
+      const w = Number(s.weight_lbs ?? 0);
+      const r = Number(s.reps ?? 0);
+      if (!Number.isFinite(w) || !Number.isFinite(r)) continue;
+      const week = sessionToWeek.get(s.workout_session_id) ?? 0;
+      if (w > 0 && r > 0) {
+        volumeMap.set(week, (volumeMap.get(week) ?? 0) + w * r);
+      }
+      const best = prMap.get(s.exercise_id);
+      if (!best || w > best.weight) {
+        prMap.set(s.exercise_id, { weight: w, reps: r, weekIdx: week });
+      }
+    }
+
+    const volumeByWeek = Array.from(volumeMap.entries())
+      .map(([weekIdx, volume]) => ({ weekIdx, volume }))
+      .sort((a, b) => a.weekIdx - b.weekIdx);
+
+    // Resolve exercise names for PR display (dynamic import mirrors
+    // fetchFriendWorkout to avoid pulling the whole DB into the critical bundle).
+    const { EXERCISE_DB } = await import('../data/exercises');
+    const exerciseMap = new Map<string, string>();
+    for (const ex of EXERCISE_DB as Array<{ id: string; name: string }>) {
+      exerciseMap.set(ex.id, ex.name);
+    }
+
+    const prs = Array.from(prMap.entries())
+      .map(([exerciseId, pr]) => ({
+        exerciseName: exerciseMap.get(exerciseId) || exerciseId,
+        weight: pr.weight,
+        reps: pr.reps,
+        weekIdx: pr.weekIdx,
+      }))
+      .filter((p) => p.weight > 0)
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 8);
+
+    return {
+      userId: friendUserId,
+      userName,
+      shareLevel,
+      completedDays,
+      lastWorkout,
+      volumeByWeek,
+      prs,
+    };
   } catch {
     return null;
   }

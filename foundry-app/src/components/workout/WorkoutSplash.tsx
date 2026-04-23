@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { getMeso, getWeekPhase, PHASE_COLOR, getWeekRir } from '../../data/constants';
 import { getWeekSets, store } from '../../utils/store';
 import { findExercise } from '../../data/exerciseDB';
 import FriendsStrip from '../social/FriendsStrip';
-import type { Exercise } from '../../types';
+import FriendDashboardModal from '../social/FriendDashboardModal';
+import type { Exercise, MesoMember, Profile } from '../../types';
 
 interface WorkoutSplashProps {
   dayName: string;
@@ -11,6 +13,9 @@ interface WorkoutSplashProps {
   weekIdx: number;
   exercises: Exercise[];
   mesoId?: string | null;
+  /** Used to size the friend-dashboard completion grid (days-per-week).
+   *  Falls back to 6 if unknown — matches the default Foundry split. */
+  profile?: Profile;
   onStart?: () => void;
   onBack: () => void;
   /** When true, hides the start CTA and disables tap-to-start — used by the
@@ -25,6 +30,7 @@ export default function WorkoutSplash({
   weekIdx,
   exercises,
   mesoId,
+  profile,
   onStart,
   onBack,
   previewOnly = false,
@@ -33,6 +39,9 @@ export default function WorkoutSplash({
   const phaseColor = PHASE_COLOR[phase] || '#E8E4DC';
   const rir = getWeekRir()[weekIdx] || '';
   const totalWeeks = getMeso().totalWeeks;
+  const daysPerWeek =
+    profile?.workoutDays?.length || profile?.daysPerWeek || 6;
+  const [dashboardMember, setDashboardMember] = useState<MesoMember | null>(null);
 
   return (
     <div
@@ -206,10 +215,14 @@ export default function WorkoutSplash({
 
         {/* Friends strip (shared meso only) — anchored below the exercise
             list so the list is the first thing you read; keeps the Start
-            button at the very bottom where thumbs land. */}
+            button at the very bottom where thumbs land. Tapping a friend
+            opens the FriendDashboardModal. */}
         {mesoId && (
           <div onClick={(e) => e.stopPropagation()}>
-            <FriendsStrip mesoId={mesoId} onSelectFriend={() => { /* #8: Friend Progress View */ }} />
+            <FriendsStrip
+              mesoId={mesoId}
+              onSelectFriend={(m) => setDashboardMember(m)}
+            />
           </div>
         )}
 
@@ -279,6 +292,19 @@ export default function WorkoutSplash({
           </div>
         )}
       </div>
+
+      {/* Friend dashboard — aggregate view opened from the FriendsStrip.
+          Rendered at the root so its backdrop covers the splash. */}
+      {mesoId && (
+        <FriendDashboardModal
+          open={dashboardMember !== null}
+          onClose={() => setDashboardMember(null)}
+          member={dashboardMember}
+          mesoId={mesoId}
+          totalWeeks={totalWeeks}
+          daysPerWeek={daysPerWeek}
+        />
+      )}
     </div>
   );
 }

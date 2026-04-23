@@ -10,7 +10,8 @@ interface JoinMesoFlowProps {
   onJoined: () => void;
 }
 
-type Step = 'enter' | 'confirm' | 'joining';
+type Step = 'enter' | 'confirm' | 'sharing' | 'joining';
+type ShareLevel = 'full' | 'basic';
 
 export default function JoinMesoFlow({ open, onClose, onJoined }: JoinMesoFlowProps) {
   const [step, setStep] = useState<Step>('enter');
@@ -22,6 +23,7 @@ export default function JoinMesoFlow({ open, onClose, onJoined }: JoinMesoFlowPr
     ownerName: string;
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [shareLevel, setShareLevel] = useState<ShareLevel>('full');
 
   const reset = () => {
     setStep('enter');
@@ -29,6 +31,7 @@ export default function JoinMesoFlow({ open, onClose, onJoined }: JoinMesoFlowPr
     setError('');
     setPreview(null);
     setLoading(false);
+    setShareLevel('full');
   };
 
   const handleClose = () => {
@@ -53,13 +56,13 @@ export default function JoinMesoFlow({ open, onClose, onJoined }: JoinMesoFlowPr
 
   const handleJoin = async () => {
     setStep('joining');
-    const result = await joinMesoByCode(code);
+    const result = await joinMesoByCode(code, shareLevel);
     if (result.success) {
       handleClose();
       onJoined();
     } else {
       setError(result.error || 'Failed to join.');
-      setStep('confirm');
+      setStep('sharing');
     }
   };
 
@@ -237,6 +240,74 @@ export default function JoinMesoFlow({ open, onClose, onJoined }: JoinMesoFlowPr
                 Back
               </Button>
               <Button
+                onClick={() => { setError(''); setStep('sharing'); }}
+                variant="primary"
+                style={{ flex: 1 }}
+              >
+                Continue
+              </Button>
+            </div>
+          </>
+        )}
+
+        {step === 'sharing' && preview && (
+          <>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                marginBottom: 6,
+              }}
+            >
+              How much to share?
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                marginBottom: 18,
+                lineHeight: 1.5,
+              }}
+            >
+              Pick what {preview.ownerName} and other members on this program
+              can see from you. You can change this any time in settings.
+            </div>
+
+            <ShareLevelOption
+              title="Full"
+              subtitle="Completion + weights, reps, volume, PRs, bodyweight"
+              selected={shareLevel === 'full'}
+              onSelect={() => setShareLevel('full')}
+            />
+            <ShareLevelOption
+              title="Basic"
+              subtitle="Completion only — your friend sees which days you trained, nothing else"
+              selected={shareLevel === 'basic'}
+              onSelect={() => setShareLevel('basic')}
+            />
+
+            {error && (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: 'var(--danger)',
+                  marginTop: 12,
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <Button
+                onClick={() => { setStep('confirm'); setError(''); }}
+                variant="secondary"
+                style={{ flex: 1 }}
+              >
+                Back
+              </Button>
+              <Button
                 onClick={handleJoin}
                 variant="primary"
                 style={{ flex: 1 }}
@@ -260,5 +331,89 @@ export default function JoinMesoFlow({ open, onClose, onJoined }: JoinMesoFlowPr
         )}
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Radio-style card for the "Full / Basic" choice. Full-width, selected state
+ * amber-tinted to match the brand accent used on other primary affordances.
+ */
+interface ShareLevelOptionProps {
+  title: string;
+  subtitle: string;
+  selected: boolean;
+  onSelect: () => void;
+}
+
+function ShareLevelOption({ title, subtitle, selected, onSelect }: ShareLevelOptionProps) {
+  const AMBER = '#D4983C';
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      style={{
+        width: '100%',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 12,
+        padding: '14px 16px',
+        marginBottom: 10,
+        borderRadius: tokens.radius.lg,
+        background: selected ? 'rgba(212,152,60,0.12)' : 'var(--bg-inset)',
+        border: `1.5px solid ${selected ? AMBER : 'var(--border)'}`,
+        cursor: 'pointer',
+        textAlign: 'left',
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          border: `2px solid ${selected ? AMBER : 'var(--border)'}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          marginTop: 1,
+        }}
+      >
+        {selected && (
+          <div
+            style={{
+              width: 9,
+              height: 9,
+              borderRadius: '50%',
+              background: AMBER,
+            }}
+          />
+        )}
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: selected ? AMBER : 'var(--text-primary)',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+            marginTop: 4,
+            lineHeight: 1.45,
+          }}
+        >
+          {subtitle}
+        </div>
+      </div>
+    </button>
   );
 }
