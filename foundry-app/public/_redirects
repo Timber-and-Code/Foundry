@@ -1,1 +1,9 @@
+# Exceptions MUST come before the SPA catch-all because the forced 200!
+# rewrite below bypasses static-file matching. Universal Links validation
+# fetches the AASA without following redirects, so these entries serve
+# the real static files instead of index.html.
+/apple-app-site-association              /apple-app-site-association              200
+/.well-known/apple-app-site-association  /.well-known/apple-app-site-association  200
+
+# SPA fallback — forced so refreshes on any React Router path resolve.
 /*    /index.html    200!

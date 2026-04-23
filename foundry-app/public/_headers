@@ -1,0 +1,10 @@
+# Apple App Site Association — must be served as application/json with no
+# Content-Disposition. Apple's Universal Links validator rejects anything
+# that looks like a file download or uses the wrong MIME. Cloudflare Pages
+# otherwise guesses the MIME from the (missing) extension, which defaults
+# to text/plain and breaks the install-time verification.
+/apple-app-site-association
+  Content-Type: application/json
+
+/.well-known/apple-app-site-association
+  Content-Type: application/json

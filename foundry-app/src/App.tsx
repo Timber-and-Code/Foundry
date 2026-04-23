@@ -48,6 +48,7 @@ import type { Profile, TrainingDay } from './types';
 // Hooks
 import { useMesoState } from './hooks/useMesoState';
 import { useHealthSync } from './hooks/useHealthSync';
+import { useUniversalLinks } from './hooks/useUniversalLinks';
 
 const OnboardingFlow = React.lazy(() => import('./components/onboarding/OnboardingFlow'));
 const IntakeCard = React.lazy(() => import('./components/onboarding/IntakeCard'));
@@ -221,6 +222,9 @@ function App() {
 
   // ── Apple Health bodyweight sync (no-op off iOS native) ──
   useHealthSync();
+
+  // ── iOS universal links: /friend/:code opens in-app instead of Safari ──
+  useUniversalLinks();
 
   // Listen for cardio open requests from DayView
   useEffect(() => {

@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "L3PCLK4HLL.com.thefoundryfitness.app",
+        "paths": [
+          "/friend/*"
+        ]
+      }
+    ]
+  }
+}

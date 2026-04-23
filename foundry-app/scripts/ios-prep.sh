@@ -103,6 +103,29 @@ log "iPad orientations (all 4 required for App Store multitasking compliance)"
 log "Setting CFBundleShortVersionString=$VERSION"
 set_or_add CFBundleShortVersionString string "$VERSION"
 
+# --- 5b. Associated Domains (Universal Links) -----------------------------
+# Adds `applinks:thefoundry.coach` so /friend/:code invite deep links
+# open inside the app instead of Safari. Requires the AASA file served
+# at https://thefoundry.coach/.well-known/apple-app-site-association
+# (see foundry-app/public/.well-known/). Idempotent — checks before add.
+ENTITLEMENTS="$APP_DIR/App.entitlements"
+if [ ! -f "$ENTITLEMENTS" ]; then
+  die "App.entitlements missing at $ENTITLEMENTS"
+fi
+
+log "Adding com.apple.developer.associated-domains (applinks:thefoundry.coach)"
+if "$PB" -c "Print :com.apple.developer.associated-domains" "$ENTITLEMENTS" >/dev/null 2>&1; then
+  log "  associated-domains array already exists — ensuring applinks entry"
+  if "$PB" -c "Print :com.apple.developer.associated-domains" "$ENTITLEMENTS" | grep -q "applinks:thefoundry.coach"; then
+    log "  applinks:thefoundry.coach already present — skip"
+  else
+    "$PB" -c "Add :com.apple.developer.associated-domains: string applinks:thefoundry.coach" "$ENTITLEMENTS"
+  fi
+else
+  "$PB" -c "Add :com.apple.developer.associated-domains array" "$ENTITLEMENTS"
+  "$PB" -c "Add :com.apple.developer.associated-domains: string applinks:thefoundry.coach" "$ENTITLEMENTS"
+fi
+
 # --- 6. Sync + pods --------------------------------------------------------
 log "Running: npx cap sync ios"
 npx cap sync ios
