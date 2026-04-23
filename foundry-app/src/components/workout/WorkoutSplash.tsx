@@ -144,13 +144,6 @@ export default function WorkoutSplash({
           </div>
         )}
 
-        {/* Friends strip if shared meso */}
-        {mesoId && (
-          <div onClick={(e) => e.stopPropagation()}>
-            <FriendsStrip mesoId={mesoId} onSelectFriend={() => { /* #8: Friend Progress View */ }} />
-          </div>
-        )}
-
         {/* Exercise overview — scrollable list of today's lifts */}
         <div
           onClick={(e) => e.stopPropagation()}
@@ -210,6 +203,15 @@ export default function WorkoutSplash({
             );
           })}
         </div>
+
+        {/* Friends strip (shared meso only) — anchored below the exercise
+            list so the list is the first thing you read; keeps the Start
+            button at the very bottom where thumbs land. */}
+        {mesoId && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <FriendsStrip mesoId={mesoId} onSelectFriend={() => { /* #8: Friend Progress View */ }} />
+          </div>
+        )}
 
         {/* Action row — Back (secondary, bordered) + Start (primary amber).
             No more tap-anywhere-to-start; the user gets a clear binary choice. */}
