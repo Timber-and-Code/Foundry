@@ -38,18 +38,25 @@ vi.mock('../social/FriendsStrip', () => ({
   default: () => <div data-testid="friends-strip" />,
 }));
 
-// shareWorkoutCard is the unit under test at the WorkoutCompleteModal layer;
-// the util itself has its own contract-level paths. Here we just verify the
-// button wires into it with the right meta payload.
-const shareSpy = vi.fn(
-  (_node: HTMLElement, _meta: { title: string; text: string; fileName: string }) =>
-    Promise.resolve('downloaded' as const),
+// captureShareCardPayload is the seam the ShareSheet tiles call; we spy on
+// it to verify the modal wires in the right meta (title / fileName / text)
+// regardless of which destination tile the user ends up picking.
+const captureSpy = vi.fn(
+  (
+    _node: HTMLElement,
+    meta: { title: string; text: string; fileName: string },
+  ) =>
+    Promise.resolve({
+      file: new File([new Uint8Array([0])], meta.fileName, { type: 'image/png' }),
+      dataUrl: 'data:image/png;base64,AAA',
+      ...meta,
+    }),
 );
 vi.mock('../../../utils/shareWorkout', () => ({
-  shareWorkoutCard: (
+  captureShareCardPayload: (
     node: HTMLElement,
     meta: { title: string; text: string; fileName: string },
-  ) => shareSpy(node, meta),
+  ) => captureSpy(node, meta),
 }));
 
 import WorkoutCompleteModal from '../WorkoutCompleteModal';
@@ -82,7 +89,7 @@ function renderModal(
 describe('WorkoutCompleteModal — SHARE button', () => {
   beforeEach(() => {
     localStorage.clear();
-    shareSpy.mockClear();
+    captureSpy.mockClear();
   });
 
   it('renders a SHARE button alongside NEXT SESSION', () => {
@@ -95,16 +102,32 @@ describe('WorkoutCompleteModal — SHARE button', () => {
     ).toBeInTheDocument();
   });
 
-  it('invokes shareWorkoutCard with the correct meta when tapped', async () => {
+  it('opens the branded share sheet when tapped', async () => {
     renderModal();
 
     fireEvent.click(
       screen.getByRole('button', { name: /share this workout/i }),
     );
 
-    await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+    // Sheet presence — the 11-tile grid renders data-testid'd buttons.
+    await waitFor(() =>
+      expect(screen.getByTestId('share-tile-save')).toBeInTheDocument(),
+    );
+  });
 
-    const meta = shareSpy.mock.calls[0][1];
+  it('captures with the correct meta when a tile is picked', async () => {
+    renderModal();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /share this workout/i }),
+    );
+    // "Save PNG" is the simplest tile — no window.open / native share to
+    // stub, just exercises the capture path.
+    fireEvent.click(await screen.findByTestId('share-tile-save'));
+
+    await waitFor(() => expect(captureSpy).toHaveBeenCalledTimes(1));
+
+    const meta = captureSpy.mock.calls[0][1];
     expect(meta.title).toBe('Crushed Push A');
     expect(meta.fileName).toMatch(/^foundry-push-a-w2\.png$/);
     expect(meta.text).toContain('Crushed Push A');
@@ -124,9 +147,10 @@ describe('WorkoutCompleteModal — SHARE button', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /share this workout/i }),
     );
-    await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByTestId('share-tile-save'));
+    await waitFor(() => expect(captureSpy).toHaveBeenCalledTimes(1));
 
-    const meta = shareSpy.mock.calls[0][1];
+    const meta = captureSpy.mock.calls[0][1];
     expect(meta.text).toMatch(/NEW PR: Bench 185 lbs/);
   });
 });

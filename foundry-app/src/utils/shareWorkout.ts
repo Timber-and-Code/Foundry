@@ -105,10 +105,25 @@ async function captureNodeToPng(node: HTMLElement): Promise<string> {
   return htmlToImage.toPng(node, {
     pixelRatio: 2,
     // Explicit size avoids layout-dependent cropping if the node sits in
-    // an off-screen position:absolute wrapper.
+    // an off-screen position:absolute wrapper. Height is flow-sized on the
+    // new ShareCard, so fall back to the node's rendered offsetHeight.
     width: node.offsetWidth || 1080,
     height: node.offsetHeight || 1350,
   });
+}
+
+/**
+ * Capture a share-ready payload without actually dispatching a share. Used
+ * by the branded ShareSheet so each destination tile can decide what to do
+ * with the file (native share, download + intent URL, clipboard).
+ */
+export async function captureShareCardPayload(
+  node: HTMLElement,
+  meta: ShareWorkoutMeta,
+): Promise<{ file: File; dataUrl: string } & ShareWorkoutMeta> {
+  const dataUrl = await captureNodeToPng(node);
+  const file = await dataUrlToFile(dataUrl, meta.fileName);
+  return { file, dataUrl, ...meta };
 }
 
 function downloadPng(dataUrl: string, fileName: string): void {

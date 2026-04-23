@@ -64,6 +64,9 @@ const CoachMarkOrchestrator = React.lazy(
 const ProfileDrawer = React.lazy(() => import('./components/settings/SettingsView'));
 const SetupPage = React.lazy(() => import('./components/setup/SetupPage'));
 const NotFoundPage = React.lazy(() => import('./components/NotFoundPage'));
+const ShareModalPreview = React.lazy(
+  () => import('./components/workout/ShareModalPreview'),
+);
 
 // Onboarding v2 feature flag. Defaults ON for the TestFlight testing cut.
 // Explicit opt-out via localStorage.setItem('foundry:onboarding_v2', '0') lets
@@ -629,6 +632,7 @@ function App() {
             path="/mobility/:dateStr"
             element={<MobilityViewRoute profile={profile} />}
           />
+          <Route path="/preview/share" element={<ShareModalPreview />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </main>

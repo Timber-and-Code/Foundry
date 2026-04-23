@@ -10,7 +10,8 @@ import {
 import { store } from '../../utils/store';
 import FriendsStrip from '../social/FriendsStrip';
 import ShareCard from './ShareCard';
-import { shareWorkoutCard } from '../../utils/shareWorkout';
+import ShareSheet, { type ShareSheetPayload } from './ShareSheet';
+import { captureShareCardPayload } from '../../utils/shareWorkout';
 
 // Local-time YYYY-MM-DD (not UTC) — matches the dateStr format used across
 // the codebase for per-day localStorage keys (mobility sessions, cardio
@@ -92,36 +93,40 @@ function WorkoutCompleteModal({
 
   const [congrats] = useState(() => randomCongrats());
   const [quote] = useState(() => randomQuote(gender));
-  const [sharing, setSharing] = useState(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const shareCardRef = useRef<HTMLDivElement>(null);
 
-  const handleShare = async () => {
+  /** Build the payload the ShareSheet hands to each destination tile. The
+   *  sheet calls this once per open; it captures the off-screen ShareCard
+   *  into a PNG file + dataUrl. */
+  const getSharePayload = React.useCallback(async (): Promise<ShareSheetPayload> => {
     const node = shareCardRef.current;
-    if (!node || sharing) return;
-    setSharing(true);
-    try {
-      const prLine =
-        stats.prs.length > 0
-          ? `🏆 NEW PR: ${stats.prs[0].name} ${stats.prs[0].newBest} lbs\n`
-          : '';
-      const text =
-        `${prLine}Crushed ${dayLabel} — Week ${weekIdx + 1} · ${phase}.\n` +
-        `${stats.sets} sets · ${stats.reps} reps · ${Math.round(stats.volume).toLocaleString()} lbs total.\n\n` +
-        `🔨 thefoundry.coach`;
-      const safeDay = dayLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      await shareWorkoutCard(node, {
-        title: `Crushed ${dayLabel}`,
-        text,
-        fileName: `foundry-${safeDay}-w${weekIdx + 1}.png`,
-      });
-    } catch (e) {
-      // Toast-style banner isn't wired in this modal; log for diagnostics.
-      // Sentry already captured it from inside shareWorkoutCard.
-      console.warn('[Foundry] Share failed', e);
-    } finally {
-      setSharing(false);
-    }
-  };
+    if (!node) throw new Error('ShareCard node missing');
+    const prLine =
+      stats.prs.length > 0
+        ? `🏆 NEW PR: ${stats.prs[0].name} ${stats.prs[0].newBest} lbs\n`
+        : '';
+    const text =
+      `${prLine}Crushed ${dayLabel} — Week ${weekIdx + 1} · ${phase}.\n` +
+      `${stats.sets} sets · ${stats.reps} reps · ${Math.round(stats.volume).toLocaleString()} lbs total.\n\n` +
+      `🔨 thefoundry.coach`;
+    const safeDay = dayLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const captured = await captureShareCardPayload(node, {
+      title: `Crushed ${dayLabel}`,
+      text,
+      fileName: `foundry-${safeDay}-w${weekIdx + 1}.png`,
+    });
+    return {
+      file: captured.file,
+      dataUrl: captured.dataUrl,
+      fileName: captured.fileName,
+      title: captured.title,
+      text: captured.text,
+      url: 'https://thefoundry.coach',
+    };
+  }, [dayLabel, weekIdx, phase, stats]);
+
+  const handleShare = () => setShareSheetOpen(true);
 
   // Format duration
   const formatDuration = (secs: number) => {
@@ -161,15 +166,20 @@ function WorkoutCompleteModal({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
+        // NO justifyContent:center here — combined with overflowY:auto, flex
+        // centering hoists the top of tall content above the scroll origin,
+        // making it physically unreachable. Flow from the top instead; the
+        // vertical-auto margins on the inner block re-center short content.
+        padding: '24px 20px 48px',
         overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
       }}
     >
       <div
         style={{
           maxWidth: 400,
           width: '100%',
+          margin: 'auto 0',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -203,9 +213,10 @@ function WorkoutCompleteModal({
         {/* Day · Week · Phase meta (phase-colored) */}
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
+            fontSize: 14,
+            fontWeight: 800,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
             color: phaseColor,
           }}
         >
@@ -635,7 +646,6 @@ function WorkoutCompleteModal({
           <button
             type="button"
             onClick={handleShare}
-            disabled={sharing}
             aria-label="Share this workout"
             data-testid="share-workout-button"
             style={{
@@ -647,39 +657,22 @@ function WorkoutCompleteModal({
               color: tokens.colors.accent,
               fontSize: 13,
               fontWeight: 800,
-              cursor: sharing ? 'default' : 'pointer',
+              cursor: 'pointer',
               letterSpacing: '0.08em',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              opacity: sharing ? 0.6 : 1,
             }}
           >
-            {sharing ? (
-              <span
-                aria-hidden="true"
-                data-testid="share-spinner"
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: '50%',
-                  border: `2.5px solid ${tokens.colors.accent}`,
-                  borderTopColor: 'transparent',
-                  display: 'inline-block',
-                  animation: 'foundry-spin 0.8s linear infinite',
-                }}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M12 3v12m0-12l-4 4m4-4l4 4M5 21h14"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-            ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M12 3v12m0-12l-4 4m4-4l4 4M5 21h14"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
+            </svg>
             SHARE
           </button>
           <button
@@ -700,10 +693,21 @@ function WorkoutCompleteModal({
             NEXT SESSION →
           </button>
         </div>
-        {/* Keyframe for the SHARE spinner. Scoped <style> is fine for a
-            modal-level one-off; avoids a cross-file CSS edit. */}
-        <style>{'@keyframes foundry-spin { to { transform: rotate(360deg); } }'}</style>
       </div>
+
+      {/* Branded share destination sheet — opened by the SHARE button above.
+          Handles capturing the off-screen ShareCard PNG + routing each tile. */}
+      <ShareSheet
+        open={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        getPayload={getSharePayload}
+        onDone={(outcome) => {
+          // Close on any terminal outcome. Native-share cancellation is
+          // reported as 'cancelled' which keeps the sheet open so the user
+          // can try another destination; anything else closes.
+          if (outcome !== 'cancelled') setShareSheetOpen(false);
+        }}
+      />
 
       {/* Off-screen ShareCard — DOM-present so html-to-image can walk it,
           but pushed far off the visual viewport. aria-hidden + inert to
