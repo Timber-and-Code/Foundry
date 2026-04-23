@@ -24,19 +24,22 @@ interface DayMuscleConfigEntry {
  * Supports PPL, Upper/Lower, Full Body, and Push/Pull splits.
  * Returns array of day objects with exercises, sets, reps, and progressions.
  */
-export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []): TrainingDay[] {
-  // AI-built or custom days take priority
-  if (profile?.aiDays && profile.aiDays.length > 0) return profile.aiDays;
+const ALL_EQUIPMENT = ['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight', 'band', 'kettlebell'];
+// Shortcut tokens — onboarding v2 Beat1Essentials + Supabase default column —
+// get expanded to the atomic equipment types generateProgram filters on.
+const EQUIPMENT_PRESETS: Record<string, string[]> = {
+  full_gym: ALL_EQUIPMENT,
+  home_gym: ['dumbbell', 'bodyweight', 'band', 'kettlebell'],
+  minimal: ['bodyweight', 'band'],
+};
 
-  const ALL_EQUIPMENT = ['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight', 'band', 'kettlebell'];
-  // Shortcut tokens — onboarding v2 Beat1Essentials + Supabase default column —
-  // get expanded to the atomic equipment types generateProgram filters on.
-  const EQUIPMENT_PRESETS: Record<string, string[]> = {
-    full_gym: ALL_EQUIPMENT,
-    home_gym: ['dumbbell', 'bodyweight', 'band', 'kettlebell'],
-    minimal: ['bodyweight', 'band'],
-  };
-  const profEq = profile?.equipment as unknown;
+/**
+ * Expand a profile's equipment value (preset token or atomic list) into the
+ * atomic equipment types (`barbell`, `dumbbell`, …) the DB is tagged with.
+ * Shared so the swap picker's equipment-match dimming stays in sync with
+ * generateProgram's pool filter.
+ */
+export function expandEquipment(profEq: unknown): string[] {
   let rawEquipment: string[];
   if (Array.isArray(profEq) && profEq.length > 0) {
     rawEquipment = profEq.map((v) => String(v));
@@ -45,10 +48,16 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
   } else {
     rawEquipment = ALL_EQUIPMENT;
   }
-  // Expand any preset tokens into their atomic parts, dedupe.
-  const equipment = Array.from(new Set(
+  return Array.from(new Set(
     rawEquipment.flatMap((eq: string) => EQUIPMENT_PRESETS[eq] ?? [eq]),
   ));
+}
+
+export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []): TrainingDay[] {
+  // AI-built or custom days take priority
+  if (profile?.aiDays && profile.aiDays.length > 0) return profile.aiDays;
+
+  const equipment = expandEquipment(profile?.equipment);
   const duration = profile?.sessionDuration || 60;
   const splitType = profile?.splitType || 'ppl';
   const numDays = profile?.workoutDays?.length || profile?.daysPerWeek || 6;
@@ -154,14 +163,19 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
 
     for (const muscleTarget of musclePriority) {
       if (accessories.length >= exCount - 1) break;
-      const cands = shuffle(
-        pool.filter(
-          (e) =>
-            !e.anchor &&
-            !usedIds.has(e.id) &&
-            e.muscles.some((m) => m === muscleTarget || m.includes(muscleTarget))
-        )
+      const matching = pool.filter(
+        (e) =>
+          !e.anchor &&
+          !usedIds.has(e.id) &&
+          e.muscles.some((m) => m === muscleTarget || m.includes(muscleTarget))
       );
+      // Prefer exercises whose primary muscle is the target — a bicep curl
+      // for the "Biceps" slot, not a row that happens to list Biceps as a
+      // secondary. Without this, shuffle often handed the slot to a
+      // compound and dedicated isolation work (notably biceps) never made
+      // it into the meso.
+      const primary = matching.filter((e) => e.muscle === muscleTarget);
+      const cands = shuffle(primary.length > 0 ? primary : matching);
       if (cands[0]) {
         accessories.push(cands[0]);
         usedIds.add(cands[0].id);

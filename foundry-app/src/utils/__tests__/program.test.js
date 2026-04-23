@@ -255,3 +255,41 @@ describe('generateProgram — edge cases', () => {
     });
   });
 });
+
+// ============================================================================
+// Muscle-target priority: primary muscle wins over secondary
+// ----------------------------------------------------------------------------
+// Regression for beta feedback — biceps weren't being generated in the meso
+// because shuffle was picking compound pulls (rows/pulldowns that list Biceps
+// as a secondary muscle) for the Biceps accessory slot, crowding out the
+// dedicated bicep curls.
+// ============================================================================
+describe('generateProgram — muscle-target primary-muscle preference', () => {
+  it('fills the Biceps slot with a primary-bicep exercise when one is available', () => {
+    // Pull pool with many Biceps-secondary compounds and exactly one bicep curl.
+    const PULL_HEAVY_DB = [
+      mkEx({ id: 'row', name: 'Barbell Row', tag: 'PULL', anchor: true,  muscle: 'Back',    muscles: ['Back', 'Lats', 'Biceps'],  pattern: 'pull', equipment: 'barbell', diff: 2 }),
+      mkEx({ id: 'pulldown',  name: 'Lat Pulldown',  tag: 'PULL', anchor: false, muscle: 'Lats',    muscles: ['Lats', 'Back', 'Biceps'],  pattern: 'pull',      equipment: 'cable',    diff: 1, warmup: '1 feeler set' }),
+      mkEx({ id: 'cable_row', name: 'Cable Row',     tag: 'PULL', anchor: false, muscle: 'Back',    muscles: ['Back', 'Lats', 'Biceps'],  pattern: 'pull',      equipment: 'cable',    diff: 1, warmup: '1 feeler set' }),
+      mkEx({ id: 'tbar_row',  name: 'T-bar Row',     tag: 'PULL', anchor: false, muscle: 'Back',    muscles: ['Back', 'Lats', 'Biceps'],  pattern: 'pull',      equipment: 'barbell',  diff: 1, warmup: '1 feeler set' }),
+      mkEx({ id: 'chinup',    name: 'Chin-up',       tag: 'PULL', anchor: false, muscle: 'Lats',    muscles: ['Lats', 'Biceps'],          pattern: 'pull',      equipment: 'bodyweight', diff: 1, bw: true, warmup: null }),
+      mkEx({ id: 'face_pull', name: 'Face Pull',     tag: 'PULL', anchor: false, muscle: 'Shoulders', muscles: ['Shoulders', 'Rear Delts'], pattern: 'isolation', equipment: 'cable', diff: 1, warmup: '1 light feeler set' }),
+      mkEx({ id: 'curl',      name: 'DB Bicep Curl', tag: 'PULL', anchor: false, muscle: 'Biceps',  muscles: ['Biceps'],                  pattern: 'isolation', equipment: 'dumbbell', diff: 1, warmup: '1 light feeler set' }),
+      // Push / legs just so the generator has pools for the other days.
+      mkEx({ id: 'bench', name: 'Bench', tag: 'PUSH', anchor: true, muscle: 'Chest', muscles: ['Chest', 'Triceps'], pattern: 'push', equipment: 'barbell', diff: 2 }),
+      mkEx({ id: 'squat', name: 'Squat', tag: 'LEGS', anchor: true, muscle: 'Quads', muscles: ['Quads', 'Glutes'],  pattern: 'squat', equipment: 'barbell', diff: 2 }),
+    ];
+
+    // Run many times — shuffle is stochastic, so we need repeated draws to
+    // prove the bicep curl is preferred, not just occasionally lucky.
+    for (let i = 0; i < 25; i++) {
+      const days = generateProgram(
+        { ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3, sessionDuration: 60 },
+        PULL_HEAVY_DB,
+      );
+      const pullDay = days.find((d) => d.tag === 'PULL');
+      const hasBicepCurl = pullDay.exercises.some((e) => e.id === 'curl');
+      expect(hasBicepCurl).toBe(true);
+    }
+  });
+});

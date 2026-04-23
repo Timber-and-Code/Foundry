@@ -54,6 +54,7 @@ import NoteReviewSheet from './NoteReviewSheet';
 import ReadinessSheet from './ReadinessSheet';
 import SwapMenu from './SwapMenu';
 import { buildSwapGroups } from '../../utils/swapGroups';
+import { expandEquipment } from '../../utils/program';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
 interface DayViewProps {
@@ -430,7 +431,10 @@ function DayView({
   );
 
   const swapMuscle = swapTarget !== null ? exercises[swapTarget.exIdx]?.muscle : undefined;
-  const userEquipment = Array.isArray(profile?.equipment) ? profile.equipment : profile?.equipment ? [profile.equipment] : undefined;
+  // Expand preset tokens (`full_gym`, `home_gym`, `minimal`) into the atomic
+  // equipment types the DB is tagged with — otherwise every non-bodyweight row
+  // reads "requires dumbbell/barbell" in the swap menu and biceps look missing.
+  const userEquipment = useMemo(() => expandEquipment(profile?.equipment), [profile?.equipment]);
 
   const handleSwap = useCallback(
     (newExId: string) => {
