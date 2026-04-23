@@ -1,20 +1,25 @@
 import React from 'react';
 
 /**
- * ShareCard — purpose-built 1080×1350 capture surface for the "Share this
- * workout" feature. Rendered OFF-SCREEN inside WorkoutCompleteModal and fed
- * to html-to-image to produce a branded PNG.
+ * ShareCard — 1080-wide capture surface for the "Share this workout" feature.
+ * Rendered OFF-SCREEN inside WorkoutCompleteModal and fed to html-to-image to
+ * produce a branded PNG. Height is flow-sized (not locked to 1350) so the
+ * entire workout summary — stats, per-exercise sets, anchor comparison, PRs,
+ * quote — lands in the image. The post-training cool-down prompt is the one
+ * thing from the modal that does NOT ship in the share.
  *
  * Hard constraints:
- *   - Fixed 1080×1350 dimensions (IG portrait). Capture happens at export
- *     size regardless of viewport, so every value here is in absolute px,
- *     not rem / vw / responsive tokens.
+ *   - Fixed 1080px width (IG / stories). Capture happens at export size
+ *     regardless of viewport, so every value here is in absolute px, not
+ *     rem / vw / responsive tokens.
  *   - All typography is declared inline with explicit font-family strings
  *     (matching the self-hosted /fonts/ files) so html-to-image embeds the
  *     right face on first paint.
  *   - Images must be same-origin (public/* is fine). No CORS-tainted canvas.
- *   - NO interactive elements. NO buttons. NO cool-down prompt. This card
- *     is static capture-only.
+ *     We use `/icon-512.png` (alpha-baked F, same art as the iOS app icon)
+ *     so no mask-image is required — html-to-image silently drops CSS masks
+ *     on WebKit, which was why the F was missing from shares.
+ *   - NO interactive elements. NO buttons. NO cool-down prompt.
  */
 
 export interface ShareCardPR {
@@ -30,6 +35,30 @@ export interface ShareCardStats {
   duration: number | null; // seconds
 }
 
+export interface ShareCardBreakdownSet {
+  reps: number;
+  weight: number;
+  warmup?: boolean;
+}
+
+export interface ShareCardBreakdownExercise {
+  name: string;
+  anchor?: boolean;
+  sets: ShareCardBreakdownSet[];
+}
+
+export interface ShareCardAnchorDelta {
+  name: string;
+  today: number;
+  prev: number;
+  delta: number;
+}
+
+export interface ShareCardQuote {
+  text: string;
+  author: string;
+}
+
 export interface ShareCardProps {
   dayLabel: string;
   weekIdx: number; // 0-indexed
@@ -39,6 +68,12 @@ export interface ShareCardProps {
   prs: ShareCardPR[];
   congratsHeadline: string;
   congratsSub: string;
+  /** Per-exercise set-by-set log — working sets only are rendered. */
+  breakdown?: ShareCardBreakdownExercise[];
+  /** Anchor comparison vs prior week, rendered when weekIdx > 0. */
+  anchorComparison?: ShareCardAnchorDelta[];
+  /** Motivational quote rendered below the summary, above the footer. */
+  quote?: ShareCardQuote;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -68,12 +103,19 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
       prs,
       congratsHeadline,
       congratsSub,
+      breakdown,
+      anchorComparison,
+      quote,
     },
     ref,
   ) {
     const DISPLAY = "'Bebas Neue', 'Inter', system-ui, sans-serif";
     const BODY = "'InterVariable', 'Inter', system-ui, sans-serif";
     const AMBER = '#D4983C';
+    const TEXT = '#E8E4DC';
+    const DIM = '#9A8A78';
+    const CARD_BG = '#1A1814';
+    const BORDER = 'rgba(232,228,220,0.08)';
 
     const firstPR = prs[0];
     const hasPR = !!firstPR;
@@ -90,10 +132,18 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
     ];
 
     // Hero autoshrinks for long PR names so "BARBELL BENCH PRESS 225×8" still
-    // fits within the 1080px width. Cap at ~110px, floor at ~64px.
+    // fits within the 1080px width. Cap at ~108px, floor at ~56px.
     const heroFontSize = hasPR
-      ? Math.max(64, Math.min(110, Math.floor(1600 / heroNumber.length) * 2))
-      : 138;
+      ? Math.max(56, Math.min(108, Math.floor(1600 / heroNumber.length) * 2))
+      : 124;
+
+    // Working sets only — warm-ups aren't useful in a share and compete with
+    // the heavier sets for space. Drop exercises that logged only warm-ups.
+    const workingBreakdown = (breakdown || [])
+      .map((ex) => ({ ...ex, sets: ex.sets.filter((s) => !s.warmup) }))
+      .filter((ex) => ex.sets.length > 0);
+
+    const hasAnchorDeltas = !!anchorComparison && anchorComparison.length > 0;
 
     return (
       <div
@@ -101,16 +151,16 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
         data-testid="share-card"
         style={{
           width: 1080,
-          height: 1350,
           background: '#0A0A0C',
-          color: '#E8E4DC',
+          color: TEXT,
           fontFamily: BODY,
           display: 'flex',
           flexDirection: 'column',
-          padding: '72px 80px',
+          padding: '64px 72px 56px',
           boxSizing: 'border-box',
           position: 'relative',
           overflow: 'hidden',
+          gap: 32,
         }}
       >
         {/* Ambient corner glow — gives the card a forge-warmth without any
@@ -147,7 +197,6 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
         {/* Phase meta — phase-colored */}
         <div
           style={{
-            marginTop: 48,
             textAlign: 'center',
             fontSize: 26,
             fontWeight: 800,
@@ -159,16 +208,44 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
           {dayLabel} &middot; Week {weekIdx + 1} &middot; {phase}
         </div>
 
-        {/* Hero block — flex-grow so it lives in the vertical center */}
+        {/* Congrats headline + sub */}
+        <div style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              fontFamily: DISPLAY,
+              fontSize: 56,
+              letterSpacing: '0.04em',
+              color: TEXT,
+              lineHeight: 1.05,
+              fontWeight: 400,
+              textTransform: 'uppercase',
+            }}
+          >
+            {congratsHeadline}
+          </div>
+          <div
+            style={{
+              marginTop: 14,
+              fontSize: 22,
+              lineHeight: 1.45,
+              color: '#A8A4A0',
+              maxWidth: 860,
+              margin: '14px auto 0',
+            }}
+          >
+            {congratsSub}
+          </div>
+        </div>
+
+        {/* Hero — PR if any, else total volume */}
         <div
           style={{
-            flex: 1,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 12,
-            minHeight: 0,
+            padding: '24px 0 8px',
           }}
         >
           <div
@@ -176,7 +253,7 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
               fontFamily: DISPLAY,
               fontSize: heroFontSize,
               letterSpacing: '0.02em',
-              color: '#E8E4DC',
+              color: TEXT,
               lineHeight: 1,
               fontWeight: 400,
               textAlign: 'center',
@@ -190,9 +267,9 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
               fontSize: 22,
               fontWeight: 800,
               letterSpacing: '0.24em',
-              color: hasPR ? AMBER : '#9A8A78',
+              color: hasPR ? AMBER : DIM,
               textTransform: 'uppercase',
-              marginTop: 8,
+              marginTop: 6,
             }}
           >
             {heroLabel}
@@ -205,8 +282,8 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
             gap: 16,
-            background: '#1A1814',
-            border: '1px solid rgba(232,228,220,0.08)',
+            background: CARD_BG,
+            border: `1px solid ${BORDER}`,
             borderRadius: 20,
             padding: '28px 12px',
           }}
@@ -218,7 +295,7 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
                   fontFamily: DISPLAY,
                   fontSize: 56,
                   letterSpacing: '0.02em',
-                  color: '#E8E4DC',
+                  color: TEXT,
                   lineHeight: 1,
                   fontWeight: 400,
                 }}
@@ -231,7 +308,7 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
                   fontSize: 16,
                   fontWeight: 800,
                   letterSpacing: '0.2em',
-                  color: '#9A8A78',
+                  color: DIM,
                   textTransform: 'uppercase',
                 }}
               >
@@ -241,29 +318,174 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
           ))}
         </div>
 
-        {/* PR callout — only when a PR was set AND we didn't already hero it,
-            OR always when multiple PRs exist (first is hero, rest listed) */}
+        {/* Per-exercise workout breakdown — reps × weight for every working
+            set. Anchor exercises get the amber diamond bullet. Split into a
+            two-column grid when there are more than 4 exercises so the card
+            doesn't balloon vertically on high-volume sessions. */}
+        {workingBreakdown.length > 0 && (
+          <div
+            style={{
+              background: CARD_BG,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 20,
+              padding: '24px 28px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 800,
+                letterSpacing: '0.24em',
+                color: DIM,
+                textTransform: 'uppercase',
+                marginBottom: 18,
+              }}
+            >
+              Workout Summary
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  workingBreakdown.length > 4 ? 'repeat(2, 1fr)' : '1fr',
+                columnGap: 32,
+                rowGap: 18,
+              }}
+            >
+              {workingBreakdown.map((ex, i) => (
+                <div key={i} style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 20,
+                      fontWeight: 700,
+                      color: TEXT,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {ex.anchor && (
+                      <span
+                        aria-hidden="true"
+                        style={{ color: AMBER, fontSize: 16, lineHeight: 1 }}
+                      >
+                        ◆
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {ex.name}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                    }}
+                  >
+                    {ex.sets.map((s, si) => (
+                      <span
+                        key={si}
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 700,
+                          letterSpacing: '0.02em',
+                          padding: '5px 10px',
+                          borderRadius: 999,
+                          background: '#0F0D0A',
+                          border: `1px solid ${BORDER}`,
+                          color: TEXT,
+                        }}
+                      >
+                        {s.weight > 0 ? `${s.weight} × ${s.reps}` : `${s.reps} reps`}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Anchor comparison vs last week */}
+        {hasAnchorDeltas && (
+          <div
+            style={{
+              background: CARD_BG,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 20,
+              padding: '24px 28px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 800,
+                letterSpacing: '0.24em',
+                color: DIM,
+                textTransform: 'uppercase',
+                marginBottom: 14,
+              }}
+            >
+              Vs Last Week
+            </div>
+            {anchorComparison!.map((a, i) => {
+              const sign = a.delta > 0 ? '+' : '';
+              const color =
+                a.delta > 0 ? '#6ABE63' : a.delta < 0 ? '#E76A5C' : DIM;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '10px 0',
+                    borderTop: i > 0 ? `1px solid ${BORDER}` : undefined,
+                  }}
+                >
+                  <span style={{ fontSize: 20, fontWeight: 600, color: TEXT }}>
+                    {a.name}
+                  </span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color }}>
+                    {sign}
+                    {a.delta} lbs
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Multi-PR callout — first PR is already in the hero, additional PRs
+            summarise here so the star appears when multiple were set. */}
         {hasPR && prs.length > 1 && (
           <div
             data-testid="share-card-pr-callout"
             style={{
-              marginTop: 24,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 14,
-              padding: '18px 24px',
+              padding: '20px 24px',
               background: 'rgba(212,152,60,0.1)',
               border: '1px solid rgba(212,152,60,0.4)',
               borderRadius: 16,
             }}
           >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill={AMBER}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill={AMBER}>
               <path d="M12 2l2.9 7 7.1.6-5.4 4.7 1.7 7.2L12 17.8 5.7 21.5l1.7-7.2L2 9.6 9.1 9 12 2z" />
             </svg>
             <div
               style={{
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: 800,
                 letterSpacing: '0.06em',
                 color: AMBER,
@@ -275,89 +497,88 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
           </div>
         )}
 
-        {/* Non-hero PR callout path: single PR but we chose volume hero —
-            won't happen today (hero ALWAYS prefers PR), but keeps the PR
-            star visible in alt layouts. */}
-        {!hasPR && stats.sets > 0 && null}
-
-        {/* Congrats block — rule-delimited */}
-        <div
-          style={{
-            marginTop: 36,
-            textAlign: 'center',
-          }}
-        >
-          <div
-            aria-hidden="true"
-            style={{
-              width: 80,
-              height: 2,
-              background: phaseColor,
-              margin: '0 auto 20px',
-              opacity: 0.8,
-            }}
-          />
+        {/* Motivational quote — closing beat before the footer */}
+        {quote && (
           <div
             style={{
-              fontFamily: DISPLAY,
-              fontSize: 44,
-              letterSpacing: '0.04em',
-              color: '#E8E4DC',
-              lineHeight: 1.1,
-              fontWeight: 400,
-              textTransform: 'uppercase',
+              padding: '8px 24px 8px 36px',
+              borderLeft: `4px solid ${phaseColor}`,
+              position: 'relative',
             }}
           >
-            {congratsHeadline}
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                top: -16,
+                left: 12,
+                fontSize: 96,
+                lineHeight: 1,
+                color: phaseColor,
+                opacity: 0.35,
+                fontFamily: 'Georgia, serif',
+                pointerEvents: 'none',
+              }}
+            >
+              &ldquo;
+            </div>
+            <div
+              style={{
+                fontSize: 26,
+                fontWeight: 600,
+                color: TEXT,
+                lineHeight: 1.4,
+                position: 'relative',
+              }}
+            >
+              {quote.text}
+            </div>
+            <div
+              style={{
+                fontSize: 16,
+                color: phaseColor,
+                marginTop: 14,
+                fontWeight: 800,
+                letterSpacing: '0.2em',
+                textTransform: 'uppercase',
+              }}
+            >
+              — {quote.author}
+            </div>
           </div>
-          <div
-            style={{
-              marginTop: 14,
-              fontSize: 20,
-              lineHeight: 1.45,
-              color: '#A8A4A0',
-              maxWidth: 780,
-              margin: '14px auto 0',
-            }}
-          >
-            {congratsSub}
-          </div>
-        </div>
+        )}
 
-        {/* Footer — F logo + URL, anchored bottom */}
+        {/* Footer — F logo + URL, anchored bottom. Uses /icon-512.png (the
+            alpha-baked Apple icon) rather than /foundry-f.png + a CSS mask;
+            html-to-image silently drops mask-image on WebKit, which was why
+            the F was missing from earlier shares. */}
         <div
           style={{
-            marginTop: 'auto',
-            paddingTop: 36,
+            paddingTop: 12,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 10,
+            gap: 16,
           }}
         >
           <img
-            src="/foundry-f.png"
+            src="/icon-512.png"
             alt=""
-            width={80}
-            height={80}
+            width={160}
+            height={160}
             style={{
-              width: 80,
-              height: 80,
+              width: 160,
+              height: 160,
               objectFit: 'contain',
-              // Same radial mask as WelcomeScreen so the F floats without its
-              // baked rectangular background bleeding through.
-              maskImage:
-                'radial-gradient(ellipse at center, black 45%, transparent 78%)',
-              WebkitMaskImage:
-                'radial-gradient(ellipse at center, black 45%, transparent 78%)',
+              filter: 'drop-shadow(0 4px 28px rgba(232,101,26,0.45))',
             }}
           />
           <div
             style={{
-              fontSize: 18,
+              fontSize: 22,
               fontWeight: 700,
-              letterSpacing: '0.22em',
-              color: '#7A7269',
+              letterSpacing: '0.24em',
+              color: DIM,
               textTransform: 'uppercase',
             }}
           >

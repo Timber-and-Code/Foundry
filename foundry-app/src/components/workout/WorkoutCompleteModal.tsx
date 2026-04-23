@@ -5,7 +5,6 @@ import {
   randomQuote,
   getWeekPhase,
   PHASE_COLOR,
-  FOUNDRY_COOLDOWN,
   TAG_ACCENT,
 } from '../../data/constants';
 import { store } from '../../utils/store';
@@ -23,6 +22,18 @@ function todayLocalStr(): string {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+export interface WorkoutCompleteSetLog {
+  reps: number;
+  weight: number;
+  warmup?: boolean;
+}
+
+export interface WorkoutCompleteExerciseBreakdown {
+  name: string;
+  anchor?: boolean;
+  sets: WorkoutCompleteSetLog[];
+}
+
 export interface WorkoutCompleteStats {
   sets: number;
   reps: number;
@@ -31,6 +42,9 @@ export interface WorkoutCompleteStats {
   duration: number | null;
   prs: { name: string; newBest: number; prevBest: number }[];
   anchorComparison: { name: string; today: number; prev: number; delta: number }[];
+  /** Per-exercise set-by-set reps + weight log, rendered as the workout
+   *  summary beneath the totals and baked into the share card. */
+  breakdown?: WorkoutCompleteExerciseBreakdown[];
 }
 
 interface WorkoutCompleteModalProps {
@@ -50,14 +64,13 @@ interface WorkoutCompleteModalProps {
 
 function WorkoutCompleteModal({
   dayLabel,
-  dayTag,
+  dayTag: _dayTag,
   gender,
   stats,
   weekIdx,
   onOk,
   onStartCooldown,
 }: WorkoutCompleteModalProps) {
-  const [cooldownOpen, setCooldownOpen] = useState(false);
   const mesoId = store.get('foundry:active_meso_id');
 
   // Post-workout mobility prompt — per-day dismissal so the nudge doesn't
@@ -72,6 +85,10 @@ function WorkoutCompleteModal({
   const phases = getWeekPhase();
   const phase = phases[weekIdx] || 'Accumulation';
   const phaseColor = PHASE_COLOR[phase] || '#E8E4DC';
+  // Brand amber — used for the success checkmark and the "NEW PR" accents so
+  // the completion surface matches the rest of the schema regardless of the
+  // week's phase color.
+  const AMBER = '#D4983C';
 
   const [congrats] = useState(() => randomCongrats());
   const [quote] = useState(() => randomQuote(gender));
@@ -105,13 +122,6 @@ function WorkoutCompleteModal({
       setSharing(false);
     }
   };
-
-  // Cooldown moves from tag
-  const tag = (dayTag || 'FULL').toUpperCase();
-  const cooldownMoves =
-    FOUNDRY_COOLDOWN[tag] ||
-    FOUNDRY_COOLDOWN['PUSH'] || // fallback
-    [];
 
   // Format duration
   const formatDuration = (secs: number) => {
@@ -166,13 +176,13 @@ function WorkoutCompleteModal({
           gap: 20,
         }}
       >
-        {/* Checkmark circle */}
+        {/* Checkmark circle — always amber to match the brand schema. */}
         <div
           style={{
             width: 72,
             height: 72,
             borderRadius: tokens.radius.full,
-            border: `3px solid ${phaseColor}`,
+            border: `3px solid ${AMBER}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -182,7 +192,7 @@ function WorkoutCompleteModal({
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
             <path
               d="M5 13l4 4L19 7"
-              stroke={phaseColor}
+              stroke={AMBER}
               strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -266,6 +276,93 @@ function WorkoutCompleteModal({
             </div>
           ))}
         </div>
+
+        {/* Workout summary — per-exercise set-by-set reps + weights, so the
+            user can see exactly what they did under the aggregate totals.
+            Warm-ups are dimmed to keep the working-set log visually primary. */}
+        {stats.breakdown && stats.breakdown.length > 0 && (
+          <div
+            data-testid="workout-summary"
+            style={{
+              width: '100%',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.xl,
+              padding: '14px 16px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: '0.12em',
+                color: 'var(--text-muted)',
+                marginBottom: 10,
+              }}
+            >
+              WORKOUT SUMMARY
+            </div>
+            {stats.breakdown.map((ex, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: '10px 0',
+                  borderTop: i > 0 ? '1px solid var(--border)' : undefined,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: 4,
+                  }}
+                >
+                  {ex.anchor && (
+                    <span
+                      aria-hidden="true"
+                      style={{ color: AMBER, fontSize: 11, lineHeight: 1 }}
+                    >
+                      ◆
+                    </span>
+                  )}
+                  <span>{ex.name}</span>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                  }}
+                >
+                  {ex.sets.map((s, si) => (
+                    <span
+                      key={si}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: '0.02em',
+                        padding: '3px 8px',
+                        borderRadius: tokens.radius.pill,
+                        background: s.warmup ? 'transparent' : 'var(--bg-inset)',
+                        border: `1px solid ${s.warmup ? 'var(--border-subtle, var(--border))' : 'var(--border)'}`,
+                        color: s.warmup ? 'var(--text-muted)' : 'var(--text-primary)',
+                        opacity: s.warmup ? 0.6 : 1,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {s.warmup && <span style={{ marginRight: 4, opacity: 0.8 }}>WU</span>}
+                      {s.weight > 0 ? `${s.weight} × ${s.reps}` : `${s.reps} reps`}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Cool-down prompt — appears AFTER the volume recap so the user
             gets the emotional payoff first, then a gentle nudge toward
@@ -465,61 +562,6 @@ function WorkoutCompleteModal({
           </div>
         )}
 
-        {/* Cooldown moves accordion */}
-        {cooldownMoves.length > 0 && (
-          <div
-            style={{
-              width: '100%',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: tokens.radius.xl,
-              overflow: 'hidden',
-            }}
-          >
-            <button
-              onClick={() => setCooldownOpen(!cooldownOpen)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '14px 16px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--text-primary)',
-              }}
-            >
-              <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
-                COOL-DOWN STRETCHES
-              </span>
-              <span style={{ fontSize: 14, color: 'var(--text-muted)', transform: cooldownOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.2s' }}>
-                ▼
-              </span>
-            </button>
-            {cooldownOpen && (
-              <div style={{ padding: '0 16px 14px' }}>
-                {cooldownMoves.map((move, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: '8px 0',
-                      borderTop: i > 0 ? '1px solid var(--border)' : undefined,
-                    }}
-                  >
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {move.name}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginTop: 2 }}>
-                      {move.cue}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Motivational quote — closing beat before the CTA */}
         <div
           style={{
@@ -618,17 +660,17 @@ function WorkoutCompleteModal({
                 aria-hidden="true"
                 data-testid="share-spinner"
                 style={{
-                  width: 14,
-                  height: 14,
+                  width: 22,
+                  height: 22,
                   borderRadius: '50%',
-                  border: `2px solid ${tokens.colors.accent}`,
+                  border: `2.5px solid ${tokens.colors.accent}`,
                   borderTopColor: 'transparent',
                   display: 'inline-block',
                   animation: 'foundry-spin 0.8s linear infinite',
                 }}
               />
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M12 3v12m0-12l-4 4m4-4l4 4M5 21h14"
                   stroke="currentColor"
@@ -665,7 +707,8 @@ function WorkoutCompleteModal({
 
       {/* Off-screen ShareCard — DOM-present so html-to-image can walk it,
           but pushed far off the visual viewport. aria-hidden + inert to
-          keep it out of the a11y tree / tab order. */}
+          keep it out of the a11y tree / tab order. Card auto-sizes
+          vertically based on how much content the session produced. */}
       <div
         aria-hidden="true"
         style={{
@@ -673,7 +716,6 @@ function WorkoutCompleteModal({
           left: -99999,
           top: 0,
           width: 1080,
-          height: 1350,
           pointerEvents: 'none',
         }}
       >
@@ -697,6 +739,9 @@ function WorkoutCompleteModal({
             // work: thread the rep count through from session logs.
             reps: 1,
           }))}
+          anchorComparison={stats.anchorComparison}
+          breakdown={stats.breakdown}
+          quote={quote}
           congratsHeadline={congrats.headline}
           congratsSub={congrats.sub}
         />

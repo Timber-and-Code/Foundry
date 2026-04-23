@@ -7,7 +7,10 @@ import {
   upsertWorkoutSessionRemote,
   getOrCreateWorkoutSessionId,
 } from '../utils/sync';
-import type { WorkoutCompleteStats } from '../components/workout/WorkoutCompleteModal';
+import type {
+  WorkoutCompleteStats,
+  WorkoutCompleteExerciseBreakdown,
+} from '../components/workout/WorkoutCompleteModal';
 import type { Exercise, WorkoutSet } from '../types';
 
 interface UseCompletionFlowArgs {
@@ -58,8 +61,10 @@ export function useCompletionFlow({
     let totalSets = 0;
     let totalReps = 0;
     let totalVolume = 0;
-    exercises.forEach((_ex: Exercise, i: number) => {
+    const breakdown: WorkoutCompleteExerciseBreakdown[] = [];
+    exercises.forEach((ex: Exercise, i: number) => {
       const exData = (weekData[i] || {}) as Record<string, WorkoutSet>;
+      const exSets: { reps: number; weight: number; warmup?: boolean }[] = [];
       Object.values(exData).forEach((s: WorkoutSet) => {
         if (s.confirmed || (s.reps && String(s.reps).trim() !== '')) {
           const r = parseInt(String(s.reps || 0), 10);
@@ -69,8 +74,20 @@ export function useCompletionFlow({
             if (!isNaN(r)) totalReps += r;
             if (!isNaN(w) && !isNaN(r)) totalVolume += w * r;
           }
+          exSets.push({
+            reps: isNaN(r) ? 0 : r,
+            weight: isNaN(w) ? 0 : w,
+            warmup: !!s.warmup,
+          });
         }
       });
+      if (exSets.length > 0) {
+        breakdown.push({
+          name: ex.name,
+          anchor: !!ex.anchor,
+          sets: exSets,
+        });
+      }
     });
 
     const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx, weekIdx });
@@ -124,6 +141,7 @@ export function useCompletionFlow({
       duration: durationSecs,
       prs,
       anchorComparison,
+      breakdown,
     });
 
     const now = new Date();
