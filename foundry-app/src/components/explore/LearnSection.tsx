@@ -4,7 +4,6 @@ import { tokens } from '../../styles/tokens';
 const LEARN_CARDS = [
   {
     id: 'foundry',
-    emoji: '⚙️',
     title: 'What The Foundry Does',
     subtitle: 'The full picture',
     content: [
@@ -28,7 +27,6 @@ const LEARN_CARDS = [
   },
   {
     id: 'periodization',
-    emoji: '📊',
     title: 'Linear Periodization',
     subtitle: 'Why each week gets harder',
     content: [
@@ -56,7 +54,6 @@ const LEARN_CARDS = [
   },
   {
     id: 'overload',
-    emoji: '📈',
     title: 'Progressive Overload',
     subtitle: 'The engine behind all progress',
     content: [
@@ -220,7 +217,7 @@ function LearnSection({ onBack }: LearnSectionProps) {
         }}
       >
         {/* Learn cards */}
-        {LEARN_CARDS.map((card) => {
+        {LEARN_CARDS.map((card, idx) => {
           const isOpen = learnOpen === card.id;
           return (
             <div
@@ -247,20 +244,31 @@ function LearnSection({ onBack }: LearnSectionProps) {
                 }}
               >
                 <div
+                  aria-hidden
                   style={{
                     width: 42,
                     height: 42,
                     borderRadius: tokens.radius.lg,
                     flexShrink: 0,
-                    background: 'rgba(var(--accent-rgb),0.18)',
-                    border: '1px solid rgba(var(--accent-rgb),0.35)',
+                    background: 'rgba(var(--accent-rgb),0.12)',
+                    border: '1px solid rgba(var(--accent-rgb),0.30)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 22,
                   }}
                 >
-                  {card.emoji}
+                  <span
+                    style={{
+                      fontFamily: 'var(--ff-display)',
+                      fontSize: 20,
+                      letterSpacing: '0.04em',
+                      color: 'var(--accent)',
+                      lineHeight: 1,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {String(idx + 1).padStart(2, '0')}
+                  </span>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
