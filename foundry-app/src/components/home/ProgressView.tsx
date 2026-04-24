@@ -1,4 +1,4 @@
-import React, { useState, useMemo, memo } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { tokens } from '../../styles/tokens';
 import HammerIcon from '../shared/HammerIcon';
 import {
@@ -20,6 +20,7 @@ import { calcMuscleSetsByTag } from '../../utils/analyticsData';
 import type { TrainingDay, Exercise, BodyWeightEntry, WorkoutSet, CardioSession } from '../../types';
 import VolumeLandmarksCard from './VolumeLandmarksCard';
 import EmptyState from '../ui/EmptyState';
+import Skeleton from '../ui/Skeleton';
 // haptic import reserved for future UI feedback
 
 // ── Main ProgressView ────────────────────────────────────────────────────────
@@ -34,6 +35,12 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [showCardioHistory, setShowCardioHistory] = useState(false);
   const [progressTab, setProgressTab] = useState<'week' | 'history'>('week');
+
+  // Perceived-performance: show skeleton placeholders for chart areas on first
+  // render, then flip to actual charts after one React tick. This prevents
+  // blank/shifting layout while heavy chart data is computed.
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(true); }, []);
   const weekByTag = calcMuscleSetsByTag(activeDays, completedDays, currentWeek);
 
   const workoutsThisWeek = activeDays.filter((_, i) =>
@@ -675,7 +682,11 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
             {statBox('THIS WEEK', `${workoutsThisWeek}/${activeDays.length}`, pc)}
             {statBox('TOTAL SESSIONS', workoutsTotal, 'var(--accent)')}
           </div>
-          <VolumeLandmarksCard byTag={weekByTag} title="Volume This Week" />
+          {!ready ? (
+            <Skeleton height={180} borderRadius={12} style={{ marginTop: 8 }} />
+          ) : (
+            <VolumeLandmarksCard byTag={weekByTag} title="Volume This Week" />
+          )}
         </div>
         </>
         )}
@@ -683,10 +694,18 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
         {progressTab === 'history' && (
         <>
         {/* BW trend */}
-        <BwChart />
+        {!ready ? (
+          <Skeleton height={180} borderRadius={12} style={{ marginBottom: 12 }} />
+        ) : (
+          <BwChart />
+        )}
 
         {/* Session duration */}
-        <DurationChart />
+        {!ready ? (
+          <Skeleton height={90} borderRadius={12} style={{ marginBottom: 12 }} />
+        ) : (
+          <DurationChart />
+        )}
 
         {/* e1RM card */}
         {(() => {
