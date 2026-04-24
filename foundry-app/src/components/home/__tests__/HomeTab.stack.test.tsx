@@ -37,7 +37,15 @@ vi.mock('../../../data/constants', () => ({
   TAG_ACCENT: { PUSH: '#FF0', PULL: '#0FF', LEGS: '#F0F', CARDIO: '#AAA', MOBILITY: '#D4983C' },
   getMeso: mockGetMeso,
   DAILY_MOBILITY: [],
-  CARDIO_WORKOUTS: [],
+  CARDIO_WORKOUTS: [
+    {
+      id: 'easy_walk',
+      label: 'Easy Walk',
+      description: 'Zone 2 recovery walk',
+      category: 'Endurance',
+      recommendedFor: ['build_muscle', 'build_strength', 'general_health'],
+    },
+  ],
   FOUNDRY_COOLDOWN: {},
   MOBILITY_PROTOCOLS: [
     { id: 'daily_warmup', name: 'Daily Mobility', duration: '3 min', category: 'warmup', description: '', moves: [] },

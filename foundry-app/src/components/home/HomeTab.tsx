@@ -394,8 +394,8 @@ function HomeTab({
   rir,
   weekDone,
   weekTotal,
-  weekPct,
-  mesoPct,
+  weekPct: _weekPct,
+  mesoPct: _mesoPct,
   doneSessions: _doneSessions,
   totalSessions: _totalSessions,
   showRecoveryMorning,
@@ -516,103 +516,110 @@ function HomeTab({
         </div>
       )}
 
-      {/* Unified Dashboard Card — meso ring + week status merged */}
+      {/* Unified Dashboard Card — tap opens Progress. Weekly workout bar
+          replaces the meso ring and day pills. Whole card is one tap target. */}
       <button
         onClick={() => goTo('progress')}
+        aria-label="Open progress"
         style={{
           width: '100%',
           background: 'var(--bg-card)',
           border: `1px solid ${pc}44`,
           borderRadius: tokens.radius.lg,
-          padding: '14px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-          boxShadow: `0 2px 10px ${pc}12`,
+          padding: '16px 16px 14px 16px',
+          boxShadow: `0 2px 12px ${pc}14`,
           cursor: 'pointer',
           textAlign: 'left',
+          fontFamily: 'inherit',
+          color: 'inherit',
           transition: 'border-color 0.15s, transform 0.12s',
         }}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = pc; e.currentTarget.style.transform = 'translateY(-1px)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = pc + '44'; e.currentTarget.style.transform = 'none'; }}
       >
-        {/* Meso ring — compact inline */}
-        {(() => {
-          const r = 22, circ = 2 * Math.PI * r;
-          const dash = circ * (mesoPct / 100);
-          return (
-            <svg width="54" height="54" viewBox="0 0 54 54" style={{ overflow: 'visible', flexShrink: 0 }}>
-              <circle cx="27" cy="27" r={r} fill="none" stroke="var(--bg-inset)" strokeWidth="4" />
-              <circle cx="27" cy="27" r={r} fill="none" stroke={pc} strokeWidth="4"
-                strokeDasharray={`${dash} ${circ}`} strokeDashoffset={circ * 0.25} strokeLinecap="round"
-                style={{ transition: 'stroke-dasharray 0.7s cubic-bezier(0.22,1,0.36,1)' }}
-              />
-              <text x="27" y="30" textAnchor="middle" fontSize="11" fontWeight="800" fill="var(--text-primary)" fontFamily="inherit">
-                {mesoPct}%
-              </text>
-            </svg>
-          );
-        })()}
+        {/* Header row: phase chip · WK · done/total · RIR */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <span
+            style={{
+              fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', color: pc,
+              background: pc + '18', padding: '2px 8px', borderRadius: tokens.radius.sm,
+              textTransform: 'uppercase', lineHeight: 1.2,
+            }}
+          >
+            {phase}
+          </span>
+          <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>
+            WK {displayWeek + 1} / {getMeso().totalWeeks}
+          </span>
+          <span
+            style={{
+              marginLeft: 'auto',
+              fontSize: 12, fontWeight: 600, color: 'var(--text-muted)',
+              letterSpacing: '0.04em', fontVariantNumeric: 'tabular-nums',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {weekDone}/{weekTotal} · {rir}
+          </span>
+        </div>
 
-        {/* Week info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-            <span
-              style={{
-                fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', color: pc,
-                background: pc + '18', padding: '2px 7px', borderRadius: tokens.radius.sm,
-              }}
-            >
-              {phase.toUpperCase()}
-            </span>
-            <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>
-              WK {displayWeek + 1}/{getMeso().totalWeeks}
-            </span>
-            {phase !== 'Accumulation' && (
-              <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 'auto' }}>
-                {rir}
-              </span>
-            )}
-          </div>
-
-          {/* Day pills */}
-          <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
-            {activeDays.map((day, i) => {
-              const done = completedDays.has(`${i}:${displayWeek}`);
-              const isNext = !done && activeDays.slice(0, i).every((_, j) => completedDays.has(`${j}:${displayWeek}`));
-              const tc = (TAG_ACCENT as Record<string, any>)[day.tag || ''];
-              const accent = '#E8651A';
-              return (
-                <div
-                  key={i}
-                  onClick={(e) => { e.stopPropagation(); goBack(); onSelectDayWeek(i, activeWeek); }}
-                  style={{
-                    flex: 1, minWidth: 0, padding: '4px 2px', borderRadius: tokens.radius.xs,
-                    border: `1px solid ${done ? tc + '60' : isNext ? accent : pc + '44'}`,
-                    background: done ? tc + '1a' : isNext ? accent + '18' : 'transparent',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.04em', color: done ? tc : isNext ? accent : 'var(--text-muted)' }}>
-                    {({ PUSH: 'Push', PULL: 'Pull', LEGS: 'Legs', UPPER: 'Upper', LOWER: 'Lower', FULL: 'Full' } as Record<string, any>)[day.tag || ''] || day.tag}
-                  </div>
-                  <div style={{ fontSize: 13, lineHeight: 1 }}>
-                    {done ? <span style={{ color: tc }}>✓</span> : isNext ? <span style={{ color: accent }}>●</span> : <span style={{ color: 'var(--text-dim)' }}>·</span>}
+        {/* Weekly workout bar — one segment per training day.
+            Convention (matches Focus Mode + Progress):
+              done     → phase color + soft glow
+              current  → greyish-white (no pulse)
+              upcoming → dim grey */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${activeDays.length}, 1fr)`,
+            gap: 4,
+            alignItems: 'end',
+          }}
+        >
+          {activeDays.map((day, i) => {
+            const done = completedDays.has(`${i}:${displayWeek}`);
+            const isCurrent = !done && activeDays.slice(0, i).every((_, j) => completedDays.has(`${j}:${displayWeek}`));
+            const segStyle: React.CSSProperties = {
+              height: 10,
+              borderRadius: 3,
+              background: 'var(--border-subtle, var(--border))',
+              transition: 'background 200ms',
+            };
+            if (done) {
+              segStyle.background = pc;
+              segStyle.boxShadow = `0 0 6px ${pc}88`;
+            } else if (isCurrent) {
+              segStyle.background = 'var(--text-secondary)';
+            }
+            const tagColor = done
+              ? pc
+              : isCurrent
+              ? 'var(--text-primary)'
+              : 'var(--text-muted)';
+            const label = day.label || day.tag || `Day ${i + 1}`;
+            return (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                <div style={{ textAlign: 'center', minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: isCurrent ? 800 : 700,
+                      letterSpacing: '0.04em',
+                      color: tagColor,
+                      textTransform: 'uppercase',
+                      lineHeight: 1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {label}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Week progress bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: tokens.radius.xs, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${weekPct}%`, background: pc, borderRadius: tokens.radius.xs, transition: 'width 0.5s ease' }} />
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
-              {weekDone}/{weekTotal}
-            </div>
-          </div>
+                <div style={segStyle} aria-label={`${label}: ${done ? 'done' : isCurrent ? 'current' : 'upcoming'}`} />
+              </div>
+            );
+          })}
         </div>
       </button>
 
