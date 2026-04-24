@@ -46,10 +46,18 @@ vi.mock('../../../utils/store', () => ({
 }));
 
 vi.mock('../../../data/constants', () => ({
-  TAG_ACCENT: { PUSH: '#FF6B6B', PULL: '#4ECDC4', LEGS: '#FFD93D', MOBILITY: '#D4983C' },
+  TAG_ACCENT: { PUSH: '#FF6B6B', PULL: '#4ECDC4', LEGS: '#FFD93D', MOBILITY: '#D4983C', CARDIO: '#5B8FA8' },
   getMeso: mockGetMeso,
   DAILY_MOBILITY: [],
-  CARDIO_WORKOUTS: [],
+  CARDIO_WORKOUTS: [
+    {
+      id: 'easy_walk',
+      label: 'Easy Walk',
+      description: 'Zone 2 recovery walk',
+      category: 'Endurance',
+      recommendedFor: ['build_muscle', 'build_strength', 'general_health'],
+    },
+  ],
   FOUNDRY_COOLDOWN: {},
   MOBILITY_PROTOCOLS: [
     { id: 'daily_warmup', name: 'Daily Mobility', duration: '3 min', category: 'warmup', description: '', moves: [] },
@@ -190,28 +198,22 @@ describe('HomeTab', () => {
     expect(screen.getByText('Alex')).toBeDefined();
   });
 
-  it('shows meso progress ring with correct percentage', () => {
-    render(<HomeTab {...makeProps({ mesoPct: 42 })} />);
-    expect(screen.getByText('42%')).toBeDefined();
-  });
-
-  it('renders day buttons for each active day', () => {
+  it('renders weekly workout bar labels for each active day', () => {
     render(<HomeTab {...makeProps()} />);
-    // PPL days render full tags: Push, Pull, Legs
-    expect(screen.getByText('Push')).toBeDefined();
-    expect(screen.getByText('Pull')).toBeDefined();
-    expect(screen.getByText('Legs')).toBeDefined();
+    // Segment labels use day.label (falling back to day.tag). "Push Day" can
+    // also appear in the next-session preview so we assert "at least one".
+    expect(screen.getAllByText('Push Day').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Pull Day').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Leg Day').length).toBeGreaterThan(0);
   });
 
-  it('clicking a day pill calls onSelectDayWeek', () => {
+  it('clicking the dashboard card navigates to Progress', () => {
     const props = makeProps();
     render(<HomeTab {...props} />);
-    // Click the "Push" day pill — day pills are divs with onClick
-    const puPill = screen.getByText('Push').closest('div[style]');
-    expect(puPill).toBeTruthy();
-    fireEvent.click(puPill!);
-    expect(props.goBack).toHaveBeenCalled();
-    expect(props.onSelectDayWeek).toHaveBeenCalledWith(0, 0);
+    // The dashboard card has aria-label="Open progress"
+    const card = screen.getByLabelText('Open progress');
+    fireEvent.click(card);
+    expect(props.goTo).toHaveBeenCalledWith('progress');
   });
 
   it('shows today workout card when today is a workout day', () => {

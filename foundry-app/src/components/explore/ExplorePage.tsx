@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { tokens } from '../../styles/tokens';
+import { useEffect, useState } from 'react';
 import { useExerciseDB, getSamplePrograms } from '../../data/exerciseDB';
 import { CARDIO_WORKOUTS, MOBILITY_PROTOCOLS } from '../../data/constants';
 import { store } from '../../utils/store';
@@ -64,176 +63,157 @@ function ExplorePage({ profile, onStartProgram, onProfileUpdate }: ExplorePagePr
     id: Exclude<Section, 'home'>;
     title: string;
     subtitle: string;
-    icon: React.ReactNode;
   }[] = [
     {
       id: 'library',
       title: 'Exercise Library',
       subtitle: `${EXERCISE_DB.length} exercises · how-tos and video cues`,
-      icon: (
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <rect x="3" y="3" width="4" height="4" />
-          <rect x="10" y="3" width="4" height="4" />
-          <rect x="17" y="3" width="4" height="4" />
-          <rect x="3" y="10" width="4" height="4" />
-          <rect x="10" y="10" width="4" height="4" />
-          <rect x="17" y="10" width="4" height="4" />
-          <rect x="3" y="17" width="4" height="4" />
-          <rect x="10" y="17" width="4" height="4" />
-          <rect x="17" y="17" width="4" height="4" />
-        </svg>
-      ),
     },
     {
       id: 'programs',
       title: 'Sample Programs',
       subtitle: `${getSamplePrograms().length} prebuilt mesos, ready to run`,
-      icon: (
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polygon points="12 2 2 7 12 12 22 7 12 2" />
-          <polyline points="2 17 12 22 22 17" />
-          <polyline points="2 12 12 17 22 12" />
-        </svg>
-      ),
     },
     {
       id: 'mobility',
       title: 'Mobility',
       subtitle: `${MOBILITY_PROTOCOLS.length} routines — shoulders, hips, spine, full-body`,
-      icon: (
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M3 18 A9 9 0 0 1 21 18" />
-          <path d="M7 18 A5 5 0 0 1 17 18" />
-          <line x1="12" y1="18" x2="12" y2="13" />
-          <circle cx="12" cy="11" r="1.5" />
-        </svg>
-      ),
     },
     {
       id: 'cardio',
       title: 'Cardio',
       subtitle: `${CARDIO_WORKOUTS.length} protocols from Zone 2 to Tabata`,
-      icon: (
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polyline points="3 12 7 12 9 6 12 18 15 9 17 12 21 12" />
-        </svg>
-      ),
     },
     {
       id: 'learn',
       title: 'The System',
       subtitle: 'Periodization, volume landmarks, progression — the why behind it all',
-      icon: (
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-        </svg>
-      ),
     },
   ];
 
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
-      <div style={{ padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {tiles.map((t) => (
-          <button
+      <div style={{ padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {tiles.map((t, i) => (
+          <NumberedTile
             key={t.id}
+            index={i}
+            title={t.title}
+            subtitle={t.subtitle}
             onClick={() => setSection(t.id)}
-            style={{
-              padding: '16px 18px',
-              borderRadius: tokens.radius.lg,
-              cursor: 'pointer',
-              textAlign: 'left',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              boxShadow: 'var(--shadow-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-              width: '100%',
-            }}
-          >
-            <div style={{ flexShrink: 0 }}>{t.icon}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 800,
-                  color: 'var(--text-primary)',
-                  marginBottom: 3,
-                }}
-              >
-                {t.title}
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.45,
-                }}
-              >
-                {t.subtitle}
-              </div>
-            </div>
-            <span
-              aria-hidden="true"
-              style={{
-                color: 'var(--text-dim)',
-                fontSize: 20,
-                flexShrink: 0,
-              }}
-            >
-              ›
-            </span>
-          </button>
+          />
         ))}
       </div>
     </div>
+  );
+}
+
+function NumberedTile({
+  index,
+  title,
+  subtitle,
+  onClick,
+}: {
+  index: number;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%',
+        height: 76,
+        padding: 0,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        overflow: 'hidden',
+        display: 'grid',
+        gridTemplateColumns: '64px 1fr auto',
+        alignItems: 'stretch',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        color: 'inherit',
+        textAlign: 'left',
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRight: '1px solid var(--border)',
+          background: 'var(--bg-inset, var(--bg-deep))',
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--ff-display)',
+            fontSize: 30,
+            letterSpacing: '0.04em',
+            color: 'var(--accent)',
+            lineHeight: 1,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {String(index + 1).padStart(2, '0')}
+        </span>
+      </div>
+      <div
+        style={{
+          padding: '14px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'var(--ff-display)',
+            fontSize: 20,
+            letterSpacing: '0.05em',
+            color: 'var(--text-primary)',
+            lineHeight: 1,
+            marginBottom: 5,
+            textTransform: 'uppercase',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.3,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {subtitle}
+        </div>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          paddingRight: 16,
+          color: 'var(--text-muted, var(--text-dim))',
+          fontSize: 22,
+          lineHeight: 1,
+        }}
+        aria-hidden
+      >
+        ›
+      </div>
+    </button>
   );
 }
 
