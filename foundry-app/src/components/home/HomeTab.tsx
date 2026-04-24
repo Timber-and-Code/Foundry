@@ -20,6 +20,7 @@ import {
 } from '../../utils/store';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
+import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
 
 // ── Warmup protocol picker ────────────────────────────────────────────────
@@ -413,6 +414,7 @@ function HomeTab({
   onOpenMobility: _onOpenMobility,
   setShowPricing: _setShowPricing,
 }: HomeTabProps) {
+  const { session: activeSession } = useActiveSession();
   const todayCardioStr = (() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -822,7 +824,11 @@ function HomeTab({
                 borderRadius: tokens.radius.md, padding: '6px 14px', letterSpacing: '0.04em',
               }}
             >
-              Start <span aria-hidden="true">→</span>
+              {activeSession?.kind === 'lifting' &&
+              activeSession.route === `/day/${showDayIdx}/${showDayWeek}`
+                ? 'Continue'
+                : 'Start'}{' '}
+              <span aria-hidden="true">→</span>
             </div>
           </button>
           <div style={{ padding: '6px 0 2px' }}>
