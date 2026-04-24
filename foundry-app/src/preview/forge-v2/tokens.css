@@ -1,0 +1,119 @@
+/* ────────────────────────────────────────────────────────────────────────
+   Forge v2 preview tokens — scoped to `.forge-v2` so they do not collide
+   with the live theme in `src/styles/theme.css`. Values mirror the
+   DESIGN_SYSTEM.md spec (warm dark foundation, phase palette, mono UI).
+   ──────────────────────────────────────────────────────────────────── */
+
+.forge-v2 {
+  /* Foundation */
+  --fv-bg-deep:      #0a0907;
+  --fv-bg-warm:      #13100e;
+  --fv-bg-ember:     #1f1815;
+  --fv-surface-1:    rgba(20, 16, 14, 0.5);
+  --fv-surface-2:    rgba(15, 12, 11, 0.6);
+  --fv-border-dim:   #1a1614;
+  --fv-border-1:     #1f1c1a;
+  --fv-border-2:     #262626;
+  --fv-border-3:     #404040;
+
+  /* Text — lifted a full tier lighter vs the spec; the original scale read
+     as too dim against the warm-dark background. text-4 and text-5 are
+     where most labels live (TARGET, EXIT, meta row, set #) so they got
+     the biggest lift. text-6 is now readable instead of near-invisible. */
+  --fv-text-hi:  #f5f5f5;
+  --fv-text-1:   #e5e5e5;
+  --fv-text-2:   #d4d4d4;
+  --fv-text-3:   #bdbdbd;
+  --fv-text-4:   #a3a3a3;
+  --fv-text-5:   #8a8a8a;
+  --fv-text-6:   #6e6e6e;
+
+  /* Phase palette — Intensification is the default accent */
+  --fv-phase-accum:  #E8E4DC;
+  --fv-phase-intens: #E8651A;
+  --fv-phase-peak:   #D4983C;
+  --fv-phase-deload: #5B8FA8;
+  --fv-accent:       var(--fv-phase-intens);
+
+  /* Typography families */
+  --fv-font-display: 'Bebas Neue', system-ui, sans-serif;
+  --fv-font-ui:      'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* Spacing */
+  --fv-sp-0_5: 2px;
+  --fv-sp-1:   4px;
+  --fv-sp-2:   8px;
+  --fv-sp-3:   12px;
+  --fv-sp-4:   16px;
+  --fv-sp-5:   20px;
+  --fv-sp-6:   24px;
+  --fv-sp-8:   32px;
+  --fv-sp-10:  40px;
+  --fv-sp-12:  48px;
+
+  /* Letter-spacing */
+  --fv-track-label: 0.25em;
+  --fv-track-wide:  0.30em;
+  --fv-track-brand: 0.20em;
+}
+
+/* Reset — forge-v2 owns its own baseline inside the sandbox root */
+.forge-v2 {
+  color: var(--fv-text-1);
+  background: var(--fv-bg-deep);
+  font-family: var(--fv-font-ui);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.forge-v2 * {
+  box-sizing: border-box;
+}
+
+.forge-v2 button {
+  font-family: inherit;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.forge-v2 input {
+  font-family: inherit;
+  background: transparent;
+  border: none;
+  color: inherit;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Motion ── */
+@keyframes fv-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+@keyframes fv-pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+@keyframes fv-ring {
+  0%   { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes fv-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fv-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.forge-v2 .fv-pulse      { animation: fv-pulse 1.5s ease-in-out infinite; }
+.forge-v2 .fv-pulse-glow { animation: fv-pulse-glow 1.5s ease-in-out infinite; }
+.forge-v2 .fv-rise       { animation: fv-rise 600ms ease-out both; }
