@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, type CSSProperties } from 'react';
 import { loadArchive } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
 import { getMeso, getMesoRows, getProgTargets, PHASE_COLOR } from '../../data/constants';
@@ -69,6 +69,17 @@ function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: Training
   const mesoRows = getMesoRows();
   const progTargets = getProgTargets();
 
+  const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [highlightIdx, setHighlightIdx] = useState<number | null>(null);
+
+  const scrollToWeek = (i: number) => {
+    const el = cardRefs.current[i];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightIdx(i);
+    window.setTimeout(() => setHighlightIdx((cur) => (cur === i ? null : cur)), 1200);
+  };
+
   const splitLabels: Record<string, string> = {
     ppl: 'Push / Pull / Legs',
     upper_lower: 'Upper / Lower',
@@ -118,6 +129,13 @@ function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: Training
         </div>
       </div>
 
+      {/* Phase progression bar — tap a segment to jump to that week's card */}
+      <PhaseBar
+        rows={mesoRows}
+        currentWeek={currentWeek}
+        onTap={scrollToWeek}
+      />
+
       {/* Week-by-week breakdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
@@ -129,18 +147,23 @@ function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: Training
           const weekNum = isDeload ? 'D' : weekIdx + 1;
           const color = (PHASE_COLOR as Record<string, string>)[phase] || 'var(--phase-deload)';
           const isCurrent = weekIdx === currentWeek;
+          const isHighlighted = highlightIdx === i;
           const weightProg = !isDeload && progTargets.weight[weekIdx] ? progTargets.weight[weekIdx] : null;
           const repsProg = !isDeload && progTargets.reps[weekIdx] ? progTargets.reps[weekIdx] : null;
 
           return (
             <div
               key={i}
+              ref={(el) => { cardRefs.current[i] = el; }}
               style={{
                 padding: '14px 16px',
                 background: `${color}${isCurrent ? '44' : '28'}`,
                 border: `1px solid ${color}${isCurrent ? 'aa' : '66'}`,
                 borderRadius: tokens.radius.lg,
-                boxShadow: 'var(--shadow-sm)',
+                boxShadow: isHighlighted
+                  ? `0 0 0 2px ${color}, 0 0 16px ${color}66`
+                  : 'var(--shadow-sm)',
+                transition: 'box-shadow 250ms',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
@@ -280,6 +303,132 @@ function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: Training
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Phase progression bar ─────────────────────────────────────────────────
+
+function PhaseBar({
+  rows,
+  currentWeek,
+  onTap,
+}: {
+  rows: Array<[number | null, string, string, string]>;
+  currentWeek: number;
+  onTap: (i: number) => void;
+}) {
+  return (
+    <div
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: tokens.radius.lg,
+        padding: '14px 12px 12px 12px',
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.16em',
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          marginBottom: 10,
+          paddingLeft: 2,
+        }}
+      >
+        Phase Progression
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${rows.length}, 1fr)`,
+          gap: 4,
+          alignItems: 'end',
+        }}
+      >
+        {rows.map((row, i) => {
+          const [weekIdx, , phase] = row;
+          const isDeload = weekIdx === null;
+          const label = isDeload ? 'DELD' : `Wk ${weekIdx + 1}`;
+          const color = (PHASE_COLOR as Record<string, string>)[phase] || 'var(--phase-deload)';
+          const isCurrent = weekIdx === currentWeek;
+          const isDone = !isDeload && weekIdx < currentWeek;
+          const shortPhase =
+            phase === 'Intensification'
+              ? 'Intens'
+              : phase === 'Accumulation'
+              ? 'Accum'
+              : phase === 'Establish'
+              ? 'Est'
+              : phase === 'DELOAD'
+              ? 'Deload'
+              : phase;
+          const segStyle: CSSProperties = {
+            height: 12,
+            borderRadius: 3,
+            background: isDone ? color : isCurrent ? color : `${color}4D`,
+            boxShadow: isDone ? `0 0 6px ${color}88` : undefined,
+            border: isCurrent ? '1.5px solid var(--text-primary)' : '1px solid transparent',
+            transition: 'background 200ms, box-shadow 200ms',
+          };
+          const weekLabelColor = isCurrent ? 'var(--text-primary)' : 'var(--text-muted)';
+          const phaseLabelColor = isDone ? color : isCurrent ? 'var(--text-primary)' : `${color}B3`;
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onTap(i)}
+              aria-label={`${label} ${phase}${isCurrent ? ' (current)' : isDone ? ' (done)' : ''}`}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                minWidth: 0,
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                color: 'inherit',
+              }}
+            >
+              <div style={{ textAlign: 'center', minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 9,
+                    letterSpacing: '0.15em',
+                    color: weekLabelColor,
+                    textTransform: 'uppercase',
+                    fontWeight: isCurrent ? 700 : 600,
+                    marginBottom: 2,
+                    lineHeight: 1,
+                  }}
+                >
+                  {label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    color: phaseLabelColor,
+                    textTransform: 'uppercase',
+                    lineHeight: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {shortPhase}
+                </div>
+              </div>
+              <div style={segStyle} />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
