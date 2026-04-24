@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { tokens } from '../../styles/tokens';
 import HammerIcon from '../shared/HammerIcon';
 import {
@@ -30,7 +30,7 @@ interface ProgressViewProps {
   goTo: (n: number | string) => void;
 }
 
-export default function ProgressView({ currentWeek, completedDays, activeDays, goTo }: ProgressViewProps) {
+function ProgressView({ currentWeek, completedDays, activeDays, goTo }: ProgressViewProps) {
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [showCardioHistory, setShowCardioHistory] = useState(false);
   const [progressTab, setProgressTab] = useState<'week' | 'history'>('week');
@@ -1299,3 +1299,5 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
     </div>
   );
 }
+
+export default memo(ProgressView);
