@@ -10,6 +10,47 @@ import {
   migrateLocalWorkoutsToSupabase,
 } from '../utils/sync';
 
+// TODO(perf): Lazy-load sync.ts for anonymous users — deferred (v9 review #8)
+//
+// sync.ts is ~2,400 LOC and currently imported eagerly by three critical-path
+// modules: AuthContext.tsx (here), main.tsx, and store.js. This means it loads
+// for ALL users — including anonymous visitors who never sign in.
+//
+// The opportunity: sync.ts should not appear in the initial JS bundle for
+// anonymous users. It should only load when the user is authenticated.
+//
+// Why it was deferred: the refactor touches all three entry points simultaneously
+// and is riskier than a simple import swap:
+//
+//   1. main.tsx needs `markDirty` synchronously at startup to wire the storage
+//      dirty-tracking callback (`_setMarkDirty(markDirty)`). This must happen
+//      before any component mounts, so a dynamic import() here would require
+//      converting the wiring to an async init and ensuring it completes before
+//      the first localStorage write.
+//
+//   2. store.js re-exports `pullFromSupabase` and `pushToSupabase` from sync.ts
+//      as a convenience. Any component that does `import { pullFromSupabase }
+//      from '../../utils/store'` will cause sync.ts to be in the initial chunk.
+//      Those re-exports would need to be removed and call sites updated to import
+//      directly from sync.ts wrapped in a dynamic import.
+//
+//   3. AuthContext.tsx (here) uses four sync functions only in the SIGNED_IN
+//      branch of onAuthStateChange. This is the easiest of the three — a dynamic
+//      import(() => import('../utils/sync')) inside the SIGNED_IN handler would
+//      work cleanly without touching the module graph.
+//
+// Recommended approach when picking this up:
+//   Step 1: Remove the `pullFromSupabase`/`pushToSupabase` re-exports from
+//           store.js and migrate call sites to a lazy wrapper.
+//   Step 2: Replace the static import in AuthContext with a dynamic import
+//           inside the onAuthStateChange SIGNED_IN handler.
+//   Step 3: Extract `markDirty` into a separate tiny module (e.g.
+//           utils/syncDirty.ts) that doesn't import the rest of sync.ts, so
+//           main.tsx can import it eagerly without pulling the whole 2.4 KB file.
+//
+// Estimated savings: ~15–20 KB gzip off the critical-path bundle for anonymous
+// users, which is the majority of initial visitors.
+
 // Multi-user safety: when a different user signs in than was last cached
 // on this device, wipe the prior user's local data BEFORE migrate runs.
 // Otherwise migrateLocalWorkoutsToSupabase walks User A's day/week keys
