@@ -1464,6 +1464,8 @@ function DayView({
                 isLast={clampedFocus === exercises.length - 1}
                 active={workoutStarted}
                 supersetPartnerName={supersetPartnerName2}
+                editorial
+                totalExercises={exercises.length}
               />
             </div>
             {upNextIdx !== null && (

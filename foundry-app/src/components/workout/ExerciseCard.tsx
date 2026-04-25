@@ -15,6 +15,22 @@ import HammerIcon from '../shared/HammerIcon';
 import type { Exercise, DayData } from '../../types';
 import type { WarmupStep, WarmupDetail } from '../../utils/training';
 
+// Editorial Focus Mode chip pill (How to / Swap). 13/700, padded — matches
+// the preview at /preview/hybrid/focus.
+const editorialChipStyle: React.CSSProperties = {
+  padding: '9px 14px',
+  borderRadius: 999,
+  border: '1px solid var(--border)',
+  background: 'var(--bg-card)',
+  color: 'var(--text-primary)',
+  fontFamily: 'inherit',
+  fontSize: 13,
+  fontWeight: 700,
+  letterSpacing: '0.02em',
+  cursor: 'pointer',
+  lineHeight: 1,
+};
+
 interface StallTarget {
   w: number;
   r: number;
@@ -70,6 +86,13 @@ interface ExerciseCardProps {
   isLast?: boolean;
   active?: boolean;
   supersetPartnerName?: string;
+  /** When true, render the editorial Focus Mode layout: large display
+   *  name, sets·reps meta, How To + Swap chip pills, Target / Last week
+   *  reference card. The compact accordion header is hidden. */
+  editorial?: boolean;
+  /** Total exercises in the session — shown as "Exercise N of M" only in
+   *  editorial mode. */
+  totalExercises?: number;
 }
 
 function ExerciseCard({
@@ -98,6 +121,8 @@ function ExerciseCard({
   isLast,
   active,
   supersetPartnerName,
+  editorial = false,
+  totalExercises,
 }: ExerciseCardProps) {
   const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression ?? '']?.[weekIdx];
 
@@ -435,7 +460,181 @@ function ExerciseCard({
         transition: 'border-color 0.25s, border-left 0.25s',
       }}
     >
-      {/* ── HEADER (clickable to expand) ── */}
+      {/* ── EDITORIAL HEADER (Focus Mode) ──────────────────────────────
+          Big display name, sets·reps meta, How To + Swap chip pills, and
+          a Target / Last week reference card. Replaces the compact
+          accordion header during a live workout where the card is
+          always expanded. */}
+      {editorial && (
+        <div style={{ padding: '18px 18px 8px' }}>
+          {totalExercises != null && (
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                marginBottom: 6,
+              }}
+            >
+              Exercise {exIdx + 1} of {totalExercises}
+            </div>
+          )}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 6,
+              flexWrap: 'wrap',
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                fontSize: 30,
+                fontWeight: 400,
+                lineHeight: 1.05,
+                letterSpacing: '0.02em',
+                color: 'var(--text-primary)',
+                margin: 0,
+                flex: '1 1 auto',
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {exercise.name}
+            </h2>
+            {exercise.anchor && (
+              <span data-coach="anchor-hammer" style={{ display: 'inline-flex', flexShrink: 0 }}>
+                <HammerIcon size={20} />
+              </span>
+            )}
+            {exercise.modifier && (
+              <span
+                style={{
+                  fontSize: 11,
+                  background: 'var(--bg-inset)',
+                  color: 'var(--text-muted)',
+                  padding: '3px 8px',
+                  borderRadius: tokens.radius.xs,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                {exercise.modifier}
+              </span>
+            )}
+          </div>
+          {supersetPartnerName && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                marginBottom: 8,
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                color: 'var(--accent)',
+                background: 'rgba(var(--accent-rgb),0.10)',
+                padding: '3px 9px',
+                borderRadius: tokens.radius.xs,
+                textTransform: 'uppercase',
+              }}
+            >
+              Superset with {supersetPartnerName}
+            </div>
+          )}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 14,
+            }}
+          >
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1, minWidth: 0 }}>
+              {exercise.sets ?? '?'} sets · {exercise.reps ?? '?'} reps
+              {exercise.rest ? ` · ${exercise.rest}` : ''}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <button
+                onClick={handleHowToClick}
+                style={editorialChipStyle}
+              >
+                How to
+              </button>
+              {!done && !readOnly && (
+                <button
+                  onClick={() => onSwapClick(exIdx)}
+                  style={editorialChipStyle}
+                >
+                  Swap
+                </button>
+              )}
+            </div>
+          </div>
+          {/* Target / Last week reference card. Target uses the goal label
+              ("Establish", "+5 lbs"); Last week pulls best set from the
+              prior week (or cross-meso archive on week 0). */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.md,
+              background: 'var(--bg-inset)',
+              overflow: 'hidden',
+              marginBottom: 4,
+            }}
+          >
+            <div style={{ padding: '12px 14px' }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.16em',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  marginBottom: 3,
+                }}
+              >
+                Target
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: goalColor }}>
+                {goal || '—'}
+              </div>
+            </div>
+            <div style={{ padding: '12px 14px', borderLeft: '1px solid var(--border)' }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.16em',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  marginBottom: 3,
+                }}
+              >
+                Last week
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                {lastWeekStat || '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HEADER (clickable to expand) ──────────────────────────────
+          Pre-workout / non-Focus modes only. Editorial header above
+          replaces this during a live workout. */}
+      {!editorial && (
       <button
         onClick={() => onToggle()}
         aria-expanded={expanded}
@@ -577,12 +776,19 @@ function ExerciseCard({
           </span>
         </div>
       </button>
+      )}
 
       {/* ── EXPANDED CONTENT ── */}
       {expanded && (
-        <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px' }}>
-          {/* Warmup & How To buttons */}
-          {!done && (
+        <div
+          style={{
+            borderTop: editorial ? 'none' : '1px solid var(--border)',
+            padding: editorial ? '12px 18px' : '12px 16px',
+          }}
+        >
+          {/* Warmup & How To buttons. In editorial mode, How To is in the
+              header chips so we hide the standalone button there. */}
+          {!done && (exercise.warmup || !editorial) && (
             <div
               style={{
                 display: 'flex',
@@ -614,27 +820,29 @@ function ExerciseCard({
                   Warmup Guide
                 </button>
               )}
-              <button
-                onClick={handleHowToClick}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: '10px 12px',
-                  borderRadius: tokens.radius.md,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-accent)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}
-              >
-                How To
-              </button>
+              {!editorial && (
+                <button
+                  onClick={handleHowToClick}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: '10px 12px',
+                    borderRadius: tokens.radius.md,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-accent)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  How To
+                </button>
+              )}
             </div>
           )}
 
@@ -1060,62 +1268,66 @@ function ExerciseCard({
             </button>
           )}
 
-          {/* Action buttons. History was removed — last week's best set
-              now lives in the card header so the modal was redundant. */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {!done && !readOnly && (
-              <button
-                onClick={() => onSwapClick(exIdx)}
-                style={{
-                  flex: 1,
-                  minWidth: 70,
-                  fontSize: 12,
-                  padding: '8px 12px',
-                  borderRadius: tokens.radius.sm,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-accent)',
-                  cursor: 'pointer',
-                }}
-              >
-                Swap
-              </button>
-            )}
-            {!done && !readOnly && onMoveUp && !isFirst && (
-              <button
-                onClick={() => onMoveUp(exIdx)}
-                aria-label="Move exercise up"
-                style={{
-                  fontSize: 14,
-                  padding: '8px 12px',
-                  borderRadius: tokens.radius.sm,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                }}
-              >
-                ↑
-              </button>
-            )}
-            {!done && !readOnly && onMoveDown && !isLast && (
-              <button
-                onClick={() => onMoveDown(exIdx)}
-                aria-label="Move exercise down"
-                style={{
-                  fontSize: 14,
-                  padding: '8px 12px',
-                  borderRadius: tokens.radius.sm,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                }}
-              >
-                ↓
-              </button>
-            )}
-          </div>
+          {/* Action buttons. In editorial mode (Focus Mode), Swap lives in
+              the header chip pills and reorder is handled by the bottom-nav
+              REORDER sheet — so we hide all of these. In non-editorial
+              accordion mode they remain available. */}
+          {!editorial && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {!done && !readOnly && (
+                <button
+                  onClick={() => onSwapClick(exIdx)}
+                  style={{
+                    flex: 1,
+                    minWidth: 70,
+                    fontSize: 12,
+                    padding: '8px 12px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-accent)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Swap
+                </button>
+              )}
+              {!done && !readOnly && onMoveUp && !isFirst && (
+                <button
+                  onClick={() => onMoveUp(exIdx)}
+                  aria-label="Move exercise up"
+                  style={{
+                    fontSize: 14,
+                    padding: '8px 12px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ↑
+                </button>
+              )}
+              {!done && !readOnly && onMoveDown && !isLast && (
+                <button
+                  onClick={() => onMoveDown(exIdx)}
+                  aria-label="Move exercise down"
+                  style={{
+                    fontSize: 14,
+                    padding: '8px 12px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ↓
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Notes section */}
           {noteOpen && (
