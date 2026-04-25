@@ -71,7 +71,18 @@ function SwapMenu({
   const previousFocus = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
-  // Body scroll lock + focus management while open.
+  // onClose is read from a ref so the focus-management effect below
+  // doesn't re-run every time the parent passes a fresh inline callback.
+  // (DayView's logSet path re-renders the SwapMenu mid-typing, which
+  // used to refocus the BACK button on every keystroke and made the
+  // search input untypeable.)
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Body scroll lock + focus management while open. Only depends on
+  // `open` — onClose changes do NOT re-run this effect, see above.
   useEffect(() => {
     if (!open) return;
     previousFocus.current = document.activeElement as HTMLElement;
@@ -84,7 +95,7 @@ function SwapMenu({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== 'Tab' || !el) return;
@@ -107,7 +118,7 @@ function SwapMenu({
       document.body.style.overflow = prevOverflow;
       previousFocus.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

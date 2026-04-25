@@ -456,8 +456,21 @@ function ExerciseCard({
       data-coach={exercise.anchor ? 'anchor-row' : undefined}
       style={{
         background: 'var(--bg-card)',
-        border: active ? '1px solid var(--accent, #D4A03C)' : '1px solid var(--border)',
-        borderLeft: active ? '4px solid var(--accent, #D4A03C)' : '1px solid var(--border)',
+        // Editorial Focus Mode is already orange inside (row tints, chips,
+        // accent check, accent chip pills, ProgressStrip done segments) —
+        // adding an outer accent border pushes it into "too much orange."
+        // Use a neutral border there. Legacy/accordion path keeps the
+        // original active accent treatment.
+        border: editorial
+          ? '1px solid var(--border)'
+          : active
+          ? '1px solid var(--accent, #D4A03C)'
+          : '1px solid var(--border)',
+        borderLeft: editorial
+          ? '1px solid var(--border)'
+          : active
+          ? '4px solid var(--accent, #D4A03C)'
+          : '1px solid var(--border)',
         borderRadius: tokens.radius.lg,
         marginBottom: 12,
         overflow: 'hidden',
@@ -497,9 +510,9 @@ function ExerciseCard({
             <h2
               style={{
                 fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-                fontSize: 30,
+                fontSize: 36,
                 fontWeight: 400,
-                lineHeight: 1.05,
+                lineHeight: 1.0,
                 letterSpacing: '0.02em',
                 color: 'var(--text-primary)',
                 margin: 0,
@@ -924,25 +937,47 @@ function ExerciseCard({
             </div>
           )}
 
-          {/* Set logging grid */}
+          {/* Set logging grid. Two layouts:
+              - editorial (Focus Mode): 32px # / 1fr Lbs / 1fr Reps / 44px ✓
+                with orange-gradient row tint and underline-only inputs.
+                Matches /preview/hybrid/focus.
+              - non-editorial (pre-workout accordion): legacy 4-col grid
+                with bordered inputs + minus button. */}
           {!done && (
             <div style={{ marginBottom: 12 }}>
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr 28px',
-                  gap: 8,
-                  marginBottom: 8,
+                  gridTemplateColumns: editorial
+                    ? '32px 1fr 1fr 44px'
+                    : '1fr 1fr 1fr 28px',
+                  gap: editorial ? 10 : 8,
+                  marginBottom: editorial ? 0 : 8,
+                  padding: editorial ? '6px 0' : 0,
+                  borderBottom: editorial ? '1px solid var(--border-subtle, var(--border))' : 'none',
                   fontSize: 11,
                   color: 'var(--text-muted)',
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  letterSpacing: editorial ? '0.06em' : 'normal',
+                  textTransform: editorial ? 'uppercase' : 'none',
                 }}
                 aria-hidden="true"
               >
-                <div>Weight (lbs)</div>
-                <div>Reps</div>
-                <div style={{ textAlign: 'center' }}>Done</div>
-                <div />
+                {editorial ? (
+                  <>
+                    <span>#</span>
+                    <span style={{ textAlign: 'center' }}>Lbs</span>
+                    <span style={{ textAlign: 'center' }}>Reps</span>
+                    <span />
+                  </>
+                ) : (
+                  <>
+                    <div>Weight (lbs)</div>
+                    <div>Reps</div>
+                    <div style={{ textAlign: 'center' }}>Done</div>
+                    <div />
+                  </>
+                )}
               </div>
               {Array.from({ length: Number(exercise.sets ?? 0) }).map((_, s) => {
                 const sd = (weekData[exIdx] || {})[s] || {};
@@ -954,18 +989,96 @@ function ExerciseCard({
                 const confirmedReps = parseInt(String(sd.reps || 0), 10);
                 const isMissedRow =
                   isDone && repsMin > 0 && confirmedReps > 0 && confirmedReps < repsMin;
+                // First not-done row is "active" — picks up a slightly
+                // brighter orange tint so the lifter knows where to type.
+                const firstActiveIdx = (() => {
+                  for (let i = 0; i < totalSets; i++) {
+                    if (!doneSets.has(i)) return i;
+                  }
+                  return -1;
+                })();
+                const isActive = editorial && s === firstActiveIdx;
+                const rowBg = editorial
+                  ? isDone
+                    ? 'linear-gradient(90deg, rgba(232,101,26,0.08) 0%, transparent 100%)'
+                    : isActive
+                    ? 'linear-gradient(90deg, rgba(232,101,26,0.12) 0%, transparent 100%)'
+                    : 'transparent'
+                  : undefined;
+                // Editorial input: fully borderless, Bebas display font for
+                // the numerals. Matches the preview's editorial typography
+                // — set values read as headlines, not form fields.
+                const editorialInputStyle = (suggested: boolean): React.CSSProperties => ({
+                  width: '100%',
+                  textAlign: 'center',
+                  fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                  fontSize: 22,
+                  fontWeight: 400,
+                  letterSpacing: '0.02em',
+                  padding: '6px 0',
+                  color: isDone
+                    ? 'var(--text-secondary)'
+                    : suggested
+                    ? 'var(--text-accent)'
+                    : 'var(--text-primary)',
+                  fontStyle: suggested ? 'italic' : 'normal',
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  fontVariantNumeric: 'tabular-nums',
+                  boxSizing: 'border-box',
+                });
+                // Legacy bordered input (pre-workout accordion mode).
+                const legacyInputStyle = (suggested: boolean): React.CSSProperties => ({
+                  minWidth: 0,
+                  width: '100%',
+                  background: 'var(--bg-inset)',
+                  border: suggested ? '1.5px solid var(--text-accent)' : '1px solid var(--border)',
+                  borderRadius: tokens.radius.sm,
+                  padding: '8px 6px',
+                  fontSize: 14,
+                  color: suggested ? 'var(--text-accent)' : 'var(--text-primary)',
+                  fontStyle: suggested ? 'italic' : 'normal',
+                  outline: 'none',
+                  textAlign: 'center',
+                  boxSizing: 'border-box',
+                });
                 return (
                   <div
                     key={s}
                     data-coach={isMissedRow ? 'missed-row' : undefined}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr 1fr 28px',
-                      gap: 8,
-                      marginBottom: 6,
-                      opacity: isDone ? 0.6 : 1,
+                      gridTemplateColumns: editorial
+                        ? '32px 1fr 1fr 44px'
+                        : '1fr 1fr 1fr 28px',
+                      gap: editorial ? 10 : 8,
+                      alignItems: 'center',
+                      padding: editorial ? '12px 0' : 0,
+                      marginBottom: editorial ? 0 : 6,
+                      borderBottom: editorial ? '1px solid var(--border-subtle, var(--border))' : 'none',
+                      background: rowBg,
+                      opacity: !editorial && isDone ? 0.6 : 1,
                     }}
                   >
+                    {editorial && (
+                      <span
+                        style={{
+                          fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                          fontSize: 22,
+                          fontWeight: 400,
+                          color: isDone
+                            ? 'var(--accent)'
+                            : isActive
+                            ? 'var(--text-primary)'
+                            : 'var(--text-muted)',
+                          letterSpacing: '0.04em',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {String(s + 1).padStart(2, '0')}
+                      </span>
+                    )}
                     <input
                       type="number"
                       inputMode="decimal"
@@ -975,20 +1088,7 @@ function ExerciseCard({
                       onChange={(e) => onUpdateSet(exIdx, s, 'weight', e.target.value)}
                       onBlur={(e) => handleWeightBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
-                      style={{
-                        minWidth: 0,
-                        width: '100%',
-                        background: 'var(--bg-inset)',
-                        border: isSuggestedWeight ? '1.5px solid var(--text-accent)' : '1px solid var(--border)',
-                        borderRadius: tokens.radius.sm,
-                        padding: '8px 6px',
-                        fontSize: 14,
-                        color: isSuggestedWeight ? 'var(--text-accent)' : 'var(--text-primary)',
-                        fontStyle: isSuggestedWeight ? 'italic' : 'normal',
-                        outline: 'none',
-                        textAlign: 'center',
-                        boxSizing: 'border-box',
-                      }}
+                      style={editorial ? editorialInputStyle(isSuggestedWeight) : legacyInputStyle(isSuggestedWeight)}
                     />
                     <input
                       type="number"
@@ -999,27 +1099,29 @@ function ExerciseCard({
                       onChange={(e) => handleRepsChange(s, e.target.value)}
                       onBlur={(e) => handleRepsBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
-                      style={{
-                        minWidth: 0,
-                        width: '100%',
-                        background: 'var(--bg-inset)',
-                        border: isSuggestedReps ? '1.5px solid var(--text-accent)' : '1px solid var(--border)',
-                        borderRadius: tokens.radius.sm,
-                        padding: '8px 6px',
-                        fontSize: 14,
-                        color: isSuggestedReps ? 'var(--text-accent)' : 'var(--text-primary)',
-                        fontStyle: isSuggestedReps ? 'italic' : 'normal',
-                        outline: 'none',
-                        textAlign: 'center',
-                        boxSizing: 'border-box',
-                      }}
+                      style={editorial ? editorialInputStyle(isSuggestedReps) : legacyInputStyle(isSuggestedReps)}
                     />
                     <button
                       onClick={() => handleSetCheckmark(s)}
                       disabled={readOnly}
                       aria-pressed={isDone}
                       aria-label={isDone ? `Set ${s + 1} complete — tap to undo` : `Mark set ${s + 1} complete`}
-                      style={{
+                      style={editorial ? {
+                        width: 36,
+                        height: 36,
+                        justifySelf: 'end',
+                        border: isDone ? 'none' : '1px solid var(--border)',
+                        borderRadius: 8,
+                        background: isDone ? 'var(--accent)' : 'transparent',
+                        color: isDone ? 'var(--bg-root, #0A0A0C)' : 'var(--text-muted)',
+                        cursor: readOnly ? 'default' : 'pointer',
+                        fontSize: 16,
+                        fontWeight: 800,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxSizing: 'border-box',
+                      } : {
                         minWidth: 0,
                         width: '100%',
                         border: isDone ? '2px solid var(--success)' : '1px solid var(--border)',
@@ -1038,7 +1140,11 @@ function ExerciseCard({
                     >
                       <span aria-hidden="true">{isDone ? '✓' : ''}</span>
                     </button>
-                    {canRemove ? (
+                    {/* Editorial mode drops the minus button entirely — the
+                        empty-reps check tap now opens the 0-reps confirm,
+                        which doubles as the "I'm skipping" path. Legacy
+                        accordion mode keeps the minus for explicit removal. */}
+                    {!editorial && (canRemove ? (
                       <button
                         onClick={() => setRemoveSetPrompt(s)}
                         aria-label={`Remove set ${s + 1}`}
@@ -1062,7 +1168,7 @@ function ExerciseCard({
                       </button>
                     ) : (
                       <div aria-hidden="true" />
-                    )}
+                    ))}
                   </div>
                 );
               })}

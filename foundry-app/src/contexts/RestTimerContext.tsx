@@ -33,12 +33,47 @@ interface RestTimerContextValue {
 
 const RestTimerContext = createContext<RestTimerContextValue | null>(null);
 
+// Loose shape for the wake lock sentinel — TS lib has these types but
+// they're behind a target lib that not every consumer of this file
+// will pull in. Runtime presence is what matters; null-check at use.
+interface WakeLockSentinelLike {
+  release: () => Promise<void>;
+}
+
 export function RestTimerProvider({ children }: { children: ReactNode }) {
   const [restTimer, setRestTimer] = useState<RestTimerState | null>(null);
   const [restTimerMinimized, setRestTimerMinimized] = useState(false);
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const restEndTimeRef = useRef<number | null>(null);
   const timerDayRef = useRef<TimerDayRef | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
+
+  // Acquire a screen wake lock so the iPhone (or Android) doesn't dim /
+  // sleep while the lifter is between sets. iOS releases the lock when
+  // the page is hidden — the visibilitychange effect below re-acquires
+  // on return so it survives app-switch / lock screen scenarios.
+  const acquireWakeLock = useCallback(async () => {
+    try {
+      if (typeof navigator === 'undefined') return;
+      const wakeLock = (navigator as unknown as { wakeLock?: { request: (t: 'screen') => Promise<WakeLockSentinelLike> } }).wakeLock;
+      if (!wakeLock) return;
+      // Already held — don't double-request.
+      if (wakeLockRef.current) return;
+      wakeLockRef.current = await wakeLock.request('screen');
+    } catch {
+      // Silent — wake lock isn't critical for rest correctness, just nice
+      // to have. Older iOS / unsupported environments fall back to the
+      // OS auto-lock behavior.
+    }
+  }, []);
+
+  const releaseWakeLock = useCallback(() => {
+    const lock = wakeLockRef.current;
+    wakeLockRef.current = null;
+    if (lock) {
+      try { void lock.release(); } catch { /* no-op */ }
+    }
+  }, []);
 
   const fireTimerComplete = useCallback(() => {
     try { haptic('done'); } catch { /* haptic not available on desktop */ }
@@ -71,8 +106,14 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       const endTime = Date.now() + secs * 1000;
       restEndTimeRef.current = endTime;
       if (dayIdx !== undefined) timerDayRef.current = { dayIdx, weekIdx };
+      // Default new rests to NOT minimized — DayView's full overlay
+      // handles the in-workout UX. App-level toast renders only when the
+      // user navigates away from /day/* (auto-minimize via route).
       setRestTimerMinimized(false);
       setRestTimer({ remaining: secs, total: secs, exName });
+      // Keep the screen awake while resting — released on dismiss /
+      // visibilitychange handles re-acquire after backgrounding.
+      void acquireWakeLock();
       restIntervalRef.current = setInterval(() => {
         const remaining = Math.max(0, Math.ceil((restEndTimeRef.current! - Date.now()) / 1000));
         setRestTimer((prev) => {
@@ -82,7 +123,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         });
       }, 500);
     },
-    [fireTimerComplete]
+    [fireTimerComplete, acquireWakeLock]
   );
 
   useEffect(() => {
@@ -94,19 +135,25 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
           if (remaining <= 0) { if (restIntervalRef.current) clearInterval(restIntervalRef.current); fireTimerComplete(); return { ...prev, remaining: 0 }; }
           return { ...prev, remaining };
         });
+        // iOS releases the wake lock the moment the page hides. Re-acquire
+        // when the lifter returns so the screen stays awake again.
+        if (restEndTimeRef.current && Date.now() < restEndTimeRef.current) {
+          void acquireWakeLock();
+        }
       }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [fireTimerComplete]);
+  }, [fireTimerComplete, acquireWakeLock]);
 
   const dismissRestTimer = useCallback(() => {
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
     restEndTimeRef.current = null;
     timerDayRef.current = null;
+    releaseWakeLock();
     setRestTimer(null);
     setRestTimerMinimized(false);
-  }, []);
+  }, [releaseWakeLock]);
 
   return (
     <RestTimerContext.Provider
@@ -117,8 +164,18 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Safe noop fallback so callers that may render outside a provider
+// (e.g. HomeTab in tests, or the storybook-like preview routes) don't
+// crash. Mirrors the pattern used by ActiveSessionContext.
+const NOOP_REST_TIMER_CONTEXT: RestTimerContextValue = {
+  restTimer: null,
+  restTimerMinimized: false,
+  setRestTimerMinimized: () => {},
+  startRestTimer: () => {},
+  dismissRestTimer: () => {},
+  timerDayRef: { current: null },
+};
+
 export function useRestTimer(): RestTimerContextValue {
-  const ctx = useContext(RestTimerContext);
-  if (!ctx) throw new Error('useRestTimer must be used within RestTimerProvider');
-  return ctx;
+  return useContext(RestTimerContext) ?? NOOP_REST_TIMER_CONTEXT;
 }

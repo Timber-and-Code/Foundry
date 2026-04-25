@@ -314,11 +314,12 @@ function ScheduleTab({
           >
             <div
               style={{
-                fontSize: 24,
-                fontWeight: 800,
-                letterSpacing: '-0.01em',
+                fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                fontSize: 28,
+                fontWeight: 400,
+                letterSpacing: '0.04em',
                 color: 'var(--text-primary)',
-                lineHeight: 1.1,
+                lineHeight: 1.0,
               }}
             >
               {monthName}
@@ -650,7 +651,10 @@ function ScheduleTab({
         </button>
       </div>
 
-      {/* Meso Overview nav card */}
+      {/* Meso Overview nav card. Full-width phase progression bar below
+          the title — matches the look of MesoOverview's own
+          PhaseProgression card so tapping in feels like a zoom rather
+          than a context switch. */}
       <div style={{ padding: '8px 12px 0' }}>
         <button
           onClick={() => goTo('overview')}
@@ -666,8 +670,8 @@ function ScheduleTab({
             boxShadow: 'var(--shadow-sm)',
             transition: 'border-color 0.15s, transform 0.12s',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
+            gap: 12,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = 'var(--phase-deload)';
@@ -680,63 +684,77 @@ function ScheduleTab({
           onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.99)')}
           onMouseUp={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: tokens.radius.sm,
-                background: 'var(--phase-deload)18',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <div
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: tokens.radius.sm,
+                  background: 'var(--phase-deload)18',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {overviewIcon('var(--phase-deload)')}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Meso Overview
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: 'var(--text-muted)',
+                    marginTop: 2,
+                  }}
+                >
+                  Phases & session breakdown
+                </div>
+              </div>
+            </div>
+            <span
+              aria-hidden="true"
+              style={{ color: 'var(--text-muted)', fontSize: 16, flexShrink: 0 }}
             >
-              {overviewIcon('var(--phase-deload)')}
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.2,
-                }}
-              >
-                Meso Overview
-              </div>
-              <div
-                style={{
-                  fontSize: 14,
-                  color: 'var(--text-muted)',
-                  marginTop: 2,
-                }}
-              >
-                Phases & session breakdown
-              </div>
-            </div>
+              ›
+            </span>
           </div>
+          {/* Full-width phase progression bar.
+              done = full color + glow; current = full color + primary border;
+              upcoming = 30% color (matches MesoOverview's PhaseProgression
+              card so the visual carries through on tap-in). */}
           <div
+            aria-label="Phase progression preview"
             style={{
-              display: 'flex',
-              gap: 2,
-              alignItems: 'center',
-              marginLeft: 12,
+              display: 'grid',
+              gridTemplateColumns: `repeat(${getMeso().totalWeeks}, 1fr)`,
+              gap: 4,
             }}
           >
             {Array.from({ length: getMeso().totalWeeks }, (_, w) => {
               const wColor = (PHASE_COLOR as Record<string, any>)[getWeekPhase()[w]] || 'var(--accent)';
-              const isActive = w === activeWeek;
+              const isCurrent = w === activeWeek;
+              const isDone = w < activeWeek;
               return (
                 <div
                   key={w}
                   style={{
-                    width: isActive ? 10 : 6,
-                    height: 6,
-                    borderRadius: tokens.radius.xs,
-                    background: wColor,
-                    opacity: isActive ? 1 : 0.45,
-                    transition: 'width 0.2s',
+                    height: 8,
+                    borderRadius: 3,
+                    background: isDone || isCurrent ? wColor : `${wColor}4D`,
+                    boxShadow: isDone ? `0 0 6px ${wColor}88` : undefined,
+                    border: isCurrent ? '1.5px solid var(--text-primary)' : '1px solid transparent',
+                    transition: 'background 200ms, box-shadow 200ms',
                   }}
                 />
               );

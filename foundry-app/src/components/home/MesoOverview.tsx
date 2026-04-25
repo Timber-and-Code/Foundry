@@ -50,10 +50,12 @@ function SubHeader({ label, goBack }: { label: string; goBack: () => void }) {
       </button>
       <span
         style={{
-          fontSize: 14,
-          fontWeight: 700,
-          letterSpacing: '0.08em',
-          color: 'var(--text-secondary)',
+          fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+          fontSize: 22,
+          fontWeight: 400,
+          letterSpacing: '0.12em',
+          color: 'var(--text-primary)',
+          lineHeight: 1,
         }}
       >
         {label}

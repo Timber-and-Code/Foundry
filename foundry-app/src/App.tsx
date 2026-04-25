@@ -540,9 +540,40 @@ function App() {
         <div style={{ position: 'sticky', top: 0, zIndex: 50 }}>
           <FoundryBanner
             subtitle={(() => {
-              const tags = [...new Set(activeDays.map((d: TrainingDay) => d.tag).filter(Boolean))];
-              const splitLabel = tags.length > 0 ? tags.join(' / ') : (({ ppl: 'PPL', upper_lower: 'UPPER / LOWER', full_body: 'FULL BODY', push_pull: 'PUSH / PULL' } as Record<string, string>)[getMeso().splitType] || getMeso().splitType?.toUpperCase().replace(/_/g, ' ') || 'PPL');
-              return splitLabel;
+              // Derive split label from the day-level tags so the banner
+              // mirrors the actual session bucket pattern. Day tags use
+              // single-token shorthand ("FULL", "UPPER", "PUSH") which
+              // don't read well in the banner — expand back to the
+              // human-friendly split name (FULL BODY, UPPER/LOWER, etc).
+              const TAG_TO_SPLIT: Record<string, string> = {
+                FULL: 'FULL BODY',
+                UPPER: 'UPPER / LOWER',
+                LOWER: 'UPPER / LOWER',
+                PUSH: 'PUSH / PULL',
+                PULL: 'PUSH / PULL',
+                LEGS: 'PUSH / PULL / LEGS',
+                ARMS: 'TRADITIONAL',
+                CHEST: 'TRADITIONAL',
+                BACK: 'TRADITIONAL',
+                SHOULDERS: 'TRADITIONAL',
+              };
+              const tags = [...new Set(activeDays.map((d: TrainingDay) => d.tag).filter(Boolean))] as string[];
+              const expandedFromTags = ((): string | null => {
+                if (tags.length === 0) return null;
+                const mapped = Array.from(new Set(tags.map((t) => TAG_TO_SPLIT[t] || t)));
+                if (mapped.length === 1) return mapped[0];
+                return tags.join(' / ');
+              })();
+              if (expandedFromTags) return expandedFromTags;
+              const SPLIT_TYPE_LABEL: Record<string, string> = {
+                ppl: 'PUSH / PULL / LEGS',
+                upper_lower: 'UPPER / LOWER',
+                full_body: 'FULL BODY',
+                push_pull: 'PUSH / PULL',
+                traditional: 'TRADITIONAL',
+                custom: 'CUSTOM',
+              };
+              return SPLIT_TYPE_LABEL[getMeso().splitType] || getMeso().splitType?.toUpperCase().replace(/_/g, ' ') || 'PPL';
             })()}
             onProfileTap={isHome ? () => setShowProfileDrawer(true) : undefined}
             syncState={syncState}
@@ -665,8 +696,11 @@ function App() {
           </React.Suspense>
         )}
 
-        {/* Global minimized timer bar */}
-        {restTimer && restTimerMinimized && (
+        {/* Global minimized timer toast — renders when EITHER the user
+            tapped Go back inside the workout (restTimerMinimized=true)
+            OR they navigated away from /day/* (auto-minimize). DayView
+            owns the full overlay while on /day/* AND not minimized. */}
+        {restTimer && (restTimerMinimized || !location.pathname.startsWith('/day/')) && (
           <MinimizedTimerBar
             restTimer={restTimer}
             onTap={(done) => {
