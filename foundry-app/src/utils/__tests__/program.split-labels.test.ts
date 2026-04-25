@@ -108,6 +108,7 @@ const COMBOS: { splitType: Split; days: number; validTags: string[] }[] = [
   // Traditional (Bro split)
   { splitType: 'traditional', days: 4, validTags: ['PUSH', 'PULL', 'LEGS'] },
   { splitType: 'traditional', days: 5, validTags: ['PUSH', 'PULL', 'LEGS', 'ARMS'] },
+  { splitType: 'traditional', days: 6, validTags: ['PUSH', 'PULL', 'LEGS', 'ARMS'] },
 ];
 
 describe('generateProgram — split tag coverage for every valid (splitType, daysPerWeek)', () => {
@@ -263,5 +264,22 @@ describe('generateProgram — traditional (bro split) body-part days', () => {
     for (const ex of shoulArmsDay.exercises) {
       expect(['Shoulders', 'Biceps', 'Triceps']).toContain((ex as any).muscle);
     }
+  });
+
+  it('traditional × 6 → Chest · Back · Shoulders · Arms · Quads · Hams+Glutes', () => {
+    const days = generateProgram(
+      { ...BASE_PROFILE, splitType: 'traditional', daysPerWeek: 6 },
+      EXERCISE_DB as any
+    );
+    expect(days.length).toBe(6);
+    expect(days.map((d) => d.label)).toEqual([
+      'Chest',
+      'Back',
+      'Shoulders',
+      'Arms',
+      'Quads',
+      'Hams + Glutes',
+    ]);
+    expect(days.map((d) => d.tag)).toEqual(['PUSH', 'PULL', 'PUSH', 'ARMS', 'LEGS', 'LEGS']);
   });
 });

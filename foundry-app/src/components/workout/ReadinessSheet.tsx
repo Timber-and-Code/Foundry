@@ -220,20 +220,6 @@ function ReadinessSheet({ onDismiss, onCancel }: ReadinessSheetProps) {
           )}
           <button
             onClick={onDismiss}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: '10px 4px',
-            }}
-          >
-            Skip
-          </button>
-          <button
-            onClick={onDismiss}
             disabled={!allFilled}
             style={{
               flex: 1,

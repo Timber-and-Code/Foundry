@@ -1346,15 +1346,14 @@ function DayView({
               phaseColor={pc}
               onJump={(idx) => setFocusedIdx(idx)}
             />
-            {/* Active exercise — static orange accent border (brand-forward) */}
+            {/* Active exercise — single orange accent border lives on the
+                inner ExerciseCard via its `active` prop. The outer wrapper
+                used to add a second border + glow, which read as a double
+                ring. Wrapper is now layout-only. */}
             <div
               id={`ex-${clampedFocus}`}
               style={{
                 marginBottom: 12,
-                border: '1px solid var(--accent)',
-                borderRadius: tokens.radius.lg,
-                boxShadow: '0 0 0 1px var(--accent-glow, rgba(232,101,26,0.15))',
-                overflow: 'hidden',
               }}
             >
               <ExerciseCard

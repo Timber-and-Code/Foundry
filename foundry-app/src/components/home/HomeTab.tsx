@@ -429,7 +429,9 @@ function HomeTab({
 
   const nextDayIdx = activeDays.findIndex((_, i) => !completedDays.has(`${i}:${activeWeek}`));
   const nextDay = nextDayIdx >= 0 ? activeDays[nextDayIdx] : null;
-  const nextDayAccent = nextDay ? (TAG_ACCENT as Record<string, string>)[nextDay.tag || ''] : 'var(--accent)';
+  const nextDayAccent = nextDay
+    ? (TAG_ACCENT as Record<string, string>)[nextDay.tag || ''] || 'var(--accent)'
+    : 'var(--accent)';
 
   // Build sessionDateMap via the shared helper so HomeTab and ScheduleTab
   // agree on which date hosts which session — including per-date overrides
@@ -457,7 +459,9 @@ function HomeTab({
   const showDayWeek = isCalendarWorkoutDay ? calWeekIdx : activeWeek;
   const showDay = !isRestState && todayMesoDay ? todayMesoDay : nextDay;
   const showDayIdx = !isRestState && todayMesoDay ? calDayIdx : nextDayIdx;
-  const showDayAccent = showDay ? (TAG_ACCENT as Record<string, any>)[showDay.tag || ''] : nextDayAccent;
+  const showDayAccent = showDay
+    ? (TAG_ACCENT as Record<string, any>)[showDay.tag || ''] || 'var(--accent)'
+    : nextDayAccent;
   const isToday = isCalendarWorkoutDay && !calendarSessionDone;
 
   const preview = showDay?.exercises || [];

@@ -54,6 +54,10 @@ export default function DayAccordion({
   const { showToast } = useToast();
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set([0]));
   const [swapTarget, setSwapTarget] = useState<{ dayIdx: number; exIdx: number } | null>(null);
+  // When set, the next picker selection appends to that day instead of
+  // replacing an existing exercise. Used for the "+ Add exercise" CTA on
+  // every day (essential for custom-split days that start empty).
+  const [addTarget, setAddTarget] = useState<{ dayIdx: number } | null>(null);
 
   const db = getExerciseDB();
 
@@ -64,11 +68,14 @@ export default function DayAccordion({
    * Mapping lives in `utils/swapGroups.ts` so this stays in lock-step with
    * DayView's swap path (EXERCISE_DB only uses PUSH / PULL / LEGS / CORE).
    */
+  // Active picker target — either a swap (replace existing) or an add
+  // (append a new entry). Both share the same SwapMenu UI.
+  const activeDayIdx = swapTarget?.dayIdx ?? addTarget?.dayIdx ?? null;
   const swapGroups = useMemo<Record<string, ExerciseEntry[]>>(() => {
-    if (!swapTarget) return {};
-    const dayTag = days[swapTarget.dayIdx]?.tag || '';
+    if (activeDayIdx === null) return {};
+    const dayTag = days[activeDayIdx]?.tag || '';
     return buildSwapGroups(db, dayTag);
-  }, [db, days, swapTarget]);
+  }, [db, days, activeDayIdx]);
 
   const autoExpandMuscle = swapTarget
     ? days[swapTarget.dayIdx]?.exercises[swapTarget.exIdx]?.muscle
@@ -137,8 +144,17 @@ export default function DayAccordion({
     });
   };
 
+  const appendExercise = (dayIdx: number, next: DayExercise) => {
+    update(dayIdx, (d) => ({ ...d, exercises: [...d.exercises, next] }));
+  };
+
+  const closePicker = () => {
+    setSwapTarget(null);
+    setAddTarget(null);
+  };
+
   const handleSwapPick = (newExId: string) => {
-    if (!swapTarget) return;
+    if (!swapTarget && !addTarget) return;
     let entry: DayExercise | null = null;
     if (newExId.startsWith('custom:')) {
       // Custom exercise — resolve from localStorage
@@ -156,26 +172,31 @@ export default function DayAccordion({
       }
     }
     if (entry) {
-      replaceExercise(swapTarget.dayIdx, swapTarget.exIdx, entry);
+      if (swapTarget) replaceExercise(swapTarget.dayIdx, swapTarget.exIdx, entry);
+      else if (addTarget) appendExercise(addTarget.dayIdx, entry);
     }
-    setSwapTarget(null);
+    closePicker();
   };
 
   const handleCustomExercise = (name: string) => {
-    if (!swapTarget) return;
+    if (!swapTarget && !addTarget) return;
     const trimmed = name.trim();
     if (!trimmed) return;
     const id = `custom:${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const dayIdx = swapTarget?.dayIdx ?? addTarget!.dayIdx;
+    const fallbackMuscle = swapTarget
+      ? days[swapTarget.dayIdx]?.exercises[swapTarget.exIdx]?.muscle || 'other'
+      : 'other';
     // Persist in the same bucket DayView reads from so the ID resolves later.
     try {
       const customs = JSON.parse(store.get('foundry:customExercises') || '{}');
-      const existingMuscle = days[swapTarget.dayIdx]?.exercises[swapTarget.exIdx]?.muscle || 'other';
-      customs[id] = { name: trimmed, muscle: existingMuscle };
+      customs[id] = { name: trimmed, muscle: fallbackMuscle };
       store.set('foundry:customExercises', JSON.stringify(customs));
     } catch { /* store persist fallback */ }
-    const existingMuscle = days[swapTarget.dayIdx]?.exercises[swapTarget.exIdx]?.muscle || 'other';
-    replaceExercise(swapTarget.dayIdx, swapTarget.exIdx, { id, name: trimmed, muscle: existingMuscle });
-    setSwapTarget(null);
+    const entry = { id, name: trimmed, muscle: fallbackMuscle };
+    if (swapTarget) replaceExercise(dayIdx, swapTarget.exIdx, entry);
+    else appendExercise(dayIdx, entry);
+    closePicker();
   };
 
   return (
@@ -282,14 +303,14 @@ export default function DayAccordion({
                 {day.exercises.length === 0 && (
                   <div
                     style={{
-                      padding: '16px 12px',
+                      padding: '14px 12px 8px',
                       fontSize: 12,
                       color: tokens.colors.textMuted,
                       fontStyle: 'italic',
                       textAlign: 'center',
                     }}
                   >
-                    No exercises yet. Swap in to add.
+                    No exercises yet — add your first below.
                   </div>
                 )}
                 {day.exercises.map((ex, exIdx) => {
@@ -392,6 +413,27 @@ export default function DayAccordion({
                     </div>
                   );
                 })}
+                {/* Always present so users can fill an empty day (custom
+                    splits start with zero exercises) or extend any day. */}
+                <button
+                  type="button"
+                  onClick={() => setAddTarget({ dayIdx })}
+                  style={{
+                    marginTop: 4,
+                    padding: '10px 12px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'transparent',
+                    border: `1px dashed ${tokens.colors.accentBorder}`,
+                    color: tokens.colors.accent,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    letterSpacing: '0.06em',
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  + Add exercise
+                </button>
               </div>
             )}
           </div>
@@ -399,8 +441,8 @@ export default function DayAccordion({
       })}
 
       <SwapMenu
-        open={swapTarget !== null}
-        onClose={() => setSwapTarget(null)}
+        open={swapTarget !== null || addTarget !== null}
+        onClose={closePicker}
         replacingName={replacingName}
         exerciseGroups={swapGroups}
         autoExpandMuscle={autoExpandMuscle}
@@ -410,7 +452,7 @@ export default function DayAccordion({
         scopePending={null}
         onScopeMeso={() => {}}
         onScopeWeek={() => {}}
-        onScopeCancel={() => setSwapTarget(null)}
+        onScopeCancel={closePicker}
       />
     </div>
   );

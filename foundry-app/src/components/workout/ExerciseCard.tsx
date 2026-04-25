@@ -15,13 +15,6 @@ import HammerIcon from '../shared/HammerIcon';
 import type { Exercise, DayData } from '../../types';
 import type { WarmupStep, WarmupDetail } from '../../utils/training';
 
-interface HistoryRow {
-  w: number;
-  maxW: number;
-  maxR: number;
-  sets: number;
-}
-
 interface StallTarget {
   w: number;
   r: number;
@@ -108,15 +101,12 @@ function ExerciseCard({
 }: ExerciseCardProps) {
   const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression ?? '']?.[weekIdx];
 
-  // Onboarding v2: emit first-anchor-visible once per user when the first
-  // anchor exercise row mounts in a real DayView. CoachMarkOrchestrator
-  // listens and explains what the hammer means.
-  useEffect(() => {
-    if (exercise.anchor && !store.get('foundry:first_anchor_emitted')) {
-      store.set('foundry:first_anchor_emitted', '1');
-      window.dispatchEvent(new Event('foundry:first-anchor-visible'));
-    }
-  }, [exercise.anchor]);
+  // Onboarding v2: the anchor coach tip used to fire on row mount, which
+  // could surface the popup during the last-set RPE prompt — confusing,
+  // because the user is mid-decision and the hammer is no longer the
+  // focus. Emission is now deferred to the moment a non-final anchor set
+  // is confirmed (see handleSetCheckmark below) so the user is always in
+  // a calm rest-period state when they read it.
 
   // Min rep target derived from the exercise's rep range (e.g. "8-12" -> 8).
   // Used to detect a "miss" (reps < target) for the rep-progression coach mark.
@@ -134,8 +124,6 @@ function ExerciseCard({
         : weekIdx < 5
           ? 'var(--phase-intens)'
           : 'var(--danger)';
-  const [showHistory, setShowHistory] = useState(false);
-  const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
   const [showHowTo, setShowHowTo] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
   const [rpePrompt, setRpePrompt] = useState<number | null>(null);
@@ -195,6 +183,38 @@ function ExerciseCard({
       return null;
     }
   }, [weekIdx, exIdx, exercise.name]);
+
+  // Compact "last week" header stat — replaces the phase word ("Establish",
+  // "+5 lbs", etc) in the card's top-right with the previous week's best
+  // working set so users see a hard reference target instead of jargon.
+  // History modal was removed alongside this — the stat is the reference now.
+  const lastWeekStat = useMemo<string>(() => {
+    const fmt = (w: number, r: number): string => {
+      const wTrim = Number.isInteger(w) ? String(w) : w.toFixed(1).replace(/\.0$/, '');
+      return `${wTrim} × ${r}`;
+    };
+    // Same-meso prior week — preferred.
+    const prev = prevWeekRaw[exIdx] || {};
+    let bestW = 0,
+      bestR = 0;
+    Object.values(prev as Record<string, SetData>).forEach((sd) => {
+      if (!sd || sd.warmup) return;
+      const w = parseFloat(String(sd.weight ?? 0));
+      const r = parseInt(String(sd.reps ?? 0), 10);
+      if (!w || !r) return;
+      if (w > bestW || (w === bestW && r > bestR)) {
+        bestW = w;
+        bestR = r;
+      }
+    });
+    if (bestW > 0 && bestR > 0) return fmt(bestW, bestR);
+    // Week 0 fallback — pull last meso's best for this slot if available.
+    if (crossMesoNote) {
+      const m = crossMesoNote.match(/(\d+(?:\.\d+)?)\s*lbs\s*×\s*(\d+)/i);
+      if (m) return fmt(parseFloat(m[1]), parseInt(m[2], 10));
+    }
+    return '';
+  }, [prevWeekRaw, exIdx, crossMesoNote]);
 
   const [doneSets, setDoneSets] = React.useState(() => {
     const exData = weekData[exIdx] || {};
@@ -270,6 +290,13 @@ function ExerciseCard({
     setDoneSets((prev) => new Set([...prev, s]));
     onLastSetFilled(exIdx, s);
     onSetLogged(exercise.rest || '2 min', exercise.name, s, false);
+    // Anchor coach tip — fires only on a non-final set confirm so it
+    // never collides with the last-set RPE prompt. The user is now in
+    // rest with the hammer icon visible above the set rows.
+    if (exercise.anchor && !store.get('foundry:first_anchor_emitted')) {
+      store.set('foundry:first_anchor_emitted', '1');
+      window.dispatchEvent(new Event('foundry:first-anchor-visible'));
+    }
   };
 
   const handleRpeSelect = (s: number, rpeLabel: string) => {
@@ -345,41 +372,6 @@ function ExerciseCard({
       window.dispatchEvent(new Event('foundry:first-stall'));
     }
   }, [stallWarning]);
-
-  // Load history sparkline on expanded
-  useEffect(() => {
-    if (!expanded) return;
-    try {
-      const rows: HistoryRow[] = [];
-      // Last 3 weeks in current meso
-      for (let w = weekIdx - 1; w >= Math.max(0, weekIdx - 3); w--) {
-        const rawData = store.get(`foundry:day${dayIdx}:week${w}`);
-        if (!rawData) continue;
-        const parsed = JSON.parse(rawData);
-        const exData = parsed[exIdx] || {};
-        const weights: number[] = [],
-          reps: number[] = [];
-        for (const [_setIdx, sd] of Object.entries(exData) as [string, SetData][]) {
-          if (!sd.weight || !sd.reps || sd.warmup) continue;
-          weights.push(parseFloat(String(sd.weight)));
-          reps.push(parseInt(String(sd.reps)));
-        }
-        if (weights.length > 0) {
-          rows.push({
-            w: w,
-            maxW: Math.max(...weights),
-            maxR: Math.max(...reps),
-            sets: weights.length,
-          });
-        }
-      }
-      setHistoryRows(rows);
-    } catch { /* history load fallback */ }
-  }, [expanded, weekIdx, exIdx, dayIdx]);
-
-  const handleHistoryClick = () => {
-    setShowHistory(!showHistory);
-  };
 
   const handleHowToClick = () => {
     setShowHowTo(!showHowTo);
@@ -527,7 +519,10 @@ function ExerciseCard({
           </div>
         </div>
 
-        {/* Goal + Expand arrow */}
+        {/* Last week's best set + Expand arrow. The phase word ("Establish",
+            "+5 lbs") used to live here but it was jargon that didn't help
+            mid-set — the previous-week reference is what lifters actually
+            chase. Falls back to the goal label only when no history exists. */}
         <div
           style={{
             display: 'flex',
@@ -536,7 +531,25 @@ function ExerciseCard({
             flexShrink: 0,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, color: goalColor }}>{goal}</div>
+          {lastWeekStat ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.1 }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.1em',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                LAST WK
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>
+                {lastWeekStat}
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, fontWeight: 600, color: goalColor }}>{goal}</div>
+          )}
           <span aria-hidden="true" style={{ fontSize: 16, color: 'var(--text-secondary)' }}>
             {expanded ? '▼' : '▶'}
           </span>
@@ -803,13 +816,15 @@ function ExerciseCard({
                           border: 'none',
                           color: 'var(--text-muted)',
                           cursor: 'pointer',
-                          fontSize: 16,
+                          fontSize: 22,
+                          fontWeight: 700,
+                          lineHeight: 1,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                         }}
                       >
-                        <span aria-hidden="true">🗑</span>
+                        <span aria-hidden="true">−</span>
                       </button>
                     ) : (
                       <div aria-hidden="true" />
@@ -937,24 +952,9 @@ function ExerciseCard({
             </button>
           )}
 
-          {/* Action buttons */}
+          {/* Action buttons. History was removed — last week's best set
+              now lives in the card header so the modal was redundant. */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={handleHistoryClick}
-              style={{
-                flex: 1,
-                minWidth: 70,
-                fontSize: 12,
-                padding: '8px 12px',
-                borderRadius: tokens.radius.sm,
-                background: 'var(--bg-inset)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-accent)',
-                cursor: 'pointer',
-              }}
-            >
-              History
-            </button>
             {!done && !readOnly && (
               <button
                 onClick={() => onSwapClick(exIdx)}
@@ -1125,81 +1125,6 @@ function ExerciseCard({
                   }}
                 >
                   Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* History Modal */}
-          {showHistory && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="history-modal-title"
-              style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(0,0,0,0.5)',
-                zIndex: 100,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              onClick={() => setShowHistory(false)}
-            >
-              <div
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: tokens.radius.lg,
-                  padding: 20,
-                  maxWidth: 400,
-                  width: '90%',
-                  maxHeight: '80vh',
-                  overflowY: 'auto',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div id="history-modal-title" style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
-                  {exercise.name} - History
-                </div>
-                {historyRows.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {historyRows.map((row, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          padding: 10,
-                          background: 'var(--bg-inset)',
-                          borderRadius: tokens.radius.sm,
-                          fontSize: 12,
-                        }}
-                      >
-                        Week {row.w}: {row.maxW} lbs × {row.maxR} reps ({row.sets} sets)
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    No history available
-                  </div>
-                )}
-                <button
-                  onClick={() => setShowHistory(false)}
-                  style={{
-                    marginTop: 16,
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: tokens.radius.sm,
-                    background: 'var(--bg-inset)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-accent)',
-                    fontSize: 15,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Close
                 </button>
               </div>
             </div>

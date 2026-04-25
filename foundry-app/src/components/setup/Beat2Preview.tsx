@@ -217,10 +217,18 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditE
       aiDays: lockedDays,
       autoBuilt: split !== 'custom',
     };
+    // Custom split is hand-built by the user. Skip the AI refinement entirely
+    // — calling it with split='ppl' (the prior fallback) overwrote the user's
+    // chosen days with a generic 3-day Push/Pull/Legs program.
+    if (split === 'custom') {
+      setSaving(false);
+      onSave(deterministicProfile);
+      return;
+    }
     try {
       const result = await callFoundryAI(
         {
-          split: split === 'custom' ? 'ppl' : split,
+          split,
           daysPerWeek: beat1.daysPerWeek,
           mesoLength: length,
           experience: intake.experience,

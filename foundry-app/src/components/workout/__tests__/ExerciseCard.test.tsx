@@ -174,13 +174,11 @@ describe('ExerciseCard', () => {
     });
   });
 
-  // 9. History modal opens when history button clicked
-  it('opens history modal when history button is clicked', () => {
+  // 9. History modal removed — last-week reps × weight now lives in the
+  // card header so the modal was redundant. The button no longer renders.
+  it('does not render a History button (modal removed)', () => {
     render(<ExerciseCard {...defaultProps()} />);
-    const historyBtn = screen.getByText(/History/);
-    fireEvent.click(historyBtn);
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(/Bench Press - History/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^History$/ })).toBeNull();
   });
 
   // 10. Note textarea appears and onNoteChange fires

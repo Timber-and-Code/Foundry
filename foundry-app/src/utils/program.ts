@@ -886,6 +886,68 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
       ];
     }
 
+    // 6-day: Chest · Back · Shoulders · Arms · Quads · Hams/Glutes
+    // Classic high-frequency bro split — legs split into a quad-dominant
+    // session (squat anchor) and a posterior-chain session (hinge anchor).
+    if (numDays === 6) {
+      const quadsPool = available.filter(
+        (e) => e.tag === 'LEGS' && (e.muscle === 'Quads' || e.pattern === 'squat')
+      );
+      const hamsGlutesPool = available.filter(
+        (e) =>
+          e.tag === 'LEGS' &&
+          (e.muscle === 'Hamstrings' || e.muscle === 'Glutes' || e.pattern === 'hinge')
+      );
+      const usedQA = new Set<string | number | undefined>();
+      const usedHA = new Set<string | number | undefined>();
+
+      const chest6 = buildDay(
+        chestPool,
+        ['push'],
+        dayMusclePriority(0, ['Chest', 'Shoulders', 'Triceps']),
+        usedCA
+      );
+      const back6 = buildDay(
+        backPool,
+        ['pull'],
+        dayMusclePriority(1, ['Lats', 'Back', 'Biceps', 'Upper Traps']),
+        usedBA
+      );
+      const shoulders6 = buildDay(
+        shouldersPool,
+        ['push'],
+        dayMusclePriority(2, ['Shoulders']),
+        usedSA
+      );
+      const arms6 = buildDay(
+        armsPool,
+        ['push'],
+        dayMusclePriority(3, ['Triceps', 'Biceps']),
+        usedAA
+      );
+      const quads6 = buildDay(
+        quadsPool.length > 0 ? quadsPool : legsPool,
+        ['squat'],
+        dayMusclePriority(4, ['Quads', 'Glutes', 'Gastrocnemius']),
+        usedQA
+      );
+      const hams6 = buildDay(
+        hamsGlutesPool.length > 0 ? hamsGlutesPool : legsPool,
+        ['hinge'],
+        dayMusclePriority(5, ['Hamstrings', 'Glutes', 'Soleus']),
+        usedHA
+      );
+
+      return [
+        makeDay(1, 'Chest', 'PUSH', 'Chest', dayNote('push', chest6.anchor), chest6.anchor, chest6.accessories),
+        makeDay(2, 'Back', 'PULL', 'Back · Lats', dayNote('pull', back6.anchor), back6.anchor, back6.accessories),
+        makeDay(3, 'Shoulders', 'PUSH', 'Shoulders', dayNote('push', shoulders6.anchor), shoulders6.anchor, shoulders6.accessories),
+        makeDay(4, 'Arms', 'ARMS', 'Biceps · Triceps', dayNote('push', arms6.anchor), arms6.anchor, arms6.accessories),
+        makeDay(5, 'Quads', 'LEGS', 'Quads · Glutes · Calves', dayNote('legs', quads6.anchor), quads6.anchor, quads6.accessories),
+        makeDay(6, 'Hams + Glutes', 'LEGS', 'Hamstrings · Glutes · Calves', dayNote('legs', hams6.anchor), hams6.anchor, hams6.accessories),
+      ];
+    }
+
     // 5-day: Arms · Shoulders · Back · Chest · Legs
     // Arms pool has no `anchor: true` exercises — buildDay falls back to the
     // compound-pattern sort (close-grip bench, diamond push-up, etc.).

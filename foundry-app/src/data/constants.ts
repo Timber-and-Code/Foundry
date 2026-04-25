@@ -20,6 +20,12 @@ export const TAG_ACCENT: Record<string, string> = {
   UPPER: '#E8651A',
   LOWER: '#D47830',
   FULL: '#E8651A',
+  // Traditional split day-tags — without these the Home Today-card START pill
+  // renders with `undefined` background/color and reads as a white blank.
+  ARMS: '#E8651A',
+  CHEST: '#E8651A',
+  BACK: '#C0592B',
+  SHOULDERS: '#E8651A',
   CARDIO: '#D4A03C',
   // Mobility shares the warm-gold palette (tokens.colors.gold) used by
   // MobilityCard + MobilitySessionView so the ActiveSessionBar matches the

@@ -69,7 +69,7 @@ describe('SplitSheet', () => {
     expect(recommended.length).toBe(5);
 
     // At 6 days: ppl (3/5/6) ✓, upper_lower (2-6) ✓, push_pull (2-6) ✓,
-    // full_body (2-5) ✗, traditional (4-5) ✗, custom ✓ → 4 recommended.
+    // full_body (2-5) ✗, traditional (4-5-6) ✓, custom ✓ → 5 recommended.
     rerender(
       <SplitSheet
         open
@@ -80,7 +80,7 @@ describe('SplitSheet', () => {
       />,
     );
     recommended = screen.getAllByText(/^recommended$/i);
-    expect(recommended.length).toBe(4);
+    expect(recommended.length).toBe(5);
   });
 
   it('fires onSelect then onClose when a card is tapped', () => {

@@ -135,13 +135,27 @@ export default function CoachMark({ anchorSelector, title, copy, onDismiss }: Co
           fontFamily: "'Inter', system-ui, sans-serif",
         }}
       >
+        {/* Brand-prefix header — always present so users know where the
+            popup is coming from. The mark-specific title sits below. */}
+        <div
+          style={{
+            fontSize: 9,
+            fontWeight: 800,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: tokens.colors.textMuted,
+            marginBottom: title ? 4 : 8,
+          }}
+        >
+          Foundry Coach Tip
+        </div>
         {title && (
           <div
             id="coach-mark-title"
             style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.1em',
+              fontSize: 13,
+              fontWeight: 800,
+              letterSpacing: '0.06em',
               textTransform: 'uppercase',
               color: tokens.colors.accent,
               marginBottom: 6,
