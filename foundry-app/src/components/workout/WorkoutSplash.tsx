@@ -101,16 +101,17 @@ export default function WorkoutSplash({
           WEEK {weekIdx + 1} / {totalWeeks} &middot; DAY {/* dayIdx is 0-indexed */} {/* displays dayName below */}
         </div>
 
-        {/* Title */}
+        {/* Title — Bebas display to match Focus Mode editorial header. */}
         <div>
           <div
             id="workout-splash-title"
             style={{
-              fontSize: 34,
-              fontWeight: 900,
+              fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+              fontSize: 40,
+              fontWeight: 400,
               color: 'var(--text-primary)',
-              lineHeight: 1.05,
-              letterSpacing: '-0.01em',
+              lineHeight: 1.0,
+              letterSpacing: '0.02em',
             }}
           >
             {dayName}
@@ -253,18 +254,21 @@ export default function WorkoutSplash({
               onClick={onStart}
               style={{
                 flex: 1,
-                padding: '14px',
+                padding: '16px',
                 borderRadius: tokens.radius.lg,
-                background: tokens.colors.gold,
-                border: 'none',
-                color: '#0A0A0C',
-                fontSize: 14,
-                fontWeight: 900,
-                letterSpacing: '0.06em',
+                background: 'transparent',
+                border: '1px solid var(--accent)',
+                color: 'var(--accent)',
+                fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                fontSize: 22,
+                fontWeight: 400,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
                 cursor: 'pointer',
+                boxShadow: '0 0 0 1px var(--accent)',
               }}
             >
-              START WORKOUT <span aria-hidden="true">→</span>
+              Start Workout <span aria-hidden="true">→</span>
             </button>
           </div>
         )}

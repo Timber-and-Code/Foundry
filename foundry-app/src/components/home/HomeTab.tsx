@@ -21,6 +21,7 @@ import {
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
 import { useActiveSession } from '../../contexts/ActiveSessionContext';
+import { useRestTimer } from '../../contexts/RestTimerContext';
 import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
 
 // ── Warmup protocol picker ────────────────────────────────────────────────
@@ -291,10 +292,19 @@ function RestStateCard({
             }}
           >
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>
-                NEXT SESSION
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                Next Session
               </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div
+                style={{
+                  fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                  fontSize: 22,
+                  fontWeight: 400,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '0.02em',
+                  lineHeight: 1.05,
+                }}
+              >
                 {nextDayForCollapse.label}
               </div>
             </div>
@@ -333,9 +343,17 @@ function RestStateCard({
                 <button
                   onClick={() => { goBack(); onSelectDayWeek(nextDayIdxForCollapse, activeWeek); }}
                   style={{
-                    width: '100%', padding: '10px', borderRadius: tokens.radius.md, cursor: 'pointer',
-                    background: 'var(--btn-primary-bg)', border: '1px solid var(--btn-primary-border)',
-                    color: 'var(--btn-primary-text)', fontSize: 14, fontWeight: 700, letterSpacing: '0.04em',
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: tokens.radius.md,
+                    cursor: 'pointer',
+                    background: 'transparent',
+                    border: '1px solid var(--accent-border, rgba(232,101,26,0.3))',
+                    color: 'var(--accent)',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
                   }}
                 >
                   Start {nextDayForCollapse.label} <span aria-hidden="true">→</span>
@@ -415,6 +433,7 @@ function HomeTab({
   setShowPricing: _setShowPricing,
 }: HomeTabProps) {
   const { session: activeSession } = useActiveSession();
+  const { restTimer } = useRestTimer();
   const todayCardioStr = (() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -521,25 +540,26 @@ function HomeTab({
       )}
 
       {/* Unified Dashboard Card — tap opens Progress. Weekly workout bar
-          replaces the meso ring and day pills. Whole card is one tap target. */}
+          replaces the meso ring and day pills. Subtle neutral chrome —
+          the orange weekly-bar segments inside do the visual work. */}
       <button
         onClick={() => goTo('progress')}
         aria-label="Open progress"
         style={{
           width: '100%',
           background: 'var(--bg-card)',
-          border: `1px solid ${pc}44`,
+          border: '1px solid var(--border)',
           borderRadius: tokens.radius.lg,
           padding: '16px 16px 14px 16px',
-          boxShadow: `0 2px 12px ${pc}14`,
+          boxShadow: 'var(--shadow-sm)',
           cursor: 'pointer',
           textAlign: 'left',
           fontFamily: 'inherit',
           color: 'inherit',
           transition: 'border-color 0.15s, transform 0.12s',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = pc; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = pc + '44'; e.currentTarget.style.transform = 'none'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-border, rgba(232,101,26,0.3))'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'none'; }}
       >
         {/* Header row: phase chip · WK · done/total · RIR */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
@@ -746,8 +766,221 @@ function HomeTab({
         );
       })()}
 
-      {/* Today Card — THE HERO */}
-      {isRestState || isRestDay ? (
+      {/* Today Card — THE HERO. Resume CTA wins regardless of rest-state /
+          rest-day, because an in-progress workout is the user's #1 thing
+          to act on. Falls through to RestStateCard / TodayCard otherwise. */}
+      {activeSession?.kind === 'lifting' ? (
+        // ── Active lifting session in progress ─────────────────────────
+        // Replaces whatever the today area would normally show with a
+        // single big CTA so the user lands on Home, sees instantly that a
+        // workout is active, and one tap returns them to it. Resolves the
+        // longstanding flagged_continue_workout_cta concern.
+        (() => {
+          const route = activeSession.route;
+          const m = route.match(/^\/day\/(\d+)\/(\d+)$/);
+          const resumeDayIdx = m ? parseInt(m[1], 10) : showDayIdx;
+          const resumeWeekIdx = m ? parseInt(m[2], 10) : showDayWeek;
+          const setsDone = activeSession.setsDone ?? 0;
+          const totalSets = activeSession.totalSets ?? 0;
+          const pct = totalSets > 0 ? Math.min(1, setsDone / totalSets) : 0;
+          return (
+            <button
+              type="button"
+              onClick={() => { goBack(); onSelectDayWeek(resumeDayIdx, resumeWeekIdx); }}
+              aria-label={`Resume ${activeSession.label}`}
+              style={{
+                width: '100%',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--accent)',
+                borderLeft: '4px solid var(--accent)',
+                borderRadius: tokens.radius.lg,
+                padding: '20px 18px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: 'inherit',
+                color: 'inherit',
+                boxShadow: '0 4px 24px rgba(232,101,26,0.22)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(135deg, rgba(232,101,26,0.10) 0%, transparent 60%)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      boxShadow: '0 0 8px rgba(232,101,26,0.7)',
+                      animation: 'resumePulse 1.4s ease-in-out infinite',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: '0.16em',
+                      textTransform: 'uppercase',
+                      color: 'var(--accent)',
+                    }}
+                  >
+                    Workout in progress
+                  </span>
+                </div>
+                {totalSets > 0 && (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: 'var(--text-muted)',
+                      letterSpacing: '0.04em',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {setsDone}/{totalSets} sets
+                  </span>
+                )}
+              </div>
+              <div style={{ position: 'relative' }}>
+                <div
+                  style={{
+                    fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                    fontSize: 30,
+                    lineHeight: 1.05,
+                    letterSpacing: '0.02em',
+                    color: 'var(--text-primary)',
+                    fontWeight: 400,
+                  }}
+                >
+                  Resume Workout
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)', marginTop: 4 }}>
+                  {activeSession.label}
+                </div>
+              </div>
+              {/* Live rest-timer readout — surfaces the countdown on the
+                  Home CTA so the lifter sees how long they've got before
+                  the next set even from the home tab. */}
+              {restTimer && restTimer.remaining > 0 && (
+                <div
+                  style={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    padding: '10px 12px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'rgba(232,101,26,0.08)',
+                    border: '1px solid rgba(232,101,26,0.22)',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: '0.16em',
+                      color: 'var(--text-muted)',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Rest
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                      fontSize: 26,
+                      color: 'var(--accent)',
+                      fontVariantNumeric: 'tabular-nums',
+                      letterSpacing: '0.02em',
+                      fontWeight: 400,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {String(Math.floor(restTimer.remaining / 60)).padStart(2, '0')}:
+                    {String(restTimer.remaining % 60).padStart(2, '0')}
+                  </span>
+                </div>
+              )}
+              {restTimer && restTimer.remaining === 0 && (
+                <div
+                  style={{
+                    position: 'relative',
+                    padding: '10px 12px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'rgba(232,101,26,0.16)',
+                    border: '1px solid var(--accent)',
+                    color: 'var(--accent)',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    textAlign: 'center',
+                  }}
+                >
+                  Rest complete · Next set
+                </div>
+              )}
+              {totalSets > 0 && (
+                <div
+                  style={{
+                    position: 'relative',
+                    height: 4,
+                    borderRadius: 2,
+                    background: 'rgba(255,255,255,0.08)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${pct * 100}%`,
+                      height: '100%',
+                      background: 'var(--accent)',
+                      boxShadow: '0 0 6px rgba(232,101,26,0.6)',
+                      transition: 'width 200ms',
+                    }}
+                  />
+                </div>
+              )}
+              <div
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--accent)',
+                }}
+              >
+                Get back to it <span aria-hidden="true" style={{ marginLeft: 6 }}>→</span>
+              </div>
+              <style>{`
+                @keyframes resumePulse {
+                  0%, 100% { transform: scale(1); opacity: 1; }
+                  50% { transform: scale(1.4); opacity: 0.6; }
+                }
+              `}</style>
+            </button>
+          );
+        })()
+      ) : isRestState || isRestDay ? (
         <RestStateCard
           displayWeekAllDone={displayWeekAllDone}
           calendarSessionDone={calendarSessionDone}
@@ -792,23 +1025,27 @@ function HomeTab({
           data-tour="today-card"
           style={{
             background: 'var(--bg-card)',
-            border: `1px solid ${showDayAccent}55`,
-            borderLeft: `4px solid ${showDayAccent}`,
+            border: '1px solid var(--border)',
             borderRadius: tokens.radius.lg,
             overflow: 'hidden',
-            boxShadow: `0 2px 16px ${showDayAccent}15`,
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
           <button
             onClick={(e) => { e.stopPropagation(); goBack(); onSelectDayWeek(showDayIdx, showDayWeek); }}
             style={{
-              width: '100%', background: `linear-gradient(135deg, ${showDayAccent}0d 0%, transparent 100%)`,
-              border: 'none', cursor: 'pointer', padding: '14px 16px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              borderBottom: `1px solid ${showDayAccent}18`,
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '14px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: '1px solid var(--border-subtle, var(--border))',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = showDayAccent + '14')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = `linear-gradient(135deg, ${showDayAccent}0d 0%, transparent 100%)`)}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
             <div style={{ textAlign: 'left' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
@@ -821,7 +1058,16 @@ function HomeTab({
                   </div>
                 )}
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
+              <div
+                style={{
+                  fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                  fontSize: 26,
+                  fontWeight: 400,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '0.02em',
+                  lineHeight: 1.05,
+                }}
+              >
                 {showDay!.label}
               </div>
               <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 2 }}>
@@ -830,16 +1076,24 @@ function HomeTab({
             </div>
             <div
               style={{
-                flexShrink: 0, fontSize: 16, fontWeight: 800, color: showDayAccent,
-                background: showDayAccent + '18', border: `1px solid ${showDayAccent}44`,
-                borderRadius: tokens.radius.md, padding: '6px 14px', letterSpacing: '0.04em',
+                flexShrink: 0,
+                fontSize: 13,
+                fontWeight: 800,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'var(--accent)',
+                background: 'transparent',
+                border: '1px solid var(--accent-border, rgba(232,101,26,0.3))',
+                borderRadius: tokens.radius.md,
+                padding: '8px 16px',
               }}
             >
-              {activeSession?.kind === 'lifting' &&
-              activeSession.route === `/day/${showDayIdx}/${showDayWeek}`
-                ? 'Continue'
-                : 'Start'}{' '}
-              <span aria-hidden="true">→</span>
+              {/* Continue-vs-Start logic moved upstream — this branch only
+                  renders when there's no active lifting session, so the
+                  pill is always Start now. Outline-orange treatment matches
+                  the REORDER button in Focus Mode (cooler than a filled
+                  orange chip). */}
+              Start <span aria-hidden="true">→</span>
             </div>
           </button>
           <div style={{ padding: '6px 0 2px' }}>

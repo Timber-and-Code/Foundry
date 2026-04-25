@@ -6,7 +6,6 @@ import {
   randomQuote,
   getMeso,
   getWeekPhase,
-  PHASE_COLOR,
 } from '../../data/constants';
 import { loadArchive } from '../../utils/archive';
 import { getExerciseDB, findExercise } from '../../data/exerciseDB';
@@ -54,6 +53,7 @@ import UnfinishedPromptModal from './UnfinishedPromptModal';
 import NoteReviewSheet from './NoteReviewSheet';
 import ReadinessSheet from './ReadinessSheet';
 import SwapMenu from './SwapMenu';
+import ReorderSheet from './ReorderSheet';
 import { buildSwapGroups } from '../../utils/swapGroups';
 import { expandEquipment } from '../../utils/program';
 import type { Profile, TrainingDay, Exercise } from '../../types';
@@ -87,6 +87,7 @@ function DayView({
     useRestTimer();
   const { showToast } = useToast();
   const {
+    session: activeSessionFromCtx,
     setActiveSession: setActiveSessionBar,
     clearActiveSession: clearActiveSessionBar,
   } = useActiveSession();
@@ -296,6 +297,36 @@ function DayView({
     isLocked,
   });
 
+  // Backfill the active-session context when DayView mounts on a workout
+  // that's already in progress (started in a prior page load — workoutStarted
+  // is restored from localStorage, but commitStartWorkout doesn't re-fire).
+  // Without this, the Home tab's "Resume Workout" CTA never appears for
+  // restored sessions.
+  useEffect(() => {
+    if (!workoutStarted || isDone || isLocked) return;
+    const expectedRoute = `/day/${dayIdx}/${weekIdx}`;
+    if (
+      activeSessionFromCtx?.kind === 'lifting' &&
+      activeSessionFromCtx.route === expectedRoute
+    ) {
+      return;
+    }
+    const dayLabel = (day?.label || day?.tag || day?.name || 'WORKOUT') as string;
+    let totalSetsCount = 0;
+    (day?.exercises || []).forEach((ex: Exercise) => {
+      totalSetsCount += Number(ex.sets) || 0;
+    });
+    setActiveSessionBar({
+      kind: 'lifting',
+      label: dayLabel,
+      route: expectedRoute,
+      startedAt: sessionStartRef.current || Date.now(),
+      setsDone: 0,
+      totalSets: totalSetsCount,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workoutStarted, dayIdx, weekIdx, isDone, isLocked]);
+
   // Readiness is one row per day; prompt only if today's entry isn't already complete
   const isReadinessIncompleteToday = () => {
     const d = new Date();
@@ -314,6 +345,24 @@ function DayView({
   const commitStartWorkout = () => {
     startTimer();
     setShowSplash(false);
+    // Register the active session immediately on start so the Home tab
+    // can flip its CTA to "Resume Workout" without waiting for the user
+    // to log a set. Pre-set state shows 0/N — the per-set update path
+    // patches setsDone as the lifter works.
+    const dayLabel = (day.label || day.tag || day.name || 'WORKOUT') as string;
+    let initialTotalSets = 0;
+    (day.exercises || []).forEach((ex: Exercise) => {
+      const sets = Number(ex.sets) || 0;
+      initialTotalSets += sets;
+    });
+    setActiveSessionBar({
+      kind: 'lifting',
+      label: dayLabel,
+      route: `/day/${dayIdx}/${weekIdx}`,
+      startedAt: Date.now(),
+      setsDone: 0,
+      totalSets: initialTotalSets,
+    });
     // Weekly bodyweight check-in: prompt only when (a) this day has a
     // BW-based exercise, (b) we haven't already prompted this week, and
     // (c) we don't already have a bodyweight entry this week (HealthKit
@@ -444,6 +493,11 @@ function DayView({
   const [swapTarget, setSwapTarget] = useState<{ exIdx: number } | null>(null);
   const [swapPending, setSwapPending] = useState<{ exIdx: number; newExId: string } | null>(null);
   const [, setShowAddExercise] = useState(false);
+  // Reorder sheet (Focus Mode bottom-nav REORDER button) — drag-to-reorder
+  // + "+ Add exercise" entry point. The add path opens SwapMenu in
+  // append-mode via `addingExercise`; on select, we push instead of swap.
+  const [reorderOpen, setReorderOpen] = useState(false);
+  const [addingExercise, setAddingExercise] = useState(false);
 
   /* ── Swap: build exercise groups for picker ─────────────────────────────── */
   // Day-tag → EXERCISE_DB tag-set mapping lives in swapGroups.ts so the
@@ -460,27 +514,91 @@ function DayView({
   // reads "requires dumbbell/barbell" in the swap menu and biceps look missing.
   const userEquipment = useMemo(() => expandEquipment(profile?.equipment), [profile?.equipment]);
 
+  // Append a brand-new exercise onto the live session. Used by the Reorder
+  // sheet's "+ Add exercise" path. Resolves the picked id (DB or custom)
+  // into the same Exercise shape the rest of DayView renders, with sane
+  // defaults for sets/reps/rest. In-memory only — matches the existing
+  // reorder behavior; persistence is a separate feature.
+  const appendExercise = useCallback(
+    (newExId: string) => {
+      const dbEx = findExercise(newExId);
+      const customs = JSON.parse(store.get('foundry:customExercises') || '{}');
+      const customEx = !dbEx && newExId.startsWith('custom:') ? customs[newExId] : null;
+      const src = dbEx || customEx;
+      if (!src) return;
+      const next: typeof exercises[number] = {
+        id: src.id,
+        name: src.name,
+        muscle: src.muscle || 'other',
+        muscles: src.muscles || [src.muscle || 'other'],
+        equipment: src.equipment || 'other',
+        tag: src.tag || day?.tag || 'FULL',
+        anchor: false,
+        sets: src.sets || 3,
+        reps: src.reps || '8-12',
+        rest: src.rest || '2 min',
+        warmup: src.warmup || '1 feeler set',
+        progression: src.pattern === 'isolation' ? 'reps' : 'weight',
+        description: src.description || '',
+        videoUrl: src.videoUrl || '',
+        bw: !!src.bw,
+      };
+      setExercises((prev) => [...prev, next]);
+    },
+    [day?.tag],
+  );
+
   const handleSwap = useCallback(
     (newExId: string) => {
+      // Add-exercise path takes priority — Reorder sheet → SwapMenu (add mode).
+      if (addingExercise) {
+        appendExercise(newExId);
+        setAddingExercise(false);
+        return;
+      }
       if (swapTarget === null) return;
       // Show scope selector before executing
       setSwapPending({ exIdx: swapTarget.exIdx, newExId });
       setSwapTarget(null);
     },
-    [swapTarget],
+    [addingExercise, appendExercise, swapTarget],
   );
 
   const handleCustomExercise = useCallback(
     (name: string) => {
-      if (swapTarget === null) return;
-      const customId = `custom:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-      // Store custom exercise so ExerciseCard and other components can look it up
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const customId = `custom:${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
       const existing = JSON.parse(store.get('foundry:customExercises') || '{}');
+      // Add-exercise path: persist the custom to localStorage with the
+      // current day's tag so other views (sync, swap) resolve it later.
+      if (addingExercise) {
+        if (!existing[customId]) {
+          existing[customId] = {
+            id: customId,
+            name: trimmed,
+            muscle: 'other',
+            tag: day?.tag || 'FULL',
+            sets: 3,
+            reps: '8-12',
+            rest: '2 min',
+            equipment: 'other',
+            pattern: 'compound',
+            bw: false,
+          };
+          store.set('foundry:customExercises', JSON.stringify(existing));
+        }
+        appendExercise(customId);
+        setAddingExercise(false);
+        return;
+      }
+      if (swapTarget === null) return;
+      // Store custom exercise so ExerciseCard and other components can look it up
       if (!existing[customId]) {
         const original = exercises[swapTarget.exIdx];
         existing[customId] = {
           id: customId,
-          name,
+          name: trimmed,
           muscle: original?.muscle || 'other',
           tag: original?.tag || day?.tag || 'FULL',
           sets: original?.sets || 3,
@@ -496,7 +614,7 @@ function DayView({
       setSwapPending({ exIdx: swapTarget.exIdx, newExId: customId });
       setSwapTarget(null);
     },
-    [swapTarget, exercises, day?.tag],
+    [addingExercise, appendExercise, swapTarget, exercises, day?.tag],
   );
 
   const executeSwap = useCallback(
@@ -1222,11 +1340,20 @@ function DayView({
 
         {/* ── Exercise Swap (pre-workout) ──────────────────────────── */}
         <SwapMenu
-          open={swapTarget !== null}
-          onClose={() => setSwapTarget(null)}
-          replacingName={swapTarget !== null ? exercises[swapTarget.exIdx]?.name || '' : ''}
+          open={swapTarget !== null || addingExercise}
+          onClose={() => {
+            setSwapTarget(null);
+            setAddingExercise(false);
+          }}
+          replacingName={
+            addingExercise
+              ? 'Add exercise'
+              : swapTarget !== null
+              ? exercises[swapTarget.exIdx]?.name || ''
+              : ''
+          }
           exerciseGroups={swapExGroups}
-          autoExpandMuscle={swapMuscle}
+          autoExpandMuscle={addingExercise ? undefined : swapMuscle}
           userEquipment={userEquipment}
           onSelect={handleSwap}
           onCustomExercise={handleCustomExercise}
@@ -1288,16 +1415,21 @@ function DayView({
           aria-label="Go back"
           style={{
             justifySelf: 'start',
-            fontSize: 14,
-            fontWeight: 700,
+            fontSize: 16,
+            fontWeight: 800,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
             color: 'var(--text-accent)',
             padding: '8px 6px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
           }}
         >
-          <span aria-hidden="true">←</span> Back
+          <span aria-hidden="true" style={{ fontSize: 22, lineHeight: 1 }}>←</span> Back
         </button>
         <div
           aria-live="polite"
@@ -1320,8 +1452,6 @@ function DayView({
 
       {/* ── Focus Mode: progress strip + single exercise + up-next + prev/next nav ── */}
       {(() => {
-        const phaseName = getWeekPhase()[weekIdx] || 'Accumulation';
-        const pc = (PHASE_COLOR as Record<string, string>)[phaseName] || 'var(--accent)';
         const clampedFocus = Math.max(0, Math.min(focusedIdx, exercises.length - 1));
         const focusEx = exercises[clampedFocus];
         if (!focusEx) return null;
@@ -1343,7 +1473,6 @@ function DayView({
               exercises={exercises}
               doneExercises={doneExercises}
               focusedIdx={clampedFocus}
-              phaseColor={pc}
               onJump={(idx) => setFocusedIdx(idx)}
             />
             {/* Active exercise — single orange accent border lives on the
@@ -1385,6 +1514,8 @@ function DayView({
                 isLast={clampedFocus === exercises.length - 1}
                 active={workoutStarted}
                 supersetPartnerName={supersetPartnerName2}
+                editorial
+                totalExercises={exercises.length}
               />
             </div>
             {upNextIdx !== null && (
@@ -1398,6 +1529,7 @@ function DayView({
               canNext={clampedFocus < exercises.length - 1}
               onPrev={() => setFocusedIdx(Math.max(0, clampedFocus - 1))}
               onNext={() => setFocusedIdx(Math.min(exercises.length - 1, clampedFocus + 1))}
+              onReorder={() => setReorderOpen(true)}
               position={clampedFocus + 1}
               total={exercises.length}
             />
@@ -1405,7 +1537,31 @@ function DayView({
         );
       })()}
 
-      {/* Complete Workout Button */}
+      {/* Reorder sheet — drag-to-reorder + add-exercise entry point. Mounted
+          here so it overlays Focus Mode. Drag commits via handleMoveExercise,
+          jumps via setFocusedIdx, add opens SwapMenu in append mode. */}
+      {reorderOpen && (
+        <ReorderSheet
+          exercises={exercises}
+          currentIdx={Math.max(0, Math.min(focusedIdx, exercises.length - 1))}
+          doneIndices={doneExercises}
+          onClose={() => setReorderOpen(false)}
+          onMove={(fromIdx, toIdx) => {
+            handleMoveExercise(fromIdx, toIdx);
+            // Keep the focused card pointed at the same exercise after move.
+            if (fromIdx === focusedIdx) setFocusedIdx(toIdx);
+            else if (focusedIdx > fromIdx && focusedIdx <= toIdx) setFocusedIdx(focusedIdx - 1);
+            else if (focusedIdx < fromIdx && focusedIdx >= toIdx) setFocusedIdx(focusedIdx + 1);
+          }}
+          onJump={(idx) => setFocusedIdx(idx)}
+          onAddExercise={() => {
+            setAddingExercise(true);
+          }}
+        />
+      )}
+
+      {/* Complete Workout Button — Bebas all-caps to match editorial
+          Focus Mode typography (exercise title, set numerals, etc). */}
       {!isDone && !isLocked && (
         <div style={{ margin: '20px 0 12px' }}>
           <button
@@ -1417,13 +1573,15 @@ function DayView({
               background: 'var(--btn-primary-bg)',
               border: '1px solid var(--btn-primary-border)',
               color: 'var(--btn-primary-text)',
-              fontSize: 15,
-              fontWeight: 800,
+              fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+              fontSize: 22,
+              fontWeight: 400,
               cursor: 'pointer',
-              letterSpacing: '0.02em',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
             }}
           >
-            Complete Workout ✓
+            Complete Workout <span aria-hidden="true">✓</span>
           </button>
         </div>
       )}
@@ -1542,121 +1700,121 @@ function DayView({
         </div>
       )}
 
-      {/* Full-screen Rest Timer Overlay */}
+      {/* Full-screen Rest Timer Overlay — pure typography on a blurred
+          backdrop. No card, no ring, no box. Just the countdown and an
+          ack button. Go back collapses to the toast. */}
       {restTimer && !restTimerMinimized && (() => {
         const rt = restTimer;
-        const pct = rt.total > 0 ? rt.remaining / rt.total : 0;
         const done = rt.remaining === 0;
         const mins = Math.floor(rt.remaining / 60);
         const secs = rt.remaining % 60;
-        const timeDisplay = mins > 0
-          ? `${mins}:${String(secs).padStart(2, '0')}`
-          : `${secs}`;
-        const R = 100;
-        const CIRC = 2 * Math.PI * R;
-        const dash = CIRC * pct;
-        const gap = CIRC - dash;
-        const ringColor = done ? 'var(--phase-accum)' : pct > 0.25 ? '#D4A03C' : '#a03333';
-
+        const timeDisplay = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         return (
           <div
-            onClick={done ? dismissRestTimer : undefined}
             data-coach="rest-timer"
             style={{
               position: 'fixed',
               inset: 0,
               zIndex: 1000,
-              background: 'rgba(0,0,0,0.92)',
+              background: 'rgba(0,0,0,0.85)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 24,
-              cursor: done ? 'pointer' : 'default',
+              padding: '40px 24px',
+              fontFamily: 'inherit',
             }}
           >
-            {/* Exercise name */}
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <div
+              style={{
+                fontSize: 12,
+                letterSpacing: '0.28em',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                marginBottom: 18,
+                fontWeight: 700,
+              }}
+            >
+              {done ? 'Rest Complete' : 'Resting'}
+            </div>
+            <div
+              aria-live="polite"
+              aria-atomic="true"
+              aria-label={`Rest time remaining: ${rt.remaining} seconds`}
+              style={{
+                fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                fontSize: 'clamp(120px, 36vw, 200px)',
+                fontWeight: 400,
+                color: done ? 'var(--accent)' : 'var(--text-primary)',
+                lineHeight: 0.9,
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.02em',
+                marginBottom: 8,
+                textShadow: done ? '0 0 32px rgba(232,101,26,0.55)' : 'none',
+                animation: done ? 'restPulseText 1.4s ease-in-out infinite' : undefined,
+              }}
+            >
+              {done ? 'GO' : timeDisplay}
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                color: 'var(--text-secondary)',
+                marginBottom: 36,
+                fontWeight: 600,
+                letterSpacing: '0.02em',
+              }}
+            >
               {rt.exName}
             </div>
-
-            {/* Countdown ring + time */}
-            <div style={{ position: 'relative', width: 224, height: 224 }}>
-              <svg width="224" height="224" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="112" cy="112" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
-                <circle
-                  cx="112" cy="112" r={R}
-                  fill="none" stroke={ringColor} strokeWidth="8" strokeLinecap="round"
-                  strokeDasharray={`${dash} ${gap}`}
-                  style={{ transition: 'stroke-dasharray 0.5s linear, stroke 0.5s' }}
-                />
-              </svg>
-              <div
-                aria-live="polite"
-                aria-atomic="true"
-                aria-label={`Rest time remaining: ${rt.remaining} seconds`}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <div style={{
-                  fontSize: 88,
-                  fontWeight: 900,
-                  color: done ? 'var(--phase-accum)' : 'var(--text-primary)',
-                  lineHeight: 1,
-                  fontVariantNumeric: 'tabular-nums',
-                  letterSpacing: '-0.04em',
-                }}>
-                  {done ? 'GO' : timeDisplay}
-                </div>
-                {!done && (
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, marginTop: 4 }}>
-                    {mins > 0 ? 'min' : 'sec'}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* I'm Ready / Dismiss button */}
             <button
               onClick={dismissRestTimer}
               style={{
-                padding: '16px 48px',
-                borderRadius: tokens.radius.xl,
-                cursor: 'pointer',
-                fontSize: 16,
+                width: '100%',
+                maxWidth: 320,
+                height: 56,
+                borderRadius: tokens.radius.md,
+                background: 'var(--accent)',
+                color: 'var(--bg-root, #0A0A0C)',
+                fontSize: 15,
                 fontWeight: 800,
-                letterSpacing: '0.04em',
-                background: done ? 'var(--phase-accum)' : 'transparent',
-                border: done ? 'none' : '2px solid rgba(255,255,255,0.25)',
-                color: done ? '#000' : 'var(--text-primary)',
-                transition: 'all 0.3s',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 6px 24px rgba(232,101,26,0.45)',
+                fontFamily: 'inherit',
+                marginBottom: 10,
               }}
             >
-              {done ? "LET'S GO" : "I'm Ready"}
+              {done ? "Let's Go" : "I'm Ready"}
             </button>
-
-            {/* Minimize button */}
             <button
               onClick={() => setRestTimerMinimized(true)}
               style={{
-                background: 'none',
+                width: '100%',
+                maxWidth: 320,
+                background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
                 fontSize: 12,
-                color: 'var(--text-dim)',
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                marginTop: 8,
+                color: 'var(--text-muted)',
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                padding: '12px 0',
               }}
             >
-              MINIMIZE
+              Go back
             </button>
+            <style>{`
+              @keyframes restPulseText {
+                0%, 100% { text-shadow: 0 0 32px rgba(232,101,26,0.55); }
+                50% { text-shadow: 0 0 48px rgba(232,101,26,0.85); }
+              }
+            `}</style>
           </div>
         );
       })()}
@@ -1696,11 +1854,20 @@ function DayView({
 
       {/* ── Exercise Swap (in-workout) ──────────────────────────────── */}
       <SwapMenu
-        open={swapTarget !== null}
-        onClose={() => setSwapTarget(null)}
-        replacingName={swapTarget !== null ? exercises[swapTarget.exIdx]?.name || '' : ''}
+        open={swapTarget !== null || addingExercise}
+        onClose={() => {
+          setSwapTarget(null);
+          setAddingExercise(false);
+        }}
+        replacingName={
+          addingExercise
+            ? 'Add exercise'
+            : swapTarget !== null
+            ? exercises[swapTarget.exIdx]?.name || ''
+            : ''
+        }
         exerciseGroups={swapExGroups}
-        autoExpandMuscle={swapMuscle}
+        autoExpandMuscle={addingExercise ? undefined : swapMuscle}
         userEquipment={userEquipment}
         onSelect={handleSwap}
         onCustomExercise={handleCustomExercise}
@@ -1785,20 +1952,19 @@ function DayView({
 export default React.memo(DayView);
 
 // ── ProgressStrip ────────────────────────────────────────────────────────────
-// One segment per exercise, matching the bar convention used on Home + Schedule
-// + Progress. done = phase color + glow, current = greyish-white static,
-// upcoming = subtle. Taps jump focus to that exercise.
+// One segment per exercise. done = brand orange + glow, current = greyish-
+// white static, upcoming = subtle grey. Taps jump focus to that exercise.
+// Done used to use phase color but the user wanted "I finished this" to
+// always read orange regardless of meso phase.
 function ProgressStrip({
   exercises,
   doneExercises,
   focusedIdx,
-  phaseColor,
   onJump,
 }: {
   exercises: Exercise[];
   doneExercises: Set<number>;
   focusedIdx: number;
-  phaseColor: string;
   onJump: (idx: number) => void;
 }) {
   return (
@@ -1822,8 +1988,11 @@ function ProgressStrip({
           transition: 'background 200ms',
         };
         if (done) {
-          segStyle.background = phaseColor;
-          segStyle.boxShadow = `0 0 6px ${phaseColor}88`;
+          // Done segments use the brand accent (orange) instead of the
+          // phase color — keeps the "I finished this" signal consistent
+          // regardless of where you are in the meso.
+          segStyle.background = 'var(--accent)';
+          segStyle.boxShadow = '0 0 6px rgba(232,101,26,0.55)';
         } else if (isCurrent) {
           segStyle.background = 'var(--text-secondary)';
         }
@@ -1918,6 +2087,7 @@ function FocusNav({
   canNext,
   onPrev,
   onNext,
+  onReorder,
   position,
   total,
 }: {
@@ -1925,24 +2095,26 @@ function FocusNav({
   canNext: boolean;
   onPrev: () => void;
   onNext: () => void;
+  onReorder: () => void;
   position: number;
   total: number;
 }) {
-  const btnBase: React.CSSProperties = {
+  const sideBtn: React.CSSProperties = {
     height: 40,
-    padding: '0 14px',
+    width: 40,
+    padding: 0,
     background: 'transparent',
     border: '1px solid var(--border)',
     borderRadius: tokens.radius.md,
     color: 'var(--text-secondary)',
-    fontSize: 13,
+    fontSize: 18,
     fontWeight: 700,
-    letterSpacing: '0.04em',
     cursor: 'pointer',
     fontFamily: 'inherit',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    lineHeight: 1,
   };
   return (
     <div
@@ -1950,9 +2122,9 @@ function FocusNav({
       aria-label="Exercise navigation"
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
+        gridTemplateColumns: 'auto 1fr auto',
         alignItems: 'center',
-        gap: 8,
+        gap: 10,
         margin: '4px 0 16px',
       }}
     >
@@ -1962,39 +2134,62 @@ function FocusNav({
         disabled={!canPrev}
         aria-label="Previous exercise"
         style={{
-          ...btnBase,
-          justifySelf: 'start',
+          ...sideBtn,
           opacity: canPrev ? 1 : 0.35,
           cursor: canPrev ? 'pointer' : 'default',
         }}
       >
-        <span aria-hidden="true">‹</span> Prev
+        <span aria-hidden="true">‹</span>
       </button>
-      <span
+      <button
+        type="button"
+        onClick={onReorder}
+        aria-label="Reorder or add exercises"
         style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.16em',
-          color: 'var(--text-muted)',
+          height: 40,
+          padding: '0 18px',
+          background: 'transparent',
+          border: '1px solid var(--accent-border, rgba(232,101,26,0.3))',
+          borderRadius: tokens.radius.md,
+          color: 'var(--accent)',
+          fontSize: 13,
+          fontWeight: 800,
+          letterSpacing: '0.12em',
           textTransform: 'uppercase',
-          fontVariantNumeric: 'tabular-nums',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
         }}
       >
-        {position} / {total}
-      </span>
+        Reorder
+        <span
+          aria-hidden="true"
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.1em',
+            color: 'var(--text-muted)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {position}/{total}
+        </span>
+      </button>
       <button
         type="button"
         onClick={onNext}
         disabled={!canNext}
         aria-label="Next exercise"
         style={{
-          ...btnBase,
-          justifySelf: 'end',
+          ...sideBtn,
           opacity: canNext ? 1 : 0.35,
           cursor: canNext ? 'pointer' : 'default',
         }}
       >
-        Next <span aria-hidden="true">›</span>
+        <span aria-hidden="true">›</span>
       </button>
     </div>
   );

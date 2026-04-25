@@ -100,31 +100,35 @@ function ReadinessSheet({ onDismiss, onCancel }: ReadinessSheetProps) {
       >
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 800,
-            letterSpacing: '0.12em',
-            color: 'var(--phase-accum)',
-            marginBottom: 6,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.25em',
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            marginBottom: 8,
           }}
         >
-          READINESS
+          Readiness
         </div>
         <div
           id="readiness-sheet-title"
           style={{
-            fontSize: 18,
-            fontWeight: 800,
+            fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+            fontSize: 32,
+            fontWeight: 400,
+            letterSpacing: '0.02em',
             color: 'var(--text-primary)',
-            marginBottom: 4,
+            lineHeight: 1.05,
+            marginBottom: 6,
           }}
         >
-          How are you feeling today?
+          How Are You Feeling Today?
         </div>
         <div
           style={{
             fontSize: 13,
-            color: 'var(--text-muted)',
-            marginBottom: 18,
+            color: 'var(--text-secondary)',
+            marginBottom: 20,
             lineHeight: 1.5,
           }}
         >
@@ -137,13 +141,14 @@ function ReadinessSheet({ onDismiss, onCancel }: ReadinessSheetProps) {
                 id={`rs-label-${sig.key}`}
                 style={{
                   fontSize: 11,
-                  fontWeight: 800,
-                  letterSpacing: '0.07em',
-                  color: '#F29A52',
-                  marginBottom: 6,
+                  fontWeight: 700,
+                  letterSpacing: '0.16em',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  marginBottom: 8,
                 }}
               >
-                {sig.label.toUpperCase()}
+                {sig.label}
               </div>
               <div role="group" aria-labelledby={`rs-label-${sig.key}`} style={{ display: 'flex', gap: 6 }}>
                 {sig.opts.map((opt) => {
@@ -223,15 +228,18 @@ function ReadinessSheet({ onDismiss, onCancel }: ReadinessSheetProps) {
             disabled={!allFilled}
             style={{
               flex: 1,
-              padding: '14px',
-              borderRadius: tokens.radius.lg,
-              background: allFilled ? 'var(--btn-primary-bg)' : 'var(--bg-inset)',
-              border: `1px solid ${allFilled ? 'var(--btn-primary-border)' : 'var(--border)'}`,
-              color: allFilled ? 'var(--btn-primary-text)' : 'var(--text-muted)',
+              padding: '16px',
+              borderRadius: tokens.radius.md,
+              background: 'transparent',
+              border: `1px solid ${allFilled ? 'var(--accent)' : 'var(--border)'}`,
+              color: allFilled ? 'var(--accent)' : 'var(--text-muted)',
               cursor: allFilled ? 'pointer' : 'not-allowed',
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: '0.04em',
+              fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+              fontSize: 22,
+              fontWeight: 400,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              boxShadow: allFilled ? '0 0 0 1px var(--accent)' : 'none',
             }}
           >
             Start Workout

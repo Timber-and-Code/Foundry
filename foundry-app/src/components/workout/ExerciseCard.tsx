@@ -12,8 +12,25 @@ import {
   loadArchive,
 } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
+import { haptic } from '../../utils/helpers';
 import type { Exercise, DayData } from '../../types';
 import type { WarmupStep, WarmupDetail } from '../../utils/training';
+
+// Editorial Focus Mode chip pill (How to / Swap). 13/700, padded — matches
+// the preview at /preview/hybrid/focus.
+const editorialChipStyle: React.CSSProperties = {
+  padding: '9px 14px',
+  borderRadius: 999,
+  border: '1px solid var(--border)',
+  background: 'var(--bg-card)',
+  color: 'var(--text-primary)',
+  fontFamily: 'inherit',
+  fontSize: 13,
+  fontWeight: 700,
+  letterSpacing: '0.02em',
+  cursor: 'pointer',
+  lineHeight: 1,
+};
 
 interface StallTarget {
   w: number;
@@ -70,6 +87,13 @@ interface ExerciseCardProps {
   isLast?: boolean;
   active?: boolean;
   supersetPartnerName?: string;
+  /** When true, render the editorial Focus Mode layout: large display
+   *  name, sets·reps meta, How To + Swap chip pills, Target / Last week
+   *  reference card. The compact accordion header is hidden. */
+  editorial?: boolean;
+  /** Total exercises in the session — shown as "Exercise N of M" only in
+   *  editorial mode. */
+  totalExercises?: number;
 }
 
 function ExerciseCard({
@@ -98,6 +122,8 @@ function ExerciseCard({
   isLast,
   active,
   supersetPartnerName,
+  editorial = false,
+  totalExercises,
 }: ExerciseCardProps) {
   const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression ?? '']?.[weekIdx];
 
@@ -128,6 +154,11 @@ function ExerciseCard({
   const [showWarmupModal, setShowWarmupModal] = useState(false);
   const [rpePrompt, setRpePrompt] = useState<number | null>(null);
   const [removeSetPrompt, setRemoveSetPrompt] = useState<number | null>(null);
+  // "Record 0 reps for this set?" gate — opened when the lifter taps the
+  // check on a row with no reps entered. On confirm we log 0/0, suppress
+  // the rest timer, and let DayView auto-advance to the next exercise via
+  // onSetLogged(isLastSet=true). Cancel = no change.
+  const [pendingZeroSet, setPendingZeroSet] = useState<number | null>(null);
   const [noteOpen, _setNoteOpen] = useState(!!(note && note.trim()));
 
   // Load prev week raw data for "Last session" context hints
@@ -258,8 +289,12 @@ function ExerciseCard({
       return;
     }
     const setData = (weekData[exIdx] || {})[s] || { weight: '', reps: '' };
-    // Only allow check if reps are entered
-    if (!setData.reps || setData.reps === '') return;
+    // Empty reps → ask "Record 0 reps?" instead of silently no-op'ing.
+    // Confirmed-zero is handled by handleConfirmZeroReps below.
+    if (!setData.reps || setData.reps === '') {
+      setPendingZeroSet(s);
+      return;
+    }
     // Onboarding v2: if this confirmation is a rep miss, emit first-miss once
     // per user so the CoachMarkOrchestrator can explain what happens next.
     const confirmedReps = parseInt(String(setData.reps || 0), 10);
@@ -297,6 +332,22 @@ function ExerciseCard({
       store.set('foundry:first_anchor_emitted', '1');
       window.dispatchEvent(new Event('foundry:first-anchor-visible'));
     }
+  };
+
+  const handleConfirmZeroReps = (s: number) => {
+    setPendingZeroSet(null);
+    // Log set as 0/0 + confirmed. Skip the rest timer and trigger
+    // DayView's "advance to next exercise" path by passing
+    // isLastSet=true — semantically the lifter is bailing on this exercise.
+    onUpdateSet(exIdx, s, 'reps', '0');
+    onUpdateSet(exIdx, s, 'weight', '0');
+    onUpdateSet(exIdx, s, 'confirmed', true);
+    setDoneSets((prev) => new Set([...prev, s]));
+    onLastSetFilled(exIdx, s);
+    onSetLogged(exercise.rest || '0', exercise.name, s, true);
+    // Tactile ack for the skip — rest timer's own haptic won't fire here
+    // because we deliberately bypass it.
+    try { haptic('tap'); } catch { /* haptic unavailable on this platform */ }
   };
 
   const handleRpeSelect = (s: number, rpeLabel: string) => {
@@ -405,15 +456,202 @@ function ExerciseCard({
       data-coach={exercise.anchor ? 'anchor-row' : undefined}
       style={{
         background: 'var(--bg-card)',
-        border: active ? '1px solid var(--accent, #D4A03C)' : '1px solid var(--border)',
-        borderLeft: active ? '4px solid var(--accent, #D4A03C)' : '1px solid var(--border)',
+        // Editorial Focus Mode is already orange inside (row tints, chips,
+        // accent check, accent chip pills, ProgressStrip done segments) —
+        // adding an outer accent border pushes it into "too much orange."
+        // Use a neutral border there. Legacy/accordion path keeps the
+        // original active accent treatment.
+        border: editorial
+          ? '1px solid var(--border)'
+          : active
+          ? '1px solid var(--accent, #D4A03C)'
+          : '1px solid var(--border)',
+        borderLeft: editorial
+          ? '1px solid var(--border)'
+          : active
+          ? '4px solid var(--accent, #D4A03C)'
+          : '1px solid var(--border)',
         borderRadius: tokens.radius.lg,
         marginBottom: 12,
         overflow: 'hidden',
         transition: 'border-color 0.25s, border-left 0.25s',
       }}
     >
-      {/* ── HEADER (clickable to expand) ── */}
+      {/* ── EDITORIAL HEADER (Focus Mode) ──────────────────────────────
+          Big display name, sets·reps meta, How To + Swap chip pills, and
+          a Target / Last week reference card. Replaces the compact
+          accordion header during a live workout where the card is
+          always expanded. */}
+      {editorial && (
+        <div style={{ padding: '18px 18px 8px' }}>
+          {totalExercises != null && (
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                marginBottom: 6,
+              }}
+            >
+              Exercise {exIdx + 1} of {totalExercises}
+            </div>
+          )}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 6,
+              flexWrap: 'wrap',
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                fontSize: 36,
+                fontWeight: 400,
+                lineHeight: 1.0,
+                letterSpacing: '0.02em',
+                color: 'var(--text-primary)',
+                margin: 0,
+                flex: '1 1 auto',
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {exercise.name}
+            </h2>
+            {exercise.anchor && (
+              <span data-coach="anchor-hammer" style={{ display: 'inline-flex', flexShrink: 0 }}>
+                <HammerIcon size={20} />
+              </span>
+            )}
+            {exercise.modifier && (
+              <span
+                style={{
+                  fontSize: 11,
+                  background: 'var(--bg-inset)',
+                  color: 'var(--text-muted)',
+                  padding: '3px 8px',
+                  borderRadius: tokens.radius.xs,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                {exercise.modifier}
+              </span>
+            )}
+          </div>
+          {supersetPartnerName && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                marginBottom: 8,
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                color: 'var(--accent)',
+                background: 'rgba(var(--accent-rgb),0.10)',
+                padding: '3px 9px',
+                borderRadius: tokens.radius.xs,
+                textTransform: 'uppercase',
+              }}
+            >
+              Superset with {supersetPartnerName}
+            </div>
+          )}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 14,
+            }}
+          >
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1, minWidth: 0 }}>
+              {exercise.sets ?? '?'} sets · {exercise.reps ?? '?'} reps
+              {exercise.rest ? ` · ${exercise.rest}` : ''}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <button
+                onClick={handleHowToClick}
+                style={editorialChipStyle}
+              >
+                How to
+              </button>
+              {!done && !readOnly && (
+                <button
+                  onClick={() => onSwapClick(exIdx)}
+                  style={editorialChipStyle}
+                >
+                  Swap
+                </button>
+              )}
+            </div>
+          </div>
+          {/* Target / Last week reference card. Target uses the goal label
+              ("Establish", "+5 lbs"); Last week pulls best set from the
+              prior week (or cross-meso archive on week 0). */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.md,
+              background: 'var(--bg-inset)',
+              overflow: 'hidden',
+              marginBottom: 4,
+            }}
+          >
+            <div style={{ padding: '12px 14px' }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.16em',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  marginBottom: 3,
+                }}
+              >
+                Target
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: goalColor }}>
+                {goal || '—'}
+              </div>
+            </div>
+            <div style={{ padding: '12px 14px', borderLeft: '1px solid var(--border)' }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.16em',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  marginBottom: 3,
+                }}
+              >
+                Last week
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                {lastWeekStat || '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HEADER (clickable to expand) ──────────────────────────────
+          Pre-workout / non-Focus modes only. Editorial header above
+          replaces this during a live workout. */}
+      {!editorial && (
       <button
         onClick={() => onToggle()}
         aria-expanded={expanded}
@@ -555,12 +793,19 @@ function ExerciseCard({
           </span>
         </div>
       </button>
+      )}
 
       {/* ── EXPANDED CONTENT ── */}
       {expanded && (
-        <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px' }}>
-          {/* Warmup & How To buttons */}
-          {!done && (
+        <div
+          style={{
+            borderTop: editorial ? 'none' : '1px solid var(--border)',
+            padding: editorial ? '12px 18px' : '12px 16px',
+          }}
+        >
+          {/* Warmup & How To buttons. In editorial mode, How To is in the
+              header chips so we hide the standalone button there. */}
+          {!done && (exercise.warmup || !editorial) && (
             <div
               style={{
                 display: 'flex',
@@ -592,27 +837,29 @@ function ExerciseCard({
                   Warmup Guide
                 </button>
               )}
-              <button
-                onClick={handleHowToClick}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: '10px 12px',
-                  borderRadius: tokens.radius.md,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-accent)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}
-              >
-                How To
-              </button>
+              {!editorial && (
+                <button
+                  onClick={handleHowToClick}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: '10px 12px',
+                    borderRadius: tokens.radius.md,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-accent)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  How To
+                </button>
+              )}
             </div>
           )}
 
@@ -690,25 +937,47 @@ function ExerciseCard({
             </div>
           )}
 
-          {/* Set logging grid */}
+          {/* Set logging grid. Two layouts:
+              - editorial (Focus Mode): 32px # / 1fr Lbs / 1fr Reps / 44px ✓
+                with orange-gradient row tint and underline-only inputs.
+                Matches /preview/hybrid/focus.
+              - non-editorial (pre-workout accordion): legacy 4-col grid
+                with bordered inputs + minus button. */}
           {!done && (
             <div style={{ marginBottom: 12 }}>
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr 28px',
-                  gap: 8,
-                  marginBottom: 8,
+                  gridTemplateColumns: editorial
+                    ? '32px 1fr 1fr 44px'
+                    : '1fr 1fr 1fr 28px',
+                  gap: editorial ? 10 : 8,
+                  marginBottom: editorial ? 0 : 8,
+                  padding: editorial ? '6px 0' : 0,
+                  borderBottom: editorial ? '1px solid var(--border-subtle, var(--border))' : 'none',
                   fontSize: 11,
                   color: 'var(--text-muted)',
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  letterSpacing: editorial ? '0.06em' : 'normal',
+                  textTransform: editorial ? 'uppercase' : 'none',
                 }}
                 aria-hidden="true"
               >
-                <div>Weight (lbs)</div>
-                <div>Reps</div>
-                <div style={{ textAlign: 'center' }}>Done</div>
-                <div />
+                {editorial ? (
+                  <>
+                    <span>#</span>
+                    <span style={{ textAlign: 'center' }}>Lbs</span>
+                    <span style={{ textAlign: 'center' }}>Reps</span>
+                    <span />
+                  </>
+                ) : (
+                  <>
+                    <div>Weight (lbs)</div>
+                    <div>Reps</div>
+                    <div style={{ textAlign: 'center' }}>Done</div>
+                    <div />
+                  </>
+                )}
               </div>
               {Array.from({ length: Number(exercise.sets ?? 0) }).map((_, s) => {
                 const sd = (weekData[exIdx] || {})[s] || {};
@@ -720,18 +989,96 @@ function ExerciseCard({
                 const confirmedReps = parseInt(String(sd.reps || 0), 10);
                 const isMissedRow =
                   isDone && repsMin > 0 && confirmedReps > 0 && confirmedReps < repsMin;
+                // First not-done row is "active" — picks up a slightly
+                // brighter orange tint so the lifter knows where to type.
+                const firstActiveIdx = (() => {
+                  for (let i = 0; i < totalSets; i++) {
+                    if (!doneSets.has(i)) return i;
+                  }
+                  return -1;
+                })();
+                const isActive = editorial && s === firstActiveIdx;
+                const rowBg = editorial
+                  ? isDone
+                    ? 'linear-gradient(90deg, rgba(232,101,26,0.08) 0%, transparent 100%)'
+                    : isActive
+                    ? 'linear-gradient(90deg, rgba(232,101,26,0.12) 0%, transparent 100%)'
+                    : 'transparent'
+                  : undefined;
+                // Editorial input: fully borderless, Bebas display font for
+                // the numerals. Matches the preview's editorial typography
+                // — set values read as headlines, not form fields.
+                const editorialInputStyle = (suggested: boolean): React.CSSProperties => ({
+                  width: '100%',
+                  textAlign: 'center',
+                  fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                  fontSize: 22,
+                  fontWeight: 400,
+                  letterSpacing: '0.02em',
+                  padding: '6px 0',
+                  color: isDone
+                    ? 'var(--text-secondary)'
+                    : suggested
+                    ? 'var(--text-accent)'
+                    : 'var(--text-primary)',
+                  fontStyle: suggested ? 'italic' : 'normal',
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  fontVariantNumeric: 'tabular-nums',
+                  boxSizing: 'border-box',
+                });
+                // Legacy bordered input (pre-workout accordion mode).
+                const legacyInputStyle = (suggested: boolean): React.CSSProperties => ({
+                  minWidth: 0,
+                  width: '100%',
+                  background: 'var(--bg-inset)',
+                  border: suggested ? '1.5px solid var(--text-accent)' : '1px solid var(--border)',
+                  borderRadius: tokens.radius.sm,
+                  padding: '8px 6px',
+                  fontSize: 14,
+                  color: suggested ? 'var(--text-accent)' : 'var(--text-primary)',
+                  fontStyle: suggested ? 'italic' : 'normal',
+                  outline: 'none',
+                  textAlign: 'center',
+                  boxSizing: 'border-box',
+                });
                 return (
                   <div
                     key={s}
                     data-coach={isMissedRow ? 'missed-row' : undefined}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr 1fr 28px',
-                      gap: 8,
-                      marginBottom: 6,
-                      opacity: isDone ? 0.6 : 1,
+                      gridTemplateColumns: editorial
+                        ? '32px 1fr 1fr 44px'
+                        : '1fr 1fr 1fr 28px',
+                      gap: editorial ? 10 : 8,
+                      alignItems: 'center',
+                      padding: editorial ? '12px 0' : 0,
+                      marginBottom: editorial ? 0 : 6,
+                      borderBottom: editorial ? '1px solid var(--border-subtle, var(--border))' : 'none',
+                      background: rowBg,
+                      opacity: !editorial && isDone ? 0.6 : 1,
                     }}
                   >
+                    {editorial && (
+                      <span
+                        style={{
+                          fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                          fontSize: 22,
+                          fontWeight: 400,
+                          color: isDone
+                            ? 'var(--accent)'
+                            : isActive
+                            ? 'var(--text-primary)'
+                            : 'var(--text-muted)',
+                          letterSpacing: '0.04em',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {String(s + 1).padStart(2, '0')}
+                      </span>
+                    )}
                     <input
                       type="number"
                       inputMode="decimal"
@@ -741,20 +1088,7 @@ function ExerciseCard({
                       onChange={(e) => onUpdateSet(exIdx, s, 'weight', e.target.value)}
                       onBlur={(e) => handleWeightBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
-                      style={{
-                        minWidth: 0,
-                        width: '100%',
-                        background: 'var(--bg-inset)',
-                        border: isSuggestedWeight ? '1.5px solid var(--text-accent)' : '1px solid var(--border)',
-                        borderRadius: tokens.radius.sm,
-                        padding: '8px 6px',
-                        fontSize: 14,
-                        color: isSuggestedWeight ? 'var(--text-accent)' : 'var(--text-primary)',
-                        fontStyle: isSuggestedWeight ? 'italic' : 'normal',
-                        outline: 'none',
-                        textAlign: 'center',
-                        boxSizing: 'border-box',
-                      }}
+                      style={editorial ? editorialInputStyle(isSuggestedWeight) : legacyInputStyle(isSuggestedWeight)}
                     />
                     <input
                       type="number"
@@ -765,27 +1099,29 @@ function ExerciseCard({
                       onChange={(e) => handleRepsChange(s, e.target.value)}
                       onBlur={(e) => handleRepsBlur(s, e.target.value)}
                       disabled={isDone || readOnly}
-                      style={{
-                        minWidth: 0,
-                        width: '100%',
-                        background: 'var(--bg-inset)',
-                        border: isSuggestedReps ? '1.5px solid var(--text-accent)' : '1px solid var(--border)',
-                        borderRadius: tokens.radius.sm,
-                        padding: '8px 6px',
-                        fontSize: 14,
-                        color: isSuggestedReps ? 'var(--text-accent)' : 'var(--text-primary)',
-                        fontStyle: isSuggestedReps ? 'italic' : 'normal',
-                        outline: 'none',
-                        textAlign: 'center',
-                        boxSizing: 'border-box',
-                      }}
+                      style={editorial ? editorialInputStyle(isSuggestedReps) : legacyInputStyle(isSuggestedReps)}
                     />
                     <button
                       onClick={() => handleSetCheckmark(s)}
                       disabled={readOnly}
                       aria-pressed={isDone}
                       aria-label={isDone ? `Set ${s + 1} complete — tap to undo` : `Mark set ${s + 1} complete`}
-                      style={{
+                      style={editorial ? {
+                        width: 36,
+                        height: 36,
+                        justifySelf: 'end',
+                        border: isDone ? 'none' : '1px solid var(--border)',
+                        borderRadius: 8,
+                        background: isDone ? 'var(--accent)' : 'transparent',
+                        color: isDone ? 'var(--bg-root, #0A0A0C)' : 'var(--text-muted)',
+                        cursor: readOnly ? 'default' : 'pointer',
+                        fontSize: 16,
+                        fontWeight: 800,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxSizing: 'border-box',
+                      } : {
                         minWidth: 0,
                         width: '100%',
                         border: isDone ? '2px solid var(--success)' : '1px solid var(--border)',
@@ -804,7 +1140,11 @@ function ExerciseCard({
                     >
                       <span aria-hidden="true">{isDone ? '✓' : ''}</span>
                     </button>
-                    {canRemove ? (
+                    {/* Editorial mode drops the minus button entirely — the
+                        empty-reps check tap now opens the 0-reps confirm,
+                        which doubles as the "I'm skipping" path. Legacy
+                        accordion mode keeps the minus for explicit removal. */}
+                    {!editorial && (canRemove ? (
                       <button
                         onClick={() => setRemoveSetPrompt(s)}
                         aria-label={`Remove set ${s + 1}`}
@@ -828,7 +1168,7 @@ function ExerciseCard({
                       </button>
                     ) : (
                       <div aria-hidden="true" />
-                    )}
+                    ))}
                   </div>
                 );
               })}
@@ -931,6 +1271,92 @@ function ExerciseCard({
             </div>
           )}
 
+          {/* Empty-reps confirm — "Record 0 reps for this set?" Lifter chose
+              to skip; we log 0/0, suppress the rest timer (no work, no
+              recovery owed), and jump to the next unfinished exercise. */}
+          {pendingZeroSet !== null && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 300,
+                padding: 24,
+              }}
+              onClick={() => setPendingZeroSet(null)}
+            >
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="zero-reps-title"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.xxl,
+                  padding: '24px 20px',
+                  width: '100%',
+                  maxWidth: 320,
+                }}
+              >
+                <div
+                  id="zero-reps-title"
+                  style={{ fontSize: 16, fontWeight: 800, textAlign: 'center', marginBottom: 8 }}
+                >
+                  Record 0 reps for this set?
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--text-secondary)',
+                    textAlign: 'center',
+                    marginBottom: 18,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  We'll log it and jump to the next exercise. No rest timer.
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={() => setPendingZeroSet(null)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: tokens.radius.md,
+                      background: 'var(--bg-inset)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleConfirmZeroReps(pendingZeroSet)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: tokens.radius.md,
+                      background: 'var(--btn-primary-bg)',
+                      border: '1px solid var(--btn-primary-border)',
+                      color: 'var(--btn-primary-text)',
+                      fontSize: 13,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Record 0
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Add Set button */}
           {!done && !readOnly && onAddSet && (
             <button
@@ -952,62 +1378,66 @@ function ExerciseCard({
             </button>
           )}
 
-          {/* Action buttons. History was removed — last week's best set
-              now lives in the card header so the modal was redundant. */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {!done && !readOnly && (
-              <button
-                onClick={() => onSwapClick(exIdx)}
-                style={{
-                  flex: 1,
-                  minWidth: 70,
-                  fontSize: 12,
-                  padding: '8px 12px',
-                  borderRadius: tokens.radius.sm,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-accent)',
-                  cursor: 'pointer',
-                }}
-              >
-                Swap
-              </button>
-            )}
-            {!done && !readOnly && onMoveUp && !isFirst && (
-              <button
-                onClick={() => onMoveUp(exIdx)}
-                aria-label="Move exercise up"
-                style={{
-                  fontSize: 14,
-                  padding: '8px 12px',
-                  borderRadius: tokens.radius.sm,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                }}
-              >
-                ↑
-              </button>
-            )}
-            {!done && !readOnly && onMoveDown && !isLast && (
-              <button
-                onClick={() => onMoveDown(exIdx)}
-                aria-label="Move exercise down"
-                style={{
-                  fontSize: 14,
-                  padding: '8px 12px',
-                  borderRadius: tokens.radius.sm,
-                  background: 'var(--bg-inset)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                }}
-              >
-                ↓
-              </button>
-            )}
-          </div>
+          {/* Action buttons. In editorial mode (Focus Mode), Swap lives in
+              the header chip pills and reorder is handled by the bottom-nav
+              REORDER sheet — so we hide all of these. In non-editorial
+              accordion mode they remain available. */}
+          {!editorial && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {!done && !readOnly && (
+                <button
+                  onClick={() => onSwapClick(exIdx)}
+                  style={{
+                    flex: 1,
+                    minWidth: 70,
+                    fontSize: 12,
+                    padding: '8px 12px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-accent)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Swap
+                </button>
+              )}
+              {!done && !readOnly && onMoveUp && !isFirst && (
+                <button
+                  onClick={() => onMoveUp(exIdx)}
+                  aria-label="Move exercise up"
+                  style={{
+                    fontSize: 14,
+                    padding: '8px 12px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ↑
+                </button>
+              )}
+              {!done && !readOnly && onMoveDown && !isLast && (
+                <button
+                  onClick={() => onMoveDown(exIdx)}
+                  aria-label="Move exercise down"
+                  style={{
+                    fontSize: 14,
+                    padding: '8px 12px',
+                    borderRadius: tokens.radius.sm,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ↓
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Notes section */}
           {noteOpen && (

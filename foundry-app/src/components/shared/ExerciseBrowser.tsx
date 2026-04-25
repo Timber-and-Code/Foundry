@@ -146,7 +146,16 @@ function ExerciseBrowser({
           borderBottom: '1px solid var(--border-subtle, var(--border))',
         }}
       >
-        <div style={{ position: 'relative' }}>
+        {/* Border + ring live on this WRAPPER, driven by :focus-within
+            instead of any React state or input :focus rule. The browser
+            keeps :focus-within true the entire time the input child holds
+            focus, so the ring can't blink, fade, or get wiped by a
+            re-render. The inner <input> is borderless + transparent so
+            no other focus rule can re-paint it. */}
+        <div
+          className="foundry-search-wrap"
+          style={{ position: 'relative' }}
+        >
           <span
             aria-hidden="true"
             style={{
@@ -157,6 +166,7 @@ function ExerciseBrowser({
               fontSize: 14,
               color: 'var(--text-muted)',
               pointerEvents: 'none',
+              zIndex: 1,
             }}
           >
             &#x1F50D;
@@ -171,14 +181,36 @@ function ExerciseBrowser({
               width: '100%',
               padding: '10px 12px 10px 34px',
               borderRadius: tokens.radius.md,
-              border: '1px solid var(--border)',
+              border: '1px solid transparent',
               background: 'var(--bg-inset)',
               color: 'var(--text-primary)',
               fontSize: 13,
               outline: 'none',
               boxSizing: 'border-box',
+              transition: 'none',
+              position: 'relative',
+              zIndex: 0,
             }}
           />
+          <style>{`
+            .foundry-search-wrap {
+              border-radius: ${tokens.radius.md}px;
+              transition: none !important;
+            }
+            .foundry-search-wrap > input {
+              border: 1px solid var(--border) !important;
+              box-shadow: none !important;
+              transition: none !important;
+            }
+            .foundry-search-wrap:focus-within > input,
+            .foundry-search-wrap > input:focus,
+            .foundry-search-wrap > input:focus-visible {
+              border: 1px solid var(--accent) !important;
+              box-shadow: 0 0 0 2px var(--accent) !important;
+              outline: none !important;
+              transition: none !important;
+            }
+          `}</style>
           {search && (
             <button
               onClick={() => setSearch('')}

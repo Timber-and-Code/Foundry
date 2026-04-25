@@ -85,12 +85,15 @@ body {
   outline-offset: 2px;
 }
 
-/* ── Input styles ── */
+/* ── Input styles ──
+   Solid 2px orange focus ring on every input. The prior version used a
+   semi-transparent shadow + 150ms transition, which on iOS Safari read
+   as a flashing/fading orange highlight that decayed during typing. */
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 0 2px var(--accent) !important;
+  transition: none !important;
 }
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }

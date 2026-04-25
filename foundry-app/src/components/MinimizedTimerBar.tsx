@@ -8,103 +8,252 @@ interface RestTimer {
 
 interface MinimizedTimerBarProps {
   restTimer: RestTimer;
+  /** Tap handler. `done=true` when the timer has hit zero (acknowledge);
+   *  `done=false` while still running (expand to full overlay). */
   onTap: (done: boolean) => void;
 }
 
+/**
+ * Editorial rest timer.
+ *
+ * Two states, ported from /preview/hybrid/focus:
+ * - **Running** (`remaining > 0`): a small soft-shadow toast pinned above
+ *   the bottom nav. Shows "REST · MM:SS" + a Skip button. Tapping the
+ *   countdown expands to the full ring overlay (DayView).
+ * - **At zero** (`remaining === 0`): a blocking alarm modal.
+ *   "REST COMPLETE / NEXT SET / I'm Ready". `+30s` snoozes the timer
+ *   back into a 30-second resting window via the same onTap handler
+ *   (parent decides what +30s means; we only emit `done=false`).
+ *
+ * Replaces the prior heavy gradient-bar that lived at the bottom — the
+ * toast model is far less visually intrusive between sets.
+ */
 export default function MinimizedTimerBar({ restTimer, onTap }: MinimizedTimerBarProps) {
-  const { remaining, total, exName } = restTimer;
-  const pct = total > 0 ? remaining / total : 0;
-  const done = remaining === 0;
+  const { remaining, exName } = restTimer;
+  const done = remaining <= 0;
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
-  const timeStr =
-    mins > 0 ? `${mins}:${String(secs).padStart(2, '0')}` : `${String(secs).padStart(2, '0')}`;
-  const barColor = done ? 'var(--phase-accum)' : pct > 0.15 ? '#D4A03C' : '#a03333';
-  const barPct = total > 0 ? 1 - pct : 1;
+  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
+  if (done) {
+    // ── Blocking overtime alarm ─────────────────────────────────────────
+    return (
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="rest-alarm-title"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.78)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+          zIndex: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 360,
+            background: 'var(--bg-card)',
+            border: '2px solid var(--accent)',
+            borderRadius: 16,
+            padding: '24px 22px 20px',
+            textAlign: 'center',
+            fontFamily: 'inherit',
+            boxShadow: '0 18px 56px rgba(0,0,0,0.6), 0 0 0 8px rgba(232,101,26,0.14)',
+            animation: 'restAlarmGlow 1.4s ease-in-out infinite',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: '0.25em',
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              marginBottom: 6,
+              fontWeight: 700,
+            }}
+          >
+            Rest Complete
+          </div>
+          <h2
+            id="rest-alarm-title"
+            style={{
+              fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+              fontSize: 38,
+              letterSpacing: '0.02em',
+              color: 'var(--text-primary)',
+              margin: '0 0 4px 0',
+              lineHeight: 1,
+              fontWeight: 400,
+            }}
+          >
+            Next Set
+          </h2>
+          <div
+            style={{
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              marginBottom: 18,
+              fontWeight: 600,
+            }}
+          >
+            {exName}
+          </div>
+          <button
+            onClick={() => onTap(true)}
+            style={{
+              width: '100%',
+              height: 52,
+              borderRadius: tokens.radius.md,
+              background: 'var(--accent)',
+              color: 'var(--bg-root, #0A0A0C)',
+              fontSize: 15,
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 6px 20px rgba(232,101,26,0.4)',
+              fontFamily: 'inherit',
+            }}
+          >
+            I'm Ready
+          </button>
+          <div
+            style={{
+              fontSize: 11,
+              color: 'var(--text-muted)',
+              marginTop: 10,
+              lineHeight: 1.4,
+            }}
+          >
+            Alarm repeats until acknowledged
+          </div>
+        </div>
+        <style>{`
+          @keyframes restAlarmGlow {
+            0%, 100% { box-shadow: 0 18px 56px rgba(0,0,0,0.6), 0 0 0 8px rgba(232,101,26,0.14); }
+            50% { box-shadow: 0 18px 56px rgba(0,0,0,0.6), 0 0 0 14px rgba(232,101,26,0.22); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // ── Resting (countdown) toast ─────────────────────────────────────────
+  // Whole toast is the tap target — taps anywhere except Skip jump back
+  // to the workout. Mirrors the old MinimizedTimerBar's outer-div handler.
   return (
     <div
-      onClick={() => onTap(done)}
+      role="button"
+      tabIndex={0}
+      aria-label={`Resting · ${timeStr} · ${exName}. Tap to return to workout.`}
       data-coach="rest-timer"
+      onClick={() => onTap(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onTap(false);
+        }
+      }}
       style={{
         position: 'fixed',
-        bottom: 64,
-        left: 0,
-        right: 0,
+        bottom: 80,
+        left: 16,
+        right: 16,
+        maxWidth: 388,
+        margin: '0 auto',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderLeft: '3px solid var(--accent)',
+        borderRadius: tokens.radius.md,
+        padding: '12px 16px',
+        display: 'grid',
+        gridTemplateColumns: '1fr auto auto',
+        alignItems: 'center',
+        gap: 10,
         zIndex: 500,
-        background: barColor,
-        borderTop: `3px solid ${barColor}`,
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.5)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        fontFamily: 'inherit',
         cursor: 'pointer',
         userSelect: 'none',
-        maxWidth: 480,
-        margin: '0 auto',
       }}
     >
       <div
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          bottom: 0,
-          width: `${barPct * 100}%`,
-          background: 'rgba(0,0,0,0.22)',
-          transition: 'width 1s linear',
-        }}
-      />
-      <div
-        style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '14px 16px',
-          position: 'relative',
-          zIndex: 1,
+          alignItems: 'baseline',
+          gap: 12,
+          textAlign: 'left',
+          color: 'inherit',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
-            style={{
-              fontSize: 24,
-              fontWeight: 900,
-              color: '#fff',
-              fontVariantNumeric: 'tabular-nums',
-              minWidth: 54,
-              lineHeight: 1,
-            }}
-          >
-            {done ? 'GO!' : timeStr}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: 'rgba(255,255,255,0.85)',
-                lineHeight: 1,
-              }}
-            >
-              {done ? 'Rest complete' : 'Resting'}
-            </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1 }}>{exName}</div>
-          </div>
-        </div>
-        <div
+        <span
+          aria-live="polite"
           style={{
-            fontSize: 12,
-            fontWeight: 800,
-            letterSpacing: '0.05em',
-            color: '#fff',
-            background: 'rgba(0,0,0,0.2)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: tokens.radius.md,
-            padding: '7px 12px',
-            whiteSpace: 'nowrap',
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
           }}
         >
-          {done ? 'DISMISS ✓' : 'RETURN ↑'}
-        </div>
+          Rest
+        </span>
+        <span
+          style={{
+            fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+            fontSize: 28,
+            color: 'var(--accent)',
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '0.02em',
+            fontWeight: 400,
+            lineHeight: 1,
+          }}
+        >
+          {timeStr}
+        </span>
       </div>
+      <div
+        style={{
+          fontSize: 11,
+          color: 'var(--text-muted)',
+          maxWidth: 90,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          fontWeight: 600,
+        }}
+      >
+        {exName}
+      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onTap(true);
+        }}
+        style={{
+          padding: '8px 14px',
+          border: '1px solid var(--border)',
+          borderRadius: tokens.radius.sm,
+          background: 'transparent',
+          fontSize: 12,
+          color: 'var(--text-secondary)',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+        }}
+      >
+        Skip
+      </button>
     </div>
   );
 }
