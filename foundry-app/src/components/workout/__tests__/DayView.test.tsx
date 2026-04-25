@@ -221,10 +221,12 @@ describe('DayView', () => {
     expect(screen.getByText(/START WORKOUT/i)).toBeInTheDocument();
   });
 
-  it('renders exercise cards for each exercise in the day', () => {
+  it('renders one focused exercise card at a time (Focus Mode)', () => {
     // Simulate workout already started so splash is skipped AND the main view
-    // (which gates on workoutStarted) renders ExerciseCards. The splash check
-    // reads via the mocked store; useWorkoutTimer reads the REAL localStorage.
+    // (which gates on workoutStarted) renders the focused ExerciseCard. The
+    // splash check reads via the mocked store; useWorkoutTimer reads the REAL
+    // localStorage. Focus Mode shows only the current exercise (others live in
+    // the progress strip + up-next peek), so we expect exactly one card.
     const startTime = String(Date.now() - 60000);
     localStorage.setItem('foundry:sessionStart:d0:w0', startTime);
     mocks.store.get.mockImplementation((key: string) => {
@@ -234,9 +236,10 @@ describe('DayView', () => {
 
     render(<DayView {...defaultProps()} />);
     const cards = screen.getAllByTestId('exercise-card');
-    expect(cards).toHaveLength(2);
+    expect(cards).toHaveLength(1);
     expect(cards[0]).toHaveTextContent('Bench Press');
-    expect(cards[1]).toHaveTextContent('Overhead Press');
+    // Second exercise is visible as the "Up next" peek rather than a full card
+    expect(screen.getByLabelText(/Up next: Overhead Press/)).toBeInTheDocument();
   });
 
   it('back button calls onBack', () => {

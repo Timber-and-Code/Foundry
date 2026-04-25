@@ -6,6 +6,7 @@ import {
   randomQuote,
   getMeso,
   getWeekPhase,
+  PHASE_COLOR,
 } from '../../data/constants';
 import { loadArchive } from '../../utils/archive';
 import { getExerciseDB, findExercise } from '../../data/exerciseDB';
@@ -221,10 +222,6 @@ function DayView({
   // has any BW-based exercises AND the prompt hasn't been shown yet this
   // week. Mid-workout per-exercise prompts were removed: they interrupted
   // the user's flow and didn't match the "gather signals up front" model.
-  const handleExpandToggle = (i: number) => {
-    setExpandedIdx(expandedIdx === i ? null : i);
-  };
-
   // Future sessions: load raw (empty) data so inputs show blank, not suggestions
   const [weekData, setWeekData] = useState(() =>
     isFutureSession
@@ -233,6 +230,10 @@ function DayView({
   );
   const [notes] = useState(() => loadNotes(dayIdx, weekIdx));
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
+  // Focus Mode: which exercise is on screen in-workout. User-controlled via
+  // prev/next + progress-strip taps; auto-advances when the current exercise
+  // becomes done.
+  const [focusedIdx, setFocusedIdx] = useState<number>(0);
   const [doneExercises, setDoneExercises] = useState<Set<number>>(() => {
     if (isFutureSession) return new Set<number>(); // future — nothing is done
     const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile);
@@ -410,6 +411,29 @@ function DayView({
     }
     return -1; // all done
   }, [exercises.length, doneExercises, isDone, isLocked]);
+
+  // Focus Mode auto-advance: when the currently-focused exercise becomes done,
+  // jump to the next incomplete one. Respects user-intent: if they've already
+  // navigated past a completed ex (forward or backward), don't yank them.
+  useEffect(() => {
+    if (exercises.length === 0) return;
+    if (focusedIdx >= exercises.length) {
+      setFocusedIdx(Math.max(0, exercises.length - 1));
+      return;
+    }
+    if (doneExercises.has(focusedIdx) && activeExIdx >= 0 && activeExIdx !== focusedIdx) {
+      setFocusedIdx(activeExIdx);
+    }
+  }, [doneExercises, activeExIdx, focusedIdx, exercises.length]);
+
+  // Keep expandedIdx pinned to focusedIdx in-workout so the active card is
+  // always the one on screen (other cards are hidden entirely in Focus Mode).
+  useEffect(() => {
+    if (workoutStarted && expandedIdx !== focusedIdx) {
+      setExpandedIdx(focusedIdx);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedIdx, workoutStarted]);
 
   // prevWeekNotes memo — reserved for previous week notes callout
 
@@ -1294,50 +1318,93 @@ function DayView({
         <div aria-hidden="true" />
       </div>
 
-      {/* Exercise Cards */}
-      {exercises.map((ex: Exercise, i: number) => {
+      {/* ── Focus Mode: progress strip + single exercise + up-next + prev/next nav ── */}
+      {(() => {
+        const phaseName = getWeekPhase()[weekIdx] || 'Accumulation';
+        const pc = (PHASE_COLOR as Record<string, string>)[phaseName] || 'var(--accent)';
+        const clampedFocus = Math.max(0, Math.min(focusedIdx, exercises.length - 1));
+        const focusEx = exercises[clampedFocus];
+        if (!focusEx) return null;
+        // Up next = first incomplete exercise strictly after the focused one
+        let upNextIdx: number | null = null;
+        for (let j = clampedFocus + 1; j < exercises.length; j++) {
+          if (!doneExercises.has(j)) { upNextIdx = j; break; }
+        }
         let supersetPartnerName2: string | undefined;
-        if (ex.supersetWith != null) {
-          supersetPartnerName2 = exercises[ex.supersetWith]?.name;
+        if (focusEx.supersetWith != null) {
+          supersetPartnerName2 = exercises[focusEx.supersetWith]?.name;
         } else {
-          const primary = exercises.find((e) => e.supersetWith === i);
+          const primary = exercises.find((e) => e.supersetWith === clampedFocus);
           if (primary) supersetPartnerName2 = primary.name;
         }
         return (
-          <div key={i} id={`ex-${i}`} style={{ marginBottom: 12 }}>
-            <ExerciseCard
-              exercise={ex}
-              exIdx={i}
-              dayIdx={dayIdx}
-              weekIdx={weekIdx}
-              weekData={weekData}
-              onUpdateSet={handleUpdateSet}
-              onWeightAutoFill={handleWeightAutoFill}
-              onLastSetFilled={handleLastSetFilled}
-              expanded={expandedIdx === i}
-              onToggle={() => handleExpandToggle(i)}
-              done={isDone}
-              readOnly={isLocked}
-              onSwapClick={(idx) => setSwapTarget({ exIdx: idx })}
-              onSetLogged={handleSetLogged}
-              bodyweight={profile?.weight}
-              note={exNotes[i] || ''}
-              onNoteChange={(idx: number, val: string) => {
-                const next = { ...exNotes, [idx]: val };
-                setExNotes(next);
-              }}
-              onAddSet={handleAddSet}
-              onRemoveSet={handleRemoveSet}
-              onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
-              onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
-              isFirst={i === 0}
-              isLast={i === exercises.length - 1}
-              active={workoutStarted && activeExIdx === i}
-              supersetPartnerName={supersetPartnerName2}
+          <>
+            <ProgressStrip
+              exercises={exercises}
+              doneExercises={doneExercises}
+              focusedIdx={clampedFocus}
+              phaseColor={pc}
+              onJump={(idx) => setFocusedIdx(idx)}
             />
-          </div>
+            {/* Active exercise — static orange accent border (brand-forward) */}
+            <div
+              id={`ex-${clampedFocus}`}
+              style={{
+                marginBottom: 12,
+                border: '1px solid var(--accent)',
+                borderRadius: tokens.radius.lg,
+                boxShadow: '0 0 0 1px var(--accent-glow, rgba(232,101,26,0.15))',
+                overflow: 'hidden',
+              }}
+            >
+              <ExerciseCard
+                exercise={focusEx}
+                exIdx={clampedFocus}
+                dayIdx={dayIdx}
+                weekIdx={weekIdx}
+                weekData={weekData}
+                onUpdateSet={handleUpdateSet}
+                onWeightAutoFill={handleWeightAutoFill}
+                onLastSetFilled={handleLastSetFilled}
+                expanded={true}
+                onToggle={() => { /* no-op in Focus Mode — card stays open */ }}
+                done={isDone}
+                readOnly={isLocked}
+                onSwapClick={(idx) => setSwapTarget({ exIdx: idx })}
+                onSetLogged={handleSetLogged}
+                bodyweight={profile?.weight}
+                note={exNotes[clampedFocus] || ''}
+                onNoteChange={(idx: number, val: string) => {
+                  const next = { ...exNotes, [idx]: val };
+                  setExNotes(next);
+                }}
+                onAddSet={handleAddSet}
+                onRemoveSet={handleRemoveSet}
+                onMoveUp={(idx) => { handleMoveExercise(idx, idx - 1); setFocusedIdx(idx - 1); }}
+                onMoveDown={(idx) => { handleMoveExercise(idx, idx + 1); setFocusedIdx(idx + 1); }}
+                isFirst={clampedFocus === 0}
+                isLast={clampedFocus === exercises.length - 1}
+                active={workoutStarted}
+                supersetPartnerName={supersetPartnerName2}
+              />
+            </div>
+            {upNextIdx !== null && (
+              <UpNextCard
+                exercise={exercises[upNextIdx]}
+                onJump={() => setFocusedIdx(upNextIdx!)}
+              />
+            )}
+            <FocusNav
+              canPrev={clampedFocus > 0}
+              canNext={clampedFocus < exercises.length - 1}
+              onPrev={() => setFocusedIdx(Math.max(0, clampedFocus - 1))}
+              onNext={() => setFocusedIdx(Math.min(exercises.length - 1, clampedFocus + 1))}
+              position={clampedFocus + 1}
+              total={exercises.length}
+            />
+          </>
         );
-      })}
+      })()}
 
       {/* Complete Workout Button */}
       {!isDone && !isLocked && (
@@ -1717,3 +1784,219 @@ function DayView({
 }
 
 export default React.memo(DayView);
+
+// ── ProgressStrip ────────────────────────────────────────────────────────────
+// One segment per exercise, matching the bar convention used on Home + Schedule
+// + Progress. done = phase color + glow, current = greyish-white static,
+// upcoming = subtle. Taps jump focus to that exercise.
+function ProgressStrip({
+  exercises,
+  doneExercises,
+  focusedIdx,
+  phaseColor,
+  onJump,
+}: {
+  exercises: Exercise[];
+  doneExercises: Set<number>;
+  focusedIdx: number;
+  phaseColor: string;
+  onJump: (idx: number) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Session progress"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${exercises.length}, 1fr)`,
+        gap: 4,
+        marginBottom: 14,
+      }}
+    >
+      {exercises.map((ex, i) => {
+        const done = doneExercises.has(i);
+        const isCurrent = !done && i === focusedIdx;
+        const segStyle: React.CSSProperties = {
+          height: 8,
+          borderRadius: 2,
+          background: 'var(--border-subtle, var(--border))',
+          transition: 'background 200ms',
+        };
+        if (done) {
+          segStyle.background = phaseColor;
+          segStyle.boxShadow = `0 0 6px ${phaseColor}88`;
+        } else if (isCurrent) {
+          segStyle.background = 'var(--text-secondary)';
+        }
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onJump(i)}
+            aria-label={`${ex.name}: ${done ? 'done' : isCurrent ? 'current' : 'upcoming'} — jump`}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '6px 0',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            <div style={segStyle} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── UpNextCard ───────────────────────────────────────────────────────────────
+// Compact peek at the next unfinished exercise. Tap to jump.
+function UpNextCard({
+  exercise,
+  onJump,
+}: {
+  exercise: Exercise;
+  onJump: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onJump}
+      aria-label={`Up next: ${exercise.name} — jump`}
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        padding: '12px 14px',
+        marginBottom: 12,
+        background: 'var(--bg-card)',
+        border: '1px dashed var(--border)',
+        borderRadius: tokens.radius.lg,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        color: 'var(--text-secondary)',
+      }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.16em',
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            marginBottom: 2,
+          }}
+        >
+          Up next
+        </div>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {exercise.name}
+        </div>
+      </div>
+      <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: 20 }}>›</span>
+    </button>
+  );
+}
+
+// ── FocusNav ─────────────────────────────────────────────────────────────────
+// Bottom prev/next nav for Focus Mode. 40px tall, minimal chrome.
+function FocusNav({
+  canPrev,
+  canNext,
+  onPrev,
+  onNext,
+  position,
+  total,
+}: {
+  canPrev: boolean;
+  canNext: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  position: number;
+  total: number;
+}) {
+  const btnBase: React.CSSProperties = {
+    height: 40,
+    padding: '0 14px',
+    background: 'transparent',
+    border: '1px solid var(--border)',
+    borderRadius: tokens.radius.md,
+    color: 'var(--text-secondary)',
+    fontSize: 13,
+    fontWeight: 700,
+    letterSpacing: '0.04em',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+  };
+  return (
+    <div
+      role="group"
+      aria-label="Exercise navigation"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr auto 1fr',
+        alignItems: 'center',
+        gap: 8,
+        margin: '4px 0 16px',
+      }}
+    >
+      <button
+        type="button"
+        onClick={onPrev}
+        disabled={!canPrev}
+        aria-label="Previous exercise"
+        style={{
+          ...btnBase,
+          justifySelf: 'start',
+          opacity: canPrev ? 1 : 0.35,
+          cursor: canPrev ? 'pointer' : 'default',
+        }}
+      >
+        <span aria-hidden="true">‹</span> Prev
+      </button>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.16em',
+          color: 'var(--text-muted)',
+          textTransform: 'uppercase',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {position} / {total}
+      </span>
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={!canNext}
+        aria-label="Next exercise"
+        style={{
+          ...btnBase,
+          justifySelf: 'end',
+          opacity: canNext ? 1 : 0.35,
+          cursor: canNext ? 'pointer' : 'default',
+        }}
+      >
+        Next <span aria-hidden="true">›</span>
+      </button>
+    </div>
+  );
+}
