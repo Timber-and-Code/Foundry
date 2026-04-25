@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 
 // Data
 import { PHASE_COLOR, getMeso, getWeekPhase, getWeekRir } from '../../data/constants';
@@ -70,15 +70,15 @@ function HomeView({
   // ── Tab navigation ─────────────────────────────────────────────────────
   const [tab, setTab] = useState('landing');
   const prevTabRef = useRef<string>('landing');
-  const goTo = (key: string | number) => {
+  const goTo = useCallback((key: string | number) => {
     prevTabRef.current = tab;
     setTab(String(key));
     window.scrollTo(0, 0);
-  };
-  const goBack = () => {
+  }, [tab]);
+  const goBack = useCallback(() => {
     setTab(prevTabRef.current || 'landing');
     window.scrollTo(0, 0);
-  };
+  }, []);
   if (tabRef) tabRef.current = goTo;
 
   useEffect(() => {
