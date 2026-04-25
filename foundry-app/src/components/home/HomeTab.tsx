@@ -81,6 +81,7 @@ function RestStateCard({
   nextDayIdx: _nextDayIdx,
   nextDayForCollapse,
   nextDayIdxForCollapse,
+  nextSessionDateStr,
   doneLabel,
   activeDays,
   displayWeek,
@@ -99,6 +100,9 @@ function RestStateCard({
   nextDayIdx: number;
   nextDayForCollapse: TrainingDay | null;
   nextDayIdxForCollapse: number;
+  /** ISO date (YYYY-MM-DD) of when the next not-yet-completed session is
+   *  scheduled. Surfaced as "Mon · Apr 27" above the workout label. */
+  nextSessionDateStr: string | null;
   doneLabel: string;
   activeDays: TrainingDay[];
   displayWeek: number;
@@ -292,8 +296,31 @@ function RestStateCard({
             }}
           >
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                Next Session
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Next Session
+                </div>
+                {nextSessionDateStr && (() => {
+                  const [y, m, d] = nextSessionDateStr.split('-').map(Number);
+                  const dt = new Date(y, m - 1, d);
+                  const today = new Date();
+                  const todayY = today.getFullYear();
+                  const todayM = today.getMonth();
+                  const todayD = today.getDate();
+                  const tomorrow = new Date(todayY, todayM, todayD + 1);
+                  const isTomorrow =
+                    dt.getFullYear() === tomorrow.getFullYear() &&
+                    dt.getMonth() === tomorrow.getMonth() &&
+                    dt.getDate() === tomorrow.getDate();
+                  const label = isTomorrow
+                    ? 'Tomorrow'
+                    : dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                  return (
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      · {label}
+                    </div>
+                  );
+                })()}
               </div>
               <div
                 style={{
@@ -457,6 +484,22 @@ function HomeTab({
   // that may stack 2 sessions on one day.
   const sessionDateMap = buildSessionDateMap(profile, activeDays.length, getMeso().totalWeeks);
 
+  // Find the calendar date the next not-yet-completed session lands on.
+  // Walks sessionDateMap chronologically from today forward and returns
+  // the first date whose session-key isn't in completedDays. Surfaces on
+  // the rest-state Next Session card so users see "Mon · Apr 27" not
+  // just the workout name.
+  const nextSessionDateStr = (() => {
+    const sortedDates = Object.keys(sessionDateMap).sort();
+    for (const d of sortedDates) {
+      if (d < todayCardioStr) continue;
+      const raw = sessionDateMap[d];
+      const keys = Array.isArray(raw) ? raw : [raw];
+      const firstUndone = keys.find((k) => !completedDays.has(k));
+      if (firstUndone) return d;
+    }
+    return null;
+  })();
   const calendarEntryRaw = sessionDateMap[todayCardioStr];
   const todayKeys: string[] = calendarEntryRaw == null
     ? []
@@ -988,6 +1031,7 @@ function HomeTab({
           nextDayIdx={nextDayIdx}
           nextDayForCollapse={nextDay}
           nextDayIdxForCollapse={nextDayIdx}
+          nextSessionDateStr={nextSessionDateStr}
           doneLabel={doneLabel}
           activeDays={activeDays}
           displayWeek={displayWeek}
