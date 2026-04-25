@@ -917,6 +917,11 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           );
         })()}
 
+        {/* Lifts by muscle — comprehensive view of every tracked lift this
+            meso, bucketed by muscle group, expandable per group. Complements
+            the anchor-only ESTIMATED 1RM card above. */}
+        <LiftsByMuscle activeDays={activeDays} />
+
         </>
         )}
 
@@ -1505,6 +1510,237 @@ function MesoWeeksBar({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── LiftsByMuscle ─────────────────────────────────────────────────────────────
+// Walks all (dayIdx, exIdx) pairs in this meso, dedupes by exercise name,
+// merges sparkline data across days, then buckets by muscle group. Each
+// muscle group is an expandable card showing each lift's start → current
+// (with PR if it's ahead).
+type LiftRow = { name: string; start: number; end: number; pr: number };
+
+function LiftsByMuscle({ activeDays }: { activeDays: TrainingDay[] }) {
+  const byMuscle = useMemo(() => {
+    const totalWeeks = getMeso()?.totalWeeks || 7;
+    const byName = new Map<string, { muscle: string; pts: { week: number; w: number }[] }>();
+    activeDays.forEach((day, dayIdx) => {
+      day.exercises.forEach((ex: Exercise, exIdx: number) => {
+        if (!ex?.name) return;
+        const pts = loadSparklineData(dayIdx, exIdx, totalWeeks);
+        if (!pts.length) return;
+        const existing = byName.get(ex.name);
+        const merged = (existing?.pts || []).concat(
+          pts.map((p) => ({ week: p.week, w: p.bestWeight }))
+        );
+        byName.set(ex.name, {
+          muscle: existing?.muscle || ex.muscle || 'Other',
+          pts: merged,
+        });
+      });
+    });
+    const rowsByMuscle = new Map<string, LiftRow[]>();
+    for (const [name, { muscle, pts }] of byName) {
+      if (pts.length === 0) continue;
+      pts.sort((a, b) => a.week - b.week);
+      const start = pts[0].w;
+      const end = pts[pts.length - 1].w;
+      const pr = pts.reduce((m, p) => Math.max(m, p.w), 0);
+      const m = (muscle || 'Other').toLowerCase();
+      if (!rowsByMuscle.has(m)) rowsByMuscle.set(m, []);
+      rowsByMuscle.get(m)!.push({ name, start, end, pr });
+    }
+    return Array.from(rowsByMuscle.entries())
+      .map(([muscle, lifts]) => ({
+        muscle,
+        lifts: lifts.sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => a.muscle.localeCompare(b.muscle));
+  }, [activeDays]);
+
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  if (byMuscle.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div
+        style={{
+          fontSize: 14,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          color: 'var(--accent)',
+          marginBottom: 8,
+        }}
+      >
+        LIFTS BY MUSCLE
+      </div>
+      {byMuscle.map(({ muscle, lifts }) => (
+        <MuscleLiftCard
+          key={muscle}
+          muscle={muscle}
+          lifts={lifts}
+          open={expanded === muscle}
+          onToggle={() => setExpanded(expanded === muscle ? null : muscle)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MuscleLiftCard({
+  muscle,
+  lifts,
+  open,
+  onToggle,
+}: {
+  muscle: string;
+  lifts: LiftRow[];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const totalDelta = lifts.reduce((sum, l) => sum + (l.end - l.start), 0);
+  const accent = 'var(--accent)';
+  return (
+    <div
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: tokens.radius.lg,
+        marginBottom: 10,
+        overflow: 'hidden',
+      }}
+    >
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        style={{
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          borderBottom: open ? '1px solid var(--border-subtle)' : 'none',
+          padding: '12px 14px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          color: 'inherit',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+              color: 'var(--text-primary)',
+              textTransform: 'uppercase',
+              lineHeight: 1,
+            }}
+          >
+            {muscle}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            {lifts.length} {lifts.length === 1 ? 'lift' : 'lifts'}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', marginRight: 8 }}>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: totalDelta > 0 ? accent : 'var(--text-secondary)',
+              fontVariantNumeric: 'tabular-nums',
+              lineHeight: 1,
+            }}
+          >
+            {totalDelta > 0 ? '+' : ''}
+            {totalDelta}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: 'var(--text-muted)',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              marginTop: 2,
+            }}
+          >
+            total lb
+          </div>
+        </div>
+        <span
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: 18,
+            transform: open ? 'rotate(90deg)' : 'none',
+            transition: 'transform 150ms',
+          }}
+          aria-hidden
+        >
+          ›
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '8px 14px 12px 14px' }}>
+          {lifts.map((l, i) => {
+            const d = l.end - l.start;
+            const isPRAhead = l.pr > l.end;
+            return (
+              <div
+                key={l.name}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  padding: '8px 0',
+                  borderBottom: i < lifts.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {l.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--text-muted)',
+                      fontVariantNumeric: 'tabular-nums',
+                      marginTop: 2,
+                    }}
+                  >
+                    {l.start} → {l.end} lb
+                    {isPRAhead ? ` · PR ${l.pr}` : ''}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: d > 0 ? accent : 'var(--text-secondary)',
+                    fontVariantNumeric: 'tabular-nums',
+                    lineHeight: 1,
+                  }}
+                >
+                  {d > 0 ? '+' : ''}
+                  {d}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

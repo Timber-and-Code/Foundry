@@ -83,7 +83,7 @@ function DayView({
   activeDays,
   onProfileUpdate,
 }: DayViewProps) {
-  const { restTimer, restTimerMinimized, setRestTimerMinimized, startRestTimer, dismissRestTimer } =
+  const { restTimer, restTimerMinimized, setRestTimerMinimized, startRestTimer, dismissRestTimer, snoozeRestTimer } =
     useRestTimer();
   const { showToast } = useToast();
   const {
@@ -1543,11 +1543,16 @@ function DayView({
         </div>
       )}
 
-      {/* Full-screen Rest Timer Overlay */}
+      {/* Full-screen Rest Timer Overlay. In overtime, becomes a blocking
+          alertdialog with looping haptic+beep until the user taps "I'm Ready"
+          or "+30s" — see rest_timer_alarm_decision.md. */}
       {restTimer && !restTimerMinimized && (() => {
         const rt = restTimer;
         const pct = rt.total > 0 ? rt.remaining / rt.total : 0;
-        const done = rt.remaining === 0;
+        const overtime = rt.remaining === 0;
+        const otMins = Math.floor(rt.overtimeSeconds / 60);
+        const otSecs = rt.overtimeSeconds % 60;
+        const otDisplay = `+${otMins}:${String(otSecs).padStart(2, '0')}`;
         const mins = Math.floor(rt.remaining / 60);
         const secs = rt.remaining % 60;
         const timeDisplay = mins > 0
@@ -1557,11 +1562,13 @@ function DayView({
         const CIRC = 2 * Math.PI * R;
         const dash = CIRC * pct;
         const gap = CIRC - dash;
-        const ringColor = done ? 'var(--phase-accum)' : pct > 0.25 ? '#D4A03C' : '#a03333';
+        const ringColor = overtime ? 'var(--accent)' : pct > 0.25 ? '#D4A03C' : '#a03333';
 
         return (
           <div
-            onClick={done ? dismissRestTimer : undefined}
+            role={overtime ? 'alertdialog' : 'dialog'}
+            aria-modal="true"
+            aria-labelledby="rest-timer-heading"
             data-coach="rest-timer"
             style={{
               position: 'fixed',
@@ -1573,29 +1580,28 @@ function DayView({
               alignItems: 'center',
               justifyContent: 'center',
               gap: 24,
-              cursor: done ? 'pointer' : 'default',
             }}
           >
             {/* Exercise name */}
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <div id="rest-timer-heading" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {rt.exName}
             </div>
 
-            {/* Countdown ring + time */}
+            {/* Countdown ring + time (+ overtime counter) */}
             <div style={{ position: 'relative', width: 224, height: 224 }}>
               <svg width="224" height="224" style={{ transform: 'rotate(-90deg)' }}>
                 <circle cx="112" cy="112" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
                 <circle
                   cx="112" cy="112" r={R}
                   fill="none" stroke={ringColor} strokeWidth="8" strokeLinecap="round"
-                  strokeDasharray={`${dash} ${gap}`}
+                  strokeDasharray={overtime ? `${CIRC} 0` : `${dash} ${gap}`}
                   style={{ transition: 'stroke-dasharray 0.5s linear, stroke 0.5s' }}
                 />
               </svg>
               <div
                 aria-live="polite"
                 aria-atomic="true"
-                aria-label={`Rest time remaining: ${rt.remaining} seconds`}
+                aria-label={overtime ? `Rest over by ${rt.overtimeSeconds} seconds` : `Rest time remaining: ${rt.remaining} seconds`}
                 style={{
                   position: 'absolute',
                   inset: 0,
@@ -1606,58 +1612,99 @@ function DayView({
                 }}
               >
                 <div style={{
-                  fontSize: 88,
+                  fontSize: overtime ? 64 : 88,
                   fontWeight: 900,
-                  color: done ? 'var(--phase-accum)' : 'var(--text-primary)',
+                  color: overtime ? 'var(--accent)' : 'var(--text-primary)',
                   lineHeight: 1,
                   fontVariantNumeric: 'tabular-nums',
                   letterSpacing: '-0.04em',
                 }}>
-                  {done ? 'GO' : timeDisplay}
+                  {overtime ? otDisplay : timeDisplay}
                 </div>
-                {!done && (
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, marginTop: 4 }}>
-                    {mins > 0 ? 'min' : 'sec'}
-                  </div>
-                )}
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, marginTop: 4, letterSpacing: '0.06em' }}>
+                  {overtime ? 'OVER' : (mins > 0 ? 'min' : 'sec')}
+                </div>
               </div>
             </div>
 
-            {/* I'm Ready / Dismiss button */}
-            <button
-              onClick={dismissRestTimer}
-              style={{
-                padding: '16px 48px',
-                borderRadius: tokens.radius.xl,
-                cursor: 'pointer',
-                fontSize: 16,
-                fontWeight: 800,
-                letterSpacing: '0.04em',
-                background: done ? 'var(--phase-accum)' : 'transparent',
-                border: done ? 'none' : '2px solid rgba(255,255,255,0.25)',
-                color: done ? '#000' : 'var(--text-primary)',
-                transition: 'all 0.3s',
-              }}
-            >
-              {done ? "LET'S GO" : "I'm Ready"}
-            </button>
+            {/* Action row — overtime gets two buttons (snooze + ready),
+                otherwise a single "I'm Ready" early-dismiss */}
+            {overtime ? (
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => snoozeRestTimer(30)}
+                  aria-label="Snooze 30 seconds"
+                  style={{
+                    padding: '14px 28px',
+                    borderRadius: tokens.radius.xl,
+                    cursor: 'pointer',
+                    fontSize: 15,
+                    fontWeight: 800,
+                    letterSpacing: '0.04em',
+                    background: 'transparent',
+                    border: '2px solid rgba(255,255,255,0.25)',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  +30s
+                </button>
+                <button
+                  onClick={dismissRestTimer}
+                  aria-label="I'm ready, dismiss alarm"
+                  style={{
+                    padding: '14px 36px',
+                    borderRadius: tokens.radius.xl,
+                    cursor: 'pointer',
+                    fontSize: 15,
+                    fontWeight: 800,
+                    letterSpacing: '0.04em',
+                    background: 'var(--accent)',
+                    border: 'none',
+                    color: '#000',
+                    boxShadow: '0 0 24px rgba(232,101,26,0.45)',
+                  }}
+                >
+                  I'M READY
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={dismissRestTimer}
+                style={{
+                  padding: '16px 48px',
+                  borderRadius: tokens.radius.xl,
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  background: 'transparent',
+                  border: '2px solid rgba(255,255,255,0.25)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                I'm Ready
+              </button>
+            )}
 
-            {/* Minimize button */}
-            <button
-              onClick={() => setRestTimerMinimized(true)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                color: 'var(--text-dim)',
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                marginTop: 8,
-              }}
-            >
-              MINIMIZE
-            </button>
+            {/* Minimize — only available pre-zero. Once the alarm is firing
+                you have to acknowledge with one of the two buttons above. */}
+            {!overtime && (
+              <button
+                onClick={() => setRestTimerMinimized(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  color: 'var(--text-dim)',
+                  fontWeight: 600,
+                  letterSpacing: '0.06em',
+                  marginTop: 8,
+                }}
+              >
+                MINIMIZE
+              </button>
+            )}
           </div>
         );
       })()}

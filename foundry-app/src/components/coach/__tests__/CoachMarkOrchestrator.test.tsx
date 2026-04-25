@@ -73,7 +73,7 @@ describe('CoachMarkOrchestrator', () => {
     }
   });
 
-  it('queues a second mark while the first is open and shows it on dismiss', () => {
+  it('queues a second mark while the first is open and shows it after the cooldown', () => {
     // Provide both anchors so both marks can attempt to show
     const anchor1 = document.createElement('div');
     anchor1.setAttribute('data-coach', 'anchor-hammer');
@@ -81,6 +81,7 @@ describe('CoachMarkOrchestrator', () => {
     const anchor2 = document.createElement('div');
     anchor2.setAttribute('data-coach', 'rpe-prompt');
     document.body.appendChild(anchor2);
+    vi.useFakeTimers();
     try {
       render(<CoachMarkOrchestrator />);
       act(() => {
@@ -91,10 +92,17 @@ describe('CoachMarkOrchestrator', () => {
       expect(screen.getByText(/the hammer marks anchor lifts/i)).toBeInTheDocument();
       expect(screen.queryByText(/easy means we push more/i)).not.toBeInTheDocument();
 
-      // Dismiss first, second appears
+      // Dismiss first — cooldown holds the second back
       fireEvent.click(screen.getByRole('button', { name: /got it/i }));
+      expect(screen.queryByText(/easy means we push more/i)).not.toBeInTheDocument();
+
+      // Advance past the 30s cooldown — second appears
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
       expect(screen.getByText(/easy means we push more/i)).toBeInTheDocument();
     } finally {
+      vi.useRealTimers();
       document.body.removeChild(anchor1);
       document.body.removeChild(anchor2);
     }

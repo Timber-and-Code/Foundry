@@ -11,12 +11,19 @@ import { COACH_MARKS, CoachMarkDef, coachFlagKey } from './marks';
  *
  * Generic orchestrator — does not import or know about specific marks
  * beyond what's in marks.ts.
+ *
+ * Cooldown: after a mark is dismissed, the next queued mark is held for
+ * COOLDOWN_MS so users aren't dogpiled by tips during the first session.
  */
+const COOLDOWN_MS = 30_000;
+
 export default function CoachMarkOrchestrator() {
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
   const activeRef = useRef<string | null>(null);
   const queueRef = useRef<string[]>([]);
   const dwellTimersRef = useRef<Map<string, number>>(new Map());
+  const lastDismissedAtRef = useRef<number>(0);
+  const cooldownTimerRef = useRef<number | null>(null);
 
   // Keep activeRef in sync with state (used for synchronous decisions in
   // enqueue that can't rely on stale closures).
@@ -24,16 +31,30 @@ export default function CoachMarkOrchestrator() {
     activeRef.current = activeMarkId;
   }, [activeMarkId]);
 
+  const showNextOrSchedule = () => {
+    if (activeRef.current) return;
+    if (queueRef.current.length === 0) return;
+    const elapsed = Date.now() - lastDismissedAtRef.current;
+    if (lastDismissedAtRef.current && elapsed < COOLDOWN_MS) {
+      // Still cooling down — schedule a single retry for when cooldown elapses
+      if (cooldownTimerRef.current) return;
+      cooldownTimerRef.current = window.setTimeout(() => {
+        cooldownTimerRef.current = null;
+        showNextOrSchedule();
+      }, COOLDOWN_MS - elapsed);
+      return;
+    }
+    const next = queueRef.current.shift()!;
+    activeRef.current = next;
+    setActiveMarkId(next);
+  };
+
   const enqueue = (id: string) => {
     if (store.get(coachFlagKey(id)) === '1') return;
     if (activeRef.current === id) return;
     if (queueRef.current.includes(id)) return;
     queueRef.current.push(id);
-    if (!activeRef.current) {
-      const next = queueRef.current.shift()!;
-      activeRef.current = next;
-      setActiveMarkId(next);
-    }
+    showNextOrSchedule();
   };
 
   // Set up listeners per mark
@@ -91,10 +112,21 @@ export default function CoachMarkOrchestrator() {
     if (!activeMarkId) return;
     store.set(coachFlagKey(activeMarkId), '1');
     emit('foundry:coach-mark-dismissed', { conceptId: activeMarkId });
-    const next = queueRef.current.shift() ?? null;
-    activeRef.current = next;
-    setActiveMarkId(next);
+    lastDismissedAtRef.current = Date.now();
+    activeRef.current = null;
+    setActiveMarkId(null);
+    showNextOrSchedule();
   };
+
+  // Clean up any pending cooldown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
+    };
+  }, []);
 
   if (!activeMarkId) return null;
   const mark: CoachMarkDef | undefined = COACH_MARKS.find((m) => m.id === activeMarkId);
