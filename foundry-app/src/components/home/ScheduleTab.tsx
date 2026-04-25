@@ -650,7 +650,7 @@ function ScheduleTab({
         </button>
       </div>
 
-      {/* Meso Overview nav card */}
+      {/* Meso Overview nav card — title row + full-width phase bar */}
       <div style={{ padding: '8px 12px 0' }}>
         <button
           onClick={() => goTo('overview')}
@@ -666,8 +666,10 @@ function ScheduleTab({
             boxShadow: 'var(--shadow-sm)',
             transition: 'border-color 0.15s, transform 0.12s',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
+            gap: 12,
+            fontFamily: 'inherit',
+            color: 'inherit',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = 'var(--phase-deload)';
@@ -680,64 +682,96 @@ function ScheduleTab({
           onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.99)')}
           onMouseUp={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: tokens.radius.sm,
-                background: 'var(--phase-deload)18',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {overviewIcon('var(--phase-deload)')}
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.2,
-                }}
-              >
-                Meso Overview
-              </div>
-              <div
-                style={{
-                  fontSize: 14,
-                  color: 'var(--text-muted)',
-                  marginTop: 2,
-                }}
-              >
-                Phases & session breakdown
-              </div>
-            </div>
-          </div>
+          {/* Title row */}
           <div
             style={{
               display: 'flex',
-              gap: 2,
               alignItems: 'center',
-              marginLeft: 12,
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <div
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: tokens.radius.sm,
+                  background: 'var(--phase-deload)18',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {overviewIcon('var(--phase-deload)')}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Meso Overview
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: 'var(--text-muted)',
+                    marginTop: 2,
+                  }}
+                >
+                  Phases &amp; session breakdown
+                </div>
+              </div>
+            </div>
+            <span
+              aria-hidden="true"
+              style={{
+                color: 'var(--text-muted)',
+                fontSize: 22,
+                flexShrink: 0,
+              }}
+            >
+              ›
+            </span>
+          </div>
+
+          {/* Full-width phase bar — one segment per week, phase-colored.
+              done = past weeks (full color + glow), current = filled with
+              text-primary outline, upcoming = dim phase color. Mirrors the
+              MesoWeeksBar on the Progress tab + the bar inside the modal. */}
+          <div
+            role="group"
+            aria-label="Meso week phases"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${getMeso().totalWeeks}, 1fr)`,
+              gap: 4,
+              alignItems: 'end',
             }}
           >
             {Array.from({ length: getMeso().totalWeeks }, (_, w) => {
-              const wColor = (PHASE_COLOR as Record<string, any>)[getWeekPhase()[w]] || 'var(--accent)';
-              const isActive = w === activeWeek;
+              const phaseName = getWeekPhase()[w] || 'Accumulation';
+              const color = (PHASE_COLOR as Record<string, any>)[phaseName] || 'var(--accent)';
+              const isCurrent = w === activeWeek;
+              const isDone = w < activeWeek;
+              const segStyle: React.CSSProperties = {
+                height: 10,
+                borderRadius: 3,
+                background: isDone ? color : isCurrent ? color : `${color}4D`,
+                boxShadow: isDone ? `0 0 6px ${color}88` : undefined,
+                border: isCurrent ? '1.5px solid var(--text-primary)' : '1px solid transparent',
+                transition: 'background 200ms, box-shadow 200ms',
+              };
               return (
                 <div
                   key={w}
-                  style={{
-                    width: isActive ? 10 : 6,
-                    height: 6,
-                    borderRadius: tokens.radius.xs,
-                    background: wColor,
-                    opacity: isActive ? 1 : 0.45,
-                    transition: 'width 0.2s',
-                  }}
+                  aria-label={`Week ${w + 1} ${phaseName}${isCurrent ? ' (current)' : isDone ? ' (done)' : ''}`}
+                  style={segStyle}
                 />
               );
             })}

@@ -108,14 +108,25 @@ function ExerciseCard({
 }: ExerciseCardProps) {
   const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression ?? '']?.[weekIdx];
 
-  // Onboarding v2: emit first-anchor-visible once per user when the first
-  // anchor exercise row mounts in a real DayView. CoachMarkOrchestrator
-  // listens and explains what the hammer means.
+  // Onboarding v2: emit first-anchor-visible once per user — but only AFTER
+  // the user has logged their first set. Firing on mount piled the hammer
+  // explainer on top of the establish/welcome marks before the user had
+  // even started training. Now: if first set already logged in a prior
+  // session, fire on mount; otherwise wait for foundry:first-set-logged.
   useEffect(() => {
-    if (exercise.anchor && !store.get('foundry:first_anchor_emitted')) {
+    if (!exercise.anchor) return;
+    if (store.get('foundry:first_anchor_emitted')) return;
+    const fire = () => {
+      if (store.get('foundry:first_anchor_emitted')) return;
       store.set('foundry:first_anchor_emitted', '1');
       window.dispatchEvent(new Event('foundry:first-anchor-visible'));
+    };
+    if (store.get('foundry:first_set_emitted')) {
+      fire();
+      return;
     }
+    window.addEventListener('foundry:first-set-logged', fire, { once: true });
+    return () => window.removeEventListener('foundry:first-set-logged', fire);
   }, [exercise.anchor]);
 
   // Min rep target derived from the exercise's rep range (e.g. "8-12" -> 8).

@@ -12,13 +12,17 @@ export function parseRestSeconds(restStr: string | undefined | null): number {
 
 import { Capacitor } from '@capacitor/core';
 
-type HapticType = 'tap' | 'done' | 'complete' | 'victory';
+type HapticType = 'tap' | 'done' | 'complete' | 'victory' | 'alarm' | 'alarm-heavy';
 
 const HAPTIC: Record<HapticType, number[]> = {
   tap: [40],
   done: [50, 40, 80],
   complete: [80, 50, 80, 50, 120],
   victory: [60, 30, 60, 30, 60, 30, 200],
+  // Rest-timer alarm cadence — single pulse repeated by the caller's loop
+  alarm: [140, 90, 140],
+  // Escalated cadence after 30s of overtime
+  'alarm-heavy': [180, 80, 180, 80, 260],
 };
 
 export function haptic(type: HapticType): void {
@@ -30,6 +34,10 @@ export function haptic(type: HapticType): void {
         const { Haptics, ImpactStyle, NotificationType } = await import('@capacitor/haptics');
         if (type === 'complete' || type === 'victory') {
           await Haptics.notification({ type: NotificationType.Success });
+          return;
+        }
+        if (type === 'alarm' || type === 'alarm-heavy') {
+          await Haptics.notification({ type: NotificationType.Warning });
           return;
         }
         await Haptics.impact({
