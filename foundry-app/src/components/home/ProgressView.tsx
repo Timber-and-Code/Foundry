@@ -5,6 +5,7 @@ import {
   TAG_ACCENT,
   PHASE_COLOR,
   getMeso,
+  getMesoRows,
   getWeekPhase,
 } from '../../data/constants';
 import {
@@ -60,32 +61,6 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
 
   const phase = getWeekPhase()[currentWeek] || 'Accumulation';
   const pc = (PHASE_COLOR as Record<string, string>)[phase];
-
-  const statBox = (label: string, value: string | number, color: string) => (
-    <div
-      style={{
-        flex: 1,
-        background: 'var(--bg-card)',
-        border: `1px solid ${color}33`,
-        borderRadius: tokens.radius.lg,
-        padding: '16px 12px',
-        textAlign: 'center',
-      }}
-    >
-      <div style={{ fontSize: 24, fontWeight: 900, color }}>{value}</div>
-      <div
-        style={{
-          fontSize: 14,
-          color: 'var(--text-secondary)',
-          marginTop: 4,
-          fontWeight: 600,
-          letterSpacing: '0.04em',
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
 
   // ── BW Chart ───────────────────────────────────────────────────────────────
   const BwChart = () => {
@@ -627,7 +602,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
         >
           {([
             { key: 'week', label: 'This Week' },
-            { key: 'history', label: 'History' },
+            { key: 'history', label: 'Meso History' },
           ] as const).map((t) => {
             const active = progressTab === t.key;
             return (
@@ -658,7 +633,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
 
         {progressTab === 'week' && (
         <>
-        {/* Week summary */}
+        {/* Week summary — header + weekly workout bar */}
         <div style={{ marginBottom: 16 }}>
           <div
             style={{
@@ -666,14 +641,41 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
               fontWeight: 700,
               letterSpacing: '0.04em',
               color: 'var(--accent)',
-              marginBottom: 8,
+              marginBottom: 10,
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: 8,
             }}
           >
-            WEEK {currentWeek + 1} SUMMARY · {phase.toUpperCase()}
+            <span>WEEK {currentWeek + 1} · {phase.toUpperCase()}</span>
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                letterSpacing: '0.04em',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {workoutsThisWeek}/{activeDays.length} done
+            </span>
           </div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            {statBox('THIS WEEK', `${workoutsThisWeek}/${activeDays.length}`, pc)}
-            {statBox('TOTAL SESSIONS', workoutsTotal, 'var(--accent)')}
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.lg,
+              padding: '14px 16px',
+              marginBottom: 12,
+            }}
+          >
+            <WeeklyWorkoutBar
+              activeDays={activeDays}
+              completedDays={completedDays}
+              currentWeek={currentWeek}
+              phaseColor={pc}
+            />
           </div>
           <VolumeLandmarksCard byTag={weekByTag} title="Volume This Week" />
         </div>
@@ -682,6 +684,40 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
 
         {progressTab === 'history' && (
         <>
+        {/* Meso session bar + N/M headline (replaces old TOTAL SESSIONS stat) */}
+        <div
+          style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: tokens.radius.lg,
+            padding: '14px 14px 12px 14px',
+            marginBottom: 14,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.16em',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+              }}
+            >
+              Sessions this meso
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontSize: 26, fontWeight: 800, color: pc, lineHeight: 1 }}>
+                {workoutsTotal}
+              </span>
+              <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)', lineHeight: 1 }}>
+                / {getMeso().totalWeeks * (getMeso().days || activeDays.length)}
+              </span>
+            </div>
+          </div>
+          <MesoWeeksBar currentWeek={currentWeek} />
+        </div>
+
         {/* BW trend */}
         <BwChart />
 
@@ -1271,7 +1307,7 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
           );
         })()}
 
-        {/* Full-width Meso History entry — History tab only */}
+        {/* Previous Meso Cycles — archive of past mesos (Meso History tab only) */}
         <button
           onClick={() => goTo('history')}
           style={{
@@ -1290,12 +1326,185 @@ export default function ProgressView({ currentWeek, completedDays, activeDays, g
             fontFamily: 'inherit',
           }}
         >
-          Meso History →
+          Previous Meso Cycles →
         </button>
         </>
         )}
 
       </div>
+    </div>
+  );
+}
+
+// ── WeeklyWorkoutBar ──────────────────────────────────────────────────────────
+// Mirrors the bar on HomeTab + Focus mode. One segment per training day;
+// done = phase color + glow, current = text-secondary (no pulse), upcoming = subtle.
+function WeeklyWorkoutBar({
+  activeDays,
+  completedDays,
+  currentWeek,
+  phaseColor,
+}: {
+  activeDays: TrainingDay[];
+  completedDays: Set<string>;
+  currentWeek: number;
+  phaseColor: string;
+}) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${activeDays.length}, 1fr)`,
+        gap: 4,
+        alignItems: 'end',
+      }}
+    >
+      {activeDays.map((day, i) => {
+        const done = completedDays.has(`${i}:${currentWeek}`);
+        const isCurrent =
+          !done &&
+          activeDays.slice(0, i).every((_, j) => completedDays.has(`${j}:${currentWeek}`));
+        const segStyle: React.CSSProperties = {
+          height: 10,
+          borderRadius: 3,
+          background: 'var(--border-subtle, var(--border))',
+          transition: 'background 200ms',
+        };
+        if (done) {
+          segStyle.background = phaseColor;
+          segStyle.boxShadow = `0 0 6px ${phaseColor}88`;
+        } else if (isCurrent) {
+          segStyle.background = 'var(--text-secondary)';
+        }
+        const tagColor = done
+          ? phaseColor
+          : isCurrent
+          ? 'var(--text-primary)'
+          : 'var(--text-muted)';
+        const label = day.label || day.tag || `Day ${i + 1}`;
+        return (
+          <div
+            key={i}
+            style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}
+          >
+            <div style={{ textAlign: 'center', minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: isCurrent ? 800 : 700,
+                  letterSpacing: '0.04em',
+                  color: tagColor,
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+              </div>
+            </div>
+            <div
+              style={segStyle}
+              aria-label={`${label}: ${done ? 'done' : isCurrent ? 'current' : 'upcoming'}`}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── MesoWeeksBar ──────────────────────────────────────────────────────────────
+// One segment per week of the meso (incl. deload). Phase-colored per row.
+// done = past weeks (full color + glow), current = filled with border outline,
+// upcoming = dim phase color.
+function MesoWeeksBar({
+  currentWeek,
+}: {
+  currentWeek: number;
+}) {
+  const rows = getMesoRows();
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${rows.length}, 1fr)`,
+        gap: 4,
+        alignItems: 'end',
+      }}
+    >
+      {rows.map((row, i) => {
+        const [weekIdx, , phase] = row;
+        const isDeload = weekIdx === null;
+        const color = (PHASE_COLOR as Record<string, string>)[phase] || 'var(--phase-deload)';
+        const isCurrent = weekIdx === currentWeek;
+        const completed = !isDeload && weekIdx !== null && weekIdx < currentWeek;
+        const label = isDeload ? 'DLD' : `W${(weekIdx ?? 0) + 1}`;
+        const shortPhase =
+          phase === 'Intensification'
+            ? 'Intens'
+            : phase === 'Accumulation'
+            ? 'Accum'
+            : phase === 'Establish'
+            ? 'Est'
+            : phase === 'DELOAD'
+            ? 'Deload'
+            : phase;
+        const segStyle: React.CSSProperties = {
+          height: 12,
+          borderRadius: 3,
+          background: completed ? color : isCurrent ? color : `${color}4D`,
+          boxShadow: completed ? `0 0 6px ${color}88` : undefined,
+          border: isCurrent ? '1.5px solid var(--text-primary)' : '1px solid transparent',
+          transition: 'background 200ms, box-shadow 200ms',
+        };
+        const weekLabelColor = isCurrent ? 'var(--text-primary)' : 'var(--text-muted)';
+        const phaseLabelColor = completed
+          ? color
+          : isCurrent
+          ? 'var(--text-primary)'
+          : `${color}B3`;
+        return (
+          <div
+            key={i}
+            aria-label={`${label} ${phase}${isCurrent ? ' (current)' : completed ? ' (done)' : ''}`}
+            style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}
+          >
+            <div style={{ textAlign: 'center', minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  letterSpacing: '0.15em',
+                  color: weekLabelColor,
+                  textTransform: 'uppercase',
+                  fontWeight: isCurrent ? 700 : 600,
+                  marginBottom: 2,
+                  lineHeight: 1,
+                }}
+              >
+                {label}
+              </div>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  color: phaseLabelColor,
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {shortPhase}
+              </div>
+            </div>
+            <div style={segStyle} />
+          </div>
+        );
+      })}
     </div>
   );
 }
