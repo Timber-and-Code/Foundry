@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { tokens } from '../../styles/tokens';
+import { haptic } from '../../utils/helpers';
 import type { Exercise } from '../../types';
 
 /**
@@ -185,6 +186,7 @@ export default function ReorderSheet({
     );
     if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
     onMove(fromIdx, toIdx);
+    try { haptic('tap'); } catch { /* haptic unavailable */ }
   };
 
   useEffect(() => {

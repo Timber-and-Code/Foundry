@@ -12,6 +12,7 @@ import {
   loadArchive,
 } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
+import { haptic } from '../../utils/helpers';
 import type { Exercise, DayData } from '../../types';
 import type { WarmupStep, WarmupDetail } from '../../utils/training';
 
@@ -344,6 +345,9 @@ function ExerciseCard({
     setDoneSets((prev) => new Set([...prev, s]));
     onLastSetFilled(exIdx, s);
     onSetLogged(exercise.rest || '0', exercise.name, s, true);
+    // Tactile ack for the skip — rest timer's own haptic won't fire here
+    // because we deliberately bypass it.
+    try { haptic('tap'); } catch { /* haptic unavailable on this platform */ }
   };
 
   const handleRpeSelect = (s: number, rpeLabel: string) => {
