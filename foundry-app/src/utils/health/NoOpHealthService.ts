@@ -21,4 +21,8 @@ export class NoOpHealthService implements HealthService {
   async readLatestBodyWeight(): Promise<WeightReading | null> {
     return null;
   }
+
+  async writeBodyWeight(): Promise<boolean> {
+    return false;
+  }
 }

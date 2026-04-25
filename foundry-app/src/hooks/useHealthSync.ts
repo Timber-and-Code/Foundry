@@ -23,7 +23,7 @@ async function syncBodyWeight() {
   const health = getHealthService();
   if (!(await health.isAvailable())) return;
 
-  const auth = await health.checkPermissions({ read: ['weight'], write: [] });
+  const auth = await health.checkPermissions({ read: ['weight'], write: ['weight'] });
   if (!auth.readAuthorized.includes('weight')) return;
 
   const reading = await health.readLatestBodyWeight();
@@ -55,7 +55,9 @@ async function syncBodyWeight() {
   const latestLbs = latest ? Number(latest.weight) : NaN;
   const matchesLog = !isNaN(latestLbs) && Math.abs(latestLbs - reading.pounds) < 0.2;
   if (!matchesLog) {
-    addBwEntry(reading.pounds);
+    // skipHealthWrite — the value just came FROM HealthKit; writing it
+    // back would create a ping-pong on every sync cycle.
+    addBwEntry(reading.pounds, { skipHealthWrite: true });
   }
 }
 

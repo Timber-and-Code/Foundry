@@ -24,7 +24,7 @@ export default function HealthSection() {
       if (cancelled) return;
       setAvailability(avail ? 'available' : 'unavailable');
       if (!avail) return;
-      const current = await health.checkPermissions({ read: ['weight'], write: [] });
+      const current = await health.checkPermissions({ read: ['weight'], write: ['weight'] });
       if (!cancelled) setAuth(current);
     })();
     return () => { cancelled = true; };
@@ -50,7 +50,7 @@ export default function HealthSection() {
     // Turning on — request perms if we don't have them yet
     if (!hasReadPerm) {
       try {
-        const result = await health.requestPermissions({ read: ['weight'], write: [] });
+        const result = await health.requestPermissions({ read: ['weight'], write: ['weight'] });
         setAuth(result);
         if (!result.readAuthorized.includes('weight')) {
           showToast('Permission denied — enable in iOS Settings → Health', 'warning');

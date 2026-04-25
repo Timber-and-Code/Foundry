@@ -50,4 +50,20 @@ export class CapacitorHealthService implements HealthService {
       return null;
     }
   }
+
+  async writeBodyWeight(pounds: number, takenAt?: Date): Promise<boolean> {
+    try {
+      const kg = pounds / KG_TO_LBS;
+      const stamp = (takenAt ?? new Date()).toISOString();
+      await Health.saveSample({
+        dataType: 'weight',
+        value: kg,
+        startDate: stamp,
+        endDate: stamp,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }

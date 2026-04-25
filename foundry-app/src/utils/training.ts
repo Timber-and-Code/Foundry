@@ -313,13 +313,33 @@ export function saveBwLog(entries: BodyWeightEntry[]): void {
   store.set('foundry:bwlog', JSON.stringify(entries));
 }
 
-export function addBwEntry(weight: number | string): BodyWeightEntry[] {
+export function addBwEntry(
+  weight: number | string,
+  opts: { skipHealthWrite?: boolean } = {},
+): BodyWeightEntry[] {
   const date = new Date().toISOString().slice(0, 10);
+  const lbs = parseFloat(String(weight));
   const entries = loadBwLog().filter((e) => e.date !== date);
-  entries.unshift({ date, weight: parseFloat(String(weight)) });
+  entries.unshift({ date, weight: lbs });
   if (entries.length > 52) entries.length = 52;
   saveBwLog(entries);
-  syncBodyWeightToSupabase(date, parseFloat(String(weight)));
+  syncBodyWeightToSupabase(date, lbs);
+  // Mirror to Apple Health / Health Connect — fire-and-forget, gated on
+  // the user's toggle. Lazy import keeps the web bundle from pulling the
+  // health module unnecessarily. Phase 1 of the health-write rollout —
+  // also makes Foundry visible under iOS Health → Sources, since Apple
+  // only lists apps that have written at least one sample.
+  // `skipHealthWrite` is set by the HK pull path so we don't echo a
+  // reading we just received back into HealthKit (would create a
+  // ping-pong on every sync cycle).
+  if (!opts.skipHealthWrite && store.get('foundry:health:enabled') === '1') {
+    void (async () => {
+      try {
+        const { getHealthService } = await import('./health');
+        await getHealthService().writeBodyWeight(lbs);
+      } catch { /* silent — UX never depends on the write */ }
+    })();
+  }
   return entries;
 }
 

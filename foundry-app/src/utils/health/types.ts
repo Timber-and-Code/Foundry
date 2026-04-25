@@ -35,6 +35,14 @@ export interface HealthService {
    * Value is already converted to pounds.
    */
   readLatestBodyWeight(): Promise<WeightReading | null>;
+
+  /**
+   * Write a body-weight sample to HealthKit / Health Connect.
+   * Pounds in, kg out (the platform native unit). Silently no-ops if
+   * write permission isn't granted — the caller shouldn't have to know.
+   * @returns true if the write succeeded, false otherwise.
+   */
+  writeBodyWeight(pounds: number, takenAt?: Date): Promise<boolean>;
 }
 
 export const KG_TO_LBS = 2.20462;
