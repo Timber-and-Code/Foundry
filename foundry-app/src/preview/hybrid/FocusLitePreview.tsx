@@ -98,6 +98,12 @@ export default function FocusLitePreview() {
   >(null);
   const [now, setNow] = useState(Date.now());
   const [ringSetIdx, setRingSetIdx] = useState<number | null>(null);
+  // When the lifter taps the check on a row with no reps entered, we hold
+  // the set index here and surface a confirm sheet — "Record 0 reps?" —
+  // instead of silently logging a placeholder. On confirm we log 0/0 and
+  // jump to the next unfinished exercise (skip-this-exercise shortcut);
+  // on cancel we drop the pending state and the row stays untouched.
+  const [pendingZeroSet, setPendingZeroSet] = useState<number | null>(null);
 
   const phaseColor = PHASE_COLORS[session.phase];
   const currentExercise = session.exercises[currentIdx];
@@ -425,8 +431,7 @@ export default function FocusLitePreview() {
           }}
         >
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1, minWidth: 0 }}>
-            {currentExercise.setsTarget} sets · {currentExercise.repLow}–{currentExercise.repHigh} reps · RPE{' '}
-            {currentExercise.rpeTarget}
+            {currentExercise.setsTarget} sets · {currentExercise.repLow}–{currentExercise.repHigh} reps
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
             <ChipButton onClick={() => setInfoOpen(true)}>How to</ChipButton>
@@ -527,7 +532,15 @@ export default function FocusLitePreview() {
                 active={isActive}
               />
               <button
-                onClick={() => logSet(i)}
+                onClick={() => {
+                  // Empty reps + transitioning to done → ask "Record 0?" first.
+                  // Already done, or reps filled, fall through to the normal log path.
+                  if (!isDone && (!set.reps || set.reps.trim() === '')) {
+                    setPendingZeroSet(i);
+                    return;
+                  }
+                  logSet(i);
+                }}
                 aria-label={isDone ? 'Unmark set' : 'Log set'}
                 style={{
                   width: 36,
@@ -667,7 +680,7 @@ export default function FocusLitePreview() {
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                 {session.exercises[upNextIdx].setsTarget} × {session.exercises[upNextIdx].repLow}–
-                {session.exercises[upNextIdx].repHigh} · RPE {session.exercises[upNextIdx].rpeTarget}
+                {session.exercises[upNextIdx].repHigh}
               </div>
             </div>
             <span aria-hidden style={{ color: 'var(--text-muted)', fontSize: 20 }}>›</span>
@@ -1018,6 +1031,124 @@ export default function FocusLitePreview() {
           ))}
         </MiniSheet>
       )}
+
+      {/* Empty-reps confirm — "Record 0 reps for this set?" Lifter chose to
+          skip; we log 0/0, suppress the rest timer (no work, no recovery
+          owed), and jump to the next unfinished exercise. */}
+      {pendingZeroSet !== null && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="zero-reps-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+          onClick={() => setPendingZeroSet(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              padding: '22px 20px 18px',
+              width: '100%',
+              maxWidth: 320,
+              fontFamily: 'var(--ff-body)',
+            }}
+          >
+            <div
+              id="zero-reps-title"
+              style={{
+                fontSize: 16,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                textAlign: 'center',
+                marginBottom: 8,
+              }}
+            >
+              Record 0 reps for this set?
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.5,
+                textAlign: 'center',
+                marginBottom: 18,
+              }}
+            >
+              We'll log it and jump to the next exercise. No rest timer.
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setPendingZeroSet(null)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 10,
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const setIdx = pendingZeroSet;
+                  setPendingZeroSet(null);
+                  // Log the set as 0/0 — empty weight implies skipped too.
+                  setSession((prev) => {
+                    const next = { ...prev, exercises: [...prev.exercises] };
+                    const ex = { ...next.exercises[currentIdx] };
+                    ex.sets = ex.sets.map((x, i) =>
+                      i === setIdx ? { ...x, done: true, weight: '0', reps: '0' } : x,
+                    );
+                    next.exercises[currentIdx] = ex;
+                    return next;
+                  });
+                  // No rest timer — they did no work.
+                  setRestTimer(null);
+                  // Auto-advance to the next unfinished exercise. If none
+                  // remain, stay put — the session-complete UI takes over.
+                  for (let j = currentIdx + 1; j < session.exercises.length; j++) {
+                    if (!session.exercises[j].sets.every((s) => s.done)) {
+                      setCurrentIdx(j);
+                      return;
+                    }
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 10,
+                  background: phaseColor,
+                  border: 'none',
+                  color: 'var(--bg-root)',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Record 0
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1109,14 +1240,14 @@ function ChipButton({ onClick, children }: { onClick: () => void; children: Reac
     <button
       onClick={onClick}
       style={{
-        padding: '6px 10px',
+        padding: '9px 14px',
         borderRadius: 999,
         border: '1px solid var(--border)',
         background: 'var(--bg-card)',
         color: 'var(--text-primary)',
         fontFamily: 'var(--ff-body)',
-        fontSize: 11,
-        fontWeight: 600,
+        fontSize: 13,
+        fontWeight: 700,
         letterSpacing: '0.02em',
         cursor: 'pointer',
         lineHeight: 1,
