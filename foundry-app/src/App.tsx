@@ -68,6 +68,13 @@ const NotFoundPage = React.lazy(() => import('./components/NotFoundPage'));
 const ShareModalPreview = React.lazy(
   () => import('./components/workout/ShareModalPreview'),
 );
+// Forge v2 UI preview — dev-only sandbox, entirely isolated from live app
+// state. Route is short-circuited in AuthGate below so it renders without
+// going through the auth / onboarding / meso gates.
+const ForgeV2FocusRoute = React.lazy(() => import('./preview/forge-v2'));
+// Hybrid preview: same interactions as forge-v2 but skinned with the
+// existing Foundry theme (Inter body, Bebas display, rounded cards).
+const HybridFocusRoute = React.lazy(() => import('./preview/hybrid'));
 const FriendInvitePage = React.lazy(
   () => import('./components/social/FriendInvitePage'),
 );
@@ -715,6 +722,23 @@ function AuthGate() {
     return (
       <React.Suspense fallback={null}>
         <ResetPasswordPage />
+      </React.Suspense>
+    );
+  }
+
+  // Forge v2 UI sandbox — dev-only preview, bypasses auth/profile gates so
+  // the mockup renders standalone. Never exposed in production builds.
+  if (import.meta.env.DEV && location.pathname.startsWith('/preview/forge-v2')) {
+    return (
+      <React.Suspense fallback={null}>
+        <ForgeV2FocusRoute />
+      </React.Suspense>
+    );
+  }
+  if (import.meta.env.DEV && location.pathname.startsWith('/preview/hybrid')) {
+    return (
+      <React.Suspense fallback={null}>
+        <HybridFocusRoute />
       </React.Suspense>
     );
   }
