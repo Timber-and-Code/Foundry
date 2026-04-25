@@ -54,6 +54,7 @@ import UnfinishedPromptModal from './UnfinishedPromptModal';
 import NoteReviewSheet from './NoteReviewSheet';
 import ReadinessSheet from './ReadinessSheet';
 import SwapMenu from './SwapMenu';
+import ReorderSheet from './ReorderSheet';
 import { buildSwapGroups } from '../../utils/swapGroups';
 import { expandEquipment } from '../../utils/program';
 import type { Profile, TrainingDay, Exercise } from '../../types';
@@ -444,6 +445,11 @@ function DayView({
   const [swapTarget, setSwapTarget] = useState<{ exIdx: number } | null>(null);
   const [swapPending, setSwapPending] = useState<{ exIdx: number; newExId: string } | null>(null);
   const [, setShowAddExercise] = useState(false);
+  // Reorder sheet (Focus Mode bottom-nav REORDER button) — drag-to-reorder
+  // + "+ Add exercise" entry point. The add path opens SwapMenu in
+  // append-mode via `addingExercise`; on select, we push instead of swap.
+  const [reorderOpen, setReorderOpen] = useState(false);
+  const [addingExercise, setAddingExercise] = useState(false);
 
   /* ── Swap: build exercise groups for picker ─────────────────────────────── */
   // Day-tag → EXERCISE_DB tag-set mapping lives in swapGroups.ts so the
@@ -460,27 +466,91 @@ function DayView({
   // reads "requires dumbbell/barbell" in the swap menu and biceps look missing.
   const userEquipment = useMemo(() => expandEquipment(profile?.equipment), [profile?.equipment]);
 
+  // Append a brand-new exercise onto the live session. Used by the Reorder
+  // sheet's "+ Add exercise" path. Resolves the picked id (DB or custom)
+  // into the same Exercise shape the rest of DayView renders, with sane
+  // defaults for sets/reps/rest. In-memory only — matches the existing
+  // reorder behavior; persistence is a separate feature.
+  const appendExercise = useCallback(
+    (newExId: string) => {
+      const dbEx = findExercise(newExId);
+      const customs = JSON.parse(store.get('foundry:customExercises') || '{}');
+      const customEx = !dbEx && newExId.startsWith('custom:') ? customs[newExId] : null;
+      const src = dbEx || customEx;
+      if (!src) return;
+      const next: typeof exercises[number] = {
+        id: src.id,
+        name: src.name,
+        muscle: src.muscle || 'other',
+        muscles: src.muscles || [src.muscle || 'other'],
+        equipment: src.equipment || 'other',
+        tag: src.tag || day?.tag || 'FULL',
+        anchor: false,
+        sets: src.sets || 3,
+        reps: src.reps || '8-12',
+        rest: src.rest || '2 min',
+        warmup: src.warmup || '1 feeler set',
+        progression: src.pattern === 'isolation' ? 'reps' : 'weight',
+        description: src.description || '',
+        videoUrl: src.videoUrl || '',
+        bw: !!src.bw,
+      };
+      setExercises((prev) => [...prev, next]);
+    },
+    [day?.tag],
+  );
+
   const handleSwap = useCallback(
     (newExId: string) => {
+      // Add-exercise path takes priority — Reorder sheet → SwapMenu (add mode).
+      if (addingExercise) {
+        appendExercise(newExId);
+        setAddingExercise(false);
+        return;
+      }
       if (swapTarget === null) return;
       // Show scope selector before executing
       setSwapPending({ exIdx: swapTarget.exIdx, newExId });
       setSwapTarget(null);
     },
-    [swapTarget],
+    [addingExercise, appendExercise, swapTarget],
   );
 
   const handleCustomExercise = useCallback(
     (name: string) => {
-      if (swapTarget === null) return;
-      const customId = `custom:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-      // Store custom exercise so ExerciseCard and other components can look it up
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const customId = `custom:${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
       const existing = JSON.parse(store.get('foundry:customExercises') || '{}');
+      // Add-exercise path: persist the custom to localStorage with the
+      // current day's tag so other views (sync, swap) resolve it later.
+      if (addingExercise) {
+        if (!existing[customId]) {
+          existing[customId] = {
+            id: customId,
+            name: trimmed,
+            muscle: 'other',
+            tag: day?.tag || 'FULL',
+            sets: 3,
+            reps: '8-12',
+            rest: '2 min',
+            equipment: 'other',
+            pattern: 'compound',
+            bw: false,
+          };
+          store.set('foundry:customExercises', JSON.stringify(existing));
+        }
+        appendExercise(customId);
+        setAddingExercise(false);
+        return;
+      }
+      if (swapTarget === null) return;
+      // Store custom exercise so ExerciseCard and other components can look it up
       if (!existing[customId]) {
         const original = exercises[swapTarget.exIdx];
         existing[customId] = {
           id: customId,
-          name,
+          name: trimmed,
           muscle: original?.muscle || 'other',
           tag: original?.tag || day?.tag || 'FULL',
           sets: original?.sets || 3,
@@ -496,7 +566,7 @@ function DayView({
       setSwapPending({ exIdx: swapTarget.exIdx, newExId: customId });
       setSwapTarget(null);
     },
-    [swapTarget, exercises, day?.tag],
+    [addingExercise, appendExercise, swapTarget, exercises, day?.tag],
   );
 
   const executeSwap = useCallback(
@@ -1222,11 +1292,20 @@ function DayView({
 
         {/* ── Exercise Swap (pre-workout) ──────────────────────────── */}
         <SwapMenu
-          open={swapTarget !== null}
-          onClose={() => setSwapTarget(null)}
-          replacingName={swapTarget !== null ? exercises[swapTarget.exIdx]?.name || '' : ''}
+          open={swapTarget !== null || addingExercise}
+          onClose={() => {
+            setSwapTarget(null);
+            setAddingExercise(false);
+          }}
+          replacingName={
+            addingExercise
+              ? 'Add exercise'
+              : swapTarget !== null
+              ? exercises[swapTarget.exIdx]?.name || ''
+              : ''
+          }
           exerciseGroups={swapExGroups}
-          autoExpandMuscle={swapMuscle}
+          autoExpandMuscle={addingExercise ? undefined : swapMuscle}
           userEquipment={userEquipment}
           onSelect={handleSwap}
           onCustomExercise={handleCustomExercise}
@@ -1398,12 +1477,36 @@ function DayView({
               canNext={clampedFocus < exercises.length - 1}
               onPrev={() => setFocusedIdx(Math.max(0, clampedFocus - 1))}
               onNext={() => setFocusedIdx(Math.min(exercises.length - 1, clampedFocus + 1))}
+              onReorder={() => setReorderOpen(true)}
               position={clampedFocus + 1}
               total={exercises.length}
             />
           </>
         );
       })()}
+
+      {/* Reorder sheet — drag-to-reorder + add-exercise entry point. Mounted
+          here so it overlays Focus Mode. Drag commits via handleMoveExercise,
+          jumps via setFocusedIdx, add opens SwapMenu in append mode. */}
+      {reorderOpen && (
+        <ReorderSheet
+          exercises={exercises}
+          currentIdx={Math.max(0, Math.min(focusedIdx, exercises.length - 1))}
+          doneIndices={doneExercises}
+          onClose={() => setReorderOpen(false)}
+          onMove={(fromIdx, toIdx) => {
+            handleMoveExercise(fromIdx, toIdx);
+            // Keep the focused card pointed at the same exercise after move.
+            if (fromIdx === focusedIdx) setFocusedIdx(toIdx);
+            else if (focusedIdx > fromIdx && focusedIdx <= toIdx) setFocusedIdx(focusedIdx - 1);
+            else if (focusedIdx < fromIdx && focusedIdx >= toIdx) setFocusedIdx(focusedIdx + 1);
+          }}
+          onJump={(idx) => setFocusedIdx(idx)}
+          onAddExercise={() => {
+            setAddingExercise(true);
+          }}
+        />
+      )}
 
       {/* Complete Workout Button */}
       {!isDone && !isLocked && (
@@ -1696,11 +1799,20 @@ function DayView({
 
       {/* ── Exercise Swap (in-workout) ──────────────────────────────── */}
       <SwapMenu
-        open={swapTarget !== null}
-        onClose={() => setSwapTarget(null)}
-        replacingName={swapTarget !== null ? exercises[swapTarget.exIdx]?.name || '' : ''}
+        open={swapTarget !== null || addingExercise}
+        onClose={() => {
+          setSwapTarget(null);
+          setAddingExercise(false);
+        }}
+        replacingName={
+          addingExercise
+            ? 'Add exercise'
+            : swapTarget !== null
+            ? exercises[swapTarget.exIdx]?.name || ''
+            : ''
+        }
         exerciseGroups={swapExGroups}
-        autoExpandMuscle={swapMuscle}
+        autoExpandMuscle={addingExercise ? undefined : swapMuscle}
         userEquipment={userEquipment}
         onSelect={handleSwap}
         onCustomExercise={handleCustomExercise}
@@ -1918,6 +2030,7 @@ function FocusNav({
   canNext,
   onPrev,
   onNext,
+  onReorder,
   position,
   total,
 }: {
@@ -1925,24 +2038,26 @@ function FocusNav({
   canNext: boolean;
   onPrev: () => void;
   onNext: () => void;
+  onReorder: () => void;
   position: number;
   total: number;
 }) {
-  const btnBase: React.CSSProperties = {
+  const sideBtn: React.CSSProperties = {
     height: 40,
-    padding: '0 14px',
+    width: 40,
+    padding: 0,
     background: 'transparent',
     border: '1px solid var(--border)',
     borderRadius: tokens.radius.md,
     color: 'var(--text-secondary)',
-    fontSize: 13,
+    fontSize: 18,
     fontWeight: 700,
-    letterSpacing: '0.04em',
     cursor: 'pointer',
     fontFamily: 'inherit',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    lineHeight: 1,
   };
   return (
     <div
@@ -1950,9 +2065,9 @@ function FocusNav({
       aria-label="Exercise navigation"
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
+        gridTemplateColumns: 'auto 1fr auto',
         alignItems: 'center',
-        gap: 8,
+        gap: 10,
         margin: '4px 0 16px',
       }}
     >
@@ -1962,39 +2077,62 @@ function FocusNav({
         disabled={!canPrev}
         aria-label="Previous exercise"
         style={{
-          ...btnBase,
-          justifySelf: 'start',
+          ...sideBtn,
           opacity: canPrev ? 1 : 0.35,
           cursor: canPrev ? 'pointer' : 'default',
         }}
       >
-        <span aria-hidden="true">‹</span> Prev
+        <span aria-hidden="true">‹</span>
       </button>
-      <span
+      <button
+        type="button"
+        onClick={onReorder}
+        aria-label="Reorder or add exercises"
         style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.16em',
-          color: 'var(--text-muted)',
+          height: 40,
+          padding: '0 18px',
+          background: 'transparent',
+          border: '1px solid var(--accent-border, rgba(232,101,26,0.3))',
+          borderRadius: tokens.radius.md,
+          color: 'var(--accent)',
+          fontSize: 13,
+          fontWeight: 800,
+          letterSpacing: '0.12em',
           textTransform: 'uppercase',
-          fontVariantNumeric: 'tabular-nums',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
         }}
       >
-        {position} / {total}
-      </span>
+        Reorder
+        <span
+          aria-hidden="true"
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.1em',
+            color: 'var(--text-muted)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {position}/{total}
+        </span>
+      </button>
       <button
         type="button"
         onClick={onNext}
         disabled={!canNext}
         aria-label="Next exercise"
         style={{
-          ...btnBase,
-          justifySelf: 'end',
+          ...sideBtn,
           opacity: canNext ? 1 : 0.35,
           cursor: canNext ? 'pointer' : 'default',
         }}
       >
-        Next <span aria-hidden="true">›</span>
+        <span aria-hidden="true">›</span>
       </button>
     </div>
   );

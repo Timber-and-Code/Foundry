@@ -128,6 +128,11 @@ function ExerciseCard({
   const [showWarmupModal, setShowWarmupModal] = useState(false);
   const [rpePrompt, setRpePrompt] = useState<number | null>(null);
   const [removeSetPrompt, setRemoveSetPrompt] = useState<number | null>(null);
+  // "Record 0 reps for this set?" gate — opened when the lifter taps the
+  // check on a row with no reps entered. On confirm we log 0/0, suppress
+  // the rest timer, and let DayView auto-advance to the next exercise via
+  // onSetLogged(isLastSet=true). Cancel = no change.
+  const [pendingZeroSet, setPendingZeroSet] = useState<number | null>(null);
   const [noteOpen, _setNoteOpen] = useState(!!(note && note.trim()));
 
   // Load prev week raw data for "Last session" context hints
@@ -258,8 +263,12 @@ function ExerciseCard({
       return;
     }
     const setData = (weekData[exIdx] || {})[s] || { weight: '', reps: '' };
-    // Only allow check if reps are entered
-    if (!setData.reps || setData.reps === '') return;
+    // Empty reps → ask "Record 0 reps?" instead of silently no-op'ing.
+    // Confirmed-zero is handled by handleConfirmZeroReps below.
+    if (!setData.reps || setData.reps === '') {
+      setPendingZeroSet(s);
+      return;
+    }
     // Onboarding v2: if this confirmation is a rep miss, emit first-miss once
     // per user so the CoachMarkOrchestrator can explain what happens next.
     const confirmedReps = parseInt(String(setData.reps || 0), 10);
@@ -297,6 +306,19 @@ function ExerciseCard({
       store.set('foundry:first_anchor_emitted', '1');
       window.dispatchEvent(new Event('foundry:first-anchor-visible'));
     }
+  };
+
+  const handleConfirmZeroReps = (s: number) => {
+    setPendingZeroSet(null);
+    // Log set as 0/0 + confirmed. Skip the rest timer and trigger
+    // DayView's "advance to next exercise" path by passing
+    // isLastSet=true — semantically the lifter is bailing on this exercise.
+    onUpdateSet(exIdx, s, 'reps', '0');
+    onUpdateSet(exIdx, s, 'weight', '0');
+    onUpdateSet(exIdx, s, 'confirmed', true);
+    setDoneSets((prev) => new Set([...prev, s]));
+    onLastSetFilled(exIdx, s);
+    onSetLogged(exercise.rest || '0', exercise.name, s, true);
   };
 
   const handleRpeSelect = (s: number, rpeLabel: string) => {
@@ -925,6 +947,92 @@ function ExerciseCard({
                     }}
                   >
                     Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Empty-reps confirm — "Record 0 reps for this set?" Lifter chose
+              to skip; we log 0/0, suppress the rest timer (no work, no
+              recovery owed), and jump to the next unfinished exercise. */}
+          {pendingZeroSet !== null && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 300,
+                padding: 24,
+              }}
+              onClick={() => setPendingZeroSet(null)}
+            >
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="zero-reps-title"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.xxl,
+                  padding: '24px 20px',
+                  width: '100%',
+                  maxWidth: 320,
+                }}
+              >
+                <div
+                  id="zero-reps-title"
+                  style={{ fontSize: 16, fontWeight: 800, textAlign: 'center', marginBottom: 8 }}
+                >
+                  Record 0 reps for this set?
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--text-secondary)',
+                    textAlign: 'center',
+                    marginBottom: 18,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  We'll log it and jump to the next exercise. No rest timer.
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={() => setPendingZeroSet(null)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: tokens.radius.md,
+                      background: 'var(--bg-inset)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleConfirmZeroReps(pendingZeroSet)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: tokens.radius.md,
+                      background: 'var(--btn-primary-bg)',
+                      border: '1px solid var(--btn-primary-border)',
+                      color: 'var(--btn-primary-text)',
+                      fontSize: 13,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Record 0
                   </button>
                 </div>
               </div>
