@@ -102,6 +102,10 @@ function WorkoutCompleteModal({
   const [congrats] = useState(() => randomCongrats());
   const [quote] = useState(() => randomQuote(gender));
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  // Workout-summary list (per-exercise set-by-set breakdown) is collapsed
+  // by default — beta testers wanted the emotional payoff (quote, totals)
+  // forward and the detail behind a tap.
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const shareCardRef = useRef<HTMLDivElement>(null);
 
   /** Build the payload the ShareSheet hands to each destination tile. The
@@ -194,29 +198,24 @@ function WorkoutCompleteModal({
           gap: 20,
         }}
       >
-        {/* Checkmark circle — always amber to match the brand schema. */}
-        <div
+        {/* Foundry F mark — brand identity at the top of the completion
+            modal. Replaced the generic checkmark; the WelcomeScreen recipe
+            (radial-gradient mask, no drop-shadow) keeps the rectangular
+            asset edge from showing. */}
+        <img
+          src="/foundry-f.png"
+          alt="The Foundry"
           style={{
-            width: 72,
-            height: 72,
-            borderRadius: tokens.radius.full,
-            border: `3px solid ${AMBER}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: 96,
+            height: 96,
+            objectFit: 'contain',
             marginBottom: 4,
+            maskImage:
+              'radial-gradient(ellipse at center, black 50%, transparent 82%)',
+            WebkitMaskImage:
+              'radial-gradient(ellipse at center, black 50%, transparent 82%)',
           }}
-        >
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M5 13l4 4L19 7"
-              stroke={AMBER}
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+        />
 
         {/* Day · Week · Phase meta (phase-colored) */}
         <div
@@ -253,6 +252,60 @@ function WorkoutCompleteModal({
           }}
         >
           {congrats.sub}
+        </div>
+
+        {/* Motivational quote — moved above the stats so the emotional beat
+            lands before the metrics. Phase-colored left border + open quote
+            mark; left-aligned because centered serif open-quotes look
+            decorative-only. */}
+        <div
+          style={{
+            width: '100%',
+            position: 'relative',
+            padding: '20px 20px 20px 28px',
+            borderLeft: `3px solid ${phaseColor}`,
+          }}
+        >
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: -8,
+              left: 14,
+              fontSize: 56,
+              lineHeight: 1,
+              color: phaseColor,
+              opacity: 0.35,
+              fontFamily: 'Georgia, serif',
+              pointerEvents: 'none',
+            }}
+          >
+            &ldquo;
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              lineHeight: 1.45,
+              letterSpacing: '-0.005em',
+              position: 'relative',
+            }}
+          >
+            {quote.text}
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: phaseColor,
+              marginTop: 12,
+              fontWeight: 800,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+            }}
+          >
+            — {quote.author}
+          </div>
         </div>
 
         {/* Stats grid */}
@@ -296,9 +349,9 @@ function WorkoutCompleteModal({
           ))}
         </div>
 
-        {/* Workout summary — per-exercise set-by-set reps + weights, so the
-            user can see exactly what they did under the aggregate totals.
-            Warm-ups are dimmed to keep the working-set log visually primary. */}
+        {/* Workout summary — per-exercise set-by-set reps + weights.
+            Collapsed by default. Header is a tap target that toggles the
+            list; chevron rotates with state. */}
         {stats.breakdown && stats.breakdown.length > 0 && (
           <div
             data-testid="workout-summary"
@@ -307,21 +360,59 @@ function WorkoutCompleteModal({
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
               borderRadius: tokens.radius.xl,
-              padding: '14px 16px',
+              padding: summaryOpen ? '14px 16px' : '4px 16px',
             }}
           >
-            <div
+            <button
+              type="button"
+              onClick={() => setSummaryOpen((o) => !o)}
+              aria-expanded={summaryOpen}
+              aria-controls="workout-summary-list"
               style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                padding: '12px 0',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
                 fontSize: 11,
                 fontWeight: 800,
                 letterSpacing: '0.12em',
                 color: 'var(--text-muted)',
-                marginBottom: 10,
+                textTransform: 'uppercase',
               }}
             >
-              WORKOUT SUMMARY
-            </div>
-            {stats.breakdown.map((ex, i) => (
+              <span>
+                Workout Summary
+                <span
+                  style={{
+                    marginLeft: 8,
+                    color: 'var(--text-secondary)',
+                    fontWeight: 700,
+                  }}
+                >
+                  · {stats.breakdown.length} {stats.breakdown.length === 1 ? 'exercise' : 'exercises'}
+                </span>
+              </span>
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'inline-block',
+                  transform: summaryOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.18s ease',
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                ▾
+              </span>
+            </button>
+            <div id="workout-summary-list" hidden={!summaryOpen}>
+            {summaryOpen && stats.breakdown.map((ex, i) => (
               <div
                 key={i}
                 style={{
@@ -380,6 +471,7 @@ function WorkoutCompleteModal({
                 </div>
               </div>
             ))}
+            </div>
           </div>
         )}
 
@@ -580,58 +672,6 @@ function WorkoutCompleteModal({
             })}
           </div>
         )}
-
-        {/* Motivational quote — closing beat before the CTA */}
-        <div
-          style={{
-            width: '100%',
-            position: 'relative',
-            padding: '20px 20px 20px 28px',
-            borderLeft: `3px solid ${phaseColor}`,
-            marginTop: 4,
-          }}
-        >
-          <div
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              top: -8,
-              left: 14,
-              fontSize: 56,
-              lineHeight: 1,
-              color: phaseColor,
-              opacity: 0.35,
-              fontFamily: 'Georgia, serif',
-              pointerEvents: 'none',
-            }}
-          >
-            &ldquo;
-          </div>
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              lineHeight: 1.45,
-              letterSpacing: '-0.005em',
-              position: 'relative',
-            }}
-          >
-            {quote.text}
-          </div>
-          <div
-            style={{
-              fontSize: 11,
-              color: phaseColor,
-              marginTop: 12,
-              fontWeight: 800,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-            }}
-          >
-            — {quote.author}
-          </div>
-        </div>
 
         {/* Friends strip — presence of crew members on this shared meso.
             Tap an avatar → FriendDashboardModal (aggregate view). */}

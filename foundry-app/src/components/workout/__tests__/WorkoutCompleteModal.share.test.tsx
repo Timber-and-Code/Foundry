@@ -109,9 +109,10 @@ describe('WorkoutCompleteModal — SHARE button', () => {
       screen.getByRole('button', { name: /share this workout/i }),
     );
 
-    // Sheet presence — the 11-tile grid renders data-testid'd buttons.
+    // Sheet presence — the redesigned 3-action card uses share-system /
+    // share-save / share-copy testids. Save is the simplest action.
     await waitFor(() =>
-      expect(screen.getByTestId('share-tile-save')).toBeInTheDocument(),
+      expect(screen.getByTestId('share-save')).toBeInTheDocument(),
     );
   });
 
@@ -121,9 +122,9 @@ describe('WorkoutCompleteModal — SHARE button', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /share this workout/i }),
     );
-    // "Save PNG" is the simplest tile — no window.open / native share to
-    // stub, just exercises the capture path.
-    fireEvent.click(await screen.findByTestId('share-tile-save'));
+    // "Save image" is the simplest action — no window.open / native share
+    // to stub, just exercises the capture path.
+    fireEvent.click(await screen.findByTestId('share-save'));
 
     await waitFor(() => expect(captureSpy).toHaveBeenCalledTimes(1));
 
@@ -147,7 +148,7 @@ describe('WorkoutCompleteModal — SHARE button', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /share this workout/i }),
     );
-    fireEvent.click(await screen.findByTestId('share-tile-save'));
+    fireEvent.click(await screen.findByTestId('share-save'));
     await waitFor(() => expect(captureSpy).toHaveBeenCalledTimes(1));
 
     const meta = captureSpy.mock.calls[0][1];
