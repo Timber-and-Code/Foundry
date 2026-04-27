@@ -2,6 +2,7 @@ import React, { useRef, useState, type CSSProperties } from 'react';
 import { loadArchive } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
 import { getMeso, getMesoRows, getProgTargets, PHASE_COLOR } from '../../data/constants';
+import { formatSplitName } from '../../utils/splitLabel';
 import type { Profile, TrainingDay } from '../../types';
 
 interface MesoOverviewProps {
@@ -66,7 +67,7 @@ function SubHeader({ label, goBack }: { label: string; goBack: () => void }) {
 
 // ── Meso Overview Content ─────────────────────────────────────────────────
 
-function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: TrainingDay[]; currentWeek: number }) {
+function MesoOverviewContent({ activeDays: _activeDays, currentWeek }: { activeDays: TrainingDay[]; currentWeek: number }) {
   const meso = getMeso();
   const mesoRows = getMesoRows();
   const progTargets = getProgTargets();
@@ -82,18 +83,11 @@ function MesoOverviewContent({ activeDays, currentWeek }: { activeDays: Training
     window.setTimeout(() => setHighlightIdx((cur) => (cur === i ? null : cur)), 1200);
   };
 
-  const splitLabels: Record<string, string> = {
-    ppl: 'Push / Pull / Legs',
-    upper_lower: 'Upper / Lower',
-    full_body: 'Full Body',
-    push_pull: 'Push / Pull',
-  };
-
-  const tags = [...new Set(activeDays.map((d) => d.tag).filter(Boolean))];
-  const splitDisplay =
-    tags.length > 0
-      ? tags.join(' / ')
-      : splitLabels[meso.splitType] || meso.splitType;
+  // Single source of truth via formatSplitName(profile.splitType).
+  // Day-tag union derivation was the source of the "Upper/Lower meso
+  // shows as PUSH / PULL / LEGS" bug — Traditional + Custom day tags
+  // overlap with PPL.
+  const splitDisplay = formatSplitName(meso.splitType);
 
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16 }}>

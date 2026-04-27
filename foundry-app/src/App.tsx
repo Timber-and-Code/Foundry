@@ -25,6 +25,7 @@ import {
 // Utils
 import { migrateKeys } from './utils/storage';
 import { on } from './utils/events';
+import { formatSplitName } from './utils/splitLabel';
 import {
   store,
   loadProfile,
@@ -539,42 +540,11 @@ function App() {
         {/* Header */}
         <div style={{ position: 'sticky', top: 0, zIndex: 50 }}>
           <FoundryBanner
-            subtitle={(() => {
-              // Derive split label from the day-level tags so the banner
-              // mirrors the actual session bucket pattern. Day tags use
-              // single-token shorthand ("FULL", "UPPER", "PUSH") which
-              // don't read well in the banner — expand back to the
-              // human-friendly split name (FULL BODY, UPPER/LOWER, etc).
-              const TAG_TO_SPLIT: Record<string, string> = {
-                FULL: 'FULL BODY',
-                UPPER: 'UPPER / LOWER',
-                LOWER: 'UPPER / LOWER',
-                PUSH: 'PUSH / PULL',
-                PULL: 'PUSH / PULL',
-                LEGS: 'PUSH / PULL / LEGS',
-                ARMS: 'TRADITIONAL',
-                CHEST: 'TRADITIONAL',
-                BACK: 'TRADITIONAL',
-                SHOULDERS: 'TRADITIONAL',
-              };
-              const tags = [...new Set(activeDays.map((d: TrainingDay) => d.tag).filter(Boolean))] as string[];
-              const expandedFromTags = ((): string | null => {
-                if (tags.length === 0) return null;
-                const mapped = Array.from(new Set(tags.map((t) => TAG_TO_SPLIT[t] || t)));
-                if (mapped.length === 1) return mapped[0];
-                return tags.join(' / ');
-              })();
-              if (expandedFromTags) return expandedFromTags;
-              const SPLIT_TYPE_LABEL: Record<string, string> = {
-                ppl: 'PUSH / PULL / LEGS',
-                upper_lower: 'UPPER / LOWER',
-                full_body: 'FULL BODY',
-                push_pull: 'PUSH / PULL',
-                traditional: 'TRADITIONAL',
-                custom: 'CUSTOM',
-              };
-              return SPLIT_TYPE_LABEL[getMeso().splitType] || getMeso().splitType?.toUpperCase().replace(/_/g, ' ') || 'PPL';
-            })()}
+            // Single source of truth: profile.splitType (set in setup).
+            // Day-tag derivation is a trap — Traditional/Custom day tags
+            // overlap with PPL's so the banner used to falsely collapse
+            // Upper/Lower or Traditional mesos to "PUSH PULL LEGS".
+            subtitle={formatSplitName(getMeso().splitType, 'caps')}
             onProfileTap={isHome ? () => setShowProfileDrawer(true) : undefined}
             syncState={syncState}
           />

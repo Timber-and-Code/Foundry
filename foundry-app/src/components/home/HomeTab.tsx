@@ -270,7 +270,10 @@ function RestStateCard({
         </div>
       </div>
 
-      {/* Next session preview */}
+      {/* Next session preview — explore-tile aesthetic for the header
+          band: dark inset background, orange Bebas title. Brings warmth
+          to rest days without leaning on the orange-edge treatment that
+          read as "too much." */}
       {nextDayForCollapse && (
         <div
           style={{
@@ -285,9 +288,10 @@ function RestStateCard({
             onClick={() => setShowNextSession((p: boolean) => !p)}
             style={{
               width: '100%',
-              background: 'transparent',
+              background: 'var(--bg-inset, var(--bg-deep))',
               border: 'none',
-              padding: '12px 16px',
+              borderBottom: '1px solid var(--border)',
+              padding: '14px 16px',
               cursor: 'pointer',
               textAlign: 'left',
               display: 'flex',
@@ -325,11 +329,12 @@ function RestStateCard({
               <div
                 style={{
                   fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-                  fontSize: 22,
+                  fontSize: 26,
                   fontWeight: 400,
-                  color: 'var(--text-primary)',
-                  letterSpacing: '0.02em',
-                  lineHeight: 1.05,
+                  color: 'var(--accent)',
+                  letterSpacing: '0.04em',
+                  lineHeight: 1.0,
+                  textTransform: 'uppercase',
                 }}
               >
                 {nextDayForCollapse.label}

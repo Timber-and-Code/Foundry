@@ -5,7 +5,8 @@ import { store, resolveAccountTier } from '../../utils/store';
 import { emit } from '../../utils/events';
 import { archiveMesocycleRemote } from '../../utils/sync';
 import { getMeso } from '../../data/constants';
-import type { Profile, WorkoutSet, TrainingDay } from '../../types';
+import { formatSplitName } from '../../utils/splitLabel';
+import type { Profile, WorkoutSet } from '../../types';
 
 const AccountSection = React.lazy(() => import('../auth/UserMenu'));
 const SaveProgressSheet = React.lazy(() => import('../auth/SaveProgressSheet'));
@@ -16,12 +17,6 @@ const FOUNDRY_AI_WORKER_URL = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
 const FOUNDRY_APP_KEY = import.meta.env.VITE_FOUNDRY_APP_KEY;
 const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 
-const SPLIT_LABELS: Record<string, string> = {
-  ppl: 'Push / Pull / Legs',
-  upper_lower: 'Upper / Lower',
-  full_body: 'Full Body',
-  push_pull: 'Push / Pull',
-};
 
 interface ProfileDrawerProps {
   saved: Profile;
@@ -48,19 +43,10 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const currentWeek = parseInt(store.get('foundry:currentWeek') || '0');
   const totalWeeks = meso?.totalWeeks || saved.mesoLength || null;
   const phase = meso?.phases?.[currentWeek] || '';
-  const splitLabel = (() => {
-    // Derive from actual day tags in the stored program (most accurate)
-    try {
-      const raw = store.get('foundry:storedProgram');
-      if (raw) {
-        const days = JSON.parse(raw);
-        const tags = [...new Set(days.map((d: TrainingDay) => d.tag).filter(Boolean))];
-        if (tags.length > 0) return tags.join(' / ');
-      }
-    } catch { /* JSON parse fallback */ }
-    const st = meso?.splitType || saved.splitType || '';
-    return SPLIT_LABELS[st] || st.toUpperCase().replace(/_/g, ' ');
-  })();
+  // Single source of truth: profile.splitType. Day-tag inference was
+  // collapsing Upper/Lower mesos into "PUSH / PULL / LEGS" because
+  // tags overlap across splits.
+  const splitLabel = formatSplitName(meso?.splitType || saved.splitType);
 
   // ── Training stats ────────────────────────────────────────────────────────
   const stats = (() => {

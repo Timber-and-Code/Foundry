@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
 import { store } from '../../utils/store';
+import { formatSplitName } from '../../utils/splitLabel';
 import PhaseBar from '../shared/PhaseBar';
 import type { Phase } from '../shared/PhaseBar';
 
@@ -25,16 +26,7 @@ export default function ProgramReady({ profile, onContinue }: ProgramReadyProps)
     store.set('foundry:program_ready_shown', '1');
   }, []);
 
-  const splitLabel = (() => {
-    const map: Record<string, string> = {
-      ppl: 'Push / Pull / Legs',
-      upper_lower: 'Upper / Lower',
-      push_pull: 'Push / Pull',
-      full_body: 'Full Body',
-      traditional: 'Traditional',
-    };
-    return map[profile.splitType || ''] || profile.splitType?.toUpperCase() || 'Your program';
-  })();
+  const splitLabel = formatSplitName(profile.splitType);
 
   const startLabel = (() => {
     if (!profile.startDate) return 'starting today';
