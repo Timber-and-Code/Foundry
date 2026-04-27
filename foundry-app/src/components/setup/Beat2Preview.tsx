@@ -67,7 +67,7 @@ function toDayBuilds(days: TrainingDay[]): DayBuild[] {
  * once at save time and replaces the day list with a coach-tuned
  * version; on failure we fall back to the deterministic build.
  */
-export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditEssentials }: Beat2Props) {
+export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2Props) {
   const [split, setSplit] = useState<SplitType>('upper_lower');
   const [length, setLength] = useState<MesoLength>(6);
   const [session, setSession] = useState<SessionLength>('standard');
@@ -265,15 +265,50 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditE
         boxSizing: 'border-box',
       }}
     >
+      {/* Header row: Back → Beat 1 + page title. The plumbing already
+          existed in SetupPage (onEditEssentials sets v2Step back to 'beat1')
+          but no UI was firing it, so testers had no way to change days /
+          goal / experience once they reached the program preview. */}
       <div
         style={{
-          fontFamily: "'Bebas Neue', 'Inter', sans-serif",
-          fontSize: 28,
-          letterSpacing: '0.12em',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
           marginBottom: 16,
         }}
       >
-        YOUR PROGRAM
+        <button
+          type="button"
+          onClick={onEditEssentials}
+          aria-label="Back to essentials — change days, goal, or experience"
+          style={{
+            minHeight: 36,
+            padding: '6px 10px',
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            borderRadius: tokens.radius.md,
+            color: 'var(--text-muted)',
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontFamily: 'inherit',
+          }}
+        >
+          <span aria-hidden="true">‹</span> BACK
+        </button>
+        <div
+          style={{
+            fontFamily: "'Bebas Neue', 'Inter', sans-serif",
+            fontSize: 28,
+            letterSpacing: '0.12em',
+          }}
+        >
+          YOUR PROGRAM
+        </div>
       </div>
 
       {/* Stacked accordion bars — replaces the old chip-row + bottom-sheet
