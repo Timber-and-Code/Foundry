@@ -2175,7 +2175,7 @@ function FocusNav({
             whiteSpace: 'nowrap',
           }}
         >
-          {sessionLabel}
+          {sessionLabel} <span style={{ color: 'var(--text-muted)' }}>· Overview</span>
         </span>
         <span
           aria-hidden="true"
