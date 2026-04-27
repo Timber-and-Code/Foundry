@@ -3,11 +3,6 @@ import { VOLUME_LANDMARKS } from '../../data/constants';
 import {
   flattenMuscleSets,
   getLandmarkStatus,
-  VOLUME_LEGEND,
-  BAND_MV,
-  BAND_OPT,
-  BAND_EXCEED,
-  TICK_COLOR,
 } from '../../utils/analyticsData';
 import EmptyState from '../ui/EmptyState';
 
@@ -18,6 +13,19 @@ interface Props {
   title: string;
 }
 
+/**
+ * Compact muscle-volume tracker. One row per muscle: name, sets ·
+ * MEV X · MRV Y meta, and a 6px progress bar with an MEV tick.
+ *
+ * Replaces the prior multi-band 14px bar with status pill + legend
+ * card, which read as too dense at the per-muscle scale. The single
+ * orange tick at MEV gives the lifter a clear "have I cleared the
+ * minimum?" read; sets count colors itself by zone (muted under MEV,
+ * accent in optimal, hot orange when exceeding MRV).
+ *
+ * Mirrors the preview at src/preview/hybrid/ProgressPreview.tsx
+ * VolumeRow().
+ */
 export default function VolumeLandmarksCard({ byTag, title }: Props) {
   const muscleSets = flattenMuscleSets(byTag);
   const entries = Object.entries(muscleSets)
@@ -29,6 +37,7 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
         s.label === 'Exceeding' ? 0 : s.label === 'MV' ? 1 : 2;
       return priority(sa!) - priority(sb!) || (b[1] as number) - (a[1] as number);
     });
+
   if (entries.length === 0) {
     return (
       <EmptyState
@@ -38,8 +47,6 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
       />
     );
   }
-
-  const lblOpt = 'var(--phase-accum)';
 
   return (
     <div
@@ -54,111 +61,83 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
       <div
         style={{
           padding: '14px 16px 12px',
-          borderBottom: '1px solid var(--border-subtle)',
+          borderBottom: '1px solid var(--border-subtle, var(--border))',
         }}
       >
         <div
           style={{
-            fontSize: 16,
-            fontWeight: 700,
+            fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+            fontSize: 22,
+            fontWeight: 400,
+            letterSpacing: '0.04em',
             color: 'var(--text-primary)',
-            marginBottom: 10,
+            lineHeight: 1.0,
+            textTransform: 'uppercase',
           }}
         >
           {title || 'Volume check'}
         </div>
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          {VOLUME_LEGEND.map(([c, label], i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: tokens.radius.xs,
-                  background: c,
-                  opacity: 0.75,
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{label}</span>
-            </div>
-          ))}
-        </div>
       </div>
-      <div style={{ padding: '0 16px 6px' }}>
-        {entries.map(([muscle, sets], idx) => {
+      <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {entries.map(([muscle, sets]) => {
           const lm = (VOLUME_LANDMARKS as Record<string, Landmark>)[muscle];
-          const status = getLandmarkStatus(sets as number, lm)!;
-          const scale = lm.mrv + 5;
-          const mevPct = (lm.mev / scale) * 100;
-          const mrvPct = (lm.mrv / scale) * 100;
-          const fillPct = Math.min(((sets as number) / scale) * 100, 99);
-          const isLast = idx === entries.length - 1;
-          const optMid = (mevPct + mrvPct) / 2;
+          const setCount = sets as number;
+          // Bar scales to MRV (anything past clamps to 100% via the cap).
+          const pct = Math.min(100, Math.round((setCount / lm.mrv) * 100));
+          // Color the count by zone — muted under MEV, accent inside the
+          // optimal band, hotter orange when above MRV (overreach).
+          const color =
+            setCount === 0
+              ? 'var(--text-muted)'
+              : setCount < lm.mev
+              ? 'var(--text-secondary)'
+              : setCount > lm.mrv
+              ? '#E8651A'
+              : 'var(--accent)';
+          // Tick at the MEV point — the only landmark we surface visually,
+          // since the lifter's main question is "have I cleared the floor?"
+          const mevPct = (lm.mev / lm.mrv) * 100;
           return (
-            <div
-              key={muscle}
-              style={{
-                padding: '11px 0',
-                borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)',
-              }}
-            >
+            <div key={muscle}>
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  marginBottom: 7,
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                  marginBottom: 5,
                 }}
               >
-                <div
+                <span
                   style={{
-                    fontSize: 14,
-                    fontWeight: 700,
+                    fontSize: 13,
                     color: 'var(--text-primary)',
-                    flex: 1,
-                    minWidth: 0,
+                    fontWeight: 700,
                   }}
                 >
                   {muscle}
-                </div>
-                <div
+                </span>
+                <span
                   style={{
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: status.color,
-                    minWidth: 20,
-                    textAlign: 'right',
-                    lineHeight: 1,
+                    fontSize: 12,
+                    color: 'var(--text-muted)',
+                    fontVariantNumeric: 'tabular-nums',
+                    letterSpacing: '0.02em',
                   }}
                 >
-                  {sets as number}
-                </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    letterSpacing: '0.03em',
-                    color: status.color,
-                    background: status.bg,
-                    border: `1px solid ${status.border}`,
-                    padding: '3px 9px',
-                    borderRadius: tokens.radius.sm,
-                    minWidth: 64,
-                    textAlign: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {status.label}
-                </div>
+                  <span style={{ color, fontWeight: 700 }}>{setCount}</span>
+                  {' · MEV '}
+                  {lm.mev}
+                  {' · MRV '}
+                  {lm.mrv}
+                </span>
               </div>
               <div
                 style={{
                   position: 'relative',
-                  height: 14,
-                  borderRadius: tokens.radius.sm,
+                  height: 6,
+                  background: 'var(--border-subtle, var(--border))',
+                  borderRadius: 3,
                   overflow: 'hidden',
-                  background: 'var(--bg-inset)',
                 }}
               >
                 <div
@@ -166,79 +145,24 @@ export default function VolumeLandmarksCard({ byTag, title }: Props) {
                     position: 'absolute',
                     left: 0,
                     top: 0,
-                    height: '100%',
-                    width: `${mevPct}%`,
-                    background: BAND_MV,
+                    bottom: 0,
+                    width: `${pct}%`,
+                    background: color,
+                    transition: 'width 200ms',
                   }}
                 />
                 <div
+                  aria-hidden="true"
                   style={{
                     position: 'absolute',
                     left: `${mevPct}%`,
-                    top: 0,
-                    height: '100%',
-                    width: `${mrvPct - mevPct}%`,
-                    background: BAND_OPT,
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mrvPct}%`,
-                    top: 0,
-                    height: '100%',
-                    right: 0,
-                    background: BAND_EXCEED,
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mevPct}%`,
-                    top: 0,
+                    top: -2,
+                    bottom: -2,
                     width: 1,
-                    height: '100%',
-                    background: TICK_COLOR,
+                    background: 'var(--text-primary)',
+                    opacity: 0.3,
                   }}
                 />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${mrvPct}%`,
-                    top: 0,
-                    width: 1,
-                    height: '100%',
-                    background: TICK_COLOR,
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    height: '100%',
-                    width: `${fillPct}%`,
-                    background: status.fill,
-                    opacity: 0.72,
-                    borderRadius: `${tokens.radius.sm}px 0 0 ${tokens.radius.sm}px`,
-                    transition: 'width 0.5s cubic-bezier(0.22,1,0.36,1)',
-                  }}
-                />
-              </div>
-              <div style={{ position: 'relative', height: 14, marginTop: 3 }}>
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: `${optMid}%`,
-                    transform: 'translateX(-50%)',
-                    fontSize: 12,
-                    color: lblOpt,
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {lm.mev}–{lm.mrv} optimal
-                </span>
               </div>
             </div>
           );
