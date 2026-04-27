@@ -14,6 +14,7 @@ interface FoundryEventMap {
   'foundry:openMobility': { dateStr: string; protocolId?: string };
   'foundry:showPricing': void;
   'foundry:wants_auth': void;
+  'foundry:auth-cancelled': void;
   'foundry:welcomed': void;
   'foundry:resetToSetup': void;
   // Onboarding v2 — coach mark + save-sheet triggers

@@ -756,9 +756,16 @@ function AuthGate() {
   useEffect(() => {
     const unsubWelcomed = on('foundry:welcomed', () => setWelcomed(true));
     const unsubWantsAuth = on('foundry:wants_auth', () => setWantsAuth(true));
+    // Drawer-initiated AuthPage entries can be cancelled with the back button;
+    // flip wantsAuth back off so we drop into the anonymous app shell again.
+    const unsubAuthCancel = on('foundry:auth-cancelled', () => {
+      store.remove('foundry:wants_auth');
+      setWantsAuth(false);
+    });
     return () => {
       unsubWelcomed();
       unsubWantsAuth();
+      unsubAuthCancel();
     };
   }, []);
 

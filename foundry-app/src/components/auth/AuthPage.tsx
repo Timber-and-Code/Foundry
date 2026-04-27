@@ -5,6 +5,8 @@ import { supabase } from '../../utils/supabase';
 import Button from '../ui/Button';
 import { FOUNDRY_ANVIL_IMG } from '../../data/images-core';
 import { tokens } from '../../styles/tokens';
+import { store } from '../../utils/store';
+import { emit } from '../../utils/events';
 
 export default function AuthPage() {
   const { login, signup } = useAuth();
@@ -138,6 +140,40 @@ export default function AuthPage() {
         overflow: 'hidden',
       }}
     >
+      {/* Back-to-app link — only shown when the user reached AuthPage via an
+          explicit request flag (e.g. profile drawer's "Sync across devices").
+          Onboarding-path users can still proceed normally; this just gives
+          them a way out. Clears the flag and emits a cancel event so
+          AuthGate re-renders the anonymous app shell. */}
+      {store.get('foundry:wants_auth') === '1' && (
+        <button
+          type="button"
+          onClick={() => {
+            store.remove('foundry:wants_auth');
+            emit('foundry:auth-cancelled');
+          }}
+          style={{
+            position: 'absolute',
+            top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+            left: 16,
+            padding: '8px 12px',
+            minHeight: 36,
+            background: 'transparent',
+            border: '1px solid var(--border, rgba(255,255,255,0.12))',
+            borderRadius: tokens.radius.md,
+            color: 'var(--text-muted, #888)',
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+            zIndex: 2,
+          }}
+          aria-label="Back to app"
+        >
+          <span aria-hidden="true">←</span> Back
+        </button>
+      )}
+
       {/* Logo — fixed-height header, honors notch */}
       <header
         style={{

@@ -9,7 +9,6 @@ import { formatSplitName } from '../../utils/splitLabel';
 import type { Profile, WorkoutSet } from '../../types';
 
 const AccountSection = React.lazy(() => import('../auth/UserMenu'));
-const SaveProgressSheet = React.lazy(() => import('../auth/SaveProgressSheet'));
 const AboutModal = React.lazy(() => import('./AboutModal'));
 const HealthSection = React.lazy(() => import('./HealthSection'));
 
@@ -29,7 +28,6 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const [weight, setWeight] = useState(saved.weight || '');
   const [editingWeight, setEditingWeight] = useState(false);
   const [showData, setShowData] = useState(false);
-  const [showSyncSheet, setShowSyncSheet] = useState(false);
 
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState('');
@@ -453,11 +451,19 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             <AccountSection />
           </Suspense>
 
-          {/* Sync across devices — always available for anonymous users */}
+          {/* Sync across devices — always available for anonymous users.
+              Routes to the full-screen AuthPage instead of a bottom sheet:
+              the bottom-sheet variant gets covered by the iOS keyboard so
+              users couldn't see what they were typing. AuthPage already
+              handles keyboard inset + scrollIntoView correctly. */}
           {!user && (
             <button
               type="button"
-              onClick={() => setShowSyncSheet(true)}
+              onClick={() => {
+                store.set('foundry:wants_auth', '1');
+                emit('foundry:wants_auth');
+                onClose();
+              }}
               style={{
                 width: '100%',
                 marginTop: 8,
@@ -780,13 +786,6 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             )}
           </div>
         </div>
-      )}
-
-      {/* Sync-across-devices sheet (anonymous users only) */}
-      {showSyncSheet && (
-        <Suspense fallback={null}>
-          <SaveProgressSheet trigger="settings" onDismiss={() => setShowSyncSheet(false)} />
-        </Suspense>
       )}
 
       {/* About The Foundry modal */}

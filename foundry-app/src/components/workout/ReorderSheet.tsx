@@ -38,6 +38,13 @@ interface ReorderSheetProps {
   onMove: (fromIdx: number, toIdx: number) => void;
   onJump: (idx: number) => void;
   onAddExercise: () => void;
+  /** Day label shown in the sheet header (e.g. "Push A", "Lower A"). */
+  dayLabel?: string;
+  /** Optional CTA. When provided, renders a primary "Complete Workout"
+   *  button at the bottom of the sheet so completion lives alongside
+   *  reorder/add — Focus Mode no longer surfaces a standalone Complete
+   *  button (testers were tapping it thinking it completed one exercise). */
+  onCompleteWorkout?: () => void;
 }
 
 interface SortableRowProps {
@@ -161,6 +168,8 @@ export default function ReorderSheet({
   onMove,
   onJump,
   onAddExercise,
+  dayLabel,
+  onCompleteWorkout,
 }: ReorderSheetProps) {
   // Local copy so the drag preview animates smoothly. We commit each drag
   // result to parent state via onMove; the parent re-supplies `exercises`
@@ -247,17 +256,19 @@ export default function ReorderSheet({
           <h2
             id="reorder-sheet-title"
             style={{
-              fontSize: 20,
-              fontWeight: 800,
-              letterSpacing: '0.02em',
+              fontSize: 22,
+              fontWeight: 400,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
               margin: 0,
               color: 'var(--text-primary)',
+              fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
             }}
           >
-            Reorder session
+            {dayLabel || "Today's Session"}
           </h2>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
-            Tap to jump · Hold to drag
+            Tap to jump · Hold to drag · Reorder anytime
           </div>
         </div>
 
@@ -314,7 +325,39 @@ export default function ReorderSheet({
           </button>
         </div>
 
-        <div style={{ padding: '12px 16px 24px 16px', borderTop: '1px solid var(--border)' }}>
+        <div
+          style={{
+            padding: '12px 16px 24px 16px',
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          {onCompleteWorkout && (
+            <button
+              onClick={() => {
+                onClose();
+                onCompleteWorkout();
+              }}
+              style={{
+                width: '100%',
+                padding: '16px',
+                borderRadius: tokens.radius.lg,
+                background: 'var(--btn-primary-bg)',
+                border: '1px solid var(--btn-primary-border)',
+                color: 'var(--btn-primary-text)',
+                fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                fontSize: 20,
+                fontWeight: 400,
+                cursor: 'pointer',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Complete Workout <span aria-hidden="true">✓</span>
+            </button>
+          )}
           <button
             onClick={onClose}
             style={{
@@ -331,7 +374,7 @@ export default function ReorderSheet({
               cursor: 'pointer',
             }}
           >
-            Done
+            Close
           </button>
         </div>
       </div>

@@ -102,12 +102,46 @@ function appGoalToEnum(goal: unknown): SupabasePrimaryGoal {
   return 'build_muscle';
 }
 
+// Map the app's lowercase splitType strings (`ppl`, `upper_lower`, `full_body`,
+// `push_pull`, `traditional`, `custom`) onto the four-value Supabase enum.
+// The DB enum has no representation for `traditional` or `custom`, so those
+// fall back to PPL on write — but the read side (`enumToAppSplit`) is paired
+// with a guard in the merge paths that preserves the local value when it's
+// one of those two unrepresentable splits.
 function appSplitToEnum(split: unknown): SupabaseSplitType {
-  const upper = String(split || 'PPL').toUpperCase();
+  if (typeof split !== 'string') return 'PPL';
+  const s = split.toLowerCase().trim();
+  if (s === 'ppl' || s === 'push_pull_legs') return 'PPL';
+  if (s === 'upper_lower' || s === 'ul') return 'UL';
+  if (s === 'full_body' || s === 'fb') return 'FB';
+  if (s === 'push_pull' || s === 'pp') return 'PP';
+  // Already-uppercase enum codes round-trip cleanly.
+  const upper = s.toUpperCase();
   if (upper === 'PPL' || upper === 'UL' || upper === 'FB' || upper === 'PP') {
-    return upper;
+    return upper as SupabaseSplitType;
   }
   return 'PPL';
+}
+
+// Inverse of appSplitToEnum: map the four-value Supabase enum back onto the
+// app's canonical lowercase strings so `formatSplitName` (which only knows
+// the canonical names) renders the correct label after a sync round-trip.
+// Without this, `row.split_type.toLowerCase()` produced 'ul' / 'fb' / 'pp'
+// which formatSplitName treated as unknown and slug-titled.
+function enumToAppSplit(enumValue: SupabaseSplitType | string | null | undefined): string {
+  if (typeof enumValue !== 'string') return 'ppl';
+  const v = enumValue.toUpperCase();
+  if (v === 'UL') return 'upper_lower';
+  if (v === 'FB') return 'full_body';
+  if (v === 'PP') return 'push_pull';
+  return 'ppl';
+}
+
+// Local splits the DB enum can't represent. When merging a remote profile
+// onto the local one, callers should keep the local value if it's one of
+// these — otherwise the round-trip would clobber it with PPL.
+function isUnrepresentableSplit(split: unknown): boolean {
+  return split === 'traditional' || split === 'custom';
 }
 
 function appProfileToSupabaseRow(
@@ -182,7 +216,7 @@ function supabaseRowToAppProfileFields(row: SupabaseProfileRow): Record<string, 
       row.primary_goal === 'improve_fitness' || row.primary_goal === 'sport_conditioning'
         ? 'general_fitness'
         : row.primary_goal,
-    splitType: row.preferred_split.toLowerCase(),
+    splitType: enumToAppSplit(row.preferred_split),
     daysPerWeek: row.days_per_week,
     equipment: Array.isArray(row.equipment) ? row.equipment : [],
     gender: row.gender ?? undefined,
@@ -229,7 +263,7 @@ function supabaseMesoRowToAppFields(row: SupabaseMesocycleRow): Record<string, u
   // Returns ONLY the meso-specific fields. Identity fields come from
   // supabaseRowToAppProfileFields separately.
   return {
-    splitType: row.split_type.toLowerCase(),
+    splitType: enumToAppSplit(row.split_type),
     mesoLength: row.weeks_count,
     daysPerWeek: row.days_per_week,
     startDate: row.started_at ?? undefined,
@@ -1875,6 +1909,12 @@ export async function pullFromSupabase(): Promise<void> {
         if (localRaw) {
           try {
             const localProfile = JSON.parse(localRaw) as Record<string, unknown>;
+            // Preserve local splitType when it's 'traditional' or 'custom' —
+            // the four-value DB enum can't represent those, so the round-trip
+            // would clobber the user's actual choice with PPL.
+            if (isUnrepresentableSplit(localProfile.splitType)) {
+              delete remoteFields.splitType;
+            }
             const remoteIsFresher = remoteIsNewer(localKey, remoteTs);
             const merged = remoteIsFresher
               ? { ...localProfile, ...remoteFields }
@@ -1932,6 +1972,11 @@ export async function pullFromSupabase(): Promise<void> {
           const mesoFields = supabaseMesoRowToAppFields(mesoRow);
           try {
             const current = localRaw ? JSON.parse(localRaw) : {};
+            // Preserve local 'traditional'/'custom' splitType (DB enum can't
+            // represent them, so the remote value is always PPL fallback).
+            if (isUnrepresentableSplit(current.splitType)) {
+              delete (mesoFields as Record<string, unknown>).splitType;
+            }
             const merged = { ...current, ...mesoFields };
 
             // If the user is a member of a shared meso, pull the owner's
@@ -2425,6 +2470,8 @@ export async function joinMesoByCode(
       const mesoFields = supabaseMesoRowToAppFields(mesoRow);
       const localRaw = store.get('foundry:profile');
       const current = localRaw ? JSON.parse(localRaw) : {};
+      // For a friend joining a shared meso the remote split is authoritative —
+      // overriding the friend's prior 'traditional'/'custom' is intentional.
       const merged = { ...current, ...mesoFields };
 
       // Also fetch the owner's workoutDays so the friend's schedule matches
@@ -2481,7 +2528,7 @@ export async function joinMesoByCode(
         ]);
         const profileForGen = JSON.parse(profileRaw);
         // Use the shared meso's split/days, not whatever the friend had
-        profileForGen.splitType = mesoRow.split_type.toLowerCase();
+        profileForGen.splitType = enumToAppSplit(mesoRow.split_type);
         profileForGen.daysPerWeek = mesoRow.days_per_week;
         const program = programMod.generateProgram(
           profileForGen,

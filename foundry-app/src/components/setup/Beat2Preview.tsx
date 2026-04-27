@@ -12,21 +12,13 @@ import { MesoLengthBody, type MesoLength } from './MesoLengthSheet';
 import { SessionLengthBody, type SessionLength } from './SessionLengthSheet';
 import AccordionBar from './AccordionBar';
 import DayAccordion, { type DayBuild } from './DayAccordion';
+import { formatSplitName } from '../../utils/splitLabel';
 
 interface Beat2Props {
   beat1: Beat1Values;
   onSave: (profile: Profile) => void;
   onEditEssentials: () => void;
 }
-
-const SPLIT_LABEL: Record<SplitType, string> = {
-  ppl: 'Push / Pull / Legs',
-  upper_lower: 'Upper / Lower',
-  push_pull: 'Push / Pull',
-  full_body: 'Full Body',
-  traditional: 'Traditional',
-  custom: 'Custom',
-};
 
 const SESSION_LABEL: Record<SessionLength, string> = {
   short: '~30–45 min',
@@ -297,7 +289,7 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials: _onEditE
       >
         <AccordionBar
           label="SPLIT"
-          value={SPLIT_LABEL[split]}
+          value={formatSplitName(split)}
           open={openBar === 'split'}
           onToggle={() => setOpenBar(openBar === 'split' ? null : 'split')}
         >

@@ -461,18 +461,33 @@ function DayView({
     return -1; // all done
   }, [exercises.length, doneExercises, isDone, isLocked]);
 
-  // Focus Mode auto-advance: when the currently-focused exercise becomes done,
-  // jump to the next incomplete one. Respects user-intent: if they've already
-  // navigated past a completed ex (forward or backward), don't yank them.
+  // Focus Mode auto-advance: when an exercise TRANSITIONS from incomplete to
+  // done while it's the currently-focused one, jump to the next incomplete.
+  // Critically, we only advance on the transition — not whenever focusedIdx
+  // happens to land on a done exercise. That broke the back-nav case: after
+  // reordering, tapping a completed exercise via the progress strip or
+  // ReorderSheet would set focusedIdx to a done index and the effect would
+  // immediately yank it forward, making it impossible to revisit a completed
+  // exercise. The prevDoneRef captures the previous frame's done set so we
+  // can detect the new-done-this-render edge.
+  const prevDoneRef = React.useRef<Set<number>>(new Set());
   useEffect(() => {
-    if (exercises.length === 0) return;
-    if (focusedIdx >= exercises.length) {
-      setFocusedIdx(Math.max(0, exercises.length - 1));
+    if (exercises.length === 0) {
+      prevDoneRef.current = doneExercises;
       return;
     }
-    if (doneExercises.has(focusedIdx) && activeExIdx >= 0 && activeExIdx !== focusedIdx) {
+    if (focusedIdx >= exercises.length) {
+      setFocusedIdx(Math.max(0, exercises.length - 1));
+      prevDoneRef.current = doneExercises;
+      return;
+    }
+    const wasDone = prevDoneRef.current.has(focusedIdx);
+    const isNowDone = doneExercises.has(focusedIdx);
+    const justBecameDone = !wasDone && isNowDone;
+    if (justBecameDone && activeExIdx >= 0 && activeExIdx !== focusedIdx) {
       setFocusedIdx(activeExIdx);
     }
+    prevDoneRef.current = doneExercises;
   }, [doneExercises, activeExIdx, focusedIdx, exercises.length]);
 
   // Keep expandedIdx pinned to focusedIdx in-workout so the active card is
@@ -1529,7 +1544,8 @@ function DayView({
               canNext={clampedFocus < exercises.length - 1}
               onPrev={() => setFocusedIdx(Math.max(0, clampedFocus - 1))}
               onNext={() => setFocusedIdx(Math.min(exercises.length - 1, clampedFocus + 1))}
-              onReorder={() => setReorderOpen(true)}
+              onSession={() => setReorderOpen(true)}
+              sessionLabel={day?.label || day?.tag || "Today's Session"}
               position={clampedFocus + 1}
               total={exercises.length}
             />
@@ -1537,9 +1553,11 @@ function DayView({
         );
       })()}
 
-      {/* Reorder sheet — drag-to-reorder + add-exercise entry point. Mounted
-          here so it overlays Focus Mode. Drag commits via handleMoveExercise,
-          jumps via setFocusedIdx, add opens SwapMenu in append mode. */}
+      {/* Reorder sheet — drag-to-reorder + add-exercise + complete-workout
+          entry point. Mounted here so it overlays Focus Mode. The standalone
+          Complete Workout button used to live below this; testers were
+          tapping it instead of finishing their last set, so completion now
+          lives inside the session sheet alongside reorder. */}
       {reorderOpen && (
         <ReorderSheet
           exercises={exercises}
@@ -1557,33 +1575,9 @@ function DayView({
           onAddExercise={() => {
             setAddingExercise(true);
           }}
+          dayLabel={day?.label || day?.tag}
+          onCompleteWorkout={!isDone && !isLocked ? handleComplete : undefined}
         />
-      )}
-
-      {/* Complete Workout Button — Bebas all-caps to match editorial
-          Focus Mode typography (exercise title, set numerals, etc). */}
-      {!isDone && !isLocked && (
-        <div style={{ margin: '20px 0 12px' }}>
-          <button
-            onClick={handleComplete}
-            style={{
-              width: '100%',
-              padding: '18px',
-              borderRadius: tokens.radius.lg,
-              background: 'var(--btn-primary-bg)',
-              border: '1px solid var(--btn-primary-border)',
-              color: 'var(--btn-primary-text)',
-              fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-              fontSize: 22,
-              fontWeight: 400,
-              cursor: 'pointer',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Complete Workout <span aria-hidden="true">✓</span>
-          </button>
-        </div>
       )}
 
       {/* Weekly bodyweight check-in (first workout of the week) */}
@@ -2082,12 +2076,20 @@ function UpNextCard({
 
 // ── FocusNav ─────────────────────────────────────────────────────────────────
 // Bottom prev/next nav for Focus Mode. 40px tall, minimal chrome.
+// The middle button opens the session sheet (reorder + add + complete) and
+// is labeled with the day's name (e.g. "PUSH A") rather than "REORDER" —
+// testers couldn't see the per-exercise completion path because the small
+// REORDER button + a big "Complete Workout" button below confused the
+// hierarchy. Naming the middle button after the session puts the action
+// chrome on equal footing with prev/next and centers reorder + complete
+// in one place.
 function FocusNav({
   canPrev,
   canNext,
   onPrev,
   onNext,
-  onReorder,
+  onSession,
+  sessionLabel,
   position,
   total,
 }: {
@@ -2095,7 +2097,8 @@ function FocusNav({
   canNext: boolean;
   onPrev: () => void;
   onNext: () => void;
-  onReorder: () => void;
+  onSession: () => void;
+  sessionLabel: string;
   position: number;
   total: number;
 }) {
@@ -2143,8 +2146,8 @@ function FocusNav({
       </button>
       <button
         type="button"
-        onClick={onReorder}
-        aria-label="Reorder or add exercises"
+        onClick={onSession}
+        aria-label="Open session — reorder, add, or complete workout"
         style={{
           height: 40,
           padding: '0 18px',
@@ -2162,9 +2165,18 @@ function FocusNav({
           alignItems: 'center',
           justifyContent: 'center',
           gap: 8,
+          minWidth: 0,
         }}
       >
-        Reorder
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {sessionLabel}
+        </span>
         <span
           aria-hidden="true"
           style={{
@@ -2173,6 +2185,7 @@ function FocusNav({
             letterSpacing: '0.1em',
             color: 'var(--text-muted)',
             fontVariantNumeric: 'tabular-nums',
+            flexShrink: 0,
           }}
         >
           {position}/{total}
