@@ -210,11 +210,31 @@ function DayView({
     return getMeso().totalWeeks;
   })();
 
+  // Calendar-week — how many weeks have elapsed since the meso started.
+  // Clamped to [0, totalWeeks-1] so a user who lapses past the deload week
+  // doesn't end up with calendarWeek beyond the program. Used to relax the
+  // future-session gate: if today's calendar week is week 2 but the user
+  // never logged week 1, they should still be able to start today's
+  // workout (they're current with the calendar, not skipping ahead).
+  const calendarWeek = (() => {
+    const start = profile?.startDate;
+    if (!start || typeof start !== 'string') return 0;
+    const startMs = new Date(start + 'T00:00:00').getTime();
+    if (Number.isNaN(startMs)) return 0;
+    const elapsedDays = Math.floor((Date.now() - startMs) / 86400000);
+    if (elapsedDays < 0) return 0;
+    const wk = Math.floor(elapsedDays / 7);
+    return Math.min(wk, Math.max(0, getMeso().totalWeeks - 1));
+  })();
+
   // Future sessions are normally locked; user can opt in via the
   // "Start anyway" button to record this session without finishing the
-  // prior week first (e.g. when matching a friend's day).
+  // prior week first (e.g. when matching a friend's day). The gate uses
+  // max(activeWeek, calendarWeek) so a past startDate doesn't trap a user
+  // in week 1 forever — if the calendar says they're already in week 2,
+  // week 2 is not "future" even if week 1 was never logged.
   const [futureOverride, setFutureOverride] = useState(false);
-  const isFutureSession = weekIdx > activeWeek;
+  const isFutureSession = weekIdx > Math.max(activeWeek, calendarWeek);
   const isLocked = isFutureSession && !futureOverride;
 
   const mesoId = store.get('foundry:active_meso_id');
