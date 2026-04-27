@@ -549,6 +549,10 @@ function HomeView({
     {
       key: 'explore',
       label: 'Explore',
+      // Folded-map icon — three vertical panels with the side panels offset
+      // (typical "tour map" silhouette) plus a fold line down the middle.
+      // Reads as "browse / explore content" more universally than the prior
+      // magnifying glass, which testers were also reading as "search".
       icon: (active: boolean) => (
         <svg
           width="22"
@@ -560,8 +564,9 @@ function HomeView({
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
+          <line x1="9" y1="4" x2="9" y2="18" />
+          <line x1="15" y1="6" x2="15" y2="20" />
         </svg>
       ),
     },

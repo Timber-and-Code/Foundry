@@ -207,10 +207,11 @@ function SamplePrograms({ profile, onBack, onStartProgram }: SampleProgramsProps
         </button>
         <span
           style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            color: 'var(--text-secondary)',
+            fontFamily: "'Bebas Neue', 'Inter', sans-serif",
+            fontSize: 22,
+            fontWeight: 400,
+            letterSpacing: '0.08em',
+            color: 'var(--text-primary)',
           }}
         >
           SAMPLE PROGRAMS

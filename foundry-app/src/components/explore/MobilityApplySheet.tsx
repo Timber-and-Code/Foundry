@@ -104,8 +104,12 @@ export default function MobilityApplySheet({
           borderTop: '1px solid var(--border)',
           borderRadius: `${tokens.radius.xl}px ${tokens.radius.xl}px 0 0`,
           padding: '18px 20px 24px',
+          paddingBottom: 'max(24px, env(safe-area-inset-bottom, 0px))',
           width: '100%',
           maxWidth: 520,
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           boxShadow: 'var(--shadow-xl)',
           animation: 'slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1)',
         }}

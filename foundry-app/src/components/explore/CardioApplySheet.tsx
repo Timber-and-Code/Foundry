@@ -106,8 +106,15 @@ export default function CardioApplySheet({
           borderTop: '1px solid var(--border)',
           borderRadius: `${tokens.radius.xl}px ${tokens.radius.xl}px 0 0`,
           padding: '18px 20px 24px',
+          paddingBottom: 'max(24px, env(safe-area-inset-bottom, 0px))',
           width: '100%',
           maxWidth: 520,
+          // Without these constraints the day-picker grid + confirm buttons
+          // sit below the visible fold on iPhone-class viewports — testers
+          // saw "just the top portion of an orange box" with nothing tappable.
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           boxShadow: 'var(--shadow-xl)',
           animation: 'slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1)',
         }}
