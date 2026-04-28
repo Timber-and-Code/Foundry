@@ -174,7 +174,11 @@ function WorkoutCompleteModal({
         position: 'fixed',
         inset: 0,
         zIndex: 250,
-        background: 'rgba(0,0,0,0.92)',
+        // Solid backdrop — the prior rgba(0,0,0,0.92) let the app content
+        // bleed through and read as "transparent over the app". Beta
+        // testers wanted this to feel like a discrete completion surface,
+        // not a translucent overlay.
+        background: 'var(--bg-root)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -183,6 +187,8 @@ function WorkoutCompleteModal({
         // making it physically unreachable. Flow from the top instead; the
         // vertical-auto margins on the inner block re-center short content.
         padding: '24px 20px 48px',
+        paddingTop: 'max(24px, env(safe-area-inset-top, 0px))',
+        paddingBottom: 'max(48px, env(safe-area-inset-bottom, 0px))',
         overflowY: 'auto',
         WebkitOverflowScrolling: 'touch',
       }}
