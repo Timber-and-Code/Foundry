@@ -179,19 +179,19 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
           }}
         />
 
-        {/* Wordmark — anchored top */}
-        <div
-          style={{
-            fontFamily: DISPLAY,
-            fontSize: 72,
-            letterSpacing: '0.18em',
-            color: '#FBF7E4',
-            textAlign: 'center',
-            fontWeight: 400,
-            lineHeight: 1,
-          }}
-        >
-          THE FOUNDRY
+        {/* F logo — anchored top, mirrors WorkoutCompleteModal so the share
+            card reads as the same surface. /foundry-f.png has its own baked
+            ember glow and dark background, no CSS mask or filter needed
+            (html-to-image silently drops mask-image and can mangle filters
+            during capture, which was why the F was missing earlier). */}
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <img
+            src="/foundry-f.png"
+            alt=""
+            width={220}
+            height={220}
+            style={{ width: 220, height: 220, objectFit: 'contain' }}
+          />
         </div>
 
         {/* Phase meta — phase-colored */}
@@ -236,6 +236,58 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
             {congratsSub}
           </div>
         </div>
+
+        {/* Motivational quote — sits above the hero/stats so the emotional
+            beat lands before the metrics, matching WorkoutCompleteModal. */}
+        {quote && (
+          <div
+            style={{
+              padding: '8px 24px 8px 36px',
+              borderLeft: `4px solid ${phaseColor}`,
+              position: 'relative',
+            }}
+          >
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                top: -16,
+                left: 12,
+                fontSize: 96,
+                lineHeight: 1,
+                color: phaseColor,
+                opacity: 0.35,
+                fontFamily: 'Georgia, serif',
+                pointerEvents: 'none',
+              }}
+            >
+              &ldquo;
+            </div>
+            <div
+              style={{
+                fontSize: 26,
+                fontWeight: 600,
+                color: TEXT,
+                lineHeight: 1.4,
+                position: 'relative',
+              }}
+            >
+              {quote.text}
+            </div>
+            <div
+              style={{
+                fontSize: 16,
+                color: phaseColor,
+                marginTop: 14,
+                fontWeight: 800,
+                letterSpacing: '0.2em',
+                textTransform: 'uppercase',
+              }}
+            >
+              — {quote.author}
+            </div>
+          </div>
+        )}
 
         {/* Hero — PR if any, else total volume */}
         <div
@@ -497,87 +549,35 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
           </div>
         )}
 
-        {/* Motivational quote — closing beat before the footer */}
-        {quote && (
-          <div
-            style={{
-              padding: '8px 24px 8px 36px',
-              borderLeft: `4px solid ${phaseColor}`,
-              position: 'relative',
-            }}
-          >
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                top: -16,
-                left: 12,
-                fontSize: 96,
-                lineHeight: 1,
-                color: phaseColor,
-                opacity: 0.35,
-                fontFamily: 'Georgia, serif',
-                pointerEvents: 'none',
-              }}
-            >
-              &ldquo;
-            </div>
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 600,
-                color: TEXT,
-                lineHeight: 1.4,
-                position: 'relative',
-              }}
-            >
-              {quote.text}
-            </div>
-            <div
-              style={{
-                fontSize: 16,
-                color: phaseColor,
-                marginTop: 14,
-                fontWeight: 800,
-                letterSpacing: '0.2em',
-                textTransform: 'uppercase',
-              }}
-            >
-              — {quote.author}
-            </div>
-          </div>
-        )}
+        {/* Quote moved above the hero — matches WorkoutCompleteModal order */}
 
-        {/* Footer — F logo + URL, anchored bottom. /foundry-f.png is the
-            ember-edged metallic F mark (matches WorkoutCompleteModal and
-            WelcomeScreen). The image has its own baked dark background +
-            ember glow, so no CSS mask or filter is needed — that matters
-            here because html-to-image silently drops mask-image and can
-            mangle drop-shadow filters during capture, which was why the
-            F was missing from earlier shares. */}
+        {/* Footer — wordmark + URL. The F at the top of the card is the
+            primary brand mark; this footer just sets the destination so
+            anyone who screenshots it knows where to find us. */}
         <div
           style={{
             paddingTop: 12,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 16,
+            gap: 8,
           }}
         >
-          <img
-            src="/foundry-f.png"
-            alt=""
-            width={200}
-            height={200}
-            style={{
-              width: 200,
-              height: 200,
-              objectFit: 'contain',
-            }}
-          />
           <div
             style={{
-              fontSize: 22,
+              fontFamily: DISPLAY,
+              fontSize: 36,
+              letterSpacing: '0.18em',
+              color: '#FBF7E4',
+              fontWeight: 400,
+              lineHeight: 1,
+            }}
+          >
+            THE FOUNDRY
+          </div>
+          <div
+            style={{
+              fontSize: 18,
               fontWeight: 700,
               letterSpacing: '0.24em',
               color: DIM,
