@@ -548,10 +548,13 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
           </div>
         )}
 
-        {/* Footer — F logo + URL, anchored bottom. Uses /icon-512.png (the
-            alpha-baked Apple icon) rather than /foundry-f.png + a CSS mask;
-            html-to-image silently drops mask-image on WebKit, which was why
-            the F was missing from earlier shares. */}
+        {/* Footer — F logo + URL, anchored bottom. /foundry-f.png is the
+            ember-edged metallic F mark (matches WorkoutCompleteModal and
+            WelcomeScreen). The image has its own baked dark background +
+            ember glow, so no CSS mask or filter is needed — that matters
+            here because html-to-image silently drops mask-image and can
+            mangle drop-shadow filters during capture, which was why the
+            F was missing from earlier shares. */}
         <div
           style={{
             paddingTop: 12,
@@ -562,15 +565,14 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
           }}
         >
           <img
-            src="/icon-512.png"
+            src="/foundry-f.png"
             alt=""
-            width={160}
-            height={160}
+            width={200}
+            height={200}
             style={{
-              width: 160,
-              height: 160,
+              width: 200,
+              height: 200,
               objectFit: 'contain',
-              filter: 'drop-shadow(0 4px 28px rgba(232,101,26,0.45))',
             }}
           />
           <div
