@@ -428,6 +428,7 @@ interface HomeTabProps {
   goBack: () => void;
   onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
   setShowSkipConfirm: (v: { dayIdx: number; weekIdx: number } | null) => void;
+  setPreviewSession?: (v: { dayIdx: number; weekIdx: number } | null) => void;
   onOpenCardio: (dateStr: string, protocol: string | null) => void;
   onOpenMobility: (v: string) => void;
   setShowPricing: (v: boolean) => void;
@@ -460,6 +461,7 @@ function HomeTab({
   goBack,
   onSelectDayWeek,
   setShowSkipConfirm,
+  setPreviewSession,
   onOpenCardio,
   onOpenMobility: _onOpenMobility,
   setShowPricing: _setShowPricing,
@@ -1182,16 +1184,51 @@ function HomeTab({
             })}
           </div>
           {isToday && (
-            <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '8px 12px' }}>
+            <div
+              style={{
+                borderTop: '1px solid var(--border-subtle)',
+                padding: '8px 12px',
+                display: 'flex',
+                gap: 8,
+              }}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreviewSession?.({ dayIdx: showDayIdx, weekIdx: showDayWeek });
+                }}
+                aria-label="Preview today's workout"
+                style={{
+                  flex: 1,
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.md,
+                  color: 'var(--text-primary)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  padding: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                Preview
+              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setShowSkipConfirm({ dayIdx: showDayIdx, weekIdx: showDayWeek }); }}
                 style={{
-                  width: '100%', background: 'transparent', border: '1px solid var(--border)',
-                  borderRadius: tokens.radius.md, color: 'var(--text-muted)',
-                  fontSize: 14, fontWeight: 700, letterSpacing: '0.04em', padding: '8px', cursor: 'pointer',
+                  flex: 1,
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.md,
+                  color: 'var(--text-muted)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  padding: '8px',
+                  cursor: 'pointer',
                 }}
               >
-                Skip Today's Session
+                Skip Today
               </button>
             </div>
           )}

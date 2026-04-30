@@ -30,6 +30,7 @@ import { PricingPage } from '../settings/PricingPage';
 import ShareMesoModal from '../social/ShareMesoModal';
 import JoinMesoFlow from '../social/JoinMesoFlow';
 import FriendsSection from '../social/FriendsSection';
+import WorkoutSplash from '../workout/WorkoutSplash';
 import type { Profile, TrainingDay } from '../../types';
 
 interface HomeViewProps {
@@ -108,6 +109,7 @@ function HomeView({
     return unsub;
   }, []);
   const [showSkipConfirm, setShowSkipConfirm] = useState<{ dayIdx: number; weekIdx: number } | null>(null);
+  const [previewSession, setPreviewSession] = useState<{ dayIdx: number; weekIdx: number } | null>(null);
   const [skipVersion, setSkipVersion] = useState(0);
   const [addWorkoutModal, setAddWorkoutModal] = useState<string | null>(null);
   const [addWorkoutStep, setAddWorkoutStep] = useState('type');
@@ -587,6 +589,33 @@ function HomeView({
       <ShareMesoModal open={showShare} onClose={() => setShowShare(false)} />
       <JoinMesoFlow open={showJoin} onClose={() => setShowJoin(false)} onJoined={() => window.location.reload()} />
 
+      {/* Preview today's workout — opt-in WorkoutSplash, not a Start gate */}
+      {previewSession && (() => {
+        const day = activeDays[previewSession.dayIdx];
+        if (!day) {
+          return null;
+        }
+        const mesoId = store.get('foundry:active_meso_id');
+        return (
+          <WorkoutSplash
+            dayName={day.name || `Day ${previewSession.dayIdx + 1}`}
+            dayIdx={previewSession.dayIdx}
+            weekIdx={previewSession.weekIdx}
+            exercises={day.exercises || []}
+            mesoId={mesoId}
+            profile={profile}
+            previewOnly={false}
+            onStart={() => {
+              const sel = previewSession;
+              setPreviewSession(null);
+              onSelectDay(sel.dayIdx);
+              setCurrentWeek(sel.weekIdx);
+            }}
+            onBack={() => setPreviewSession(null)}
+          />
+        );
+      })()}
+
       {/* Skip confirm modal */}
       {showSkipConfirm && (
         <div
@@ -709,6 +738,7 @@ function HomeView({
             goBack={goBack}
             onSelectDayWeek={onSelectDayWeek}
             setShowSkipConfirm={setShowSkipConfirm}
+            setPreviewSession={setPreviewSession}
             onOpenCardio={onOpenCardio}
             onOpenMobility={onOpenMobility}
             setShowPricing={setShowPricing}

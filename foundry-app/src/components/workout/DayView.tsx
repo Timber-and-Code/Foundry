@@ -46,7 +46,6 @@ import { useCompletionFlow } from '../../hooks/useCompletionFlow';
 
 // Components
 import ExerciseCard from './ExerciseCard';
-import WorkoutSplash from './WorkoutSplash';
 import WorkoutCompleteModal from './WorkoutCompleteModal';
 import CardioPromptModal from './CardioPromptModal';
 import UnfinishedPromptModal from './UnfinishedPromptModal';
@@ -237,8 +236,6 @@ function DayView({
   const isFutureSession = weekIdx > Math.max(activeWeek, calendarWeek);
   const isLocked = isFutureSession && !futureOverride;
 
-  const mesoId = store.get('foundry:active_meso_id');
-
   // Weekly bodyweight check-in — fires once at workout start if the day
   // has any BW-based exercises AND the prompt hasn't been shown yet this
   // week. Mid-workout per-exercise prompts were removed: they interrupted
@@ -276,20 +273,8 @@ function DayView({
   });
   const [, setDialog] = useState<{ exIdx: number; exName?: string; restStr?: string; isLastSet?: boolean } | null>(null);
 
-  // Splash gates every entry to a not-yet-started session. It's the single
-  // start surface — there are no other "Begin Workout" buttons in DayView.
-  // Skipped only when the session is locked, already in progress, or done.
-  const [showSplash, setShowSplash] = useState(() => {
-    if (isLocked) return false;
-    const freshDone = store.get(`foundry:done:d${dayIdx}:w${weekIdx}`) === '1';
-    if (freshDone) return false;
-    const alreadyStarted = !!store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
-    if (alreadyStarted) return false;
-    return true;
-  });
-  const dismissSplash = () => {
-    setShowSplash(false);
-  };
+  // Splash gate removed 2026-04-29: workout auto-starts on mount via the
+  // useEffect below. Preview surface lives on the Home today card instead.
   // warmupOpen, readinessBannerDismissed — reserved for warmup/readiness UI
 
   // Readiness check-in state — reserved for in-workout readiness flow
@@ -347,24 +332,11 @@ function DayView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workoutStarted, dayIdx, weekIdx, isDone, isLocked]);
 
-  // Readiness is one row per day; prompt only if today's entry isn't already complete
-  const isReadinessIncompleteToday = () => {
-    const d = new Date();
-    const key = `foundry:readiness:${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    try {
-      const r = JSON.parse(store.get(key) || 'null');
-      return !r || !r.sleep || !r.soreness || !r.energy;
-    } catch {
-      return true;
-    }
-  };
-
   // Commit the workout start — stamps localStorage, starts timer, dismisses
   // overlay, and registers the remote session. Called after the user has
   // confirmed intent (either directly, or via the readiness sheet).
   const commitStartWorkout = () => {
     startTimer();
-    setShowSplash(false);
     // Register the active session immediately on start so the Home tab
     // can flip its CTA to "Resume Workout" without waiting for the user
     // to log a set. Pre-set state shows 0/N — the per-set update path
@@ -399,16 +371,19 @@ function DayView({
     });
   };
 
-  // Intent to begin — if readiness is incomplete, show the sheet first so
-  // the user has a real "Go back" option before the timer starts.
-  const beginWorkout = () => {
-    if (isReadinessIncompleteToday()) {
-      setShowSplash(false);
-      setShowReadinessSheet(true);
-      return;
-    }
+  // Auto-start the workout when DayView mounts on a not-yet-started session.
+  // Replaces the old WorkoutSplash gate. Future-session block (week N when
+  // week N-1 isn't done) still shows its warning UI; auto-start fires once
+  // user taps "Start this session anyway".
+  useEffect(() => {
+    if (workoutStarted || isDone || isLocked) return;
+    if (isFutureSession && !futureOverride) return;
     commitStartWorkout();
-  };
+    // commitStartWorkout has stable identity via closure over deps; we want
+    // this to fire only on the gating conditions changing, not on every
+    // render of commitStartWorkout's identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workoutStarted, isDone, isLocked, isFutureSession, futureOverride]);
 
   // showPostStrengthPrompt, showCardioPrompt — reserved for post-strength/cardio prompts
   // BW check-in — triggered from commitStartWorkout when the day has BW
@@ -527,7 +502,6 @@ function DayView({
   // showUnfinishedPrompt — reserved for unfinished workout prompt
   const [swapTarget, setSwapTarget] = useState<{ exIdx: number } | null>(null);
   const [swapPending, setSwapPending] = useState<{ exIdx: number; newExId: string } | null>(null);
-  const [, setShowAddExercise] = useState(false);
   // Reorder sheet (Focus Mode bottom-nav REORDER button) — drag-to-reorder
   // + "+ Add exercise" entry point. The add path opens SwapMenu in
   // append-mode via `addingExercise`; on select, we push instead of swap.
@@ -1161,25 +1135,13 @@ function DayView({
     return () => clearTimeout(timer);
   }, [weekData, exercises, workoutStarted, isDone, isLocked, showNoteReview, showWorkoutModal, dismissRestTimer, setShowNoteReview]);
 
-  if (!workoutStarted && showSplash) {
-    return (
-      <WorkoutSplash
-        dayName={day.name || `Day ${dayIdx + 1}`}
-        dayIdx={dayIdx}
-        weekIdx={weekIdx}
-        exercises={exercises}
-        mesoId={mesoId}
-        profile={profile}
-        onStart={beginWorkout}
-        onBack={() => {
-          dismissSplash();
-          onBack();
-        }}
-      />
-    );
-  }
-
-  if (!workoutStarted) {
+  // Pre-start view is now reserved for the future-session "Finish Week N
+  // first" warning. All other not-started cases auto-start via the effect
+  // above and render the active workout immediately.
+  if (!workoutStarted && isFutureSession && !futureOverride) {
+    const incomplete = activeDays
+      .map((d, i) => ({ d, i }))
+      .filter(({ i }) => !completedDays.has(`${i}:${activeWeek}`));
     return (
       <div
         style={{
@@ -1188,7 +1150,6 @@ function DayView({
           padding: '20px',
         }}
       >
-        {/* Header */}
         <div
           style={{
             display: 'flex',
@@ -1225,197 +1186,83 @@ function DayView({
           <div style={{ width: 72 }} aria-hidden="true" />
         </div>
 
-        {/* Future-session block: prior week incomplete */}
-        {isFutureSession && !futureOverride && (() => {
-          const incomplete = activeDays
-            .map((d, i) => ({ d, i }))
-            .filter(({ i }) => !completedDays.has(`${i}:${activeWeek}`));
-          return (
-            <div
-              role="alert"
-              style={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--phase-intens, #E8651A)',
-                borderRadius: tokens.radius.lg,
-                padding: 20,
-                marginBottom: 20,
-              }}
-            >
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
-                Finish Week {activeWeek + 1} first
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 12 }}>
-                You can't start Week {weekIdx + 1} until every day in Week {activeWeek + 1} is complete.
-                {incomplete.length > 0 && ' Tap a day below to finish it:'}
-              </div>
-              {incomplete.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {incomplete.map(({ d, i }) => (
-                    <button
-                      key={i}
-                      onClick={() => onNavigateToDay?.(i, activeWeek)}
-                      disabled={!onNavigateToDay}
-                      style={{
-                        width: '100%',
-                        padding: '12px 14px',
-                        borderRadius: tokens.radius.md,
-                        background: 'var(--bg-inset)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                        fontSize: 13,
-                        fontWeight: 700,
-                        textAlign: 'left',
-                        cursor: onNavigateToDay ? 'pointer' : 'default',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <span>Day {i + 1} · {d.name}</span>
-                      {onNavigateToDay && <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>→</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                onClick={() => setFutureOverride(true)}
-                style={{
-                  width: '100%',
-                  marginTop: 14,
-                  padding: '12px 14px',
-                  borderRadius: tokens.radius.md,
-                  background: 'transparent',
-                  border: '1px dashed var(--phase-intens, #E8651A)',
-                  color: 'var(--phase-intens, #E8651A)',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Start this session anyway
-              </button>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 8, textAlign: 'center' }}>
-                Records this day independently. Earlier days stay marked incomplete.
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* WorkoutSplash is the single start gate; pre-start "Ready to train?"
-            overlay was redundant and has been removed. */}
-
-        {/* Exercise Cards */}
-        {exercises.map((ex: Exercise, i: number) => {
-          // Resolve superset partner name
-          let supersetPartnerName: string | undefined;
-          if (ex.supersetWith != null) {
-            supersetPartnerName = exercises[ex.supersetWith]?.name;
-          } else {
-            const primary = exercises.find((e) => e.supersetWith === i);
-            if (primary) supersetPartnerName = primary.name;
-          }
-          return (
-            <div key={i} id={`ex-${i}`} style={{ marginBottom: 12 }}>
-              <ExerciseCard
-                exercise={ex}
-                exIdx={i}
-                dayIdx={dayIdx}
-                weekIdx={weekIdx}
-                weekData={weekData}
-                onUpdateSet={handleUpdateSet}
-                onWeightAutoFill={handleWeightAutoFill}
-                onLastSetFilled={handleLastSetFilled}
-                expanded={expandedIdx === i}
-                onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
-                done={isDone}
-                readOnly={isLocked}
-                onSwapClick={(idx) => setSwapTarget({ exIdx: idx })}
-                onSetLogged={handleSetLogged}
-                bodyweight={profile?.weight}
-                note={exNotes[i] || ''}
-                onNoteChange={(idx: number, val: string) => {
-                  const next = { ...exNotes, [idx]: val };
-                  setExNotes(next);
-                }}
-                onAddSet={handleAddSet}
-                onRemoveSet={handleRemoveSet}
-                onMoveUp={(idx) => handleMoveExercise(idx, idx - 1)}
-                onMoveDown={(idx) => handleMoveExercise(idx, idx + 1)}
-                isFirst={i === 0}
-                isLast={i === exercises.length - 1}
-                supersetPartnerName={supersetPartnerName}
-              />
-            </div>
-          );
-        })}
-
-        {/* Add Exercise Button */}
-        {!isDone && !isLocked && (
-          <div style={{ marginBottom: 20 }}>
-            <button
-              onClick={() => setShowAddExercise(true)}
-              style={{
-                width: '100%',
-                padding: '16px',
-                borderRadius: tokens.radius.lg,
-                background: 'var(--bg-card)',
-                border: '2px dashed var(--border)',
-                color: 'var(--text-accent)',
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              + Add Exercise
-            </button>
-          </div>
-        )}
-
-        {/* Pre-start "Begin Workout" CTA removed — WorkoutSplash gates entry. */}
-
-        {/* ── Exercise Swap (pre-workout) ──────────────────────────── */}
-        <SwapMenu
-          open={swapTarget !== null || addingExercise}
-          onClose={() => {
-            setSwapTarget(null);
-            setAddingExercise(false);
+        <div
+          role="alert"
+          style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--phase-intens, #E8651A)',
+            borderRadius: tokens.radius.lg,
+            padding: 20,
+            marginBottom: 20,
           }}
-          replacingName={
-            addingExercise
-              ? 'Add exercise'
-              : swapTarget !== null
-              ? exercises[swapTarget.exIdx]?.name || ''
-              : ''
-          }
-          exerciseGroups={swapExGroups}
-          autoExpandMuscle={addingExercise ? undefined : swapMuscle}
-          userEquipment={userEquipment}
-          onSelect={handleSwap}
-          onCustomExercise={handleCustomExercise}
-          scopePending={swapPending ? { exerciseName: exercises[swapPending.exIdx]?.name || '' } : null}
-          onScopeMeso={() => executeSwap('meso')}
-          onScopeWeek={() => executeSwap('week')}
-          onScopeCancel={() => setSwapPending(null)}
-        />
-
-        {/* Readiness check-in gate — fires from beginWorkout() when today's
-            readiness is incomplete. Mounted here too because the main return
-            below only renders after workoutStarted flips true. */}
-        {showReadinessSheet && (
-          <ReadinessSheet
-            onDismiss={() => {
-              setShowReadinessSheet(false);
-              if (!workoutStarted) commitStartWorkout();
+        >
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+            Finish Week {activeWeek + 1} first
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 12 }}>
+            You can't start Week {weekIdx + 1} until every day in Week {activeWeek + 1} is complete.
+            {incomplete.length > 0 && ' Tap a day below to finish it:'}
+          </div>
+          {incomplete.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {incomplete.map(({ d, i }) => (
+                <button
+                  key={i}
+                  onClick={() => onNavigateToDay?.(i, activeWeek)}
+                  disabled={!onNavigateToDay}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: tokens.radius.md,
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    textAlign: 'left',
+                    cursor: onNavigateToDay ? 'pointer' : 'default',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span>Day {i + 1} · {d.name}</span>
+                  {onNavigateToDay && <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>→</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => setFutureOverride(true)}
+            style={{
+              width: '100%',
+              marginTop: 14,
+              padding: '12px 14px',
+              borderRadius: tokens.radius.md,
+              background: 'transparent',
+              border: '1px dashed var(--phase-intens, #E8651A)',
+              color: 'var(--phase-intens, #E8651A)',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
             }}
-            onCancel={() => {
-              setShowReadinessSheet(false);
-              setShowSplash(true);
-            }}
-          />
-        )}
+          >
+            Start this session anyway
+          </button>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 8, textAlign: 'center' }}>
+            Records this day independently. Earlier days stay marked incomplete.
+          </div>
+        </div>
       </div>
     );
   }
+
+  // Loading guard: between mount and the auto-start effect firing, avoid
+  // rendering the active workout (some children assume workoutStarted).
+  if (!workoutStarted && !isDone && !isLocked) {
+    return null;
+  }
+
 
   return (
     <div
@@ -1841,14 +1688,7 @@ function DayView({
             setShowReadinessSheet(false);
             if (!workoutStarted) commitStartWorkout();
           }}
-          onCancel={
-            workoutStarted
-              ? undefined
-              : () => {
-                  setShowReadinessSheet(false);
-                  setShowSplash(true);
-                }
-          }
+          onCancel={() => setShowReadinessSheet(false)}
         />
       )}
 
