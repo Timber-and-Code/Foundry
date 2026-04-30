@@ -51,6 +51,7 @@ import CardioPromptModal from './CardioPromptModal';
 import UnfinishedPromptModal from './UnfinishedPromptModal';
 import NoteReviewSheet from './NoteReviewSheet';
 import MoodStrip from './MoodStrip';
+import WorkoutOverviewAccordion from './WorkoutOverviewAccordion';
 import SwapMenu from './SwapMenu';
 import ReorderSheet from './ReorderSheet';
 import { buildSwapGroups } from '../../utils/swapGroups';
@@ -1338,6 +1339,17 @@ function DayView({
           without committing. */}
       <div style={{ marginBottom: 12 }}>
         <MoodStrip />
+      </div>
+
+      {/* Workout overview accordion — closed by default, mid-workout reference
+          for the exercises ahead. Replaces the WorkoutSplash exercise list as
+          a non-blocking surface. */}
+      <div style={{ marginBottom: 12 }}>
+        <WorkoutOverviewAccordion
+          exercises={exercises}
+          dayIdx={dayIdx}
+          weekIdx={weekIdx}
+        />
       </div>
 
       {/* ── Focus Mode: progress strip + single exercise + up-next + prev/next nav ── */}
