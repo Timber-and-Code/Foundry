@@ -1515,6 +1515,7 @@ function DayView({
                 used to add a second border + glow, which read as a double
                 ring. Wrapper is now layout-only. */}
             <div
+              key={clampedFocus}
               id={`ex-${clampedFocus}`}
               style={{
                 marginBottom: 12,
