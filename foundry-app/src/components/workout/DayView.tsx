@@ -50,7 +50,7 @@ import WorkoutCompleteModal from './WorkoutCompleteModal';
 import CardioPromptModal from './CardioPromptModal';
 import UnfinishedPromptModal from './UnfinishedPromptModal';
 import NoteReviewSheet from './NoteReviewSheet';
-import ReadinessSheet from './ReadinessSheet';
+import MoodStrip from './MoodStrip';
 import SwapMenu from './SwapMenu';
 import ReorderSheet from './ReorderSheet';
 import { buildSwapGroups } from '../../utils/swapGroups';
@@ -393,8 +393,9 @@ function DayView({
     const log = loadBwLog();
     return log.length > 0 ? String(log[0].weight) : profile?.weight ? String(profile.weight) : '';
   });
-  // Readiness check-in — triggered from beginWorkout() if today's entry is incomplete
-  const [showReadinessSheet, setShowReadinessSheet] = useState(false);
+  // ReadinessSheet modal removed 2026-04-29 — replaced by inline MoodStrip
+  // mounted at the top of the active workout view. Same localStorage key
+  // + Supabase sync path, just no longer a blocking modal.
   // bwCheckinInput, setBwCheckinInput — reserved for BW check-in input
   // Per-exercise notes
   const [exNotes, setExNotes] = useState(() => loadExNotes(dayIdx, weekIdx));
@@ -1332,6 +1333,13 @@ function DayView({
         <div aria-hidden="true" />
       </div>
 
+      {/* MoodStrip — 1-tap readiness check-in. Replaces the ReadinessSheet
+          modal that used to gate workout start. Optional; "skip ›" hides it
+          without committing. */}
+      <div style={{ marginBottom: 12 }}>
+        <MoodStrip />
+      </div>
+
       {/* ── Focus Mode: progress strip + single exercise + up-next + prev/next nav ── */}
       {(() => {
         const clampedFocus = Math.max(0, Math.min(focusedIdx, exercises.length - 1));
@@ -1680,17 +1688,6 @@ function DayView({
           </div>
         );
       })()}
-
-      {/* Readiness check-in (pre-workout) */}
-      {showReadinessSheet && (
-        <ReadinessSheet
-          onDismiss={() => {
-            setShowReadinessSheet(false);
-            if (!workoutStarted) commitStartWorkout();
-          }}
-          onCancel={() => setShowReadinessSheet(false)}
-        />
-      )}
 
       {/* Note Review Step */}
       {showNoteReview && (
