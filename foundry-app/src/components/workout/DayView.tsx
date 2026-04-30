@@ -49,7 +49,7 @@ import ExerciseCard from './ExerciseCard';
 import WorkoutCompleteModal from './WorkoutCompleteModal';
 import CardioPromptModal from './CardioPromptModal';
 import UnfinishedPromptModal from './UnfinishedPromptModal';
-import NoteReviewSheet from './NoteReviewSheet';
+import WorkoutBreathCard from './WorkoutBreathCard';
 import MoodStrip from './MoodStrip';
 import WorkoutOverviewAccordion from './WorkoutOverviewAccordion';
 import NextUpCard from './NextUpCard';
@@ -1116,9 +1116,10 @@ function DayView({
     elapsedSecs,
   });
 
-  // Auto-prompt: when every set across every exercise is confirmed, wait 1.5s
-  // and open the NoteReviewSheet. Re-fires if the user taps "Keep going",
-  // adds/edits more sets, and completes again (re-fire gated by autoFiredRef).
+  // Auto-prompt: when every set across every exercise is confirmed, wait
+  // 2.5s for a deliberate "breath" beat then show the WorkoutBreathCard
+  // (RPE + optional note + Finish). Re-fires if the user keeps going,
+  // adds more sets, and completes again (gated by autoFiredRef).
   const autoFiredRef = React.useRef(false);
   React.useEffect(() => {
     if (!workoutStarted || isDone || isLocked) return;
@@ -1137,10 +1138,13 @@ function DayView({
     }
     if (autoFiredRef.current || showNoteReview || showWorkoutModal) return;
     autoFiredRef.current = true;
+    // Dismiss the NextUpCard if it happened to be on screen — the user is
+    // done with the day, no "next exercise" to advance to.
+    setPendingNextUpIdx(null);
     const timer = setTimeout(() => {
       dismissRestTimer();
       setShowNoteReview(true);
-    }, 1500);
+    }, 2500);
     return () => clearTimeout(timer);
   }, [weekData, exercises, workoutStarted, isDone, isLocked, showNoteReview, showWorkoutModal, dismissRestTimer, setShowNoteReview]);
 
@@ -1725,11 +1729,15 @@ function DayView({
         />
       )}
 
-      {/* Note Review Step */}
+      {/* End-of-workout breath card — RPE + optional note + Finish CTA.
+          Replaces NoteReviewSheet 2026-04-29. Gives the lifter a deliberate
+          beat before the celebration modal lands. */}
       {showNoteReview && (
-        <NoteReviewSheet
+        <WorkoutBreathCard
+          dayIdx={dayIdx}
+          weekIdx={weekIdx}
           note={sessionNote}
-          onChange={setSessionNote}
+          onNoteChange={setSessionNote}
           onFinish={() => {
             setShowNoteReview(false);
             doCompleteWithStats();
