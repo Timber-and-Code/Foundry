@@ -344,18 +344,18 @@ export default function ReorderSheet({
                 width: '100%',
                 padding: '16px',
                 borderRadius: tokens.radius.lg,
-                background: 'var(--btn-primary-bg)',
-                border: '1px solid var(--btn-primary-border)',
-                color: 'var(--btn-primary-text)',
+                background: 'var(--bg-root)',
+                border: 'none',
+                color: 'var(--accent)',
                 fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: 400,
                 cursor: 'pointer',
-                letterSpacing: '0.08em',
+                letterSpacing: '0.12em',
                 textTransform: 'uppercase',
               }}
             >
-              Complete Workout <span aria-hidden="true">✓</span>
+              Complete Workout <span aria-hidden="true">→</span>
             </button>
           )}
           <button

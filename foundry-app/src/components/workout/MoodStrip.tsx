@@ -268,14 +268,15 @@ export default function MoodStrip({ onSet }: MoodStripProps) {
             style={{
               flex: 1,
               padding: '12px 8px',
-              background: 'transparent',
-              border: '1px solid var(--border-accent)',
+              background: 'var(--bg-root)',
+              border: 'none',
               borderRadius: tokens.radius.md,
-              color: 'var(--text-primary)',
+              color: 'var(--accent)',
               fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
               fontSize: 16,
               letterSpacing: '0.1em',
               cursor: 'pointer',
+              textTransform: 'uppercase',
             }}
           >
             {m.toUpperCase()}

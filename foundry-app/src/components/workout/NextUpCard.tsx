@@ -122,15 +122,14 @@ export default function NextUpCard({
             width: '100%',
             marginTop: 8,
             padding: 16,
-            background: 'transparent',
-            border: '1px solid var(--accent)',
+            background: 'var(--bg-root)',
+            border: 'none',
             color: 'var(--accent)',
             borderRadius: tokens.radius.lg,
             fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
             fontSize: 22,
             letterSpacing: '0.12em',
             cursor: 'pointer',
-            boxShadow: '0 0 0 1px var(--accent)',
             textTransform: 'uppercase',
           }}
         >

@@ -236,7 +236,7 @@ export default function WorkoutBreathCard({
               // Start button visually (transparent on a dark card reads as
               // black; explicit bg-root removes ambiguity inside the modal).
               background: 'var(--bg-root)',
-              border: '1px solid var(--accent)',
+              border: 'none',
               color: 'var(--accent)',
               fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
               fontSize: 22,
