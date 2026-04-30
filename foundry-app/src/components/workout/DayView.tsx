@@ -52,6 +52,7 @@ import UnfinishedPromptModal from './UnfinishedPromptModal';
 import NoteReviewSheet from './NoteReviewSheet';
 import MoodStrip from './MoodStrip';
 import WorkoutOverviewAccordion from './WorkoutOverviewAccordion';
+import NextUpCard from './NextUpCard';
 import SwapMenu from './SwapMenu';
 import ReorderSheet from './ReorderSheet';
 import { buildSwapGroups } from '../../utils/swapGroups';
@@ -251,8 +252,10 @@ function DayView({
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
   // Focus Mode: which exercise is on screen in-workout. User-controlled via
   // prev/next + progress-strip taps; auto-advances when the current exercise
-  // becomes done.
+  // becomes done. The advance routes through pendingNextUpIdx so the user
+  // gets an "I'M READY" interstitial before the focus jumps.
   const [focusedIdx, setFocusedIdx] = useState<number>(0);
+  const [pendingNextUpIdx, setPendingNextUpIdx] = useState<number | null>(null);
   const [doneExercises, setDoneExercises] = useState<Set<number>>(() => {
     if (isFutureSession) return new Set<number>(); // future — nothing is done
     const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile);
@@ -482,7 +485,11 @@ function DayView({
     const isNowDone = doneExercises.has(focusedIdx);
     const justBecameDone = !wasDone && isNowDone;
     if (justBecameDone && activeExIdx >= 0 && activeExIdx !== focusedIdx) {
-      setFocusedIdx(activeExIdx);
+      // Stage the advance behind a NextUpCard interstitial. Focus only
+      // jumps once the user taps "I'm Ready". If this was the final
+      // exercise (activeExIdx wraps or there's no further work), we
+      // skip the card — completion flow takes over.
+      setPendingNextUpIdx(activeExIdx);
     }
     prevDoneRef.current = doneExercises;
   }, [doneExercises, activeExIdx, focusedIdx, exercises.length]);
@@ -1700,6 +1707,23 @@ function DayView({
           </div>
         );
       })()}
+
+      {/* NextUpCard interstitial — shown when the just-finished exercise
+          should hand off to a different one. Replaces the abrupt focus
+          jump with an "I'm Ready" beat. */}
+      {pendingNextUpIdx !== null && exercises[pendingNextUpIdx] && (
+        <NextUpCard
+          exercise={exercises[pendingNextUpIdx]}
+          exIdx={pendingNextUpIdx}
+          dayIdx={dayIdx}
+          weekIdx={weekIdx}
+          onReady={() => {
+            const nextIdx = pendingNextUpIdx;
+            setPendingNextUpIdx(null);
+            setFocusedIdx(nextIdx);
+          }}
+        />
+      )}
 
       {/* Note Review Step */}
       {showNoteReview && (

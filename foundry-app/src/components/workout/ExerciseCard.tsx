@@ -152,7 +152,7 @@ function ExerciseCard({
           : 'var(--danger)';
   const [showHowTo, setShowHowTo] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
-  const [rpePrompt, setRpePrompt] = useState<number | null>(null);
+  // Per-set RPE prompt removed 2026-04-29 — RPE moved to end-of-workout breath card.
   const [removeSetPrompt, setRemoveSetPrompt] = useState<number | null>(null);
   // "Record 0 reps for this set?" gate — opened when the lifter taps the
   // check on a row with no reps entered. On confirm we log 0/0, suppress
@@ -309,26 +309,18 @@ function ExerciseCard({
     }
     const totalSets = Number(exercise.sets) || 0;
     const isLastSet = s === totalSets - 1;
-    if (isLastSet) {
-      // Open RPE prompt only on the final set — user picks Easy/Good/Hard
-      setRpePrompt(s);
-      // Onboarding v2: fire the first-rpe-prompt event once per user so the
-      // CoachMarkOrchestrator can explain what the labels mean.
-      if (!store.get('foundry:first_rpe_emitted')) {
-        store.set('foundry:first_rpe_emitted', '1');
-        window.dispatchEvent(new Event('foundry:first-rpe-prompt'));
-      }
-      return;
-    }
-    // Non-final set: confirm directly, no RPE prompt
+    // Confirm directly — per-exercise RPE prompt removed 2026-04-29.
+    // RPE is now collected once at end of workout (WorkoutBreathCard).
     onUpdateSet(exIdx, s, 'confirmed', true);
     setDoneSets((prev) => new Set([...prev, s]));
     onLastSetFilled(exIdx, s);
-    onSetLogged(exercise.rest || '2 min', exercise.name, s, false);
-    // Anchor coach tip — fires only on a non-final set confirm so it
-    // never collides with the last-set RPE prompt. The user is now in
-    // rest with the hammer icon visible above the set rows.
-    if (exercise.anchor && !store.get('foundry:first_anchor_emitted')) {
+    // Pass isLastSet=true on the final set so DayView's handleSetLogged
+    // suppresses the rest timer (between-exercise transition is the
+    // NextUpCard, not a rest beep).
+    onSetLogged(exercise.rest || '2 min', exercise.name, s, isLastSet);
+    // Anchor coach tip — fires only on a non-final set confirm so the
+    // hammer icon is visible during rest between sets.
+    if (!isLastSet && exercise.anchor && !store.get('foundry:first_anchor_emitted')) {
       store.set('foundry:first_anchor_emitted', '1');
       window.dispatchEvent(new Event('foundry:first-anchor-visible'));
     }
@@ -348,18 +340,6 @@ function ExerciseCard({
     // Tactile ack for the skip — rest timer's own haptic won't fire here
     // because we deliberately bypass it.
     try { haptic('tap'); } catch { /* haptic unavailable on this platform */ }
-  };
-
-  const handleRpeSelect = (s: number, rpeLabel: string) => {
-    onUpdateSet(exIdx, s, 'rpe', rpeLabel);
-    onUpdateSet(exIdx, s, 'confirmed', true);
-    setDoneSets((prev) => new Set([...prev, s]));
-    onLastSetFilled(exIdx, s);
-    // Kick off rest timer for this set
-    const totalSets = Number(exercise.sets) || 0;
-    const isLastSet = s === totalSets - 1;
-    onSetLogged(exercise.rest || '2 min', exercise.name, s, isLastSet);
-    setRpePrompt(null);
   };
 
   // Progression hint — derived from whether set 0 has suggested flags
@@ -1466,97 +1446,6 @@ function ExerciseCard({
                   outline: 'none',
                 }}
               />
-            </div>
-          )}
-
-          {/* RPE Prompt */}
-          {rpePrompt !== null && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="rpe-prompt-title"
-              style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(0,0,0,0.5)',
-                zIndex: 100,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              onClick={() => setRpePrompt(null)}
-            >
-              <div
-                data-coach="rpe-prompt"
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: tokens.radius.lg,
-                  padding: 20,
-                  maxWidth: 320,
-                  width: '90%',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div
-                  id="rpe-prompt-title"
-                  style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, color: 'var(--text-primary)' }}
-                >
-                  How did that feel?
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: 'var(--text-muted)',
-                    letterSpacing: '0.08em',
-                    marginBottom: 16,
-                  }}
-                >
-                  SET {rpePrompt + 1} — RPE
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[
-                    { label: 'Easy', hint: 'Could do 3+ more reps', color: 'var(--success)' },
-                    { label: 'Good', hint: '1–2 reps in reserve', color: 'var(--text-accent)' },
-                    { label: 'Hard', hint: 'At or near failure', color: 'var(--danger)' },
-                  ].map(({ label, hint, color }) => (
-                    <button
-                      key={label}
-                      onClick={() => handleRpeSelect(rpePrompt, label)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 14px',
-                        borderRadius: tokens.radius.md,
-                        background: 'var(--bg-inset)',
-                        border: `1px solid ${color}`,
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                      }}
-                    >
-                      <div style={{ fontSize: 14, fontWeight: 700, color }}>{label}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{hint}</div>
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setRpePrompt(null)}
-                  style={{
-                    marginTop: 12,
-                    width: '100%',
-                    padding: '8px',
-                    borderRadius: tokens.radius.sm,
-                    background: 'transparent',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
             </div>
           )}
 
