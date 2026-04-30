@@ -232,18 +232,20 @@ export default function WorkoutBreathCard({
               flex: 1,
               padding: 16,
               borderRadius: tokens.radius.md,
-              background: 'transparent',
+              // Solid dark fill + outlined-orange lettering — matches Home's
+              // Start button visually (transparent on a dark card reads as
+              // black; explicit bg-root removes ambiguity inside the modal).
+              background: 'var(--bg-root)',
               border: '1px solid var(--accent)',
               color: 'var(--accent)',
               fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
               fontSize: 22,
               letterSpacing: '0.12em',
               cursor: 'pointer',
-              boxShadow: '0 0 0 1px var(--accent)',
               textTransform: 'uppercase',
             }}
           >
-            Finish <span aria-hidden="true">→</span>
+            Complete Workout <span aria-hidden="true">→</span>
           </button>
         </div>
       </div>
