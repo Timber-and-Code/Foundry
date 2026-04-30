@@ -214,11 +214,14 @@ describe('DayView', () => {
     expect(screen.getByText(/Push Day/)).toBeInTheDocument();
   });
 
-  it('shows the splash START WORKOUT CTA when workout has not started', () => {
+  it('auto-starts the workout on mount (no splash gate)', () => {
+    // Splash gate removed 2026-04-29 — workout auto-starts on mount via a
+    // useEffect. The "START WORKOUT" CTA no longer exists in DayView.
     render(<DayView {...defaultProps()} />);
-    // WorkoutSplash is the single start gate. The standalone "Begin Workout"
-    // and meso-overlay CTAs were removed; users start via the splash only.
-    expect(screen.getByText(/START WORKOUT/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^START WORKOUT$/i)).toBeNull();
+    // Auto-start writes a sessionStart key to localStorage.
+    const sessionKey = 'foundry:sessionStart:d0:w0';
+    expect(localStorage.getItem(sessionKey)).not.toBeNull();
   });
 
   it('renders one focused exercise card at a time (Focus Mode)', () => {
@@ -286,18 +289,13 @@ describe('DayView', () => {
     expect(timerEl!.textContent).toMatch(/\d+:\d{2}/);
   });
 
-  it('notes persistence - clicking the splash START WORKOUT stores session start', () => {
-    // Readiness must be complete in real localStorage — DayView's readiness
-    // check reads the real store, not the mock.
-    localStorage.setItem(todayReadinessKey(), completeReadiness());
-
+  it('stores session start in localStorage on mount (auto-start)', () => {
+    // Splash and the readiness gate were removed 2026-04-29; DayView now
+    // auto-starts the workout via a useEffect on mount. The session start
+    // timestamp lands in localStorage without any user interaction.
     render(<DayView {...defaultProps()} />);
     expect(screen.getByText(/Push Day/)).toBeInTheDocument();
 
-    // Click the splash's START WORKOUT button to commit the start.
-    fireEvent.click(screen.getByText(/START WORKOUT/i));
-
-    // After starting, the component stores the session start time in localStorage.
     const sessionKey = 'foundry:sessionStart:d0:w0';
     const stored = localStorage.getItem(sessionKey);
     expect(stored).not.toBeNull();
