@@ -274,11 +274,20 @@ function DayActionSheet(props: DayActionSheetProps) {
             );
           })}
 
-          {/* Move — only if exactly 1 active (not completed) session and not past */}
-          {activeKeys.length === 1 && !isPast && (
+          {/* Move — exactly 1 active (not completed) session.
+              Today/future: shift ±7 days from the source.
+              Past + missed: forward-only into the next 14 days, anchored on
+              today, so the user can recover a missed session by sliding it
+              into the upcoming week. MoveWorkoutSheet handles the anchor
+              switch via its `max(source, today)` rule. */}
+          {activeKeys.length === 1 && (
             <ActionButton
-              label="Move this workout"
-              description="Shift ±7 days. The session keeps its progression — only the date changes."
+              label={isPast ? 'Reschedule missed workout' : 'Move this workout'}
+              description={
+                isPast
+                  ? 'Pick any upcoming day to slot this missed session into. Progression is preserved.'
+                  : 'Shift ±7 days. The session keeps its progression — only the date changes.'
+              }
               onClick={() => {
                 onClose();
                 onMoveSession(activeKeys[0]);

@@ -10,6 +10,7 @@
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
+    "cap:dev:ios": "npx cap run ios --live-reload --external --port 3001",
     "build:android": "npm run build && npx cap sync android",
     "build:ios": "npm run build && npx cap sync ios",
     "test": "vitest run",

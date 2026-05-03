@@ -72,10 +72,16 @@ function MoveWorkoutSheet({
   };
 
   const cells = useMemo<(DateCell | null)[]>(() => {
-    const source = new Date(sourceDateStr + 'T00:00:00');
+    // Anchor the grid on the LATER of source date and today, so that
+    // rescheduling a missed past session shows actionable upcoming dates
+    // instead of a grid full of "Past" cells. For today/future sources,
+    // anchor === source and behavior is unchanged.
+    const sourceIsPast = sourceDateStr < todayStr;
+    const anchorStr = sourceIsPast ? todayStr : sourceDateStr;
+    const anchor = new Date(anchorStr + 'T00:00:00');
     const dateCells: DateCell[] = [];
     for (let offset = -7; offset <= 7; offset++) {
-      const dt = new Date(source);
+      const dt = new Date(anchor);
       dt.setDate(dt.getDate() + offset);
       const ds = toDateStr(dt);
       const isSource = ds === sourceDateStr;
@@ -133,6 +139,8 @@ function MoveWorkoutSheet({
     return dt.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   }, [sourceDateStr]);
 
+  const sourceIsPast = sourceDateStr < todayStr;
+
   return (
     <Sheet open={open} onClose={onClose} zIndex={360}>
       <div
@@ -155,11 +163,11 @@ function MoveWorkoutSheet({
                 fontSize: 12,
                 fontWeight: 800,
                 letterSpacing: '0.12em',
-                color: 'var(--text-muted)',
+                color: sourceIsPast ? 'var(--accent)' : 'var(--text-muted)',
                 marginBottom: 4,
               }}
             >
-              MOVE WORKOUT
+              {sourceIsPast ? 'RESCHEDULE MISSED' : 'MOVE WORKOUT'}
             </div>
             <div
               id="move-workout-title"
@@ -168,7 +176,7 @@ function MoveWorkoutSheet({
               {sessionLabel || 'Session'}
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Currently on {sourceLabel}
+              {sourceIsPast ? `Missed on ${sourceLabel} — pick a new day` : `Currently on ${sourceLabel}`}
             </div>
           </div>
           <button

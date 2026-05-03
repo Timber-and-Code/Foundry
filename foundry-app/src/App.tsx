@@ -69,6 +69,12 @@ const NotFoundPage = React.lazy(() => import('./components/NotFoundPage'));
 const ShareModalPreview = React.lazy(
   () => import('./components/workout/ShareModalPreview'),
 );
+const WorkoutStartPreview = React.lazy(
+  () => import('./components/workout/WorkoutStartPreview'),
+);
+const CardioHomePreview = React.lazy(
+  () => import('./components/workout/CardioHomePreview'),
+);
 // Forge v2 UI preview — dev-only sandbox, entirely isolated from live app
 // state. Route is short-circuited in AuthGate below so it renders without
 // going through the auth / onboarding / meso gates.
@@ -647,6 +653,8 @@ function App() {
             element={<MobilityViewRoute profile={profile} />}
           />
           <Route path="/preview/share" element={<ShareModalPreview />} />
+          <Route path="/preview/workout-start" element={<WorkoutStartPreview />} />
+          <Route path="/preview/cardio-card" element={<CardioHomePreview />} />
           <Route path="/friend/:code" element={<FriendInvitePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
