@@ -56,6 +56,7 @@ import NextUpCard from './NextUpCard';
 import SwapMenu from './SwapMenu';
 import ReorderSheet from './ReorderSheet';
 import SupersetGroup from './SupersetGroup';
+import SupersetRoundView from './SupersetRoundView';
 import SupersetPickerSheet from './SupersetPickerSheet';
 import { buildSwapGroups, bucketFor } from '../../utils/swapGroups';
 import { expandEquipment } from '../../utils/program';
@@ -1704,6 +1705,35 @@ function DayView({
                 adjacent paired exercises render together inside
                 SupersetGroup so the lifter sees the whole pairing. */}
             {(() => {
+              // Round-grouped (interleaved) layout — replaces the flat
+              // stack of ExerciseCards with one SupersetRoundView per
+              // group. DEV-flagged via SUPERSETS_ENABLED upstream; kicks
+              // in only for groups of 2+ exercises.
+              if (groupId && groupedIdxs.length >= 2) {
+                const groupExercises = groupedIdxs.map((i) => exercises[i]);
+                return (
+                  <SupersetGroup
+                    exercises={groupExercises}
+                    onUnpair={() => handleUnpairSuperset(groupId)}
+                  >
+                    <SupersetRoundView
+                      exercises={groupExercises}
+                      exIdxs={groupedIdxs}
+                      weekData={weekData}
+                      dayIdx={dayIdx}
+                      weekIdx={weekIdx}
+                      readOnly={isLocked}
+                      onUpdateSet={handleUpdateSet}
+                      onWeightAutoFill={handleWeightAutoFill}
+                      onLastSetFilled={handleLastSetFilled}
+                      onSetLogged={handleSetLogged}
+                      onAddSet={handleAddSet}
+                      onRemoveSet={handleRemoveSet}
+                      onSwapClick={(i) => setSwapTarget({ exIdx: i })}
+                    />
+                  </SupersetGroup>
+                );
+              }
               const cards = groupedIdxs.map((idx, posInGroup) => {
                 const ex = exercises[idx];
                 if (!ex) return null;
