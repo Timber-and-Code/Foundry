@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
 import { CARDIO_WORKOUTS } from '../../data/constants';
 import CardioProtocolDetail from './CardioProtocolDetail';
-import type { CardioScheduleSlot, Profile } from '../../types';
+import CardioDesigner from './CardioDesigner';
+import { loadCardioPresets, deleteCardioPreset } from '../../utils/store';
+import type { CardioScheduleSlot, Profile, CardioPreset } from '../../types';
 
 const INTENSITY_COLOR: Record<string, string> = {
   Easy: '#6BCB77',
@@ -18,6 +20,22 @@ interface CardioBrowserProps {
 
 function CardioBrowser({ onBack, profile, onProfileUpdate }: CardioBrowserProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showDesigner, setShowDesigner] = useState(false);
+  const [userPresets, setUserPresets] = useState<CardioPreset[]>(() => loadCardioPresets());
+
+  // Refresh presets when the Designer closes (it may have saved one).
+  useEffect(() => {
+    if (!showDesigner) setUserPresets(loadCardioPresets());
+  }, [showDesigner]);
+
+  if (showDesigner) {
+    return (
+      <CardioDesigner
+        onClose={() => setShowDesigner(false)}
+        onDone={() => setShowDesigner(false)}
+      />
+    );
+  }
 
   if (selectedId) {
     return (
@@ -99,6 +117,136 @@ function CardioBrowser({ onBack, profile, onProfileUpdate }: CardioBrowserProps)
         >
           Protocols from Zone 2 to Tabata. Tap one to read the details and add it to your week.
         </div>
+
+        {/* Design your own — full-screen 4-axis composer (Group D / C2). */}
+        <button
+          onClick={() => setShowDesigner(true)}
+          style={{
+            background: `${tokens.colors.gold}10`,
+            border: `1px dashed ${tokens.colors.gold}66`,
+            borderRadius: tokens.radius.lg,
+            textAlign: 'left',
+            cursor: 'pointer',
+            padding: '14px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            width: '100%',
+          }}
+        >
+          <div
+            aria-hidden="true"
+            style={{
+              fontSize: 18,
+              color: tokens.colors.gold,
+              fontWeight: 800,
+              flexShrink: 0,
+            }}
+          >
+            +
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                letterSpacing: '0.06em',
+                color: tokens.colors.gold,
+                marginBottom: 2,
+              }}
+            >
+              DESIGN YOUR OWN
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                lineHeight: 1.4,
+              }}
+            >
+              Compose a session: intensity · workout · protocol · duration.
+            </div>
+          </div>
+          <span aria-hidden="true" style={{ color: tokens.colors.gold, fontSize: 18, flexShrink: 0 }}>
+            ›
+          </span>
+        </button>
+
+        {/* My saved — user-created presets. Only renders if any exist. */}
+        {userPresets.length > 0 && (
+          <div style={{ marginTop: 4 }}>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: '0.14em',
+                color: 'var(--text-muted)',
+                margin: '4px 4px 8px',
+              }}
+            >
+              MY SAVED
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {userPresets.map((p) => (
+                <div
+                  key={p.id}
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: `1px solid ${tokens.colors.gold}33`,
+                    borderRadius: tokens.radius.lg,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 800,
+                        color: 'var(--text-primary)',
+                        marginBottom: 2,
+                      }}
+                    >
+                      {p.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--text-muted)',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {p.intensity.toUpperCase()} · {(p.modalityCustom || p.modality).toUpperCase().replace('_', ' ')} ·{' '}
+                      {p.protocol.toUpperCase().replace('_', ' ')} · {p.target.minutes} MIN
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      // eslint-disable-next-line no-alert
+                      if (window.confirm(`Delete preset "${p.label}"?`)) {
+                        deleteCardioPreset(p.id);
+                        setUserPresets(loadCardioPresets());
+                      }
+                    }}
+                    aria-label={`Delete preset ${p.label}`}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--text-muted)',
+                      fontSize: 14,
+                      padding: '4px 8px',
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {CARDIO_WORKOUTS.map((w) => {
           const intensityColor = INTENSITY_COLOR[w.defaultIntensity] || 'var(--accent)';
