@@ -31,6 +31,7 @@ vi.mock('../../../utils/store', () => ({
   getWeekSets: (sets: number) => sets,
   buildSessionDateMap: mockBuildSessionDateMap,
   computeMobilityStreak: vi.fn(() => 0),
+  isSkipped: vi.fn((): boolean => false),
 }));
 
 vi.mock('../../../data/constants', () => ({

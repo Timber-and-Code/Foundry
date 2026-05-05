@@ -3,7 +3,7 @@
  * persistence.test.js. Currently focused on computeMobilityStreak.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { computeMobilityStreak } from '../training';
+import { computeMobilityStreak, isSkipped, setSkipped } from '../training';
 import { saveMobilitySession } from '../persistence';
 
 function toDateStr(d: Date): string {
@@ -88,5 +88,40 @@ describe('computeMobilityStreak', () => {
     const streak = computeMobilityStreak(today);
     expect(streak).toBeGreaterThanOrEqual(365);
     expect(streak).toBeLessThanOrEqual(366);
+  });
+});
+
+// ── Skip helpers (#10a) ──────────────────────────────────────────────────────
+
+describe('isSkipped / setSkipped', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('returns false for an unwritten (day, week)', () => {
+    expect(isSkipped(0, 0)).toBe(false);
+  });
+
+  it('round-trips: setSkipped(true) then isSkipped reads true', () => {
+    setSkipped(2, 3, true);
+    expect(isSkipped(2, 3)).toBe(true);
+  });
+
+  it('round-trips: setSkipped(false) clears the key (idempotent)', () => {
+    setSkipped(1, 0, true);
+    expect(isSkipped(1, 0)).toBe(true);
+    setSkipped(1, 0, false);
+    expect(isSkipped(1, 0)).toBe(false);
+    expect(localStorage.getItem('foundry:skip:d1:w0')).toBeNull();
+  });
+
+  it('keys are namespaced per (day, week) — skipping (0,0) does not leak to (0,1)', () => {
+    setSkipped(0, 0, true);
+    expect(isSkipped(0, 0)).toBe(true);
+    expect(isSkipped(0, 1)).toBe(false);
+    expect(isSkipped(1, 0)).toBe(false);
+  });
+
+  it('clearing an already-empty key is a no-op (no throw)', () => {
+    expect(() => setSkipped(5, 5, false)).not.toThrow();
+    expect(isSkipped(5, 5)).toBe(false);
   });
 });

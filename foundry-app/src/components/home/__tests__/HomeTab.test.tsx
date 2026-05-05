@@ -19,6 +19,7 @@ const {
   mockGetTimeGreeting,
   mockGetMeso,
   mockComputeMobilityStreak,
+  mockIsSkipped,
 } = vi.hoisted(() => ({
   mockStoreGet: vi.fn(() => null),
   mockLoadCardioSession: vi.fn(() => null),
@@ -30,6 +31,7 @@ const {
   mockGetTimeGreeting: vi.fn(() => 'Good morning'),
   mockGetMeso: vi.fn(() => ({ weeks: 6, days: ['Push', 'Pull', 'Legs'] })),
   mockComputeMobilityStreak: vi.fn(() => 0),
+  mockIsSkipped: vi.fn((_d: number, _w: number): boolean => false),
 }));
 
 vi.mock('../../../utils/store', () => ({
@@ -43,6 +45,7 @@ vi.mock('../../../utils/store', () => ({
   getTimeGreeting: mockGetTimeGreeting,
   getWeekSets: vi.fn((sets: number) => sets),
   computeMobilityStreak: mockComputeMobilityStreak,
+  isSkipped: mockIsSkipped,
 }));
 
 vi.mock('../../../data/constants', () => ({
@@ -189,6 +192,7 @@ beforeEach(() => {
   mockGetMeso.mockReturnValue({ weeks: 6, days: ['Push', 'Pull', 'Legs'] });
   mockLoadCardioSession.mockReturnValue(null);
   mockComputeMobilityStreak.mockReturnValue(0);
+  mockIsSkipped.mockReturnValue(false);
 });
 
 describe('HomeTab', () => {
@@ -298,5 +302,83 @@ describe('HomeTab', () => {
     render(<HomeTab {...makeProps()} />);
     expect(screen.getByText(/MOBILITY STREAK · 7 DAYS/)).toBeDefined();
     expect(screen.getByLabelText('Mobility streak 7 days')).toBeDefined();
+  });
+
+  // ── Skip-aware resolver (#10b) ──────────────────────────────────────
+  describe('skip-aware next-session resolution', () => {
+    function todayDateStr(): string {
+      const t = new Date();
+      return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    }
+    function dayOffsetStr(offset: number): string {
+      const t = new Date();
+      t.setDate(t.getDate() + offset);
+      return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    }
+
+    it('today\'s skipped session does NOT surface as TODAY (#10b)', () => {
+      const today = todayDateStr();
+      mockBuildSessionDateMap.mockReturnValue({ [today]: '0:0' });
+      mockIsSkipped.mockImplementation((d, w) => d === 0 && w === 0);
+
+      render(<HomeTab {...makeProps()} />);
+      // Skipped today flips into rest state — REST DAY header, no TODAY card.
+      expect(screen.queryByText('TODAY')).toBeNull();
+    });
+
+    it('after completing today, missed past day does NOT surface — next future day does (#10b)', () => {
+      const yesterday = dayOffsetStr(-1);
+      const today = todayDateStr();
+      const tomorrow = dayOffsetStr(1);
+      // Map: Push on yesterday (missed), Pull today (just done), Legs tomorrow.
+      mockBuildSessionDateMap.mockReturnValue({
+        [yesterday]: '0:0',
+        [today]: '1:0',
+        [tomorrow]: '2:0',
+      });
+      const completed = new Set<string>(['1:0']);
+      const props = makeProps({
+        completedDays: completed,
+        showNextSession: true,
+      });
+
+      const { container } = render(<HomeTab {...props} />);
+      // Today is done → rest state → next-session card renders. The card's
+      // collapsible header (Bebas Neue 26px) carries the upcoming day's
+      // label. We assert via aria-label on the START button that surfaces
+      // the resolved day name. Push (the missed yesterday session) must
+      // never appear in the next-session card itself.
+      const startBtn = container.querySelector('[aria-label*="Start"]') ||
+        Array.from(container.querySelectorAll('button')).find((b) =>
+          b.textContent?.match(/Start (Leg|Pull|Push) Day/),
+        );
+      expect(startBtn?.textContent || '').not.toMatch(/Start Push Day/);
+      // Resolver should pick Leg Day (the next future, unresolved session).
+      expect(startBtn?.textContent || '').toMatch(/Start Leg Day/);
+    });
+
+    it('skipped future days are filtered out of nextSessionDateStr (#10b)', () => {
+      const today = todayDateStr();
+      const plus1 = dayOffsetStr(1);
+      const plus2 = dayOffsetStr(2);
+      mockBuildSessionDateMap.mockReturnValue({
+        [today]: '0:0',
+        [plus1]: '1:0',
+        [plus2]: '2:0',
+      });
+      // Today done; tomorrow skipped → next session resolves to plus2's Leg Day.
+      mockIsSkipped.mockImplementation((d, w) => d === 1 && w === 0);
+      const props = makeProps({
+        completedDays: new Set<string>(['0:0']),
+        showNextSession: true,
+      });
+      const { container } = render(<HomeTab {...props} />);
+      const startBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent?.match(/Start (Leg|Pull|Push) Day/),
+      );
+      // Pull (skipped) must not be the resolved next session.
+      expect(startBtn?.textContent || '').not.toMatch(/Start Pull Day/);
+      expect(startBtn?.textContent || '').toMatch(/Start Leg Day/);
+    });
   });
 });

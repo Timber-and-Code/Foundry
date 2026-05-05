@@ -9,6 +9,7 @@ import {
   store,
   getWorkoutDaysForWeek,
   setSkipped,
+  isSkipped,
   saveProfile,
 } from '../../utils/store';
 import { syncSkippedToSupabase } from '../../utils/sync';
@@ -152,13 +153,21 @@ function HomeView({
     return false;
   }, [tab]);
 
+  // activeWeek advances when every day in a week is "resolved" — completed
+  // OR skipped (#10b). Treating skipped as done here means a user who
+  // skips the rest of a week immediately rolls forward to the next week's
+  // resolver instead of being stuck on a skipped slot. Re-evaluates on
+  // skipVersion so the memo busts whenever a skip flips locally.
   const activeWeek = useMemo(() => {
     for (let w = 0; w < getMeso().totalWeeks; w++) {
-      const allDone = activeDays.every((_, i) => completedDays.has(`${i}:${w}`));
+      const allDone = activeDays.every(
+        (_, i) => completedDays.has(`${i}:${w}`) || isSkipped(i, w),
+      );
       if (!allDone) return w;
     }
     return getMeso().totalWeeks;
-  }, [completedDays, activeDays]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedDays, activeDays, skipVersion]);
 
   const calendarWeek = useMemo(() => {
     const startDate = profile?.startDate ? new Date(profile.startDate + 'T00:00:00') : null;

@@ -1,0 +1,718 @@
+/**
+ * CardioDesigner — full-screen 4-axis cardio session composer (Group D / C2).
+ *
+ * Replaces the "browse 7 hardcoded protocols" pattern with a composable
+ * session designer. Lifter dials in:
+ *   - INTENSITY  (easy / moderate / hard)
+ *   - WORKOUT    (walk / run / bike / row / swim / stairs / elliptical / jump rope / other)
+ *   - PROTOCOL   (LISS / Zone 2 / Tempo / Tabata / EMOM / Sprint Intervals / Free)
+ *   - DURATION   (preset chips per protocol; Tabata clamps to multiples of 4)
+ *
+ * Cross-axis rules (enforced in component state):
+ *   - Tabata → durations clamp to {4,8,12,16,20}; selecting Tabata snaps
+ *     duration to 4 if the current value isn't valid.
+ *   - Switching protocol resets duration to that protocol's default unless
+ *     the current value is still valid for the new protocol's menu.
+ *   - Swim removes Tabata from the protocol menu.
+ *   - Free relaxes all rules.
+ *
+ * "Save as preset" persists via persistence helpers (local-only today; flag
+ * in saveCardioPreset for Supabase sync follow-up). The Designer doesn't
+ * own any session-start logic — callers (CardioBrowser, HomeCardioCard)
+ * handle the route/launch path.
+ */
+import { useState, useEffect, useMemo } from 'react';
+import { tokens } from '../../styles/tokens';
+import { saveCardioPreset } from '../../utils/store';
+import type {
+  CardioPreset,
+  Intensity,
+  Modality,
+  ProtocolKind,
+  CardioTarget,
+} from '../../types';
+
+// ── Cross-axis defaults ─────────────────────────────────────────────────────
+const TABATA_DURATIONS = [4, 8, 12, 16, 20];
+const STANDARD_DURATIONS = [10, 15, 20, 30, 45, 60];
+
+interface ProtocolMeta {
+  duration: number;
+  durations: number[];
+  note?: string;
+}
+
+const PROTOCOL_DEFAULTS: Record<ProtocolKind, ProtocolMeta> = {
+  liss:              { duration: 45, durations: STANDARD_DURATIONS, note: 'Long, slow, steady — base aerobic work' },
+  zone2:             { duration: 30, durations: STANDARD_DURATIONS, note: 'Conversational pace, sustainable' },
+  tempo:             { duration: 20, durations: STANDARD_DURATIONS, note: 'Sustained moderate-hard effort' },
+  tabata:            { duration: 4,  durations: TABATA_DURATIONS,   note: '30s on / 30s off · 8 rounds = 4 min · multiples for repeats' },
+  emom:              { duration: 12, durations: STANDARD_DURATIONS, note: 'Every minute on the minute' },
+  sprint_intervals:  { duration: 15, durations: STANDARD_DURATIONS, note: 'Max effort + full recovery alternation' },
+  free:              { duration: 30, durations: STANDARD_DURATIONS },
+};
+
+const INTENSITY_OPTS: { v: Intensity; l: string; sub: string }[] = [
+  { v: 'easy', l: 'Easy', sub: 'Conversational' },
+  { v: 'moderate', l: 'Moderate', sub: 'Challenging' },
+  { v: 'hard', l: 'Hard', sub: 'Near max' },
+];
+
+const MODALITY_OPTS: { v: Modality; l: string }[] = [
+  { v: 'walk', l: 'Walk' },
+  { v: 'run', l: 'Run' },
+  { v: 'bike', l: 'Bike' },
+  { v: 'row', l: 'Row' },
+  { v: 'swim', l: 'Swim' },
+  { v: 'stairs', l: 'Stairs' },
+  { v: 'elliptical', l: 'Elliptical' },
+  { v: 'jump_rope', l: 'Jump Rope' },
+  { v: 'other', l: 'Other / Custom' },
+];
+
+const PROTOCOL_OPTS: { v: ProtocolKind; l: string; desc: string }[] = [
+  { v: 'liss', l: 'LISS', desc: 'Long, slow, steady — recovery and base building' },
+  { v: 'zone2', l: 'Zone 2', desc: 'Aerobic base — conversational, sustainable' },
+  { v: 'tempo', l: 'Tempo', desc: 'Sustained moderate-hard effort' },
+  { v: 'tabata', l: 'Tabata', desc: '20s on / 10s off × 8 rounds' },
+  { v: 'emom', l: 'EMOM', desc: 'Every minute on the minute' },
+  { v: 'sprint_intervals', l: 'Sprint Intervals', desc: 'Alternating max effort + full recovery' },
+  { v: 'free', l: 'Free', desc: 'No prescribed structure — log freely' },
+];
+
+const CARDIO_ACCENT = tokens.colors.gold;
+
+export interface CardioComposition {
+  intensity: Intensity;
+  modality: Modality;
+  /** Set when modality === 'other'. */
+  modalityCustom?: string;
+  protocol: ProtocolKind;
+  duration: number;
+}
+
+export const DEFAULT_CARDIO_COMP: CardioComposition = {
+  intensity: 'easy',
+  modality: 'walk',
+  protocol: 'zone2',
+  duration: PROTOCOL_DEFAULTS.zone2.duration,
+};
+
+export function describeCardioComp(c: CardioComposition): { line: string; blurb: string } {
+  const intensity = INTENSITY_OPTS.find((o) => o.v === c.intensity)!;
+  const modalityLabel =
+    c.modality === 'other' && c.modalityCustom
+      ? c.modalityCustom.toUpperCase()
+      : MODALITY_OPTS.find((o) => o.v === c.modality)!.l.toUpperCase();
+  const protocol = PROTOCOL_OPTS.find((o) => o.v === c.protocol)!;
+  return {
+    line: `${intensity.l.toUpperCase()} · ${modalityLabel} · ${protocol.l.toUpperCase()} · ${c.duration} MIN`,
+    blurb: `${intensity.sub} · ${protocol.desc.split(/[—.]/, 1)[0].trim().toLowerCase()}`,
+  };
+}
+
+// ── Cross-axis enforcement ──────────────────────────────────────────────────
+export function reconcileComposition(c: CardioComposition): CardioComposition {
+  // Swim removes Tabata; coerce to Zone 2 if user had Swim+Tabata.
+  let next: CardioComposition = { ...c };
+  if (next.modality === 'swim' && next.protocol === 'tabata') {
+    next = { ...next, protocol: 'zone2', duration: PROTOCOL_DEFAULTS.zone2.duration };
+  }
+  // Snap duration into the protocol's valid menu.
+  const meta = PROTOCOL_DEFAULTS[next.protocol];
+  if (!meta.durations.includes(next.duration)) {
+    next = { ...next, duration: meta.duration };
+  }
+  return next;
+}
+
+interface CardioDesignerProps {
+  initial?: CardioComposition;
+  onClose: () => void;
+  /** Called with the final composition when the lifter taps Done. The
+   *  parent decides whether to launch a session, schedule, or just stash
+   *  it. */
+  onDone: (comp: CardioComposition) => void;
+}
+
+export default function CardioDesigner({ initial, onClose, onDone }: CardioDesignerProps) {
+  const [comp, setComp] = useState<CardioComposition>(() =>
+    reconcileComposition(initial ?? DEFAULT_CARDIO_COMP),
+  );
+  const [openAxis, setOpenAxis] = useState<null | 'intensity' | 'modality' | 'protocol' | 'duration'>(null);
+  const [savePromptOpen, setSavePromptOpen] = useState(false);
+  const [presetLabel, setPresetLabel] = useState('');
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  const closeAxis = () => setOpenAxis(null);
+
+  const update = (next: CardioComposition) => {
+    setComp(reconcileComposition(next));
+  };
+
+  // Re-run reconciliation if `initial` changes (e.g. caller hands in a
+  // different preset). Most callers won't, but the cheap effect makes the
+  // contract explicit.
+  useEffect(() => {
+    if (initial) setComp(reconcileComposition(initial));
+  }, [initial]);
+
+  const protocolOpts = useMemo(() => {
+    return comp.modality === 'swim'
+      ? PROTOCOL_OPTS.filter((o) => o.v !== 'tabata')
+      : PROTOCOL_OPTS;
+  }, [comp.modality]);
+
+  const valid = comp.modality !== 'other' || !!comp.modalityCustom?.trim();
+
+  const handleSavePreset = () => {
+    const label = presetLabel.trim();
+    if (!label) return;
+    const preset: CardioPreset = {
+      id: `usr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      label,
+      intensity: comp.intensity,
+      modality: comp.modality,
+      modalityCustom: comp.modalityCustom,
+      protocol: comp.protocol,
+      target: { kind: 'duration', minutes: comp.duration } as CardioTarget,
+      isUserSaved: true,
+    };
+    saveCardioPreset(preset);
+    setSavePromptOpen(false);
+    setPresetLabel('');
+    setSavedFlash(true);
+    window.setTimeout(() => setSavedFlash(false), 1800);
+  };
+
+  const { line } = describeCardioComp(comp);
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'var(--bg-root)',
+        color: 'var(--text-primary)',
+        fontFamily: tokens.fontFamily.body,
+        paddingBottom: 80,
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          background: 'var(--bg-root)',
+          borderBottom: '1px solid var(--border)',
+          padding: '14px 16px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <button
+          onClick={onClose}
+          aria-label="Cancel"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            fontSize: 13,
+            cursor: 'pointer',
+            padding: '4px 8px',
+            minWidth: 60,
+            textAlign: 'left',
+          }}
+        >
+          ‹ Cancel
+        </button>
+        <div
+          style={{
+            fontFamily: tokens.fontFamily.display,
+            fontSize: 22,
+            color: CARDIO_ACCENT,
+            letterSpacing: '0.08em',
+          }}
+        >
+          DESIGN CARDIO
+        </div>
+        <button
+          onClick={() => valid && onDone(comp)}
+          disabled={!valid}
+          aria-disabled={!valid}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: valid ? CARDIO_ACCENT : 'var(--text-muted)',
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: valid ? 'pointer' : 'not-allowed',
+            padding: '4px 8px',
+            letterSpacing: '0.04em',
+            minWidth: 60,
+            textAlign: 'right',
+          }}
+        >
+          Done
+        </button>
+      </div>
+
+      <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Live preview */}
+        <div
+          style={{
+            background: 'var(--bg-card)',
+            border: `1px solid ${CARDIO_ACCENT}55`,
+            borderRadius: tokens.radius.lg,
+            padding: '14px 16px',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: '0.14em',
+              color: 'var(--text-muted)',
+              marginBottom: 6,
+            }}
+          >
+            YOUR SESSION
+          </div>
+          <div
+            style={{
+              fontFamily: tokens.fontFamily.display,
+              fontSize: 22,
+              color: 'var(--text-primary)',
+              lineHeight: 1.1,
+              letterSpacing: '0.04em',
+            }}
+          >
+            {line}
+          </div>
+        </div>
+
+        {/* INTENSITY axis */}
+        <AxisRow
+          label="INTENSITY"
+          value={INTENSITY_OPTS.find((o) => o.v === comp.intensity)!.l}
+          open={openAxis === 'intensity'}
+          onToggle={() => setOpenAxis(openAxis === 'intensity' ? null : 'intensity')}
+        >
+          {INTENSITY_OPTS.map((o) => (
+            <OptionButton
+              key={o.v}
+              selected={comp.intensity === o.v}
+              onClick={() => {
+                update({ ...comp, intensity: o.v });
+                closeAxis();
+              }}
+              primary={o.l}
+              secondary={o.sub}
+            />
+          ))}
+        </AxisRow>
+
+        {/* MODALITY axis */}
+        <AxisRow
+          label="WORKOUT"
+          value={
+            comp.modality === 'other' && comp.modalityCustom
+              ? comp.modalityCustom
+              : MODALITY_OPTS.find((o) => o.v === comp.modality)!.l
+          }
+          open={openAxis === 'modality'}
+          onToggle={() => setOpenAxis(openAxis === 'modality' ? null : 'modality')}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+            {MODALITY_OPTS.map((o) => (
+              <OptionButton
+                key={o.v}
+                selected={comp.modality === o.v}
+                onClick={() => {
+                  if (o.v === 'other') {
+                    update({ ...comp, modality: 'other', modalityCustom: comp.modalityCustom || '' });
+                  } else {
+                    update({ ...comp, modality: o.v, modalityCustom: undefined });
+                    closeAxis();
+                  }
+                }}
+                primary={o.l}
+                compact
+              />
+            ))}
+          </div>
+          {comp.modality === 'other' && (
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label
+                htmlFor="cardio-custom-label"
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: '0.12em',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                CUSTOM LABEL
+              </label>
+              <input
+                id="cardio-custom-label"
+                autoFocus
+                value={comp.modalityCustom || ''}
+                onChange={(e) => update({ ...comp, modalityCustom: e.target.value })}
+                placeholder="e.g. Spin Class, Hiking, Pickleball"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.md,
+                  color: 'var(--text-primary)',
+                  fontSize: 14,
+                  padding: '10px 12px',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <button
+                onClick={closeAxis}
+                disabled={!comp.modalityCustom?.trim()}
+                style={{
+                  marginTop: 4,
+                  padding: '8px',
+                  background: comp.modalityCustom?.trim()
+                    ? CARDIO_ACCENT + '22'
+                    : 'transparent',
+                  border: `1px solid ${comp.modalityCustom?.trim() ? CARDIO_ACCENT : 'var(--border)'}`,
+                  color: comp.modalityCustom?.trim() ? CARDIO_ACCENT : 'var(--text-muted)',
+                  borderRadius: tokens.radius.md,
+                  cursor: comp.modalityCustom?.trim() ? 'pointer' : 'default',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                }}
+              >
+                CONFIRM
+              </button>
+            </div>
+          )}
+        </AxisRow>
+
+        {/* PROTOCOL axis */}
+        <AxisRow
+          label="PROTOCOL"
+          value={PROTOCOL_OPTS.find((o) => o.v === comp.protocol)!.l}
+          open={openAxis === 'protocol'}
+          onToggle={() => setOpenAxis(openAxis === 'protocol' ? null : 'protocol')}
+        >
+          {protocolOpts.map((o) => (
+            <OptionButton
+              key={o.v}
+              selected={comp.protocol === o.v}
+              onClick={() => {
+                // Picking a new protocol resets duration to that protocol's
+                // default if the current value isn't valid for the new menu.
+                const def = PROTOCOL_DEFAULTS[o.v];
+                const validDur = def.durations.includes(comp.duration)
+                  ? comp.duration
+                  : def.duration;
+                update({ ...comp, protocol: o.v, duration: validDur });
+                closeAxis();
+              }}
+              primary={o.l}
+              secondary={o.desc}
+            />
+          ))}
+        </AxisRow>
+
+        {/* DURATION axis */}
+        <AxisRow
+          label="DURATION"
+          value={`${comp.duration} min`}
+          open={openAxis === 'duration'}
+          onToggle={() => setOpenAxis(openAxis === 'duration' ? null : 'duration')}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+            {PROTOCOL_DEFAULTS[comp.protocol].durations.map((d) => (
+              <OptionButton
+                key={d}
+                selected={comp.duration === d}
+                onClick={() => {
+                  update({ ...comp, duration: d });
+                  closeAxis();
+                }}
+                primary={`${d} min`}
+                compact
+              />
+            ))}
+          </div>
+          {PROTOCOL_DEFAULTS[comp.protocol].note && (
+            <div
+              style={{
+                fontSize: 10,
+                color: CARDIO_ACCENT,
+                marginTop: 8,
+                textAlign: 'center',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {PROTOCOL_DEFAULTS[comp.protocol].note}
+            </div>
+          )}
+        </AxisRow>
+
+        {/* Save as preset */}
+        <div style={{ marginTop: 8 }}>
+          {!savePromptOpen ? (
+            <button
+              onClick={() => valid && setSavePromptOpen(true)}
+              disabled={!valid}
+              style={{
+                width: '100%',
+                padding: 12,
+                background: 'transparent',
+                border: '1px dashed var(--border)',
+                borderRadius: tokens.radius.md,
+                color: valid ? 'var(--text-secondary)' : 'var(--text-muted)',
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                cursor: valid ? 'pointer' : 'not-allowed',
+                textTransform: 'uppercase',
+              }}
+            >
+              + Save as preset
+            </button>
+          ) : (
+            <div
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: tokens.radius.md,
+                padding: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <input
+                autoFocus
+                value={presetLabel}
+                onChange={(e) => setPresetLabel(e.target.value)}
+                placeholder="Preset name (e.g. Sunday Bike)"
+                aria-label="Preset name"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: tokens.radius.md,
+                  color: 'var(--text-primary)',
+                  fontSize: 14,
+                  padding: '10px 12px',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => {
+                    setSavePromptOpen(false);
+                    setPresetLabel('');
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: 10,
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: tokens.radius.md,
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  CANCEL
+                </button>
+                <button
+                  onClick={handleSavePreset}
+                  disabled={!presetLabel.trim()}
+                  style={{
+                    flex: 1,
+                    padding: 10,
+                    background: presetLabel.trim() ? CARDIO_ACCENT + '22' : 'transparent',
+                    border: `1px solid ${presetLabel.trim() ? CARDIO_ACCENT : 'var(--border)'}`,
+                    borderRadius: tokens.radius.md,
+                    color: presetLabel.trim() ? CARDIO_ACCENT : 'var(--text-muted)',
+                    cursor: presetLabel.trim() ? 'pointer' : 'default',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  SAVE
+                </button>
+              </div>
+            </div>
+          )}
+          {savedFlash && (
+            <div
+              role="status"
+              aria-live="polite"
+              style={{
+                marginTop: 6,
+                fontSize: 11,
+                color: CARDIO_ACCENT,
+                textAlign: 'center',
+                letterSpacing: '0.06em',
+              }}
+            >
+              Preset saved.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AxisRow({
+  label,
+  value,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string;
+  value: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        background: 'var(--bg-card)',
+        border: `1px solid ${open ? CARDIO_ACCENT + '55' : 'var(--border)'}`,
+        borderRadius: tokens.radius.lg,
+        overflow: 'hidden',
+        transition: 'border 200ms',
+      }}
+    >
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-label={`${label} — ${open ? 'collapse' : 'expand'}`}
+        style={{
+          width: '100%',
+          padding: '14px 16px',
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--text-primary)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: '0.14em',
+              color: 'var(--text-muted)',
+              minWidth: 70,
+              textAlign: 'left',
+            }}
+          >
+            {label}
+          </div>
+          <div
+            style={{
+              fontFamily: tokens.fontFamily.display,
+              fontSize: 16,
+              color: 'var(--text-primary)',
+              letterSpacing: '0.04em',
+            }}
+          >
+            {value.toUpperCase()}
+          </div>
+        </div>
+        <span
+          aria-hidden="true"
+          style={{
+            color: 'var(--text-muted)',
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 200ms',
+          }}
+        >
+          ⌄
+        </span>
+      </button>
+      {open && (
+        <div
+          style={{
+            padding: '0 14px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OptionButton({
+  selected,
+  onClick,
+  primary,
+  secondary,
+  compact,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  primary: string;
+  secondary?: string;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={selected}
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        padding: compact ? '10px 8px' : '12px 14px',
+        background: selected ? CARDIO_ACCENT + '18' : 'transparent',
+        border: `1px solid ${selected ? CARDIO_ACCENT : 'var(--border)'}`,
+        borderRadius: tokens.radius.md,
+        color: selected ? CARDIO_ACCENT : 'var(--text-primary)',
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        fontFamily: 'inherit',
+      }}
+    >
+      <div
+        style={{
+          fontSize: compact ? 12 : 13,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+        }}
+      >
+        {primary}
+      </div>
+      {secondary && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            fontWeight: 400,
+          }}
+        >
+          {secondary}
+        </div>
+      )}
+    </button>
+  );
+}

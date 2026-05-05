@@ -17,6 +17,7 @@ import {
   buildSessionDateMap,
   computeMobilityStreak,
   saveMobilitySession,
+  isSkipped,
 } from '../../utils/store';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
@@ -480,47 +481,82 @@ function HomeTab({
   const MOBILITY_COLOR = TAG_ACCENT['MOBILITY'];
   const mobilityStreak = computeMobilityStreak();
 
-  const nextDayIdx = activeDays.findIndex((_, i) => !completedDays.has(`${i}:${activeWeek}`));
-  const nextDay = nextDayIdx >= 0 ? activeDays[nextDayIdx] : null;
-  const nextDayAccent = nextDay
-    ? (TAG_ACCENT as Record<string, string>)[nextDay.tag || ''] || 'var(--accent)'
-    : 'var(--accent)';
-
   // Build sessionDateMap via the shared helper so HomeTab and ScheduleTab
   // agree on which date hosts which session — including per-date overrides
   // that may stack 2 sessions on one day.
   const sessionDateMap = buildSessionDateMap(profile, activeDays.length, getMeso().totalWeeks);
 
-  // Find the calendar date the next not-yet-completed session lands on.
-  // Walks sessionDateMap chronologically from today forward and returns
-  // the first date whose session-key isn't in completedDays. Surfaces on
-  // the rest-state Next Session card so users see "Mon · Apr 27" not
-  // just the workout name.
+  // Skip-aware resolver helper (#10b). A session key is "resolved" (not
+  // surface-able as "next") when it's either completed OR explicitly
+  // skipped. Skipped days are dead to the next-session card the same way
+  // completed days are — they live in the Schedule/History surfaces, not
+  // on Home.
+  const isResolved = (key: string): boolean => {
+    if (completedDays.has(key)) return true;
+    const [dStr, wStr] = key.split(':');
+    return isSkipped(Number(dStr), Number(wStr));
+  };
+
+  // Find the calendar date the next not-yet-resolved session lands on.
+  // Walks sessionDateMap chronologically from today forward; missed days
+  // (past, not-completed, not-skipped) are NOT surfaced on Home — those
+  // live in History/Schedule. The user explicitly fixed this in #10b:
+  // "after you complete that workout it brings up the workout that you
+  // missed not the next workout."
   const nextSessionDateStr = (() => {
     const sortedDates = Object.keys(sessionDateMap).sort();
     for (const d of sortedDates) {
       if (d < todayCardioStr) continue;
       const raw = sessionDateMap[d];
       const keys = Array.isArray(raw) ? raw : [raw];
-      const firstUndone = keys.find((k) => !completedDays.has(k));
-      if (firstUndone) return d;
+      const firstUnresolved = keys.find((k) => !isResolved(k));
+      if (firstUnresolved) return d;
     }
     return null;
   })();
+  // Walk the sessionDateMap forward to find the next not-yet-resolved
+  // session key. Used as the source of truth for `nextDayIdx`/`nextDay`
+  // — replaces the prior `activeDays.findIndex` shortcut which would
+  // surface a missed (past, unresolved) day at the same week index.
+  const nextSessionKey = (() => {
+    if (nextSessionDateStr == null) return null;
+    const raw = sessionDateMap[nextSessionDateStr];
+    const keys = Array.isArray(raw) ? raw : [raw];
+    return keys.find((k) => !isResolved(k)) ?? null;
+  })();
+  const nextDayIdx = nextSessionKey
+    ? Number(nextSessionKey.split(':')[0])
+    : activeDays.findIndex((_, i) => !isResolved(`${i}:${activeWeek}`));
+  const nextDay = nextDayIdx >= 0 ? activeDays[nextDayIdx] : null;
+  const nextDayAccent = nextDay
+    ? (TAG_ACCENT as Record<string, string>)[nextDay.tag || ''] || 'var(--accent)'
+    : 'var(--accent)';
+
   const calendarEntryRaw = sessionDateMap[todayCardioStr];
   const todayKeys: string[] = calendarEntryRaw == null
     ? []
     : Array.isArray(calendarEntryRaw) ? calendarEntryRaw : [calendarEntryRaw];
-  // Use the first not-yet-done key as the "primary" today session. The
-  // second (if any) renders as a secondary stacked card below.
-  const primaryTodayKey = todayKeys.find((k) => !completedDays.has(k)) ?? todayKeys[0] ?? null;
+  // Use the first not-yet-resolved key as the "primary" today session.
+  // Skipped sessions are filtered out alongside completed ones so today
+  // doesn't surface a session the user already crossed off (#10b). The
+  // secondary card still lists every other key for transparency.
+  const primaryTodayKey = todayKeys.find((k) => !isResolved(k)) ?? null;
   const secondaryTodayKey = todayKeys.find((k) => k !== primaryTodayKey) ?? null;
   const calendarEntry = primaryTodayKey;
   const isCalendarWorkoutDay = calendarEntry != null;
   const calDayIdx = isCalendarWorkoutDay ? parseInt(calendarEntry.split(':')[0]) : -1;
   const calWeekIdx = isCalendarWorkoutDay ? parseInt(calendarEntry.split(':')[1]) : -1;
-  const calendarSessionDone = isCalendarWorkoutDay && todayKeys.every((k) => completedDays.has(k));
-  const displayWeekAllDone = activeDays.every((_, i) => completedDays.has(`${i}:${displayWeek}`));
+  // Today is "done" when every key on today's date is resolved (completed
+  // OR skipped). Skipped is treated as done for routing purposes — the
+  // user explicitly opted out, so the rest-state should kick in instead
+  // of surfacing the next missed/skipped key.
+  const calendarSessionDone = todayKeys.length > 0 && todayKeys.every((k) => isResolved(k));
+  // displayWeekAllDone is skip-aware (#10b): a week with skipped slots
+  // transitions to "all caught up — start of next meso" the same as a
+  // fully-completed week, since skipped days are explicit opt-outs.
+  const displayWeekAllDone = activeDays.every(
+    (_, i) => completedDays.has(`${i}:${displayWeek}`) || isSkipped(i, displayWeek),
+  );
   const isRestState = !isCalendarWorkoutDay || calendarSessionDone || displayWeekAllDone;
   const isRestDay = !isCalendarWorkoutDay && !todayCardioSlot;
 
