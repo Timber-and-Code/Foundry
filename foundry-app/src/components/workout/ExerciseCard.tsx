@@ -12,7 +12,9 @@ import {
   loadArchive,
 } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
+import MesoHistoryView from './MesoHistoryView';
 import { haptic } from '../../utils/helpers';
+import { getMeso } from '../../data/constants';
 import type { Exercise, DayData } from '../../types';
 import type { WarmupStep, WarmupDetail } from '../../utils/training';
 
@@ -218,34 +220,44 @@ function ExerciseCard({
   // Compact "last week" header stat — replaces the phase word ("Establish",
   // "+5 lbs", etc) in the card's top-right with the previous week's best
   // working set so users see a hard reference target instead of jargon.
-  // History modal was removed alongside this — the stat is the reference now.
+  // Format: `{setsCount}-{weight}×{reps}` — e.g. `3-30×12` means "3 working
+  // sets last week, heaviest weight 30, best reps at that weight 12".
+  // The block is tappable; opens MesoHistoryView for the full week-by-week
+  // log. See item #2 in 2.8.0 fix list.
   const lastWeekStat = useMemo<string>(() => {
-    const fmt = (w: number, r: number): string => {
+    const fmt = (count: number, w: number, r: number): string => {
       const wTrim = Number.isInteger(w) ? String(w) : w.toFixed(1).replace(/\.0$/, '');
-      return `${wTrim} × ${r}`;
+      return `${count}-${wTrim}×${r}`;
     };
     // Same-meso prior week — preferred.
     const prev = prevWeekRaw[exIdx] || {};
     let bestW = 0,
-      bestR = 0;
+      bestR = 0,
+      setsCount = 0;
     Object.values(prev as Record<string, SetData>).forEach((sd) => {
       if (!sd || sd.warmup) return;
       const w = parseFloat(String(sd.weight ?? 0));
       const r = parseInt(String(sd.reps ?? 0), 10);
       if (!w || !r) return;
+      setsCount += 1;
       if (w > bestW || (w === bestW && r > bestR)) {
         bestW = w;
         bestR = r;
       }
     });
-    if (bestW > 0 && bestR > 0) return fmt(bestW, bestR);
+    if (setsCount > 0 && bestW > 0 && bestR > 0) return fmt(setsCount, bestW, bestR);
     // Week 0 fallback — pull last meso's best for this slot if available.
+    // Sets count isn't meaningfully recoverable from the archive note, so
+    // we report 1 — better to show the reference than to drop it entirely.
     if (crossMesoNote) {
       const m = crossMesoNote.match(/(\d+(?:\.\d+)?)\s*lbs\s*×\s*(\d+)/i);
-      if (m) return fmt(parseFloat(m[1]), parseInt(m[2], 10));
+      if (m) return fmt(1, parseFloat(m[1]), parseInt(m[2], 10));
     }
     return '';
   }, [prevWeekRaw, exIdx, crossMesoNote]);
+
+  // History modal — opened by tapping the LAST WK stat in the card header.
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const [doneSets, setDoneSets] = React.useState(() => {
     const exData = weekData[exIdx] || {};
@@ -610,7 +622,24 @@ function ExerciseCard({
                 {goal || '—'}
               </div>
             </div>
-            <div style={{ padding: '12px 14px', borderLeft: '1px solid var(--border)' }}>
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              aria-label={`View ${exercise.name} history`}
+              style={{
+                padding: '12px 14px',
+                borderTop: 'none',
+                borderRight: 'none',
+                borderBottom: 'none',
+                borderLeft: '1px solid var(--border)',
+                background: 'transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: 'inherit',
+                color: 'inherit',
+                width: '100%',
+              }}
+            >
               <div
                 style={{
                   fontSize: 9,
@@ -626,7 +655,7 @@ function ExerciseCard({
               <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
                 {lastWeekStat || '—'}
               </div>
-            </div>
+            </button>
           </div>
         </div>
       )}
@@ -753,7 +782,26 @@ function ExerciseCard({
           }}
         >
           {lastWeekStat ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.1 }}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setHistoryOpen(true);
+              }}
+              aria-label={`View ${exercise.name} history`}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                lineHeight: 1.1,
+                background: 'transparent',
+                border: 'none',
+                padding: 4,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                color: 'inherit',
+              }}
+            >
               <div
                 style={{
                   fontSize: 9,
@@ -767,7 +815,7 @@ function ExerciseCard({
               <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>
                 {lastWeekStat}
               </div>
-            </div>
+            </button>
           ) : (
             <div style={{ fontSize: 12, fontWeight: 600, color: goalColor }}>{goal}</div>
           )}
@@ -1680,6 +1728,18 @@ function ExerciseCard({
             </div>
           )}
         </div>
+      )}
+
+      {/* Per-exercise history modal — opened by tapping the LAST WK chip in
+          the card header. Read-only week-by-week log with PR highlight. */}
+      {historyOpen && (
+        <MesoHistoryView
+          exercise={exercise}
+          dayIdx={dayIdx}
+          currentWeekIdx={weekIdx}
+          mesoWeeks={getMeso().totalWeeks}
+          onClose={() => setHistoryOpen(false)}
+        />
       )}
     </div>
   );
