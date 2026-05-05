@@ -1393,7 +1393,9 @@ function DayView({
     >
       {/* Sticky session timer bar — escapes parent padding via negative margins
           and sits above the FoundryBanner (zIndex 60 > banner's 50) so it
-          remains the persistent top surface during a workout. */}
+          remains the persistent top surface during a workout.
+          Layout: [← back] [SESSION mm:ss] [REST m:ss] — the rest chip
+          replaces the old fixed-bottom MinimizedTimerBar (#5). */}
       <div
         style={{
           position: 'sticky',
@@ -1403,12 +1405,16 @@ function DayView({
           marginLeft: -20,
           marginRight: -20,
           marginBottom: 20,
-          padding: '12px 16px',
+          paddingTop: `calc(12px + env(safe-area-inset-top))`,
+          paddingRight: 16,
+          paddingBottom: 12,
+          paddingLeft: 16,
           background: 'var(--bg-root)',
           borderBottom: '1px solid var(--border)',
           display: 'grid',
-          gridTemplateColumns: '72px 1fr 72px',
+          gridTemplateColumns: '72px 1fr auto',
           alignItems: 'center',
+          gap: 10,
         }}
       >
         <button
@@ -1437,18 +1443,88 @@ function DayView({
           aria-atomic="true"
           aria-label={`Elapsed time: ${formatElapsed(elapsedSecs)}`}
           style={{
-            fontSize: 28,
-            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'baseline',
+            gap: 8,
+            justifyContent: 'center',
             color: 'var(--text-primary)',
             textAlign: 'center',
             fontVariantNumeric: 'tabular-nums',
-            letterSpacing: '0.04em',
             lineHeight: 1,
           }}
         >
-          {formatElapsed(elapsedSecs)}
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: '0.16em',
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+            }}
+          >
+            Session
+          </span>
+          <span
+            style={{
+              fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+              fontSize: 24,
+              fontWeight: 400,
+              letterSpacing: '0.04em',
+            }}
+          >
+            {formatElapsed(elapsedSecs)}
+          </span>
         </div>
-        <div aria-hidden="true" />
+        {/* Rest chip — present only while the rest timer is running and
+            the lifter has dismissed the full overlay (minimized=true).
+            Tap to re-expand the overlay. The blocking "REST COMPLETE"
+            alarm at remaining === 0 owns its own modal — see
+            rest_timer_alarm_decision memory. */}
+        {restTimer && restTimer.remaining > 0 && restTimerMinimized ? (
+          <button
+            type="button"
+            onClick={() => setRestTimerMinimized(false)}
+            aria-label={`Rest ${formatElapsed(restTimer.remaining)} remaining — tap to expand`}
+            style={{
+              justifySelf: 'end',
+              display: 'inline-flex',
+              alignItems: 'baseline',
+              gap: 6,
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px solid var(--accent)',
+              background: 'rgba(var(--accent-rgb),0.08)',
+              color: 'var(--accent)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: '0.16em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Rest
+            </span>
+            <span
+              style={{
+                fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                fontSize: 20,
+                fontWeight: 400,
+                letterSpacing: '0.04em',
+                lineHeight: 1,
+              }}
+            >
+              {formatElapsed(restTimer.remaining)}
+            </span>
+          </button>
+        ) : (
+          <div aria-hidden="true" />
+        )}
       </div>
 
       {/* MoodStrip — 1-tap readiness check-in. Replaces the ReadinessSheet

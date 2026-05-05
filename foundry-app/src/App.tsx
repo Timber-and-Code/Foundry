@@ -674,11 +674,13 @@ function App() {
           </React.Suspense>
         )}
 
-        {/* Global minimized timer toast — renders when EITHER the user
-            tapped Go back inside the workout (restTimerMinimized=true)
-            OR they navigated away from /day/* (auto-minimize). DayView
-            owns the full overlay while on /day/* AND not minimized. */}
-        {restTimer && (restTimerMinimized || !location.pathname.startsWith('/day/')) && (
+        {/* Global minimized timer toast — renders ONLY when the lifter
+            navigates AWAY from /day/* (auto-minimize). While on /day/*,
+            the rest timer lives in DayView's top header chip — see #5
+            in 2.8.0 fix list. DayView still owns the full overlay when
+            not minimized; the rest-complete alarm modal is owned by
+            DayView regardless. */}
+        {restTimer && !location.pathname.startsWith('/day/') && (
           <MinimizedTimerBar
             restTimer={restTimer}
             onTap={(done) => {
