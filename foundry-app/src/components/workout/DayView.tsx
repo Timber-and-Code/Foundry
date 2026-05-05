@@ -694,15 +694,66 @@ function DayView({
   // ── Rest timer (state lives in App, received as props) ──────────────────────
   const [pendingRest, setPendingRest] = useState<{ exIdx: number; setIdx: number; partnerIdx: number; restStr: string; exName: string } | null>(null);
 
-  // Superset-aware set logger: defers rest until both exercises in pair have logged the same set.
-  // Rest timer NEVER fires after the last set of an exercise — the user is moving on, not resting.
+  // Superset-aware set logger.
+  //
+  // Rule (#2 in 2.8.0 fix list — superset rest pattern):
+  //
+  //   Rest fires after a set if the next-up set is NOT inside the same
+  //   superset group.
+  //
+  // For an exercise with `supersetGroupId === g`:
+  //   - mid-exercise set → next-up is the same exercise (still in g) → suppress
+  //   - last set, and the NEXT exercise also has supersetGroupId === g →
+  //     suppress (in-superset hop A → B); auto-advance focus
+  //   - last set, and the next exercise is NOT in g (or no next exercise) →
+  //     this IS the end of the superset block → rest fires
+  //
+  // For non-superset exercises:
+  //   - mid-exercise set → rest fires (unchanged)
+  //   - last set → no rest, NextUpCard interstitial owns the transition
+  //     (per d52a574). Auto-advance by expanding the next card.
+  //
+  // The legacy `supersetWith` index-based pairing path (deferred-rest dance
+  // via `pendingRest`) is preserved for mid-exercise sets only, since the
+  // last-set NextUpCard handoff supersedes it.
   const handleSetLogged = React.useCallback(
     (restStr: string, exName: string, setIdx: number, isLastSet = false) => {
       const exIdx = exercises.findIndex((e) => e.name === exName);
+      const ex = exIdx !== -1 ? exercises[exIdx] : undefined;
+      const groupId = ex?.supersetGroupId;
+      const inSuperset = !!(
+        groupId && exercises.some((e, i) => i !== exIdx && e.supersetGroupId === groupId)
+      );
+      const nextEx = exIdx !== -1 ? exercises[exIdx + 1] : undefined;
+      const nextExSameGroup = !!(groupId && nextEx?.supersetGroupId === groupId);
 
-      // Auto-advance to the next exercise card on the last set, but skip the
-      // rest timer entirely — between exercises is transition, not rest.
+      // ── LAST SET OF AN EXERCISE ──────────────────────────────────────
       if (isLastSet) {
+        // In a superset where the very next exercise is the partner: hop
+        // straight in (#2 — within-superset transition has no rest).
+        if (inSuperset && nextExSameGroup) {
+          if (exIdx !== -1 && exIdx + 1 < exercises.length) {
+            const nextIdx = exIdx + 1;
+            setExpandedIdx(nextIdx);
+            setTimeout(() => {
+              const el = document.getElementById(`ex-${nextIdx}`);
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
+          }
+          if (pendingRest) setPendingRest(null);
+          return;
+        }
+        // End of the superset block (last set of the LAST partner): rest
+        // fires before the next round / next exercise (#2 — "rest fires
+        // after B's set"). No NextUpCard interstitial here — the rest
+        // timer IS the beat.
+        if (inSuperset) {
+          startRestTimer(restStr, exName, dayIdx, weekIdx);
+          if (pendingRest) setPendingRest(null);
+          return;
+        }
+        // Non-superset last set: NextUpCard owns the transition (d52a574),
+        // no rest. Auto-advance by expanding the next exercise card.
         if (exIdx !== -1 && exIdx + 1 < exercises.length) {
           const nextIdx = exIdx + 1;
           setExpandedIdx(nextIdx);
@@ -711,43 +762,35 @@ function DayView({
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }, 150);
         }
-        // Drop any pending superset partner rest — it would also be a last-set rest.
         if (pendingRest) setPendingRest(null);
         return;
       }
 
+      // ── MID-EXERCISE SET (not last set of the exercise) ──────────────
       if (exIdx === -1) {
         startRestTimer(restStr, exName, dayIdx, weekIdx);
         return;
       }
 
-      const ex = exercises[exIdx];
-      const isPrimary = ex.supersetWith != null;
-      const isSecondary = !isPrimary && exercises.some((e) => e.supersetWith === exIdx);
-
-      // supersetGroupId path (#3) — when the just-finished exercise has a
-      // partner in the same group, suppress the rest timer entirely. Rest
-      // BETWEEN sets (already handled above by isLastSet=false) is normal;
-      // this fork only fires for the LAST set of a superset partner where
-      // we want a quick transition into the paired exercise.
-      const groupId = ex.supersetGroupId;
-      if (groupId && exercises.some((e, i) => i !== exIdx && e.supersetGroupId === groupId)) {
-        // No timer — drop straight into the paired exercise. Caller's
-        // isLastSet path already handles auto-advance; non-last sets keep
-        // the existing rest behavior so the lifter still rests between
-        // sets within an exercise.
+      // Mid-exercise inside a superset: next-up is same exercise (same
+      // group) → suppress per the spec rule (#2). The lifter alternates
+      // through the superset without rest until the block ends.
+      if (inSuperset) {
         return;
       }
 
+      // Legacy supersetWith index-based pairing — deferred-rest path,
+      // unchanged from pre-supersetGroupId behavior. Mid-set only since
+      // last sets are now NextUpCard / superset-end handoffs.
+      const isPrimary = ex!.supersetWith != null;
+      const isSecondary = !isPrimary && exercises.some((e) => e.supersetWith === exIdx);
       if (!isPrimary && !isSecondary) {
         startRestTimer(restStr, exName, dayIdx, weekIdx);
         return;
       }
-
       const partnerIdx = isPrimary
-        ? (ex.supersetWith ?? -1)
+        ? (ex!.supersetWith ?? -1)
         : exercises.findIndex((e) => e.supersetWith === exIdx);
-
       if (pendingRest && pendingRest.partnerIdx === exIdx && pendingRest.setIdx === setIdx) {
         startRestTimer(pendingRest.restStr || restStr, exName, dayIdx, weekIdx);
         setPendingRest(null);
