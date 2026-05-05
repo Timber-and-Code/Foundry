@@ -3,7 +3,7 @@ import {
   TAG_ACCENT,
   getMeso,
   DAILY_MOBILITY,
-  CARDIO_WORKOUTS,
+  // CARDIO_WORKOUTS moved into HomeCardioCard (Group D / C3).
   FOUNDRY_COOLDOWN,
   MOBILITY_PROTOCOLS,
 } from '../../data/constants';
@@ -23,6 +23,7 @@ import {
 } from '../../utils/store';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
+import HomeCardioCard from './HomeCardioCard';
 import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import { useRestTimer } from '../../contexts/RestTimerContext';
 import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
@@ -94,25 +95,7 @@ function pickWarmupForDay(dayTag?: string | null) {
   );
 }
 
-// ── Cardio recommendation picker ──────────────────────────────────────────
-// When the user hasn't scheduled cardio for today, pick a sensible
-// recommendation from CARDIO_WORKOUTS based on their training goal.
-// Lifting-focused goals prefer low-interference Endurance (Easy Walk).
-// Fitness/sport goals prefer the first goal-matched protocol.
-function pickRecommendedCardio(goalId?: string | null) {
-  const goal = goalId || 'build_muscle';
-  const candidates = CARDIO_WORKOUTS.filter((w) => w.recommendedFor?.includes(goal));
-  const preferEndurance = goal === 'build_muscle' || goal === 'build_strength';
-  if (preferEndurance) {
-    const easy = candidates.find((w) => w.category === 'Endurance');
-    if (easy) return easy;
-  }
-  return (
-    candidates[0] ||
-    CARDIO_WORKOUTS.find((w) => w.id === 'easy_walk') ||
-    CARDIO_WORKOUTS[0]
-  );
-}
+// pickRecommendedCardio moved into HomeCardioCard (Group D / C3).
 
 // ── Section Divider ───────────────────────────────────────────────────────
 
@@ -552,7 +535,7 @@ function HomeTab({
   const cardioSchedule = profile?.cardioSchedule || [];
   const todayCardioSlot = cardioSchedule.find((s: CardioScheduleSlot) => s.dayOfWeek === todayDow) || null;
   const todayCardioSession = loadCardioSession(todayCardioStr);
-  const CARDIO_COLOR = TAG_ACCENT['CARDIO'];
+  // CARDIO_COLOR moved into HomeCardioCard (Group D / C3).
   const MOBILITY_COLOR = TAG_ACCENT['MOBILITY'];
   const mobilityStreak = computeMobilityStreak();
 
@@ -1418,164 +1401,28 @@ function HomeTab({
 
       {/* ═══ SECONDARY ZONE: Supporting actions ═══ */}
 
-      {/* Cardio card */}
-      {todayCardioSlot ? (
-        <button
-          data-tour="cardio-card"
-          onClick={() => onOpenCardio(todayCardioStr, todayCardioSlot.protocol)}
-          style={{
-            width: '100%', background: 'var(--bg-card)',
-            border: `1px solid ${todayCardioSession?.completed ? '#D4983C44' : CARDIO_COLOR + '44'}`,
-            borderRadius: tokens.radius.lg, overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
-            cursor: 'pointer', textAlign: 'left',
-          }}
-        >
-          <div
-            style={{
-              padding: '12px 16px',
-              background: todayCardioSession?.completed ? '#D4983C10' : `${CARDIO_COLOR}0d`,
-              borderBottom: `1px solid ${todayCardioSession?.completed ? '#D4983C30' : CARDIO_COLOR + '22'}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                stroke={todayCardioSession?.completed ? tokens.colors.gold : CARDIO_COLOR}
-                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: todayCardioSession?.completed ? tokens.colors.gold : CARDIO_COLOR }}>
-                {todayCardioSession?.completed ? 'CARDIO DONE ✓' : 'CARDIO TODAY'}
-              </span>
-            </div>
-            {!todayCardioSession?.completed && (
-              <span style={{
-                fontSize: 14, fontWeight: 800, letterSpacing: '0.06em', color: CARDIO_COLOR,
-                background: `${CARDIO_COLOR}18`, border: `1px solid ${CARDIO_COLOR}44`,
-                borderRadius: tokens.radius.md, padding: '4px 10px',
-              }}>
-                START <span aria-hidden="true">▶</span>
-              </span>
-            )}
-          </div>
-          {(() => {
-            const proto = CARDIO_WORKOUTS.find((w) => w.id === todayCardioSlot.protocol);
-            return (
-              <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
-                    {proto ? proto.label : todayCardioSlot.protocol}
-                  </div>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                    {proto ? (proto.description?.split('.')[0] ?? proto.description) + '.' : 'Cardio session'}
-                  </div>
-                </div>
-                {proto?.intervals && !todayCardioSession?.completed && (
-                  <div style={{ display: 'flex', gap: 5, flexShrink: 0, marginLeft: 10 }}>
-                    {[
-                      { label: 'WORK', val: `${proto.intervals.workSecs}s`, color: tokens.colors.cardioHard },
-                      { label: 'REST', val: `${proto.intervals.restSecs}s`, color: tokens.colors.gold },
-                    ].map(({ label, val, color }) => (
-                      <div key={label} style={{
-                        fontSize: 13, fontWeight: 800, letterSpacing: '0.05em', color,
-                        background: `${color}18`, border: `1px solid ${color}44`,
-                        borderRadius: tokens.radius.sm, padding: '2px 6px', whiteSpace: 'nowrap',
-                      }}>
-                        {label} {val}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </button>
-      ) : todayCardioSession?.completed ? (
-        <button
-          data-tour="cardio-card"
-          onClick={() => onOpenCardio(todayCardioStr, null)}
-          style={{
-            width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: tokens.radius.lg, padding: '12px 16px', cursor: 'pointer', textAlign: 'left',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={tokens.colors.gold} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-            </svg>
-            <span style={{ fontSize: 14, fontWeight: 700, color: tokens.colors.gold }}>
-              Cardio logged today ✓
-            </span>
-          </div>
-          <span aria-hidden="true" style={{ fontSize: 16, color: 'var(--text-muted)', fontWeight: 700 }}>›</span>
-        </button>
-      ) : (() => {
-        const rec = pickRecommendedCardio(profile?.goal as string | undefined);
-        return (
-          <button
-            data-tour="cardio-card"
-            onClick={() => onOpenCardio(todayCardioStr, rec.id)}
-            style={{
-              width: '100%', background: 'var(--bg-card)',
-              border: `1px solid ${CARDIO_COLOR}44`,
-              borderRadius: tokens.radius.lg, overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
-              cursor: 'pointer', textAlign: 'left',
-            }}
-          >
-            <div
-              style={{
-                padding: '12px 16px',
-                background: `${CARDIO_COLOR}0d`,
-                borderBottom: `1px solid ${CARDIO_COLOR}22`,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={CARDIO_COLOR} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                </svg>
-                <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', color: CARDIO_COLOR }}>
-                  RECOMMENDED CARDIO
-                </span>
-              </div>
-              <span style={{
-                fontSize: 14, fontWeight: 800, letterSpacing: '0.06em', color: CARDIO_COLOR,
-                background: `${CARDIO_COLOR}18`, border: `1px solid ${CARDIO_COLOR}44`,
-                borderRadius: tokens.radius.md, padding: '4px 10px',
-              }}>
-                START <span aria-hidden="true">▶</span>
-              </span>
-            </div>
-            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
-                  {rec.label}
-                </div>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                  {(rec.description?.split('.')[0] ?? rec.description) + '.'}
-                </div>
-              </div>
-              {rec.intervals && (
-                <div style={{ display: 'flex', gap: 5, flexShrink: 0, marginLeft: 10 }}>
-                  {[
-                    { label: 'WORK', val: `${rec.intervals.workSecs}s`, color: tokens.colors.cardioHard },
-                    { label: 'REST', val: `${rec.intervals.restSecs}s`, color: tokens.colors.gold },
-                  ].map(({ label, val, color }) => (
-                    <div key={label} style={{
-                      fontSize: 13, fontWeight: 800, letterSpacing: '0.05em', color,
-                      background: `${color}18`, border: `1px solid ${color}44`,
-                      borderRadius: tokens.radius.sm, padding: '2px 6px', whiteSpace: 'nowrap',
-                    }}>
-                      {label} {val}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </button>
-        );
-      })()}
+      {/* Cardio card — Group D / C3. The HomeCardioCard component owns
+          the day-mode adaptive layout (lift-only compact strip vs full
+          card vs logged pill) and the Designer routing. dayMode is
+          derived from the same flags that drive the rest of HomeTab so
+          the surfaces stay consistent. Rest days short-circuit to null
+          inside the component. */}
+      <HomeCardioCard
+        dayMode={
+          isRestDay
+            ? 'rest'
+            : isCalendarWorkoutDay && todayCardioSlot
+              ? 'lift+cardio'
+              : isCalendarWorkoutDay
+                ? 'lift_only'
+                : 'cardio_only'
+        }
+        dateStr={todayCardioStr}
+        todayCardioSlot={todayCardioSlot}
+        todayCardioSession={todayCardioSession ?? null}
+        profile={profile ?? null}
+        onOpenCardio={onOpenCardio}
+      />
 
       <div style={{ height: 8 }} />
     </div>

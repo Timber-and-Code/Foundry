@@ -36,6 +36,10 @@ vi.mock('../../../utils/store', () => ({
   loadDayWeekWithCarryover: vi.fn(
     (): Record<string, Record<string, unknown>> => ({}),
   ),
+  // Group D / C3 — HomeCardioCard pulls user presets via the store barrel.
+  loadCardioPresets: vi.fn(() => []),
+  saveCardioPreset: vi.fn(),
+  deleteCardioPreset: vi.fn(),
 }));
 
 vi.mock('../../../data/constants', () => ({
@@ -48,7 +52,16 @@ vi.mock('../../../data/constants', () => ({
       label: 'Easy Walk',
       description: 'Zone 2 recovery walk',
       category: 'Endurance',
+      defaultType: 'Walk',
+      defaultDuration: 35,
+      defaultIntensity: 'Easy',
       recommendedFor: ['build_muscle', 'build_strength', 'general_health'],
+      // Group D / C2 — typed CardioPreset axes.
+      intensity: 'easy',
+      modality: 'walk',
+      protocol: 'liss',
+      target: { kind: 'duration', minutes: 35 },
+      isUserSaved: false,
     },
   ],
   FOUNDRY_COOLDOWN: {},

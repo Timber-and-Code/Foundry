@@ -5,6 +5,7 @@ import { TAG_ACCENT, CARDIO_WORKOUTS } from '../../data/constants';
 import CardioIntervalTimer from './CardioIntervalTimer';
 import { tokens } from '../../styles/tokens';
 import { useActiveSession } from '../../contexts/ActiveSessionContext';
+import { useCardioTimer } from '../../contexts/CardioTimerContext';
 import type { Profile } from '../../types';
 
 interface CardioWorkout {
@@ -42,6 +43,11 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     setActiveSession: setActiveSessionBar,
     clearActiveSession: clearActiveSessionBar,
   } = useActiveSession();
+  // Group D / C1 — broadcast the start/finish into CardioTimerContext so
+  // the timer survives navigation away from /cardio/* (e.g. lifter checks
+  // Home mid-cardio). The view's own elapsed counter is left intact for
+  // the existing UI; this is additive, not a refactor.
+  const cardioTimerCtx = useCardioTimer();
 
   // ── Derived helpers ─────────────────────────────────────────────────────────
   // todayStr helper — reserved for date comparison
@@ -152,6 +158,14 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
       startedAt: now,
       durationMin,
     });
+    // Group D / C1 — fire CardioTimerContext so any consumer (Home card,
+    // top header chip, future widgets) sees the live cardio timer. The
+    // target is durationMin × 60 so the chime + isComplete fire when the
+    // lifter hits their planned duration.
+    cardioTimerCtx.startCardio({
+      protocolId: session.protocolId || 'composed',
+      targetSeconds: durationMin > 0 ? durationMin * 60 : null,
+    });
   };
 
   // ── Timer complete ────────────────────────────────────────────────────────────
@@ -177,6 +191,10 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     setShowComplete(false);
     // Cardio finished — drop the persistent session bar.
     clearActiveSessionBar();
+    // Group D / C1 — close the CardioTimerContext session so the chime +
+    // any cross-page widgets reset. This is the explicit "complete" the
+    // context's contract requires (it never auto-ends on target hit).
+    if (cardioTimerCtx.isActive) cardioTimerCtx.complete();
     // Navigate home automatically
     setTimeout(() => onBack(), 400);
   };
