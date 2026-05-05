@@ -104,7 +104,7 @@ describe('SupersetRoundView', () => {
     expect(screen.getByTestId('round-3')).toBeInTheDocument();
     // Row only has 2 sets — round 3 should render its rest placeholder.
     const round3 = screen.getByTestId('round-3');
-    expect(round3.textContent).toMatch(/B · ROW.*rest/i);
+    expect(round3.textContent).toMatch(/ROW.*rest/i);
   });
 
   it('renders header strip with both exercise names', () => {

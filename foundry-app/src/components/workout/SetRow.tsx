@@ -125,6 +125,12 @@ export default function SetRow({
       : hideBadgeFallback
       ? null
       : String(setIdx + 1).padStart(2, '0');
+  // When the leading slot holds only an exercise name (round view) we widen
+  // the column so the name has room to read — 32px is sized for the "01"
+  // Bebas badge, not multi-char names. 72px fits 8 chars at 15px Bebas
+  // comfortably while leaving the weight/reps inputs ~88px each on iPhone.
+  const wideLeading = badgeText === null && !!rowLabel;
+  const leadingCol = wideLeading ? '72px' : '32px';
 
   return (
     <div
@@ -132,7 +138,9 @@ export default function SetRow({
       data-testid={`set-row-${setIdx}`}
       style={{
         display: 'grid',
-        gridTemplateColumns: editorial ? '32px 1fr 1fr 44px 28px' : '1fr 1fr 1fr 28px',
+        gridTemplateColumns: editorial
+          ? `${leadingCol} 1fr 1fr 44px 28px`
+          : '1fr 1fr 1fr 28px',
         gap: editorial ? 10 : 8,
         alignItems: 'center',
         padding: editorial ? '12px 0' : 0,
@@ -167,15 +175,28 @@ export default function SetRow({
           {rowLabel && (
             <span
               style={{
-                fontFamily: 'inherit',
-                fontSize: badgeText === null ? 11 : 9,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
+                // When the badge is absent (round-view rows), the label is
+                // the only thing in the leading column — render it as the
+                // primary identifier in display Bebas at 15px so it reads
+                // alongside the 22px weight/reps numbers without dominating.
+                // When the badge IS present (legacy stacked layout, unused
+                // after the A/B drop but kept for safety), the label is a
+                // 9px subscript under the badge.
+                fontFamily: badgeText === null
+                  ? "'Bebas Neue', 'Inter', system-ui, sans-serif"
+                  : 'inherit',
+                fontSize: badgeText === null ? 15 : 9,
+                fontWeight: badgeText === null ? 400 : 700,
+                letterSpacing: badgeText === null ? '0.04em' : '0.08em',
                 color: badgeText === null
                   ? (isDone ? 'var(--accent)' : isActive ? 'var(--text-primary)' : 'var(--text-secondary)')
                   : 'var(--text-muted)',
                 textTransform: 'uppercase',
-                lineHeight: 1.1,
+                lineHeight: 1.05,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '100%',
               }}
             >
               {rowLabel}

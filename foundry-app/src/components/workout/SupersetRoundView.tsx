@@ -270,14 +270,12 @@ export default function SupersetRoundView({
     onRemoveSet?.(exIdx, setIdx);
   };
 
-  // Position letter in the group: 0 → A, 1 → B, etc. Used as the row label
-  // prefix in each round block.
-  const positionLetter = (gi: number): string => String.fromCharCode(65 + gi);
-
-  // Short-form name for the row label — uppercase, truncated to ~12 chars.
-  const shortName = (name: string): string => {
+  // Short-form name for the row label inside a round (leading column is
+  // ~72px wide so we keep names tight — 8 chars before the ellipsis).
+  // Header-strip member rows can afford the longer 12-char form.
+  const shortName = (name: string, max = 8): string => {
     const upper = name.toUpperCase();
-    return upper.length > 12 ? upper.slice(0, 12) + '…' : upper;
+    return upper.length > max ? upper.slice(0, max).trimEnd() + '…' : upper;
   };
 
   return (
@@ -302,7 +300,6 @@ export default function SupersetRoundView({
               key={exIdx}
               exercise={ex}
               exIdx={exIdx}
-              positionLetter={positionLetter(gi)}
               lastWeekStat={lastWeekStatFor(exIdx)}
               weekData={weekData}
               prevWeekRaw={prevWeekRaw as Record<number, Record<string, SetData>>}
@@ -356,7 +353,7 @@ export default function SupersetRoundView({
                     opacity: 0.5,
                   }}
                 >
-                  {positionLetter(gi)} · {shortName(ex.name)} — rest
+                  {shortName(ex.name)} — rest
                 </div>
               );
             }
@@ -668,14 +665,14 @@ export default function SupersetRoundView({
 /*  rules-of-hooks stable-order requirement (the map() in the parent emits    */
 /*  N members, but the hook order inside this child stays fixed at one).      */
 /*                                                                            */
-/*  Layout (left → right): [letter] [name + last-week stat] [+5 LBS chip?]    */
-/*  [⚠ DROP chip?] [SWAP button].                                             */
+/*  Layout (left → right): [name + last-week stat] [+5 LBS chip?]            */
+/*  [⚠ DROP chip?] [SWAP button]. Per-exercise A/B letters were dropped       */
+/*  from the strip — the names themselves identify each member of the pair.   */
 /* -------------------------------------------------------------------------- */
 
 interface SupersetMemberHeaderProps {
   exercise: Exercise;
   exIdx: number;
-  positionLetter: string;
   lastWeekStat: string;
   weekData: DayData;
   prevWeekRaw: Record<number, Record<string, SetData>>;
@@ -688,7 +685,6 @@ interface SupersetMemberHeaderProps {
 function SupersetMemberHeader({
   exercise,
   exIdx,
-  positionLetter,
   lastWeekStat,
   weekData,
   prevWeekRaw,
@@ -728,21 +724,6 @@ function SupersetMemberHeader({
         minWidth: 0,
       }}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-          fontSize: 18,
-          fontWeight: 400,
-          color: 'var(--accent)',
-          letterSpacing: '0.04em',
-          width: 18,
-          textAlign: 'center',
-          flexShrink: 0,
-        }}
-      >
-        {positionLetter}
-      </span>
       <button
         type="button"
         onClick={onHistoryClick}
