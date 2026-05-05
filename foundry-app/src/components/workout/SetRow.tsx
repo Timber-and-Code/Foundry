@@ -15,13 +15,16 @@ export interface SetRowProps {
   readOnly: boolean;
   exerciseName: string;
   /** Override for the leading badge in editorial mode. Defaults to setIdx + 1
-   *  zero-padded ("01"). Pass a custom string (e.g. "A") for round-grouped
-   *  superset rows where the row label is "A · BENCH" rather than a set #. */
+   *  zero-padded ("01"). Pass a custom string for non-default badging. */
   rowNumber?: string;
   /** Optional small label rendered next to / under the row number. Used by
-   *  SupersetRoundView to surface "A · BENCH" / "B · ROW" semantics inside a
-   *  per-round block. */
+   *  SupersetRoundView to surface the exercise name in each round row. */
   rowLabel?: string;
+  /** When true and rowNumber is undefined, the badge slot renders nothing
+   *  (no fallback to setIdx + 1). Used by SupersetRoundView so the leading
+   *  column shows ONLY the rowLabel (exercise name) without a set-number
+   *  badge above it. */
+  hideBadgeFallback?: boolean;
   onUpdateWeight: (value: string) => void;
   onUpdateReps: (value: string) => void;
   onWeightBlur: (value: string) => void;
@@ -59,6 +62,7 @@ export default function SetRow({
   readOnly,
   rowNumber,
   rowLabel,
+  hideBadgeFallback = false,
   onUpdateWeight,
   onUpdateReps,
   onWeightBlur,
@@ -115,7 +119,12 @@ export default function SetRow({
       : 'transparent'
     : undefined;
 
-  const badgeText = rowNumber ?? String(setIdx + 1).padStart(2, '0');
+  const badgeText =
+    rowNumber !== undefined
+      ? rowNumber
+      : hideBadgeFallback
+      ? null
+      : String(setIdx + 1).padStart(2, '0');
 
   return (
     <div
@@ -154,16 +163,19 @@ export default function SetRow({
             lineHeight: 1,
           }}
         >
-          <span>{badgeText}</span>
+          {badgeText !== null && <span>{badgeText}</span>}
           {rowLabel && (
             <span
               style={{
                 fontFamily: 'inherit',
-                fontSize: 9,
+                fontSize: badgeText === null ? 11 : 9,
                 fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: 'var(--text-muted)',
+                letterSpacing: '0.08em',
+                color: badgeText === null
+                  ? (isDone ? 'var(--accent)' : isActive ? 'var(--text-primary)' : 'var(--text-secondary)')
+                  : 'var(--text-muted)',
                 textTransform: 'uppercase',
+                lineHeight: 1.1,
               }}
             >
               {rowLabel}

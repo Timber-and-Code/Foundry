@@ -396,8 +396,8 @@ export default function SupersetRoundView({
                 canRemove={canRemove}
                 readOnly={readOnly}
                 exerciseName={ex.name}
-                rowNumber={positionLetter(gi)}
                 rowLabel={shortName(ex.name)}
+                hideBadgeFallback
                 onUpdateWeight={(value) => {
                   onUpdateSet(exIdx, r, 'weight', value);
                   // Edit unconfirms the row, mirroring ExerciseCard.
