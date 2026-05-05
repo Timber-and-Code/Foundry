@@ -176,4 +176,87 @@ describe('SupersetRoundView', () => {
     );
     expect(screen.getByTestId('round-3')).toBeInTheDocument();
   });
+
+  /* ── Bundle I — progression + stall chips in header strip ─────────── */
+
+  it('renders a progression chip on the member header when set 0 is suggested at a higher weight', () => {
+    // Seed prior week so prevWeekRaw memo picks up 30-lb set 0.
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({ 0: { 0: { weight: 30, reps: 12 } } }),
+    );
+    render(
+      <SupersetRoundView
+        {...defaultProps({
+          weekIdx: 1,
+          weekData: { 0: { 0: { weight: 35, reps: 10, suggested: true } } },
+        })}
+      />,
+    );
+    const chip = screen.getByTestId('progression-chip-0');
+    expect(chip).toBeInTheDocument();
+    expect(chip.textContent).toMatch(/\+5 LBS/);
+    // Tooltip carries the full banner copy.
+    expect(chip.getAttribute('title')).toMatch(/hit all reps/i);
+  });
+
+  it('renders a stall chip on the member header when current weight drops >2 lb without rep comp', () => {
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({
+        1: {
+          0: { weight: 30, reps: 12 },
+          1: { weight: 30, reps: 11 },
+          2: { weight: 30, reps: 10 },
+        },
+      }),
+    );
+    render(
+      <SupersetRoundView
+        {...defaultProps({
+          weekIdx: 1,
+          // Bent Row is exIdx 1 — drop weight to 25 with only 10 reps.
+          weekData: { 1: { 0: { weight: 25, reps: 10 } } },
+        })}
+      />,
+    );
+    const chip = screen.getByTestId('stall-chip-1');
+    expect(chip).toBeInTheDocument();
+    expect(chip.textContent).toMatch(/DROP/i);
+    expect(chip.getAttribute('title')).toMatch(/Last week: 30 × 10/);
+  });
+
+  it('does NOT render progression / stall chips on week 0', () => {
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({ 0: { 0: { weight: 30, reps: 12 } } }),
+    );
+    render(
+      <SupersetRoundView
+        {...defaultProps({
+          weekIdx: 0,
+          weekData: { 0: { 0: { weight: 35, reps: 10, suggested: true } } },
+        })}
+      />,
+    );
+    expect(screen.queryByTestId('progression-chip-0')).toBeNull();
+    expect(screen.queryByTestId('stall-chip-0')).toBeNull();
+  });
+
+  it('does NOT render progression chip after the user edits set 0 (no suggestion flag)', () => {
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({ 0: { 0: { weight: 30, reps: 12 } } }),
+    );
+    render(
+      <SupersetRoundView
+        {...defaultProps({
+          weekIdx: 1,
+          // No suggested flag — user has hand-typed this weight.
+          weekData: { 0: { 0: { weight: 35, reps: 10 } } },
+        })}
+      />,
+    );
+    expect(screen.queryByTestId('progression-chip-0')).toBeNull();
+  });
 });
