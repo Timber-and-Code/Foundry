@@ -63,11 +63,12 @@ import { expandEquipment } from '../../utils/program';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
 /**
- * Live in-workout superset grouping. DEV-only for now — the data path
- * (`supersetGroupId`) is harmless when flag is off (no exercise has it
- * set), so it round-trips through state cleanly. Flip to `true` to ship.
+ * Live in-workout superset grouping. SHIPPED 2026-05-05 with 2.8.0 — flag
+ * stays as a constant so future kill-switch / regression rollback is a
+ * one-line change. The data path (`supersetGroupId`) is harmless when off
+ * (no exercise has it set), so it round-trips through state cleanly.
  */
-const SUPERSETS_ENABLED = import.meta.env.DEV;
+const SUPERSETS_ENABLED = true;
 
 /**
  * Browser-safe random id used for `supersetGroupId`. Falls back to a
