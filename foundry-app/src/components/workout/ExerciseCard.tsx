@@ -1136,11 +1136,11 @@ function ExerciseCard({
                     >
                       <span aria-hidden="true">{isDone ? '✓' : ''}</span>
                     </button>
-                    {/* Editorial mode drops the minus button entirely — the
-                        empty-reps check tap now opens the 0-reps confirm,
-                        which doubles as the "I'm skipping" path. Legacy
-                        accordion mode keeps the minus for explicit removal. */}
-                    {!editorial && (canRemove ? (
+                    {/* Remove-set affordance — shown in BOTH legacy and
+                        editorial modes when the row is removable (not done,
+                        not read-only, totalSets > 1). Tapping opens a confirm
+                        before deletion. */}
+                    {canRemove ? (
                       <button
                         onClick={() => setRemoveSetPrompt(s)}
                         aria-label={`Remove set ${s + 1}`}
@@ -1164,7 +1164,7 @@ function ExerciseCard({
                       </button>
                     ) : (
                       <div aria-hidden="true" />
-                    ))}
+                    )}
                   </div>
                 );
               })}
