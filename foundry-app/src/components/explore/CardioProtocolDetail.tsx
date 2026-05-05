@@ -307,7 +307,7 @@ function CardioProtocolDetail({
 
       {showSheet && profile && (
         <CardioApplySheet
-          protocolId={w.id}
+          payload={{ kind: 'preset', presetId: w.id }}
           protocolLabel={w.label}
           schedule={schedule}
           onApply={handleApply}
