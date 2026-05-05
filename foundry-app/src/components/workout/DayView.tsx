@@ -56,7 +56,7 @@ import NextUpCard from './NextUpCard';
 import SwapMenu from './SwapMenu';
 import ReorderSheet from './ReorderSheet';
 import SupersetGroup from './SupersetGroup';
-import { buildSwapGroups } from '../../utils/swapGroups';
+import { buildSwapGroups, bucketFor } from '../../utils/swapGroups';
 import { expandEquipment } from '../../utils/program';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
@@ -548,7 +548,10 @@ function DayView({
     [day?.tag],
   );
 
-  const swapMuscle = swapTarget !== null ? exercises[swapTarget.exIdx]?.muscle : undefined;
+  // Resolve through bucketFor so a swap from a 'Lats' exercise still
+  // auto-expands the merged 'Back' bucket — see #4 in 2.8.0 fix list.
+  const swapMuscle =
+    swapTarget !== null ? bucketFor(exercises[swapTarget.exIdx]?.muscle || '') : undefined;
   // Expand preset tokens (`full_gym`, `home_gym`, `minimal`) into the atomic
   // equipment types the DB is tagged with — otherwise every non-bodyweight row
   // reads "requires dumbbell/barbell" in the swap menu and biceps look missing.

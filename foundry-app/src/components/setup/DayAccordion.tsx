@@ -3,7 +3,7 @@ import { tokens } from '../../styles/tokens';
 import HammerIcon from '../shared/HammerIcon';
 import SwapMenu from '../workout/SwapMenu';
 import { getExerciseDB, type ExerciseEntry } from '../../data/exerciseDB';
-import { buildSwapGroups } from '../../utils/swapGroups';
+import { buildSwapGroups, bucketFor } from '../../utils/swapGroups';
 import { useToast } from '../../contexts/ToastContext';
 import { store } from '../../utils/store';
 
@@ -78,7 +78,7 @@ export default function DayAccordion({
   }, [db, days, activeDayIdx]);
 
   const autoExpandMuscle = swapTarget
-    ? days[swapTarget.dayIdx]?.exercises[swapTarget.exIdx]?.muscle
+    ? bucketFor(days[swapTarget.dayIdx]?.exercises[swapTarget.exIdx]?.muscle || '')
     : undefined;
   const replacingName = swapTarget
     ? days[swapTarget.dayIdx]?.exercises[swapTarget.exIdx]?.name || ''

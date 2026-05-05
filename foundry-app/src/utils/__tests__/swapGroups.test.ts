@@ -3,7 +3,7 @@
  * DayView and DayAccordion. See `foundry/beat2_preview_fixes.md` #2.
  */
 import { describe, it, expect } from 'vitest';
-import { tagsForDay, buildSwapGroups } from '../swapGroups';
+import { tagsForDay, buildSwapGroups, bucketFor } from '../swapGroups';
 
 describe('tagsForDay', () => {
   it('PUSH includes LEGS (squats live on push days in P/P/L splits)', () => {
@@ -72,5 +72,49 @@ describe('buildSwapGroups', () => {
   it('FULL keeps everything — including CORE', () => {
     const groups = buildSwapGroups(db, 'FULL');
     expect(groups.abs).toBeDefined();
+  });
+});
+
+describe('bucketFor — movement family merge (#4)', () => {
+  it('Back / Lats / Traps share the Back bucket so vertical-pull variants are visible together', () => {
+    expect(bucketFor('Back')).toBe('Back');
+    expect(bucketFor('Lats')).toBe('Back');
+    expect(bucketFor('Traps')).toBe('Back');
+  });
+
+  it('Quads / Glutes share the Quads bucket', () => {
+    expect(bucketFor('Quads')).toBe('Quads');
+    expect(bucketFor('Glutes')).toBe('Quads');
+  });
+
+  it('unrecognized muscles map to themselves (back-compat)', () => {
+    expect(bucketFor('Biceps')).toBe('Biceps');
+    expect(bucketFor('Triceps')).toBe('Triceps');
+    expect(bucketFor('Chest')).toBe('Chest');
+    expect(bucketFor('')).toBe('');
+  });
+});
+
+describe('buildSwapGroups — assisted Pull-Up appears alongside Lat Pulldown (#4)', () => {
+  // Mirrors the real EXERCISE_DB shape: pull-ups + assisted variants live
+  // under muscle='Back' and lat pulldowns under muscle='Lats'. Before the
+  // movement-family merge, these were split across two collapsed groups.
+  const db = [
+    { id: 'pullups_bw', name: 'Bodyweight Pull-ups', muscle: 'Back', tag: 'PULL' },
+    { id: 'pullups_assisted', name: 'Assisted Pull-ups', muscle: 'Back', tag: 'PULL' },
+    { id: 'lat_pulldown', name: 'Lat Pulldown', muscle: 'Lats', tag: 'PULL' },
+    { id: 'cable_row', name: 'Cable Row', muscle: 'Back', tag: 'PULL' },
+  ];
+
+  it('lands all four in the same Back bucket', () => {
+    const groups = buildSwapGroups(db, 'PULL');
+    expect(Object.keys(groups)).toEqual(['Back']);
+    const ids = groups.Back.map((e) => e.id).sort();
+    expect(ids).toEqual([
+      'cable_row',
+      'lat_pulldown',
+      'pullups_assisted',
+      'pullups_bw',
+    ]);
   });
 });

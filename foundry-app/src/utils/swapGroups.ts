@@ -42,8 +42,47 @@ export function tagsForDay(dayTag: string | undefined | null): string[] {
 }
 
 /**
+ * Movement families — sibling muscle tags that should appear together in
+ * the swap picker so variants of the same primary movement aren't split
+ * across collapsed accordion groups.
+ *
+ * Concrete example: bodyweight + assisted Pull-ups are tagged
+ * `muscle: 'Back'`, but Lat Pulldown / Single-Arm Pulldown / Pullover are
+ * tagged `muscle: 'Lats'`. From the lifter's perspective these are all
+ * the same swap candidate set — vertical pulls. Swapping a Pull-up for a
+ * Lat Pulldown was previously hidden in a different collapsed group.
+ *
+ * `bucketFor(muscle)` returns the canonical bucket label; everything in
+ * that bucket renders in one accordion group. Muscles not listed map to
+ * themselves (back-compat — no behavioral drift for biceps/triceps/etc).
+ *
+ * The display label uses the FIRST muscle in the family list, which
+ * means an existing autoExpandMuscle of 'Back' still works (we resolve
+ * it through the same bucket). See #4 in the 2.8.0 fix list.
+ */
+const MUSCLE_FAMILIES: string[][] = [
+  // Vertical / horizontal pull family — all of these are interchangeable
+  // candidates when swapping a back-day exercise.
+  ['Back', 'Lats', 'Traps'],
+  // Quad-dominant lower family — squats / leg press / lunges all live
+  // here. (Currently most leg exercises share `muscle: 'Quads'`, but a
+  // few are tagged 'Glutes' — keep them visible together.)
+  ['Quads', 'Glutes'],
+];
+
+/** Map an arbitrary muscle to its display bucket (first family member). */
+export function bucketFor(muscle: string): string {
+  for (const fam of MUSCLE_FAMILIES) {
+    if (fam.includes(muscle)) return fam[0];
+  }
+  return muscle;
+}
+
+/**
  * Filter + group an exercise DB by day tag, ready to pass into the swap
- * picker as `Record<muscle, Exercise[]>`.
+ * picker as `Record<muscle, Exercise[]>`. Related muscle tags are
+ * collapsed into one bucket via `MUSCLE_FAMILIES` so movement variants
+ * sit in the same accordion group (#4).
  */
 export function buildSwapGroups(
   db: ExerciseEntry[],
@@ -53,7 +92,7 @@ export function buildSwapGroups(
   const groups: Record<string, ExerciseEntry[]> = {};
   for (const ex of db) {
     if (!allow.has(ex.tag || '')) continue;
-    const m = ex.muscle || 'other';
+    const m = bucketFor(ex.muscle || 'other');
     if (!groups[m]) groups[m] = [];
     groups[m].push(ex);
   }
