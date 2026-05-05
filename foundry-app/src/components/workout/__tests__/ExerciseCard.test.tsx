@@ -31,6 +31,9 @@ vi.mock('../../data/constants', () => ({
   TAG_ACCENT: {},
   getProgTargets: mocks.getProgTargets,
   getWeekPhase: mocks.getWeekPhase,
+  // MesoHistoryView (mounted via ExerciseCard's tap-to-history button) reads
+  // totalWeeks from this — mock returns the deload-inclusive default.
+  getMeso: vi.fn(() => ({ totalWeeks: 7, workWeeks: 6 })),
 }));
 
 vi.mock('../../styles/tokens', () => ({
@@ -174,11 +177,62 @@ describe('ExerciseCard', () => {
     });
   });
 
-  // 9. History modal removed — last-week reps × weight now lives in the
-  // card header so the modal was redundant. The button no longer renders.
-  it('does not render a History button (modal removed)', () => {
+  // 9. The legacy "History" button has been replaced by tapping on the
+  // LAST WK chip itself (#2). The bare-named History button never renders.
+  it('does not render a standalone History button', () => {
     render(<ExerciseCard {...defaultProps()} />);
     expect(screen.queryByRole('button', { name: /^History$/ })).toBeNull();
+  });
+
+  // 9b. Last-week stat reformat (#2) — `${count}-${weight}×${reps}` with the
+  // sets count at the front. With 3 sets last week (e.g. 30 / 30 / 30 × 12),
+  // the chip should read "3-30×12".
+  it('renders the LAST WK chip as ${count}-${weight}×${reps} (#2)', () => {
+    // Seed prior week data via real localStorage so the prevWeekRaw memo
+    // (which reads through the live `store.get` shim) sees it. Mocking
+    // `store` via vi.mock doesn't intercept here because the live `store`
+    // is re-exported from utils/storage and ExerciseCard reads it
+    // through that re-export.
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({
+        0: {
+          0: { weight: 30, reps: 12 },
+          1: { weight: 30, reps: 11 },
+          2: { weight: 30, reps: 10 },
+        },
+      }),
+    );
+    render(
+      <ExerciseCard
+        {...defaultProps({
+          weekIdx: 1,
+          exercise: makeExercise({ sets: 3, reps: '8-12' }),
+        })}
+      />,
+    );
+    expect(screen.getByText('3-30×12')).toBeInTheDocument();
+    localStorage.clear();
+  });
+
+  // 9c. Tapping the LAST WK chip opens the MesoHistoryView modal (#2).
+  it('opens the history modal when LAST WK chip is tapped (#2)', () => {
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({ 0: { 0: { weight: 30, reps: 10 } } }),
+    );
+    render(
+      <ExerciseCard
+        {...defaultProps({ weekIdx: 1, exercise: makeExercise({ sets: 3, reps: '8-12' }) })}
+      />,
+    );
+    const trigger = screen.getByRole('button', { name: /View .* history/i });
+    fireEvent.click(trigger);
+    // Modal renders the exercise name as the title.
+    expect(screen.getAllByText('Bench Press').length).toBeGreaterThanOrEqual(1);
+    // Close button is exposed by aria-label.
+    expect(screen.getByRole('button', { name: 'Close history' })).toBeInTheDocument();
+    localStorage.clear();
   });
 
   // 10. Note textarea appears and onNoteChange fires
