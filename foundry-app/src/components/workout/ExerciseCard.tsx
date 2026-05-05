@@ -1067,6 +1067,16 @@ function ExerciseCard({
                       aria-label={`Set ${s + 1} weight in pounds`}
                       onChange={(e) => onUpdateSet(exIdx, s, 'weight', e.target.value)}
                       onBlur={(e) => handleWeightBlur(s, e.target.value)}
+                      onFocus={(e) => {
+                        const target = e.currentTarget;
+                        // Defer until after the iOS keyboard begins resizing the
+                        // viewport so the row lands centered above it. Without
+                        // this, the focused row gets covered by the numeric
+                        // keypad.
+                        requestAnimationFrame(() =>
+                          target.scrollIntoView({ block: 'center', behavior: 'smooth' }),
+                        );
+                      }}
                       disabled={isDone || readOnly}
                       style={editorial ? editorialInputStyle(isSuggestedWeight) : legacyInputStyle(isSuggestedWeight)}
                     />
@@ -1078,6 +1088,12 @@ function ExerciseCard({
                       aria-label={`Set ${s + 1} reps`}
                       onChange={(e) => handleRepsChange(s, e.target.value)}
                       onBlur={(e) => handleRepsBlur(s, e.target.value)}
+                      onFocus={(e) => {
+                        const target = e.currentTarget;
+                        requestAnimationFrame(() =>
+                          target.scrollIntoView({ block: 'center', behavior: 'smooth' }),
+                        );
+                      }}
                       disabled={isDone || readOnly}
                       style={editorial ? editorialInputStyle(isSuggestedReps) : legacyInputStyle(isSuggestedReps)}
                     />

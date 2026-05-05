@@ -1841,6 +1841,18 @@ function DayView({
         />
       )}
 
+      {/* Keyboard-aware bottom spacer — keeps the focused set row scrollable
+          above the iOS numeric keypad. env(keyboard-inset-height) is set when
+          the soft keyboard is open; otherwise this collapses to 0 and adds no
+          gap. The constant ~200px fallback covers iOS safe-area + extra room
+          for the active row to scroll fully above the keypad. */}
+      <div
+        aria-hidden="true"
+        style={{
+          height: 'env(keyboard-inset-height, 0px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 200px)',
+        }}
+      />
     </div>
   );
 }
