@@ -822,7 +822,7 @@ function DayView({
         });
       }
     },
-    [exercises, pendingRest, startRestTimer, dayIdx, weekIdx]
+    [exercises, pendingRest, startRestTimer, dayIdx, weekIdx, weekData]
   );
 
   // Timer lives in App — no local interval to clean up on unmount
