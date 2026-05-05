@@ -227,7 +227,6 @@ function App() {
   // ── Global rest timer ──
   const {
     restTimer,
-    restTimerMinimized,
     setRestTimerMinimized,
     startRestTimer: _startRestTimer,
     dismissRestTimer,

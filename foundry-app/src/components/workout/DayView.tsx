@@ -1688,13 +1688,6 @@ function DayView({
         for (let j = groupEnd + 1; j < exercises.length; j++) {
           if (!doneExercises.has(j)) { upNextIdx = j; break; }
         }
-        let supersetPartnerName2: string | undefined;
-        if (focusEx.supersetWith != null) {
-          supersetPartnerName2 = exercises[focusEx.supersetWith]?.name;
-        } else {
-          const primary = exercises.find((e) => e.supersetWith === clampedFocus);
-          if (primary) supersetPartnerName2 = primary.name;
-        }
         return (
           <>
             <ProgressStrip
