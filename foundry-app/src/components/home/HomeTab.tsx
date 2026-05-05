@@ -18,12 +18,67 @@ import {
   computeMobilityStreak,
   saveMobilitySession,
   isSkipped,
+  loadDayWeek,
+  loadDayWeekWithCarryover,
 } from '../../utils/store';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
 import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import { useRestTimer } from '../../contexts/RestTimerContext';
 import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
+
+// ── Prescription helper (#11) ─────────────────────────────────────────────
+// Returns the suggested weight for an upcoming exercise on the given
+// (dayIdx, weekIdx). Reads any already-saved data first; falls back to
+// the carryover computation (which derives from prior weeks per Group A's
+// uniform-baseline rule) only when the week is pristine. Returns an empty
+// string when no prescription exists yet — the renderer should treat that
+// as "show the rep range alone, no @ token."
+//
+// Returns the weight as a STRING (matches loadDayWeek's storage shape) so
+// the caller can plug it directly into the prescription chip without
+// number-formatting churn.
+function getUpcomingWeight(
+  dayIdx: number,
+  weekIdx: number,
+  exIdx: number,
+  day: TrainingDay | null,
+  profile: Profile | null | undefined,
+): string {
+  if (!day) return '';
+  // 1. Saved data takes precedence — if the lifter has touched this slot
+  //    (or DayView seeded carryover into localStorage), trust the stored
+  //    weight on set 0.
+  const saved = loadDayWeek(dayIdx, weekIdx);
+  const savedSet0 = saved?.[exIdx]?.[0];
+  if (savedSet0?.weight != null && String(savedSet0.weight).trim() !== '') {
+    return String(savedSet0.weight);
+  }
+  // 2. Pristine: compute carryover synchronously. loadDayWeekWithCarryover
+  //    is pure — reads localStorage prior weeks, no I/O. Fast enough for
+  //    the Home next-session render.
+  if (weekIdx === 0) return ''; // first week has no prior; no suggestion.
+  const carry = loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile ?? null);
+  const carrySet0 = carry?.[exIdx]?.[0];
+  return carrySet0?.weight != null ? String(carrySet0.weight) : '';
+}
+
+// Format the prescription line: `{count} × {reps}` always, optionally
+// `@ {weight}lb` when known. For bodyweight exercises we omit `@` entirely
+// (the muscle-of-truth there is reps, not load). The `lb` suffix matches
+// the rest of the app's mass formatting; we don't yet flip to kg.
+function formatPrescription(
+  sets: number,
+  reps: string | number | undefined,
+  weight: string,
+  bodyweight: boolean,
+): string {
+  const repRange = String(reps ?? '').trim() || '—';
+  const head = `${sets} × ${repRange}`;
+  if (bodyweight) return head; // BW: no @ token
+  if (!weight) return head;    // pristine: no @ token
+  return `${head} @ ${weight}lb`;
+}
 
 // ── Warmup protocol picker ────────────────────────────────────────────────
 // Select the warmup protocol that matches today's day tag (PUSH/PULL/LEGS/
@@ -94,6 +149,7 @@ function RestStateCard({
   activeWeek,
   goBack,
   onSelectDayWeek,
+  profile,
 }: {
   displayWeekAllDone: boolean;
   calendarSessionDone: boolean;
@@ -115,6 +171,7 @@ function RestStateCard({
   activeWeek: number;
   goBack: () => void;
   onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
+  profile: Profile | null | undefined;
 }) {
   // Find last completed day's tag for mobility
   let homeMobilityTag = null;
@@ -358,14 +415,32 @@ function RestStateCard({
                 {nextDayForCollapse.exercises.map((ex: Exercise, ei: number) => {
                   const ovId = store.get(`foundry:exov:d${nextDayIdxForCollapse}:ex${ei}`) || null;
                   const dbEx = ovId ? findExercise(ovId) : null;
+                  // #11: surface the upcoming session's full prescription
+                  // (sets × reps @ weight) on the next-session card. Reads
+                  // already-saved data first; falls back to the carryover
+                  // computation only when pristine. Pure localStorage —
+                  // no network — so safe to invoke on render.
+                  const sets = getWeekSets(Number(ex.sets) || 0, activeWeek, getMeso().totalWeeks);
+                  const upcomingWeight = getUpcomingWeight(
+                    nextDayIdxForCollapse,
+                    activeWeek,
+                    ei,
+                    nextDayForCollapse,
+                    profile,
+                  );
+                  const isBW = !!ex.bw || (ex.equipment === 'bodyweight');
+                  const prescription = formatPrescription(sets, ex.reps, upcomingWeight, isBW);
                   return (
                     <div key={ei} style={{ display: 'flex', padding: '8px 16px', borderBottom: ei < nextDayForCollapse.exercises.length - 1 ? '1px solid var(--border-subtle)' : 'none', textAlign: 'left' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {dbEx ? dbEx.name : ex.name}
                         </div>
-                        <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 1 }}>
-                          {getWeekSets(Number(ex.sets) || 0, activeWeek, getMeso().totalWeeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
+                        <div
+                          style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 1, fontVariantNumeric: 'tabular-nums' }}
+                          aria-label={`Prescription: ${prescription}`}
+                        >
+                          {prescription}{ex.rest ? ` · ${ex.rest}` : ''}
                         </div>
                       </div>
                     </div>
@@ -1086,6 +1161,7 @@ function HomeTab({
           activeWeek={activeWeek}
           goBack={goBack}
           onSelectDayWeek={onSelectDayWeek}
+          profile={profile}
         />
       ) : (
         <>
@@ -1192,6 +1268,15 @@ function HomeTab({
               const prevWeight = prevSets.length > 0 ? (prevSets[0] as Record<string, unknown>).weight : null;
               const ovId = store.get(`foundry:exov:d${showDayIdx}:ex${ei}`) || null;
               const dbEx = ovId ? findExercise(ovId) : null;
+              // #11: full prescription on the today/next-session card. The
+              // last-wk pill stays where it was (right rail) since it's a
+              // historical reference, not a prescription. The "@" weight on
+              // the prescription comes from the upcoming week's carryover
+              // (or saved data once DayView seeded it).
+              const sets = getWeekSets(Number(ex.sets) || 0, showDayWeek, getMeso().totalWeeks);
+              const upcomingWeight = getUpcomingWeight(showDayIdx, showDayWeek, ei, showDay, profile);
+              const isBW = !!ex.bw || (ex.equipment === 'bodyweight');
+              const prescription = formatPrescription(sets, ex.reps, upcomingWeight, isBW);
               return (
                 <div
                   key={ei}
@@ -1205,8 +1290,11 @@ function HomeTab({
                     <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {dbEx ? dbEx.name : ex.name}
                     </div>
-                    <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 1 }}>
-                      {getWeekSets(Number(ex.sets) || 0, showDayWeek, getMeso().totalWeeks)} sets · {ex.reps} reps{ex.rest ? ` · ${ex.rest}` : ''}
+                    <div
+                      style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 1, fontVariantNumeric: 'tabular-nums' }}
+                      aria-label={`Prescription: ${prescription}`}
+                    >
+                      {prescription}{ex.rest ? ` · ${ex.rest}` : ''}
                     </div>
                   </div>
                   {!!prevWeight && (

@@ -20,6 +20,8 @@ const {
   mockGetMeso,
   mockComputeMobilityStreak,
   mockIsSkipped,
+  mockLoadDayWeek,
+  mockLoadDayWeekWithCarryover,
 } = vi.hoisted(() => ({
   mockStoreGet: vi.fn(() => null),
   mockLoadCardioSession: vi.fn(() => null),
@@ -32,6 +34,10 @@ const {
   mockGetMeso: vi.fn(() => ({ weeks: 6, days: ['Push', 'Pull', 'Legs'] })),
   mockComputeMobilityStreak: vi.fn(() => 0),
   mockIsSkipped: vi.fn((_d: number, _w: number): boolean => false),
+  mockLoadDayWeek: vi.fn((): Record<string, Record<string, unknown>> => ({})),
+  mockLoadDayWeekWithCarryover: vi.fn(
+    (): Record<string, Record<string, unknown>> => ({}),
+  ),
 }));
 
 vi.mock('../../../utils/store', () => ({
@@ -46,6 +52,8 @@ vi.mock('../../../utils/store', () => ({
   getWeekSets: vi.fn((sets: number) => sets),
   computeMobilityStreak: mockComputeMobilityStreak,
   isSkipped: mockIsSkipped,
+  loadDayWeek: mockLoadDayWeek,
+  loadDayWeekWithCarryover: mockLoadDayWeekWithCarryover,
 }));
 
 vi.mock('../../../data/constants', () => ({
@@ -193,6 +201,8 @@ beforeEach(() => {
   mockLoadCardioSession.mockReturnValue(null);
   mockComputeMobilityStreak.mockReturnValue(0);
   mockIsSkipped.mockReturnValue(false);
+  mockLoadDayWeek.mockReturnValue({});
+  mockLoadDayWeekWithCarryover.mockReturnValue({});
 });
 
 describe('HomeTab', () => {
@@ -379,6 +389,69 @@ describe('HomeTab', () => {
       // Pull (skipped) must not be the resolved next session.
       expect(startBtn?.textContent || '').not.toMatch(/Start Pull Day/);
       expect(startBtn?.textContent || '').toMatch(/Start Leg Day/);
+    });
+  });
+
+  // ── Prescription on Next Session card (#11) ─────────────────────────
+  describe('next session prescription', () => {
+    function todayDateStr(): string {
+      const t = new Date();
+      return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    }
+
+    it('renders sets × reps when no prior weight is known (pristine, #11)', () => {
+      const todayStr = todayDateStr();
+      mockBuildSessionDateMap.mockReturnValue({ [todayStr]: '0:0' });
+      mockLoadDayWeek.mockReturnValue({});
+      mockLoadDayWeekWithCarryover.mockReturnValue({});
+
+      const props = makeProps({
+        profile: {
+          name: 'Alex',
+          experience: 'intermediate',
+          startDate: todayStr,
+          cardioSchedule: [],
+          splitType: 'PPL',
+          daysPerWeek: 3,
+          weight: 180,
+          workoutDays: [new Date().getDay()],
+          mesoLength: 6,
+        },
+      });
+      const { container } = render(<HomeTab {...props} />);
+      // Bench Press: 3 sets × 8-10 reps · 2 min rest. No weight → no @ token.
+      const prescription = container.querySelector('[aria-label^="Prescription:"]');
+      expect(prescription?.textContent).toMatch(/3 × 8-10/);
+      expect(prescription?.textContent).not.toMatch(/@ /);
+    });
+
+    it('appends "@ {weight}lb" when carryover provides a suggested weight (#11)', () => {
+      const todayStr = todayDateStr();
+      mockBuildSessionDateMap.mockReturnValue({ [todayStr]: '0:1' });
+      // No saved data on the upcoming week, but carryover provides 30 lb on
+      // exercise 0 set 0 — should surface as "3 × 8-10 @ 30lb".
+      mockLoadDayWeek.mockReturnValue({});
+      mockLoadDayWeekWithCarryover.mockReturnValue({
+        0: { 0: { weight: '30', reps: '8' } },
+      });
+
+      const props = makeProps({
+        activeWeek: 1,
+        profile: {
+          name: 'Alex',
+          experience: 'intermediate',
+          startDate: todayStr,
+          cardioSchedule: [],
+          splitType: 'PPL',
+          daysPerWeek: 3,
+          weight: 180,
+          workoutDays: [new Date().getDay()],
+          mesoLength: 6,
+        },
+      });
+      const { container } = render(<HomeTab {...props} />);
+      const prescription = container.querySelector('[aria-label^="Prescription:"]');
+      expect(prescription?.textContent).toMatch(/3 × 8-10 @ 30lb/);
     });
   });
 });

@@ -32,6 +32,10 @@ vi.mock('../../../utils/store', () => ({
   buildSessionDateMap: mockBuildSessionDateMap,
   computeMobilityStreak: vi.fn(() => 0),
   isSkipped: vi.fn((): boolean => false),
+  loadDayWeek: vi.fn((): Record<string, Record<string, unknown>> => ({})),
+  loadDayWeekWithCarryover: vi.fn(
+    (): Record<string, Record<string, unknown>> => ({}),
+  ),
 }));
 
 vi.mock('../../../data/constants', () => ({
