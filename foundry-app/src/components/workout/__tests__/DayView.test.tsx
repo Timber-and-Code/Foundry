@@ -130,10 +130,17 @@ vi.mock('../ExerciseCard', () => ({
     exercise,
     exIdx,
     onAddSet,
+    onSetLogged,
   }: {
-    exercise: { name: string };
+    exercise: { name: string; rest?: string; sets?: number };
     exIdx: number;
     onAddSet?: (exIdx: number) => void;
+    onSetLogged?: (
+      restStr: string,
+      exName: string,
+      setIdx: number,
+      isLastSet?: boolean,
+    ) => void;
   }) => (
     <div data-testid="exercise-card">
       {exercise.name}
@@ -144,6 +151,35 @@ vi.mock('../ExerciseCard', () => ({
         >
           Add set
         </button>
+      )}
+      {onSetLogged && (
+        <>
+          {/* Test handles for invoking the rest-timer wiring without
+              recreating the full ExerciseCard checkmark UX. Mid set =
+              isLastSet=false (rest fires for non-superset); last set =
+              isLastSet=true (NextUpCard handoff for non-superset). */}
+          <button
+            data-testid={`log-mid-set-${exIdx}`}
+            onClick={() =>
+              onSetLogged(exercise.rest || '90', exercise.name, 0, false)
+            }
+          >
+            log mid set
+          </button>
+          <button
+            data-testid={`log-last-set-${exIdx}`}
+            onClick={() =>
+              onSetLogged(
+                exercise.rest || '90',
+                exercise.name,
+                Number(exercise.sets ?? 1) - 1,
+                true,
+              )
+            }
+          >
+            log last set
+          </button>
+        </>
       )}
     </div>
   ),
@@ -363,5 +399,65 @@ describe('DayView', () => {
     render(<DayView {...defaultProps()} />);
     // End Early was removed — only "Complete Workout" should end a session.
     expect(screen.queryByRole('button', { name: /end workout early/i })).toBeNull();
+  });
+
+  /* ── Rest timer wiring regression (#1) ──────────────────────────────── */
+
+  // Confirms `handleSetLogged` still calls startRestTimer when a
+  // non-final, non-superset set is checked off — guards against the
+  // "checking off a set no longer kicks off the rest timer" symptom.
+  it('starts the rest timer when a mid-exercise set is logged (#1)', () => {
+    const startRestTimer = vi.fn();
+    mocks.useRestTimer.mockReturnValue({
+      restTimer: null,
+      restTimerMinimized: false,
+      setRestTimerMinimized: vi.fn(),
+      startRestTimer,
+      dismissRestTimer: vi.fn(),
+    });
+    const startTime = String(Date.now() - 60000);
+    localStorage.setItem('foundry:sessionStart:d0:w0', startTime);
+    mocks.store.get.mockImplementation((key: string) => {
+      if (key === 'foundry:sessionStart:d0:w0') return startTime;
+      return null;
+    });
+
+    render(<DayView {...defaultProps()} />);
+
+    const midBtn = screen.getByTestId('log-mid-set-0');
+    act(() => {
+      fireEvent.click(midBtn);
+    });
+
+    expect(startRestTimer).toHaveBeenCalledTimes(1);
+    expect(startRestTimer).toHaveBeenCalledWith('90', 'Bench Press', 0, 0);
+  });
+
+  // Last set of a non-superset exercise hands off via NextUpCard, NOT
+  // a rest timer (per d52a574). This codifies that contract.
+  it('does NOT start the rest timer on a last-set log (NextUpCard handoff)', () => {
+    const startRestTimer = vi.fn();
+    mocks.useRestTimer.mockReturnValue({
+      restTimer: null,
+      restTimerMinimized: false,
+      setRestTimerMinimized: vi.fn(),
+      startRestTimer,
+      dismissRestTimer: vi.fn(),
+    });
+    const startTime = String(Date.now() - 60000);
+    localStorage.setItem('foundry:sessionStart:d0:w0', startTime);
+    mocks.store.get.mockImplementation((key: string) => {
+      if (key === 'foundry:sessionStart:d0:w0') return startTime;
+      return null;
+    });
+
+    render(<DayView {...defaultProps()} />);
+
+    const lastBtn = screen.getByTestId('log-last-set-0');
+    act(() => {
+      fireEvent.click(lastBtn);
+    });
+
+    expect(startRestTimer).not.toHaveBeenCalled();
   });
 });

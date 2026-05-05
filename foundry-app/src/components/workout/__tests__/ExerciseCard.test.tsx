@@ -314,4 +314,78 @@ describe('ExerciseCard', () => {
     expect(handler).not.toHaveBeenCalled();
     window.removeEventListener('foundry:first-miss', handler);
   });
+
+  /* ── SUPERSET WITH chip — editorial header (#3, #4) ────────────────── */
+
+  // 16. When the eligible-to-pair callback is provided, the editorial
+  // header renders a "+ SUPERSET WITH" chip and tapping fires the callback.
+  it('renders + SUPERSET WITH chip when onPairSuperset is provided (#3, #4)', () => {
+    const onPairSuperset = vi.fn();
+    render(
+      <ExerciseCard
+        {...defaultProps({
+          editorial: true,
+          totalExercises: 3,
+          onPairSuperset,
+        })}
+      />,
+    );
+    const chip = screen.getByRole('button', { name: /\+ SUPERSET WITH/i });
+    expect(chip).toBeInTheDocument();
+    fireEvent.click(chip);
+    expect(onPairSuperset).toHaveBeenCalledTimes(1);
+  });
+
+  // 17. When the card is already in a superset group, the chip becomes a
+  // solid SUPERSET <label> badge with an unpair × button.
+  it('renders SUPERSET A1 chip + unpair × when supersetLabel is set (#3, #4)', () => {
+    const onUnpairSuperset = vi.fn();
+    render(
+      <ExerciseCard
+        {...defaultProps({
+          editorial: true,
+          totalExercises: 3,
+          supersetLabel: 'A1',
+          onUnpairSuperset,
+        })}
+      />,
+    );
+    expect(screen.getByText(/Superset A1/i)).toBeInTheDocument();
+    const unpair = screen.getByRole('button', { name: 'Unpair superset' });
+    fireEvent.click(unpair);
+    expect(onUnpairSuperset).toHaveBeenCalledTimes(1);
+  });
+
+  // 18. With neither prop, no superset chip renders — only the
+  // "Exercise N of M" label on the top row of the editorial header.
+  it('does not render superset chip when neither prop is set', () => {
+    render(
+      <ExerciseCard
+        {...defaultProps({
+          editorial: true,
+          totalExercises: 3,
+        })}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /SUPERSET/i })).toBeNull();
+    expect(screen.queryByText(/Superset A\d/i)).toBeNull();
+    // Sanity: the N/M label is still visible.
+    expect(screen.getByText(/Exercise 1 of 3/i)).toBeInTheDocument();
+  });
+
+  // 19. The pre-rename "Pair as superset" / "Pair with X" strings are
+  // gone from the rendered UI — only "SUPERSET WITH" should appear.
+  it('does NOT render the pre-rename "Pair with" string', () => {
+    render(
+      <ExerciseCard
+        {...defaultProps({
+          editorial: true,
+          totalExercises: 3,
+          onPairSuperset: vi.fn(),
+        })}
+      />,
+    );
+    expect(screen.queryByText(/Pair with/i)).toBeNull();
+    expect(screen.queryByText(/Pair as superset/i)).toBeNull();
+  });
 });

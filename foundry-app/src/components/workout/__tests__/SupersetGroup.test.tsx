@@ -1,7 +1,8 @@
 /**
  * SupersetGroup wrapper — chrome-only smoke tests. The DEV-flagged
- * "Pair as superset" affordance lives on DayView; the wrapper itself is
- * always renderable when the caller supplies the data.
+ * "+ SUPERSET WITH" affordance lives in ExerciseCard's editorial header
+ * (#3, #4 in 2.8.0 fix list); the wrapper itself is always renderable
+ * when the caller supplies the data.
  */
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
