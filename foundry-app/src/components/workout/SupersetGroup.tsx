@@ -24,7 +24,6 @@ export interface SupersetGroupProps {
  * DEV-flagged at the call site (see SUPERSETS_ENABLED in DayView).
  */
 export default function SupersetGroup({ exercises, children, onUnpair }: SupersetGroupProps) {
-  const labels = exercises.map((_e, i) => `A${i + 1}`).join(', ');
   const names = exercises.map((e) => e.name).join(', ');
 
   return (
@@ -69,25 +68,6 @@ export default function SupersetGroup({ exercises, children, onUnpair }: Superse
             }}
           >
             Superset
-          </span>
-          <span
-            aria-hidden="true"
-            style={{ color: 'var(--text-muted)', fontSize: 11 }}
-          >
-            &middot;
-          </span>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: 'var(--text-secondary)',
-              letterSpacing: '0.06em',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {labels}
           </span>
         </div>
         {onUnpair && (

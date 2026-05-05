@@ -1074,7 +1074,7 @@ function ExerciseCard({
           )}
 
           {/* Set logging grid. Two layouts:
-              - editorial (Focus Mode): 32px # / 1fr Lbs / 1fr Reps / 44px ✓
+              - editorial (Focus Mode): 32px # / 1fr Lbs / 1fr Reps / 44px ✓ / 28px −
                 with orange-gradient row tint and underline-only inputs.
                 Matches /preview/hybrid/focus.
               - non-editorial (pre-workout accordion): legacy 4-col grid
@@ -1085,7 +1085,7 @@ function ExerciseCard({
                 style={{
                   display: 'grid',
                   gridTemplateColumns: editorial
-                    ? '32px 1fr 1fr 44px'
+                    ? '32px 1fr 1fr 44px 28px'
                     : '1fr 1fr 1fr 28px',
                   gap: editorial ? 10 : 8,
                   marginBottom: editorial ? 0 : 8,
@@ -1104,6 +1104,7 @@ function ExerciseCard({
                     <span>#</span>
                     <span style={{ textAlign: 'center' }}>Lbs</span>
                     <span style={{ textAlign: 'center' }}>Reps</span>
+                    <span />
                     <span />
                   </>
                 ) : (

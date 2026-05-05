@@ -18,7 +18,7 @@ describe('SupersetGroup', () => {
   const exA = { id: 'a', name: 'Bench Press', muscle: 'Chest' };
   const exB = { id: 'b', name: 'Bent-Over Row', muscle: 'Back' };
 
-  it('renders a SUPERSET label with A1, A2 letters', () => {
+  it('renders a SUPERSET label without A1/A2 enumeration', () => {
     render(
       <SupersetGroup exercises={[exA, exB]}>
         <div data-testid="card-a">A</div>
@@ -26,7 +26,7 @@ describe('SupersetGroup', () => {
       </SupersetGroup>,
     );
     expect(screen.getByText('Superset')).toBeInTheDocument();
-    expect(screen.getByText('A1, A2')).toBeInTheDocument();
+    expect(screen.queryByText('A1, A2')).not.toBeInTheDocument();
   });
 
   it('exposes a role=group region with the paired exercise names', () => {

@@ -772,12 +772,10 @@ function DayView({
         return;
       }
 
-      // Mid-exercise inside a superset: next-up is same exercise (same
-      // group) → suppress per the spec rule (#2). The lifter alternates
-      // through the superset without rest until the block ends.
-      if (inSuperset) {
-        return;
-      }
+      // Mid-exercise sets always rest — regardless of superset membership.
+      // Suppression only applies to the last-set hop between paired exercises
+      // (handled above). Within an exercise's sets the lifter still rests
+      // between each set as normal.
 
       // Legacy supersetWith index-based pairing — deferred-rest path,
       // unchanged from pre-supersetGroupId behavior. Mid-set only since
