@@ -13,6 +13,7 @@ import {
 } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
 import MesoHistoryView from './MesoHistoryView';
+import SetRow from './SetRow';
 import { haptic } from '../../utils/helpers';
 import { getMeso } from '../../data/constants';
 import type { Exercise, DayData } from '../../types';
@@ -297,10 +298,6 @@ function ExerciseCard({
       n.delete(s);
       return n;
     });
-  };
-
-  const handleRepsBlur = (_s: number, _value: string) => {
-    // No-op: set completion now driven by explicit checkmark tap
   };
 
   const handleSetCheckmark = (s: number) => {
@@ -1135,194 +1132,28 @@ function ExerciseCard({
                   return -1;
                 })();
                 const isActive = editorial && s === firstActiveIdx;
-                const rowBg = editorial
-                  ? isDone
-                    ? 'linear-gradient(90deg, rgba(232,101,26,0.08) 0%, transparent 100%)'
-                    : isActive
-                    ? 'linear-gradient(90deg, rgba(232,101,26,0.12) 0%, transparent 100%)'
-                    : 'transparent'
-                  : undefined;
-                // Editorial input: fully borderless, Bebas display font for
-                // the numerals. Matches the preview's editorial typography
-                // — set values read as headlines, not form fields.
-                const editorialInputStyle = (suggested: boolean): React.CSSProperties => ({
-                  width: '100%',
-                  textAlign: 'center',
-                  fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-                  fontSize: 22,
-                  fontWeight: 400,
-                  letterSpacing: '0.02em',
-                  padding: '6px 0',
-                  color: isDone
-                    ? 'var(--text-secondary)'
-                    : suggested
-                    ? 'var(--text-accent)'
-                    : 'var(--text-primary)',
-                  fontStyle: suggested ? 'italic' : 'normal',
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  fontVariantNumeric: 'tabular-nums',
-                  boxSizing: 'border-box',
-                });
-                // Legacy bordered input (pre-workout accordion mode).
-                const legacyInputStyle = (suggested: boolean): React.CSSProperties => ({
-                  minWidth: 0,
-                  width: '100%',
-                  background: 'var(--bg-inset)',
-                  border: suggested ? '1.5px solid var(--text-accent)' : '1px solid var(--border)',
-                  borderRadius: tokens.radius.sm,
-                  padding: '8px 6px',
-                  fontSize: 14,
-                  color: suggested ? 'var(--text-accent)' : 'var(--text-primary)',
-                  fontStyle: suggested ? 'italic' : 'normal',
-                  outline: 'none',
-                  textAlign: 'center',
-                  boxSizing: 'border-box',
-                });
                 return (
-                  <div
+                  <SetRow
                     key={s}
-                    data-coach={isMissedRow ? 'missed-row' : undefined}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: editorial
-                        ? '32px 1fr 1fr 44px 28px'
-                        : '1fr 1fr 1fr 28px',
-                      gap: editorial ? 10 : 8,
-                      alignItems: 'center',
-                      padding: editorial ? '12px 0' : 0,
-                      marginBottom: editorial ? 0 : 6,
-                      borderBottom: editorial ? '1px solid var(--border-subtle, var(--border))' : 'none',
-                      background: rowBg,
-                      opacity: !editorial && isDone ? 0.6 : 1,
-                    }}
-                  >
-                    {editorial && (
-                      <span
-                        style={{
-                          fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-                          fontSize: 22,
-                          fontWeight: 400,
-                          color: isDone
-                            ? 'var(--accent)'
-                            : isActive
-                            ? 'var(--text-primary)'
-                            : 'var(--text-muted)',
-                          letterSpacing: '0.04em',
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {String(s + 1).padStart(2, '0')}
-                      </span>
-                    )}
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="—"
-                      value={sd.weight || ''}
-                      aria-label={`Set ${s + 1} weight in pounds`}
-                      onChange={(e) => onUpdateSet(exIdx, s, 'weight', e.target.value)}
-                      onBlur={(e) => handleWeightBlur(s, e.target.value)}
-                      onFocus={(e) => {
-                        const target = e.currentTarget;
-                        // Defer until after the iOS keyboard begins resizing the
-                        // viewport so the row lands centered above it. Without
-                        // this, the focused row gets covered by the numeric
-                        // keypad.
-                        requestAnimationFrame(() =>
-                          target.scrollIntoView({ block: 'center', behavior: 'smooth' }),
-                        );
-                      }}
-                      disabled={isDone || readOnly}
-                      style={editorial ? editorialInputStyle(isSuggestedWeight) : legacyInputStyle(isSuggestedWeight)}
-                    />
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="—"
-                      value={sd.reps || ''}
-                      aria-label={`Set ${s + 1} reps`}
-                      onChange={(e) => handleRepsChange(s, e.target.value)}
-                      onBlur={(e) => handleRepsBlur(s, e.target.value)}
-                      onFocus={(e) => {
-                        const target = e.currentTarget;
-                        requestAnimationFrame(() =>
-                          target.scrollIntoView({ block: 'center', behavior: 'smooth' }),
-                        );
-                      }}
-                      disabled={isDone || readOnly}
-                      style={editorial ? editorialInputStyle(isSuggestedReps) : legacyInputStyle(isSuggestedReps)}
-                    />
-                    <button
-                      onClick={() => handleSetCheckmark(s)}
-                      disabled={readOnly}
-                      aria-pressed={isDone}
-                      aria-label={isDone ? `Set ${s + 1} complete — tap to undo` : `Mark set ${s + 1} complete`}
-                      style={editorial ? {
-                        width: 36,
-                        height: 36,
-                        justifySelf: 'end',
-                        border: isDone ? 'none' : '1px solid var(--border)',
-                        borderRadius: 8,
-                        background: isDone ? 'var(--accent)' : 'transparent',
-                        color: isDone ? 'var(--bg-root, #0A0A0C)' : 'var(--text-muted)',
-                        cursor: readOnly ? 'default' : 'pointer',
-                        fontSize: 16,
-                        fontWeight: 800,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxSizing: 'border-box',
-                      } : {
-                        minWidth: 0,
-                        width: '100%',
-                        border: isDone ? '2px solid var(--success)' : '1px solid var(--border)',
-                        borderRadius: tokens.radius.sm,
-                        padding: '8px 6px',
-                        background: isDone ? 'var(--success)' : 'var(--bg-inset)',
-                        color: isDone ? 'white' : 'var(--text-muted)',
-                        cursor: readOnly ? 'default' : 'pointer',
-                        fontSize: 18,
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxSizing: 'border-box',
-                      }}
-                    >
-                      <span aria-hidden="true">{isDone ? '✓' : ''}</span>
-                    </button>
-                    {/* Remove-set affordance — shown in BOTH legacy and
-                        editorial modes when the row is removable (not done,
-                        not read-only, totalSets > 1). Tapping opens a confirm
-                        before deletion. */}
-                    {canRemove ? (
-                      <button
-                        onClick={() => setRemoveSetPrompt(s)}
-                        aria-label={`Remove set ${s + 1}`}
-                        style={{
-                          width: 28,
-                          height: '100%',
-                          padding: 0,
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          fontSize: 22,
-                          fontWeight: 700,
-                          lineHeight: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <span aria-hidden="true">−</span>
-                      </button>
-                    ) : (
-                      <div aria-hidden="true" />
-                    )}
-                  </div>
+                    exIdx={exIdx}
+                    setIdx={s}
+                    weight={(sd.weight ?? '') as string | number}
+                    reps={(sd.reps ?? '') as string | number}
+                    isDone={isDone}
+                    isActive={isActive}
+                    isSuggestedWeight={isSuggestedWeight}
+                    isSuggestedReps={isSuggestedReps}
+                    isMissedRow={isMissedRow}
+                    canRemove={canRemove}
+                    readOnly={readOnly}
+                    exerciseName={exercise.name}
+                    onUpdateWeight={(value) => onUpdateSet(exIdx, s, 'weight', value)}
+                    onUpdateReps={(value) => handleRepsChange(s, value)}
+                    onWeightBlur={(value) => handleWeightBlur(s, value)}
+                    onCheckmark={() => handleSetCheckmark(s)}
+                    onRequestRemove={canRemove ? () => setRemoveSetPrompt(s) : undefined}
+                    variant={editorial ? 'editorial' : 'legacy'}
+                  />
                 );
               })}
             </div>
