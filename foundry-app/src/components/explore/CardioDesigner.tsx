@@ -422,41 +422,25 @@ export default function CardioDesigner({ initial, onClose, onDone }: CardioDesig
           ))}
         </AxisRow>
 
-        {/* DURATION axis */}
-        <AxisRow
-          label="DURATION"
-          value={`${comp.duration} min`}
+        {/* DURATION axis — preset chips + Custom… entry. Custom values
+            bypass reconcileComposition()'s snap-to-menu so they stick;
+            chips still route through update() so the cross-axis Tabata /
+            Swim coercions keep working as before. */}
+        <DurationAxis
+          comp={comp}
           open={openAxis === 'duration'}
           onToggle={() => setOpenAxis(openAxis === 'duration' ? null : 'duration')}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            {PROTOCOL_DEFAULTS[comp.protocol].durations.map((d) => (
-              <OptionButton
-                key={d}
-                selected={comp.duration === d}
-                onClick={() => {
-                  update({ ...comp, duration: d });
-                  closeAxis();
-                }}
-                primary={`${d} min`}
-                compact
-              />
-            ))}
-          </div>
-          {PROTOCOL_DEFAULTS[comp.protocol].note && (
-            <div
-              style={{
-                fontSize: 10,
-                color: CARDIO_ACCENT,
-                marginTop: 8,
-                textAlign: 'center',
-                letterSpacing: '0.04em',
-              }}
-            >
-              {PROTOCOL_DEFAULTS[comp.protocol].note}
-            </div>
-          )}
-        </AxisRow>
+          onPickPreset={(d) => {
+            update({ ...comp, duration: d });
+            closeAxis();
+          }}
+          onPickCustom={(d) => {
+            // Direct setter — preserves a custom value that's outside the
+            // protocol's preset chip list. The custom helper has already
+            // applied range + Tabata-multiple-of-4 clamping.
+            setComp({ ...comp, duration: d });
+          }}
+        />
 
         {/* Save as preset */}
         <div style={{ marginTop: 8 }}>
@@ -714,5 +698,220 @@ function OptionButton({
         </div>
       )}
     </button>
+  );
+}
+
+// ── DurationAxis ───────────────────────────────────────────────────────────
+// Wrapper around AxisRow that adds the existing preset chips PLUS a
+// "Custom…" entry. Tapping Custom slides out a number input (1–180 min);
+// Tabata rounds the input to the nearest multiple of 4 with an inline
+// note. Validation is on blur — non-numeric / out-of-range gets a brief
+// inline hint, no toast. Preset taps go through onPickPreset (which
+// reconciles cross-axis); custom values go through onPickCustom (direct
+// setter, since they fall outside the protocol's chip menu and would
+// otherwise be snapped back to default by reconcileComposition).
+const CUSTOM_MIN = 1;
+const CUSTOM_MAX = 180;
+
+function clampToTabata(n: number): number {
+  // Round to nearest multiple of 4, but never below 4.
+  return Math.max(4, Math.round(n / 4) * 4);
+}
+
+function DurationAxis({
+  comp,
+  open,
+  onToggle,
+  onPickPreset,
+  onPickCustom,
+}: {
+  comp: CardioComposition;
+  open: boolean;
+  onToggle: () => void;
+  onPickPreset: (d: number) => void;
+  onPickCustom: (d: number) => void;
+}) {
+  const meta = PROTOCOL_DEFAULTS[comp.protocol];
+  const presetDurations = meta.durations;
+  // "Custom" is active when the current selected duration isn't in the
+  // protocol's chip list.
+  const customActive = !presetDurations.includes(comp.duration);
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string>(customActive ? String(comp.duration) : '');
+  const [hint, setHint] = useState<string | null>(null);
+
+  const isTabata = comp.protocol === 'tabata';
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setHint('Enter a number between 1 and 180.');
+      return;
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || Number.isNaN(n)) {
+      setHint('Numbers only.');
+      return;
+    }
+    if (n < CUSTOM_MIN || n > CUSTOM_MAX) {
+      setHint(`Pick a value between ${CUSTOM_MIN} and ${CUSTOM_MAX} minutes.`);
+      return;
+    }
+    const final = isTabata ? clampToTabata(Math.round(n)) : Math.round(n);
+    setHint(null);
+    setDraft(String(final));
+    onPickCustom(final);
+    setEditing(false);
+  };
+
+  return (
+    <AxisRow
+      label="DURATION"
+      value={`${comp.duration} min`}
+      open={open}
+      onToggle={onToggle}
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+        {presetDurations.map((d) => (
+          <OptionButton
+            key={d}
+            selected={comp.duration === d}
+            onClick={() => {
+              setEditing(false);
+              setHint(null);
+              onPickPreset(d);
+            }}
+            primary={`${d} min`}
+            compact
+          />
+        ))}
+        <OptionButton
+          selected={customActive}
+          onClick={() => {
+            setHint(null);
+            setEditing(true);
+            setDraft(customActive ? String(comp.duration) : '');
+          }}
+          primary={customActive ? `${comp.duration} min` : 'Custom…'}
+          compact
+        />
+      </div>
+      {editing && (
+        <div
+          style={{
+            marginTop: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <label
+            htmlFor="cardio-custom-duration"
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              color: 'var(--text-muted)',
+            }}
+          >
+            CUSTOM DURATION (MIN)
+          </label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              id="cardio-custom-duration"
+              autoFocus
+              type="number"
+              inputMode="numeric"
+              min={CUSTOM_MIN}
+              max={CUSTOM_MAX}
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                if (hint) setHint(null);
+              }}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  commit();
+                } else if (e.key === 'Escape') {
+                  setEditing(false);
+                  setHint(null);
+                }
+              }}
+              placeholder={isTabata ? 'e.g. 12' : 'e.g. 25'}
+              aria-label="Custom duration in minutes"
+              aria-describedby={hint ? 'cardio-custom-duration-hint' : undefined}
+              aria-invalid={hint ? true : undefined}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: `1px solid ${hint ? 'var(--danger, #f44336)' : 'var(--border)'}`,
+                borderRadius: tokens.radius.md,
+                color: 'var(--text-primary)',
+                fontSize: 14,
+                padding: '10px 12px',
+                fontFamily: 'inherit',
+              }}
+            />
+            <button
+              onClick={commit}
+              style={{
+                padding: '0 14px',
+                background: CARDIO_ACCENT + '22',
+                border: `1px solid ${CARDIO_ACCENT}`,
+                borderRadius: tokens.radius.md,
+                color: CARDIO_ACCENT,
+                cursor: 'pointer',
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                fontFamily: 'inherit',
+              }}
+            >
+              SET
+            </button>
+          </div>
+          {isTabata && (
+            <div
+              style={{
+                fontSize: 10,
+                color: 'var(--text-muted)',
+                letterSpacing: '0.04em',
+              }}
+            >
+              Tabata rounds to nearest 4 min.
+            </div>
+          )}
+          {hint && (
+            <div
+              id="cardio-custom-duration-hint"
+              role="alert"
+              style={{
+                fontSize: 11,
+                color: 'var(--danger, #f44336)',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {hint}
+            </div>
+          )}
+        </div>
+      )}
+      {meta.note && !editing && (
+        <div
+          style={{
+            fontSize: 10,
+            color: CARDIO_ACCENT,
+            marginTop: 8,
+            textAlign: 'center',
+            letterSpacing: '0.04em',
+          }}
+        >
+          {meta.note}
+        </div>
+      )}
+    </AxisRow>
   );
 }
