@@ -8,7 +8,8 @@ import React, {
   type ReactNode,
   type MutableRefObject,
 } from 'react';
-import { parseRestSeconds, haptic } from '../utils/helpers';
+import { parseRestSeconds } from '../utils/helpers';
+import { playTimerCompleteChime } from '../utils/audio';
 import { store } from '../utils/store';
 
 interface RestTimerState {
@@ -76,21 +77,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fireTimerComplete = useCallback(() => {
-    try { haptic('done'); } catch { /* haptic not available on desktop */ }
-    try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.4, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.6);
-    } catch { /* AudioContext not available */ }
+    playTimerCompleteChime();
   }, []);
 
   const startRestTimer = useCallback(

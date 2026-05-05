@@ -26,7 +26,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { haptic } from '../utils/helpers';
+import { playTimerCompleteChime } from '../utils/audio';
 
 interface CardioTimerState {
   isActive: boolean;
@@ -71,30 +71,12 @@ const NOOP: CardioTimerContextValue = {
 const CardioTimerContext = createContext<CardioTimerContextValue | null>(null);
 
 /**
- * Plays the same 880Hz sine chime + haptic that RestTimerContext uses on
- * completion. Kept inline rather than imported so this file stays
- * standalone — RestTimerContext doesn't export the helper today, and
- * pulling in shared audio util would touch unrelated files for both
- * groups working on the timer surface (Group A + Group D).
+ * Cardio's "target reached" cue uses the shared timer-complete chime so
+ * rest + cardio sound identical at zero. See `src/utils/audio.ts` for the
+ * single AudioContext + 880Hz sine implementation.
  */
 function fireCardioComplete(): void {
-  try { haptic('done'); } catch { /* haptic not available */ }
-  try {
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.4, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.6);
-  } catch { /* AudioContext not available */ }
+  playTimerCompleteChime();
 }
 
 export function CardioTimerProvider({ children }: { children: ReactNode }) {
