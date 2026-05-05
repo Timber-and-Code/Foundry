@@ -195,7 +195,15 @@ export const GOAL_OPTIONS: readonly GoalOption[] = [
 ];
 
 // ─── CARDIO WORKOUTS ─────────────────────────────────────────────────────────
-// Pre-built cardio session templates
+// Pre-built cardio session templates.
+//
+// Group D / C2 — these are now expressed as `CardioPreset` records with
+// `isUserSaved: false`. Legacy fields (`defaultType`, `defaultDuration`,
+// `defaultIntensity`, `category`) are kept inline for one release so existing
+// consumers (CardioSessionView, CardioBrowser, CardioProtocolDetail, HomeTab)
+// keep working without a churn-y rename. New consumers (CardioDesigner,
+// HomeCardioCard, pickRecommendedCardio's downstream) read the typed
+// CardioPreset fields (`intensity`, `modality`, `protocol`, `target`).
 interface CardioWorkout {
   id: string;
   label: string;
@@ -206,6 +214,12 @@ interface CardioWorkout {
   defaultIntensity: string;
   recommendedFor: string[];
   intervals?: { workSecs: number; restSecs: number; rounds: number };
+  // ─── New CardioPreset fields ────────────────────────────────────────────
+  intensity: import('../types').Intensity;
+  modality: import('../types').Modality;
+  protocol: import('../types').ProtocolKind;
+  target: import('../types').CardioTarget;
+  isUserSaved: false;
 }
 
 export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
@@ -218,6 +232,11 @@ export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
     defaultDuration: 35,
     defaultIntensity: 'Easy',
     recommendedFor: ['build_muscle', 'build_strength', 'lose_fat', 'improve_fitness'],
+    intensity: 'easy',
+    modality: 'walk',
+    protocol: 'liss',
+    target: { kind: 'duration', minutes: 35 },
+    isUserSaved: false,
   },
   {
     id: 'zone2_run',
@@ -228,6 +247,11 @@ export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
     defaultDuration: 40,
     defaultIntensity: 'Moderate',
     recommendedFor: ['lose_fat', 'improve_fitness', 'sport_conditioning'],
+    intensity: 'moderate',
+    modality: 'run',
+    protocol: 'zone2',
+    target: { kind: 'duration', minutes: 40 },
+    isUserSaved: false,
   },
   {
     id: 'tempo_run',
@@ -238,6 +262,11 @@ export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
     defaultDuration: 25,
     defaultIntensity: 'Hard',
     recommendedFor: ['improve_fitness', 'sport_conditioning'],
+    intensity: 'hard',
+    modality: 'run',
+    protocol: 'tempo',
+    target: { kind: 'duration', minutes: 25 },
+    isUserSaved: false,
   },
   {
     id: 'hiit_bike',
@@ -249,6 +278,13 @@ export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
     defaultIntensity: 'Hard',
     recommendedFor: ['lose_fat', 'improve_fitness', 'sport_conditioning'],
     intervals: { workSecs: 20, restSecs: 10, rounds: 8 },
+    intensity: 'hard',
+    modality: 'bike',
+    protocol: 'tabata',
+    // 20s on / 10s off × 8 = 4 min per round; the legacy 20-min entry is 5
+    // back-to-back tabatas. Keeping target=20 preserves prior behaviour.
+    target: { kind: 'duration', minutes: 20 },
+    isUserSaved: false,
   },
   {
     id: 'long_steady',
@@ -259,6 +295,11 @@ export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
     defaultDuration: 75,
     defaultIntensity: 'Moderate',
     recommendedFor: ['improve_fitness', 'sport_conditioning'],
+    intensity: 'moderate',
+    modality: 'run',
+    protocol: 'liss',
+    target: { kind: 'duration', minutes: 75 },
+    isUserSaved: false,
   },
   {
     id: 'swim',
@@ -269,6 +310,11 @@ export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
     defaultDuration: 35,
     defaultIntensity: 'Moderate',
     recommendedFor: ['build_muscle', 'build_strength', 'improve_fitness'],
+    intensity: 'moderate',
+    modality: 'swim',
+    protocol: 'zone2',
+    target: { kind: 'duration', minutes: 35 },
+    isUserSaved: false,
   },
   {
     id: 'jump_rope',
@@ -279,6 +325,11 @@ export const CARDIO_WORKOUTS: readonly CardioWorkout[] = [
     defaultDuration: 20,
     defaultIntensity: 'Hard',
     recommendedFor: ['lose_fat', 'sport_conditioning'],
+    intensity: 'hard',
+    modality: 'jump_rope',
+    protocol: 'free',
+    target: { kind: 'duration', minutes: 20 },
+    isUserSaved: false,
   },
 ];
 
