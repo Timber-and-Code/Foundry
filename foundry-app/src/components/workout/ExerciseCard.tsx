@@ -1187,7 +1187,7 @@ function ExerciseCard({
                     style={{
                       display: 'grid',
                       gridTemplateColumns: editorial
-                        ? '32px 1fr 1fr 44px'
+                        ? '32px 1fr 1fr 44px 28px'
                         : '1fr 1fr 1fr 28px',
                       gap: editorial ? 10 : 8,
                       alignItems: 'center',
