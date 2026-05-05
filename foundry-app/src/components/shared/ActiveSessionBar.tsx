@@ -129,10 +129,8 @@ function ActiveSessionBar() {
         top: 0,
         zIndex: 90,
         paddingTop: 'env(safe-area-inset-top, 0px)',
-        background: `linear-gradient(180deg, ${accent}26 0%, ${accent}14 100%)`,
-        borderBottom: `1px solid ${accent}55`,
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
+        background: 'var(--bg-root)',
+        borderBottom: `2px solid ${accent}`,
       }}
     >
       <button
