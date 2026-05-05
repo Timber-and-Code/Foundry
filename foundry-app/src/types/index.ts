@@ -125,6 +125,63 @@ export interface CardioSession {
   data?: Record<string, unknown>;
 }
 
+// ─── CARDIO DESIGNER (4-axis composer) ──────────────────────────────────────
+// Group D / C2 — composable cardio session model. Replaces the implicit
+// "pick one of 7 hardcoded protocols" pattern with an orthogonal axes
+// composition. Built-in protocols (CARDIO_WORKOUTS) are seeded as
+// `CardioPreset` records with `isUserSaved: false`; user-saved presets
+// persist to localStorage under `foundry:cardio:user-presets` and (later)
+// sync to Supabase via a `user_cardio_presets` table.
+
+export type Intensity = 'easy' | 'moderate' | 'hard';
+
+export type Modality =
+  | 'walk'
+  | 'run'
+  | 'bike'
+  | 'row'
+  | 'swim'
+  | 'stairs'
+  | 'elliptical'
+  | 'jump_rope'
+  | 'other';
+
+export type ProtocolKind =
+  | 'liss'
+  | 'zone2'
+  | 'tempo'
+  | 'tabata'
+  | 'emom'
+  | 'sprint_intervals'
+  | 'free';
+
+export interface CardioTarget {
+  /** Phase 2 may add `'distance'` once HKWorkout integration lands. Today we
+   *  ship duration only — the Designer doesn't expose distance yet. */
+  kind: 'duration';
+  minutes: number;
+}
+
+export interface CardioPreset {
+  id: string;
+  label: string;
+  description?: string;
+  intensity: Intensity;
+  modality: Modality;
+  /** When `modality === 'other'`, the free-text label the lifter typed. */
+  modalityCustom?: string;
+  protocol: ProtocolKind;
+  target: CardioTarget;
+  /** HIIT-style interval structure — only meaningful for tabata/sprints. */
+  intervals?: { workSecs: number; restSecs: number; rounds: number };
+  /** True for user-saved presets; false for built-ins seeded from
+   *  CARDIO_WORKOUTS. Drives Home presets-row filtering. */
+  isUserSaved: boolean;
+  /** Goal tags this preset is recommended for (built-ins only). Mirrors
+   *  legacy CardioWorkout.recommendedFor. */
+  recommendedFor?: string[];
+}
+
 // ─── MOBILITY ───────────────────────────────────────────────────────────────
 
 /**

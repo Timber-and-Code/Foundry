@@ -5,7 +5,7 @@ import {
   syncCardioSessionToSupabase,
   syncNotesToSupabase,
 } from './sync';
-import type { DayData, TrainingDay, Profile, CardioSession } from '../types';
+import type { DayData, TrainingDay, Profile, CardioSession, CardioPreset } from '../types';
 
 // ─── ACTIVE SESSION (top-of-shell bar) ────────────────────────────────────────
 // Persistent marker so the user always sees that a workout/cardio session is
@@ -219,6 +219,53 @@ export function loadCardioSession(dateStr: string): CardioSession | null {
 export function saveCardioSession(dateStr: string, data: CardioSession): void {
   store.set(`foundry:cardio:session:${dateStr}`, JSON.stringify(data));
   syncCardioSessionToSupabase(dateStr, data);
+}
+
+// ─── CARDIO PRESETS (user-saved 4-axis compositions) ─────────────────────────
+// Group D / C2 — local-only persistence today. Each user-saved Designer
+// composition lives under a single localStorage key. Built-in CARDIO_WORKOUTS
+// are NOT persisted here; they're sourced from src/data/constants.ts.
+//
+// TODO: Supabase sync via user_cardio_presets table — pattern after
+//   user_friendships migration (additive, no schema breaking changes).
+
+const CARDIO_PRESETS_KEY = 'foundry:cardio:user-presets';
+
+export function loadCardioPresets(): CardioPreset[] {
+  try {
+    const raw = store.get(CARDIO_PRESETS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Defensive: drop entries that don't at minimum carry an id + label so a
+    // bad migration / partial write can't crash callers downstream.
+    return parsed.filter(
+      (p: unknown): p is CardioPreset =>
+        !!p && typeof p === 'object' && typeof (p as CardioPreset).id === 'string'
+          && typeof (p as CardioPreset).label === 'string',
+    );
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to load cardio presets', e);
+    return [];
+  }
+}
+
+export function saveCardioPreset(preset: CardioPreset): void {
+  // TODO: Supabase sync via user_cardio_presets table — pattern after
+  //   user_friendships migration.
+  const all = loadCardioPresets();
+  const idx = all.findIndex((p) => p.id === preset.id);
+  if (idx >= 0) all[idx] = preset;
+  else all.push(preset);
+  store.set(CARDIO_PRESETS_KEY, JSON.stringify(all));
+}
+
+export function deleteCardioPreset(id: string): void {
+  // TODO: Supabase sync via user_cardio_presets table — pattern after
+  //   user_friendships migration.
+  const all = loadCardioPresets();
+  const next = all.filter((p) => p.id !== id);
+  store.set(CARDIO_PRESETS_KEY, JSON.stringify(next));
 }
 
 export function loadMobilitySession(dateStr: string): { protocolId?: string | null; completed?: boolean; completedAt?: string | null; [key: string]: unknown } | null {
