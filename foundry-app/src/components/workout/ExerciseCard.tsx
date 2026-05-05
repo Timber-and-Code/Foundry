@@ -16,6 +16,7 @@ import MesoHistoryView from './MesoHistoryView';
 import SetRow from './SetRow';
 import { haptic } from '../../utils/helpers';
 import { getMeso } from '../../data/constants';
+import { useExerciseProgression } from '../../hooks/useExerciseProgression';
 import type { Exercise, DayData } from '../../types';
 import type { WarmupStep, WarmupDetail } from '../../utils/training';
 
@@ -34,11 +35,6 @@ const editorialChipStyle: React.CSSProperties = {
   cursor: 'pointer',
   lineHeight: 1,
 };
-
-interface StallTarget {
-  w: number;
-  r: number;
-}
 
 interface SetData {
   weight?: string | number;
@@ -365,61 +361,17 @@ function ExerciseCard({
     try { haptic('tap'); } catch { /* haptic unavailable on this platform */ }
   };
 
-  // Progression hint — derived from whether set 0 has suggested flags
-  const progressionBanner = useMemo(() => {
-    if (weekIdx === 0) return null; // No progression on first week
-    const set0 = (weekData[exIdx] || {})[0];
-    if (!set0) return null;
-    // Only show banner if set 0 still carries suggestion flags (user hasn't edited yet)
-    if (!set0.suggested && !set0.repsSuggested) return null;
-
-    const prevData = prevWeekRaw[exIdx] || {};
-    const prevWeight = parseFloat(String((prevData[0] || {}).weight || '0'));
-    const currWeight = parseFloat(String(set0.weight || '0'));
-
-    if (set0.suggested && currWeight > prevWeight) {
-      const bump = Math.round((currWeight - prevWeight) * 10) / 10;
-      return { text: `+${bump} lbs — you hit all reps last week`, color: 'var(--success)' };
-    }
-    if (exercise.bw && set0.repsSuggested) {
-      return { text: '+1 rep — bodyweight progression', color: 'var(--text-accent)' };
-    }
-    if (set0.repsSuggested && !set0.suggested) {
-      return { text: 'Same weight, +1 rep — building toward top of range', color: 'var(--text-accent)' };
-    }
-    return null;
-  }, [weekData, exIdx, weekIdx, prevWeekRaw, exercise.bw]);
-
-  // Compute stall detection based on previous week's set data and this week's input.
-  // Compare against the LAST completed working set (highest set index with
-  // non-empty weight + reps) — that's the lifter's "last working weight"
-  // mental model. Comparing against the BEST set was misreading drops as
-  // stalls when the user fatigued mid-session (see #8).
-  const { stallWarning, stallTarget } = useMemo(() => {
-    const curr = (weekData[exIdx] || {})[0] || {};
-    const reps = parseInt(String(curr.reps || 0));
-    const weight = parseFloat(String(curr.weight || 0));
-    const prevData = prevWeekRaw[exIdx] || {};
-    let stallTarget: StallTarget | null = null,
-      stallWarning = false;
-    for (let ps = (Number(exercise.sets) || 4) - 1; ps >= 0; ps--) {
-      const psd = prevData[ps] || {};
-      if (!psd.reps || !psd.weight || psd.warmup) continue;
-      const pw = parseFloat(String(psd.weight));
-      const pr = parseInt(String(psd.reps));
-      if (!Number.isFinite(pw) || pw <= 0) continue;
-      stallTarget = { w: pw, r: pr };
-      break;
-    }
-    // Stall if weight drops and reps don't increase enough to compensate
-    if (stallTarget && weight > 0) {
-      const prevRepsEquiv = stallTarget.r * (stallTarget.w / weight); // Reps equivalent at new weight
-      if (weight < stallTarget.w - 2 && reps < prevRepsEquiv) {
-        stallWarning = true;
-      }
-    }
-    return { stallTarget, stallWarning };
-  }, [weekData, exIdx, prevWeekRaw, exercise.sets]);
+  // Progression banner + stall warning — both lifted into a shared hook
+  // (Bundle I, 2.8.0) so SupersetRoundView's header strip can render the
+  // same chips without duplicating the logic. Behaviour is held verbatim
+  // against the prior inline memos.
+  const { progressionBanner, stallWarning, stallTarget } = useExerciseProgression({
+    exIdx,
+    exercise,
+    weekData,
+    prevWeekRaw,
+    weekIdx,
+  });
 
   // Onboarding v2: emit first-stall once per user when the stall warning
   // first becomes truthy. CoachMarkOrchestrator explains what a stall means.
