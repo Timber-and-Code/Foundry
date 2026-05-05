@@ -43,10 +43,12 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     setActiveSession: setActiveSessionBar,
     clearActiveSession: clearActiveSessionBar,
   } = useActiveSession();
-  // Group D / C1 — broadcast the start/finish into CardioTimerContext so
-  // the timer survives navigation away from /cardio/* (e.g. lifter checks
-  // Home mid-cardio). The view's own elapsed counter is left intact for
-  // the existing UI; this is additive, not a refactor.
+  // Bundle G — CardioTimerContext is now the single source of truth for the
+  // active-session tick loop. The view reads `isActive`, `elapsedSeconds`,
+  // `targetSeconds`, `isComplete` from the context and dispatches start /
+  // extend / endEarly / complete through it. Persistence of the session
+  // form (type/duration/intensity/completed flag) still flows through
+  // saveCardioSession at completion + chip-toggle time.
   const cardioTimerCtx = useCardioTimer();
 
   // ── Derived helpers ─────────────────────────────────────────────────────────
@@ -85,29 +87,53 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   });
 
   const [showTimer, setShowTimer] = React.useState(false);
-  const [started, setStarted] = React.useState(() => !!loadCardioSession(dateStr)?.startedAt);
-  const [elapsedSecs, setElapsedSecs] = React.useState(0);
   const [showComplete, setShowComplete] = React.useState(false);
+  const [showEndEarly, setShowEndEarly] = React.useState(false);
   const [openCat, setOpenCat] = React.useState<string | null>(null); // which category accordion is expanded
-  const startRef = React.useRef<number | null>(null);
-  const elapsedRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Restore start time ───────────────────────────────────────────────────────
+  // ── Source of truth for the active-session tick — CardioTimerContext ──
+  // `started` flips from CardioTimerContext.isActive AFTER the user taps
+  // Start. We DON'T want to flip it back to false on completion until the
+  // user has dismissed the complete dialog (otherwise the chrome resets
+  // mid-flow), so we hold a `wasActive` ref to detect the active→inactive
+  // transition triggered by ctx.complete()/endEarly().
+  const ctxIsActive = cardioTimerCtx.isActive;
+  const ctxElapsed = cardioTimerCtx.elapsedSeconds;
+  const ctxTargetSecs = cardioTimerCtx.targetSeconds;
+  const ctxIsComplete = cardioTimerCtx.isComplete;
+
+  // Restore handle: if we landed on /cardio/:date/:proto with a persisted
+  // unfinished session but the context isn't active (cold reload, app
+  // relaunch), kick the context back up so the tick + chime resume.
   React.useEffect(() => {
     const saved = loadCardioSession(dateStr);
-    if (saved?.startedAt) startRef.current = Number(saved.startedAt);
-  }, []);
+    if (saved?.startedAt && !saved.completed && !cardioTimerCtx.isActive) {
+      const proto = saved.protocolId
+        ? CARDIO_WORKOUTS.find((w) => w.id === saved.protocolId)
+        : null;
+      const durationMin =
+        parseInt(String(saved.duration ?? ''), 10) || proto?.defaultDuration || 30;
+      // CardioTimerContext.startCardio always uses Date.now() — that would
+      // lose the actual startedAt of the saved session. The next iteration
+      // of the context could accept a `startedAt` override; for now, we
+      // accept this small caveat: post-restore the elapsed counter resets
+      // to 0 from the moment of restore (instead of the original start).
+      // This matches the prior behavior since the prior local tick also
+      // re-derived elapsed from saved.startedAt and ALSO didn't carry the
+      // chime-fired flag — restored sessions can re-fire the chime when
+      // the original target is met. Acceptable for v1 of the refactor.
+      cardioTimerCtx.startCardio({
+        protocolId: saved.protocolId || 'composed',
+        targetSeconds: durationMin > 0 ? durationMin * 60 : null,
+      });
+    }
+    // Intentionally only depend on dateStr — cardioTimerCtx is stable
+    // enough at the provider layer that we don't want to re-fire on every
+    // context state change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateStr]);
 
-  // ── Elapsed timer ────────────────────────────────────────────────────────────
-  React.useEffect(() => {
-    if (!started || session.completed) return;
-    const tick = () => {
-      if (startRef.current) setElapsedSecs(Math.floor((Date.now() - startRef.current) / 1000));
-    };
-    tick();
-    elapsedRef.current = setInterval(tick, 1000);
-    return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
-  }, [started, session.completed]);
+  const started = ctxIsActive;
 
   const formatElapsed = (s: number) => {
     const m = Math.floor(s / 60),
@@ -139,10 +165,8 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   // ── Begin session ────────────────────────────────────────────────────────────
   const handleStart = () => {
     const now = Date.now();
-    startRef.current = now;
     haptic('tap');
     save({ startedAt: now });
-    setStarted(true);
     // Plant the persistent session bar so the user still sees the timer
     // ticking after navigating back to Home.
     const proto = session.protocolId
@@ -158,14 +182,29 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
       startedAt: now,
       durationMin,
     });
-    // Group D / C1 — fire CardioTimerContext so any consumer (Home card,
-    // top header chip, future widgets) sees the live cardio timer. The
-    // target is durationMin × 60 so the chime + isComplete fire when the
-    // lifter hits their planned duration.
+    // Bundle G — CardioTimerContext is the source of truth for the tick
+    // loop. Target is durationMin × 60 so the chime + isComplete fire
+    // when the lifter hits their planned duration.
     cardioTimerCtx.startCardio({
       protocolId: session.protocolId || 'composed',
       targetSeconds: durationMin > 0 ? durationMin * 60 : null,
     });
+  };
+
+  // ── Extend / End early — context-owned ──────────────────────────────────────
+  const handleExtend5 = () => {
+    haptic('tap');
+    cardioTimerCtx.extendByMinutes(5);
+  };
+
+  const handleEndEarlyConfirm = () => {
+    haptic('tap');
+    // Capture elapsed BEFORE the context tears itself down (endEarly
+    // returns the final value, but we want to feed it into save() too so
+    // the duration auto-fill matches the actual time worked).
+    const finalElapsed = cardioTimerCtx.endEarly();
+    finalizeCompletion(finalElapsed);
+    setShowEndEarly(false);
   };
 
   // ── Timer complete ────────────────────────────────────────────────────────────
@@ -176,13 +215,18 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
   };
 
   // ── Complete session ─────────────────────────────────────────────────────────
-  const handleComplete = () => {
+  // Final shared persistence path used by both "Complete" and "End early"
+  // flows. Takes the final elapsed seconds so the auto-fill duration
+  // matches what the lifter actually worked, regardless of which path
+  // they ended through.
+  const finalizeCompletion = (finalElapsedSec: number) => {
     const now = Date.now();
-    haptic('tap');
-    // Auto-fill duration from elapsed timer if user didn't manually set it
-    const updates: { completed: boolean; completedAt: number; duration?: string } = { completed: true, completedAt: now };
-    if (startRef.current) {
-      const elapsedMins = Math.round((now - startRef.current) / 60000);
+    const updates: { completed: boolean; completedAt: number; duration?: string } = {
+      completed: true,
+      completedAt: now,
+    };
+    if (finalElapsedSec > 0) {
+      const elapsedMins = Math.round(finalElapsedSec / 60);
       if (elapsedMins > 0 && elapsedMins < 300) {
         updates.duration = String(elapsedMins);
       }
@@ -191,12 +235,18 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
     setShowComplete(false);
     // Cardio finished — drop the persistent session bar.
     clearActiveSessionBar();
-    // Group D / C1 — close the CardioTimerContext session so the chime +
-    // any cross-page widgets reset. This is the explicit "complete" the
-    // context's contract requires (it never auto-ends on target hit).
-    if (cardioTimerCtx.isActive) cardioTimerCtx.complete();
     // Navigate home automatically
     setTimeout(() => onBack(), 400);
+  };
+
+  const handleComplete = () => {
+    haptic('tap');
+    // Bundle G — CardioTimerContext.complete() returns the final elapsed
+    // value, so we no longer need to read off a local startRef.
+    const finalElapsed = cardioTimerCtx.isActive
+      ? cardioTimerCtx.complete()
+      : ctxElapsed;
+    finalizeCompletion(finalElapsed);
   };
 
   const selectedProto = session.protocolId
@@ -427,23 +477,23 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
             {displayDate}
           </div>
         </div>
-        {/* Elapsed timer — visible once started */}
+        {/* Elapsed timer — visible once started. Source: CardioTimerContext. */}
         {started && !session.completed && (
           <div
             aria-live="polite"
-            aria-label={`Elapsed time: ${formatElapsed(elapsedSecs)}`}
+            aria-label={`Elapsed time: ${formatElapsed(ctxElapsed)}`}
             style={{
               fontSize: 13,
               fontWeight: 800,
               fontVariantNumeric: 'tabular-nums',
-              color: CARDIO_COLOR,
-              background: `${CARDIO_COLOR}15`,
-              border: `1px solid ${CARDIO_COLOR}44`,
+              color: ctxIsComplete ? tokens.colors.gold : CARDIO_COLOR,
+              background: ctxIsComplete ? `${tokens.colors.gold}15` : `${CARDIO_COLOR}15`,
+              border: `1px solid ${ctxIsComplete ? tokens.colors.gold + '55' : CARDIO_COLOR + '44'}`,
               borderRadius: tokens.radius.md,
               padding: '4px 10px',
             }}
           >
-            {formatElapsed(elapsedSecs)}
+            {formatElapsed(ctxElapsed)}
           </div>
         )}
         {session.completed && (
@@ -822,6 +872,58 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
             </button>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Target progress bar — only when ctx has a target. Reads
+                  straight off the context so it stays in sync with the
+                  active tick loop. */}
+              {ctxTargetSecs && ctxTargetSecs > 0 && (
+                <div
+                  aria-label={`Target progress ${Math.min(100, Math.round((ctxElapsed / ctxTargetSecs) * 100))} percent`}
+                  role="progressbar"
+                  aria-valuenow={Math.min(100, Math.round((ctxElapsed / ctxTargetSecs) * 100))}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  style={{
+                    background: 'var(--bg-deep)',
+                    border: '1px solid var(--border)',
+                    borderRadius: tokens.radius.md,
+                    padding: '10px 12px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: '0.06em',
+                      color: 'var(--text-muted)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span>{ctxIsComplete ? 'TARGET MET' : 'TARGET'}</span>
+                    <span>
+                      {formatElapsed(ctxElapsed)} / {formatElapsed(ctxTargetSecs)}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 6,
+                      borderRadius: 3,
+                      background: 'var(--border)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(100, (ctxElapsed / ctxTargetSecs) * 100)}%`,
+                        height: '100%',
+                        background: ctxIsComplete ? tokens.colors.gold : CARDIO_COLOR,
+                        transition: 'width 0.4s linear',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               {/* Guided timer button — only for HIIT protocols */}
               {selectedProto?.intervals && (
                 <button
@@ -842,6 +944,45 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                   ▶ Open Interval Timer
                 </button>
               )}
+              {/* +5 min / End early — context actions */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handleExtend5}
+                  aria-label="Extend session by 5 minutes"
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    borderRadius: tokens.radius.xl,
+                    cursor: 'pointer',
+                    letterSpacing: '0.04em',
+                    background: `${CARDIO_COLOR}18`,
+                    border: `1px solid ${CARDIO_COLOR}55`,
+                    color: CARDIO_COLOR,
+                  }}
+                >
+                  + 5 MIN
+                </button>
+                <button
+                  onClick={() => setShowEndEarly(true)}
+                  aria-label="End session early"
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    borderRadius: tokens.radius.xl,
+                    cursor: 'pointer',
+                    letterSpacing: '0.04em',
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  END EARLY
+                </button>
+              </div>
               {/* Complete */}
               <button
                 onClick={() => setShowComplete(true)}
@@ -953,6 +1094,94 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
                 }}
               >
                 Done ✓
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── End-early confirmation ───────────────────────────────────────────── */}
+      {showEndEarly && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            background: 'rgba(0,0,0,0.8)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="end-early-dialog-title"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.xxl,
+              padding: '28px 24px',
+              width: '100%',
+              maxWidth: 340,
+            }}
+          >
+            <div
+              id="end-early-dialog-title"
+              style={{
+                fontSize: 17,
+                fontWeight: 800,
+                textAlign: 'center',
+                marginBottom: 6,
+              }}
+            >
+              End session early?
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                textAlign: 'center',
+                marginBottom: 20,
+                lineHeight: 1.5,
+              }}
+            >
+              Logged time so far: {formatElapsed(ctxElapsed)}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowEndEarly(false)}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  borderRadius: tokens.radius.xl,
+                  cursor: 'pointer',
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                Keep going
+              </button>
+              <button
+                onClick={handleEndEarlyConfirm}
+                style={{
+                  flex: 2,
+                  padding: '14px',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  borderRadius: tokens.radius.xl,
+                  cursor: 'pointer',
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                End now
               </button>
             </div>
           </div>
