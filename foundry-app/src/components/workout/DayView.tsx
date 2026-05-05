@@ -55,9 +55,31 @@ import WorkoutOverviewAccordion from './WorkoutOverviewAccordion';
 import NextUpCard from './NextUpCard';
 import SwapMenu from './SwapMenu';
 import ReorderSheet from './ReorderSheet';
+import SupersetGroup from './SupersetGroup';
 import { buildSwapGroups } from '../../utils/swapGroups';
 import { expandEquipment } from '../../utils/program';
 import type { Profile, TrainingDay, Exercise } from '../../types';
+
+/**
+ * Live in-workout superset grouping. DEV-only for now — the data path
+ * (`supersetGroupId`) is harmless when flag is off (no exercise has it
+ * set), so it round-trips through state cleanly. Flip to `true` to ship.
+ */
+const SUPERSETS_ENABLED = import.meta.env.DEV;
+
+/**
+ * Browser-safe random id used for `supersetGroupId`. Falls back to a
+ * Math.random-based id when crypto.randomUUID isn't available (older
+ * browsers, server-rendered tests).
+ */
+function newSupersetId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch { /* fall through */ }
+  return `ss_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
 
 interface DayViewProps {
   dayIdx: number;
@@ -700,6 +722,20 @@ function DayView({
       const isPrimary = ex.supersetWith != null;
       const isSecondary = !isPrimary && exercises.some((e) => e.supersetWith === exIdx);
 
+      // supersetGroupId path (#3) — when the just-finished exercise has a
+      // partner in the same group, suppress the rest timer entirely. Rest
+      // BETWEEN sets (already handled above by isLastSet=false) is normal;
+      // this fork only fires for the LAST set of a superset partner where
+      // we want a quick transition into the paired exercise.
+      const groupId = ex.supersetGroupId;
+      if (groupId && exercises.some((e, i) => i !== exIdx && e.supersetGroupId === groupId)) {
+        // No timer — drop straight into the paired exercise. Caller's
+        // isLastSet path already handles auto-advance; non-last sets keep
+        // the existing rest behavior so the lifter still rests between
+        // sets within an exercise.
+        return;
+      }
+
       if (!isPrimary && !isSecondary) {
         startRestTimer(restStr, exName, dayIdx, weekIdx);
         return;
@@ -1115,6 +1151,50 @@ function DayView({
     [],
   );
 
+  /**
+   * Pair the focused exercise with the next adjacent unpaired exercise as
+   * a superset. Both exercises receive the same fresh `supersetGroupId`.
+   * No-op if the next exercise is already part of another superset, or if
+   * the focused exercise is the last one in the list.
+   *
+   * DEV-only — gated by SUPERSETS_ENABLED at the call site.
+   */
+  const handlePairSuperset = useCallback(
+    (exIdx: number) => {
+      setExercises((prev) => {
+        if (exIdx < 0 || exIdx >= prev.length - 1) return prev;
+        const next = prev[exIdx + 1];
+        if (!next) return prev;
+        // Don't merge across an existing superset boundary — pick the next
+        // truly unpaired neighbor.
+        if (prev[exIdx].supersetGroupId || next.supersetGroupId) return prev;
+        const id = newSupersetId();
+        const updated = [...prev];
+        updated[exIdx] = { ...prev[exIdx], supersetGroupId: id };
+        updated[exIdx + 1] = { ...next, supersetGroupId: id };
+        return updated;
+      });
+    },
+    [],
+  );
+
+  /**
+   * Drop the supersetGroupId from every exercise in the same group as the
+   * focused exercise. Used by the SupersetGroup unpair affordance.
+   */
+  const handleUnpairSuperset = useCallback(
+    (groupId: string) => {
+      setExercises((prev) =>
+        prev.map((ex) =>
+          ex.supersetGroupId === groupId
+            ? { ...ex, supersetGroupId: undefined }
+            : ex,
+        ),
+      );
+    },
+    [],
+  );
+
   // handleNoteChange — reserved for note editing
 
   // Completion flow — state + logic extracted to hook
@@ -1391,9 +1471,30 @@ function DayView({
         const clampedFocus = Math.max(0, Math.min(focusedIdx, exercises.length - 1));
         const focusEx = exercises[clampedFocus];
         if (!focusEx) return null;
-        // Up next = first incomplete exercise strictly after the focused one
+        // supersetGroupId (#3) — collect all CONTIGUOUS exercises with the
+        // same group id as the focused exercise. Only adjacent matches
+        // count, mirroring the spec ("adjacent exercises with the same
+        // supersetGroupId render inside one SupersetGroup"). DEV-flagged.
+        const groupId = SUPERSETS_ENABLED ? focusEx.supersetGroupId : undefined;
+        let groupStart = clampedFocus;
+        let groupEnd = clampedFocus;
+        if (groupId) {
+          while (groupStart > 0 && exercises[groupStart - 1].supersetGroupId === groupId) {
+            groupStart -= 1;
+          }
+          while (
+            groupEnd < exercises.length - 1 &&
+            exercises[groupEnd + 1].supersetGroupId === groupId
+          ) {
+            groupEnd += 1;
+          }
+        }
+        const groupedIdxs = groupId
+          ? Array.from({ length: groupEnd - groupStart + 1 }, (_, i) => groupStart + i)
+          : [clampedFocus];
+        // Up next = first incomplete exercise strictly after the LAST grouped one
         let upNextIdx: number | null = null;
-        for (let j = clampedFocus + 1; j < exercises.length; j++) {
+        for (let j = groupEnd + 1; j < exercises.length; j++) {
           if (!doneExercises.has(j)) { upNextIdx = j; break; }
         }
         let supersetPartnerName2: string | undefined;
@@ -1414,47 +1515,107 @@ function DayView({
             {/* Active exercise — single orange accent border lives on the
                 inner ExerciseCard via its `active` prop. The outer wrapper
                 used to add a second border + glow, which read as a double
-                ring. Wrapper is now layout-only. */}
-            <div
-              key={clampedFocus}
-              id={`ex-${clampedFocus}`}
-              style={{
-                marginBottom: 12,
-              }}
-            >
-              <ExerciseCard
-                exercise={focusEx}
-                exIdx={clampedFocus}
-                dayIdx={dayIdx}
-                weekIdx={weekIdx}
-                weekData={weekData}
-                onUpdateSet={handleUpdateSet}
-                onWeightAutoFill={handleWeightAutoFill}
-                onLastSetFilled={handleLastSetFilled}
-                expanded={true}
-                onToggle={() => { /* no-op in Focus Mode — card stays open */ }}
-                done={isDone}
-                readOnly={isLocked}
-                onSwapClick={(idx) => setSwapTarget({ exIdx: idx })}
-                onSetLogged={handleSetLogged}
-                bodyweight={profile?.weight}
-                note={exNotes[clampedFocus] || ''}
-                onNoteChange={(idx: number, val: string) => {
-                  const next = { ...exNotes, [idx]: val };
-                  setExNotes(next);
-                }}
-                onAddSet={handleAddSet}
-                onRemoveSet={handleRemoveSet}
-                onMoveUp={(idx) => { handleMoveExercise(idx, idx - 1); setFocusedIdx(idx - 1); }}
-                onMoveDown={(idx) => { handleMoveExercise(idx, idx + 1); setFocusedIdx(idx + 1); }}
-                isFirst={clampedFocus === 0}
-                isLast={clampedFocus === exercises.length - 1}
-                active={workoutStarted}
-                supersetPartnerName={supersetPartnerName2}
-                editorial
-                totalExercises={exercises.length}
-              />
-            </div>
+                ring. Wrapper is now layout-only. When the focused exercise
+                is part of a supersetGroupId chain (DEV-flagged), all
+                adjacent paired exercises render together inside
+                SupersetGroup so the lifter sees the whole pairing. */}
+            {(() => {
+              const cards = groupedIdxs.map((idx) => {
+                const ex = exercises[idx];
+                if (!ex) return null;
+                let partnerName: string | undefined;
+                if (ex.supersetWith != null) {
+                  partnerName = exercises[ex.supersetWith]?.name;
+                } else {
+                  const primary = exercises.find((e) => e.supersetWith === idx);
+                  if (primary) partnerName = primary.name;
+                }
+                return (
+                  <div
+                    key={idx}
+                    id={`ex-${idx}`}
+                    style={{ marginBottom: groupId ? 8 : 12 }}
+                  >
+                    <ExerciseCard
+                      exercise={ex}
+                      exIdx={idx}
+                      dayIdx={dayIdx}
+                      weekIdx={weekIdx}
+                      weekData={weekData}
+                      onUpdateSet={handleUpdateSet}
+                      onWeightAutoFill={handleWeightAutoFill}
+                      onLastSetFilled={handleLastSetFilled}
+                      expanded={true}
+                      onToggle={() => { /* no-op in Focus Mode — card stays open */ }}
+                      done={isDone}
+                      readOnly={isLocked}
+                      onSwapClick={(i) => setSwapTarget({ exIdx: i })}
+                      onSetLogged={handleSetLogged}
+                      bodyweight={profile?.weight}
+                      note={exNotes[idx] || ''}
+                      onNoteChange={(i: number, val: string) => {
+                        const next = { ...exNotes, [i]: val };
+                        setExNotes(next);
+                      }}
+                      onAddSet={handleAddSet}
+                      onRemoveSet={handleRemoveSet}
+                      onMoveUp={(i) => { handleMoveExercise(i, i - 1); setFocusedIdx(i - 1); }}
+                      onMoveDown={(i) => { handleMoveExercise(i, i + 1); setFocusedIdx(i + 1); }}
+                      isFirst={idx === 0}
+                      isLast={idx === exercises.length - 1}
+                      active={workoutStarted && idx === clampedFocus}
+                      supersetPartnerName={partnerName}
+                      editorial
+                      totalExercises={exercises.length}
+                    />
+                  </div>
+                );
+              });
+
+              if (groupId) {
+                return (
+                  <SupersetGroup
+                    exercises={groupedIdxs.map((i) => exercises[i])}
+                    onUnpair={() => handleUnpairSuperset(groupId)}
+                  >
+                    {cards}
+                  </SupersetGroup>
+                );
+              }
+              return <>{cards}</>;
+            })()}
+
+            {/* Pair-as-superset affordance — DEV-flagged. Pairs the focused
+                exercise with the next adjacent unpaired exercise. Hidden
+                when the focused exercise is already in a superset, or
+                when there's no adjacent unpaired neighbor. */}
+            {SUPERSETS_ENABLED &&
+              !focusEx.supersetGroupId &&
+              clampedFocus < exercises.length - 1 &&
+              !exercises[clampedFocus + 1]?.supersetGroupId && (
+                <div style={{ marginBottom: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => handlePairSuperset(clampedFocus)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      border: '1px dashed var(--border)',
+                      color: 'var(--text-muted)',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    + Pair with {exercises[clampedFocus + 1]?.name ?? 'next'}
+                  </button>
+                </div>
+              )}
             {upNextIdx !== null && (
               <UpNextCard
                 exercise={exercises[upNextIdx]}

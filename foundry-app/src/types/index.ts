@@ -25,6 +25,10 @@ export interface Exercise {
   warmup?: string;
   bw?: boolean;
   supersetWith?: number;
+  /** UUID-style identifier shared between exercises that form a superset.
+   *  Coexists with the legacy `supersetWith` index pairing — see #3 in the
+   *  2.8.0 fix list. Optional; absent on solo exercises. */
+  supersetGroupId?: string;
   progression?: string;
   modifier?: string;
   description?: string;
