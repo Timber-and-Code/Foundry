@@ -367,23 +367,26 @@ function ExerciseCard({
     return null;
   }, [weekData, exIdx, weekIdx, prevWeekRaw, exercise.bw]);
 
-  // Compute stall detection based on previous week's set data and this week's input
+  // Compute stall detection based on previous week's set data and this week's input.
+  // Compare against the LAST completed working set (highest set index with
+  // non-empty weight + reps) — that's the lifter's "last working weight"
+  // mental model. Comparing against the BEST set was misreading drops as
+  // stalls when the user fatigued mid-session (see #8).
   const { stallWarning, stallTarget } = useMemo(() => {
     const curr = (weekData[exIdx] || {})[0] || {};
     const reps = parseInt(String(curr.reps || 0));
     const weight = parseFloat(String(curr.weight || 0));
     const prevData = prevWeekRaw[exIdx] || {};
-    // Default: match prev week's best
     let stallTarget: StallTarget | null = null,
       stallWarning = false;
-    for (let ps = 0; ps < (Number(exercise.sets) || 4); ps++) {
+    for (let ps = (Number(exercise.sets) || 4) - 1; ps >= 0; ps--) {
       const psd = prevData[ps] || {};
       if (!psd.reps || !psd.weight || psd.warmup) continue;
       const pw = parseFloat(String(psd.weight));
       const pr = parseInt(String(psd.reps));
-      if (!stallTarget || pw > stallTarget.w || (pw === stallTarget.w && pr > stallTarget.r)) {
-        stallTarget = { w: pw, r: pr };
-      }
+      if (!Number.isFinite(pw) || pw <= 0) continue;
+      stallTarget = { w: pw, r: pr };
+      break;
     }
     // Stall if weight drops and reps don't increase enough to compensate
     if (stallTarget && weight > 0) {

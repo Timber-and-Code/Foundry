@@ -102,70 +102,87 @@ export function loadDayWeekWithCarryover(
       const repParts = String(ex.reps).split('-');
       const rangeMin = parseInt(repParts[0]) || 1;
       const rangeMax = parseInt(repParts[repParts.length - 1]) || rangeMin;
-
-      let allRepsHit = true;
-      let hasAnyWorkingSet = false;
       const sets = typeof ex.sets === 'number' ? ex.sets : parseInt(String(ex.sets)) || 0;
+
+      // ── Uniform baseline (#12a) ────────────────────────────────────────
+      // The working-weight prescription this week is the HEAVIEST weight
+      // hit on any working (non-warmup) set last week. If the lifter went
+      // 100/100/95, the baseline is 100 — drops on later sets are fatigue,
+      // not prescription. baselineReps = the reps achieved AT that
+      // baseline weight (best rep performance among sets at the heaviest
+      // weight) — this is what the nudge calc compares against.
+      type PrevSetShape = { weight?: unknown; reps?: unknown; warmup?: unknown };
+      const completedPrevSets: { weight: number; reps: number }[] = [];
       for (let s = 0; s < sets; s++) {
-        const prevSet = prevEx[s] || {};
-        if (prevSet.warmup) continue;
-        hasAnyWorkingSet = true;
-        const logged = parseInt(String(prevSet.reps || '0'));
-        if (!logged || logged < rangeMax) {
-          allRepsHit = false;
-          break;
+        const psd = (prevEx[s] || {}) as PrevSetShape;
+        if (psd.warmup) continue;
+        const wRaw = psd.weight;
+        const w = wRaw === undefined || wRaw === null || String(wRaw).trim() === ''
+          ? NaN
+          : parseFloat(String(wRaw));
+        const r = parseInt(String(psd.reps ?? '0')) || 0;
+        if (Number.isFinite(w) && w > 0) {
+          completedPrevSets.push({ weight: w, reps: r });
         }
       }
+      const baselineWeight = completedPrevSets.length > 0
+        ? Math.max(...completedPrevSets.map((s) => s.weight))
+        : 0;
+      // Reps achieved at the baseline (heaviest) weight — pick the best
+      // rep count among sets matching the baseline weight, so a 100x10 +
+      // 100x8 prior week reads as "10 reps at 100" for nudge purposes.
+      const baselineReps = baselineWeight > 0
+        ? completedPrevSets
+            .filter((s) => s.weight === baselineWeight)
+            .reduce((best, s) => Math.max(best, s.reps), 0)
+        : 0;
 
+      // ── Nudge calc (#12b) ─────────────────────────────────────────────
+      // Bumping weight requires the lifter to have hit the TOP of the
+      // range at the baseline weight. Earlier behavior compared per-index
+      // reps against rangeMax — under uniform-baseline that's still the
+      // right idea but evaluated against `baselineReps`, the reps hit at
+      // the heaviest weight.
+      const allRepsHit = baselineReps >= rangeMax && completedPrevSets.length > 0;
       let nudge = 0;
-      let bwRepBump = false; // bodyweight: progress reps beyond rangeMax
-      if (allRepsHit && hasAnyWorkingSet) {
+      let bwRepBump = false;
+      if (allRepsHit) {
         const equip = ex.equipment || '';
         if (ex.bw) {
           nudge = 0;
-          bwRepBump = true; // signal to add reps instead of weight
+          bwRepBump = true;
         } else if (equip === 'barbell') {
           nudge = 5;
         } else if (equip === 'dumbbell') {
-          const currentWeight = (() => {
-            for (let s = 0; s < sets; s++) {
-              const wVal = parseFloat(String((prevEx[s] || {}).weight || '0'));
-              if (wVal > 0) return wVal;
-            }
-            return 0;
-          })();
-          nudge = currentWeight < 25 ? 2.5 : 5;
+          nudge = baselineWeight < 25 ? 2.5 : 5;
         } else {
           nudge = expKey === 'experienced' ? 2.5 : 5;
         }
       }
 
+      const suggestedWeightStr = baselineWeight > 0
+        ? (nudge > 0 ? String(baselineWeight + nudge) : String(baselineWeight))
+        : '';
+
+      let suggestedRepsStr: string;
+      if (nudge > 0) {
+        // Weight went up → reset reps to bottom of range
+        suggestedRepsStr = String(rangeMin);
+      } else if (bwRepBump && baselineReps > 0) {
+        // Bodyweight: no weight to add, so progress reps beyond rangeMax
+        suggestedRepsStr = String(baselineReps + 1);
+      } else if (baselineReps > 0) {
+        suggestedRepsStr = String(Math.min(baselineReps + 1, rangeMax));
+      } else {
+        suggestedRepsStr = String(rangeMin);
+      }
+
       carried[exIdx] = {};
       for (let s = 0; s < sets; s++) {
-        const prevSet = prevEx[s] || {};
-        let suggestedWeight = String(prevSet.weight ?? '');
-        if (nudge > 0 && suggestedWeight !== '' && !isNaN(parseFloat(suggestedWeight))) {
-          suggestedWeight = String(parseFloat(suggestedWeight) + nudge);
-        }
-
-        const prevReps = parseInt(String(prevSet.reps || '0'));
-        let suggestedReps: string;
-        if (nudge > 0) {
-          // Weight went up → reset reps to bottom of range
-          suggestedReps = String(rangeMin);
-        } else if (bwRepBump && prevReps > 0) {
-          // Bodyweight: no weight to add, so progress reps beyond rangeMax
-          suggestedReps = String(prevReps + 1);
-        } else if (prevReps > 0) {
-          suggestedReps = String(Math.min(prevReps + 1, rangeMax));
-        } else {
-          suggestedReps = String(rangeMin);
-        }
-
         carried[exIdx][s] = {
-          weight: suggestedWeight,
-          reps: suggestedReps,
-          suggested: nudge > 0 && suggestedWeight !== '',
+          weight: suggestedWeightStr,
+          reps: suggestedRepsStr,
+          suggested: nudge > 0 && suggestedWeightStr !== '',
           repsSuggested: true,
         };
       }

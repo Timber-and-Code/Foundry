@@ -666,6 +666,47 @@ describe('loadDayWeekWithCarryover', () => {
     const result = loadDayWeekWithCarryover(0, 1, makeDay(), profile);
     expect(result).toEqual({});
   });
+
+  it('uniform baseline: dropped last set still suggests heaviest weight uniformly across all sets (#12a)', () => {
+    // Lifter went 100/100/95 — fatigued on the last set. The heaviest
+    // baseline is 100; all three sets this week should suggest 100.
+    // Top reps at the heaviest weight is 8 (< rangeMax of 10) so no nudge.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '100', reps: '8' },
+        1: { weight: '100', reps: '8' },
+        2: { weight: '95', reps: '7' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
+    expect(result[0][0].weight).toBe('100');
+    expect(result[0][1].weight).toBe('100');
+    expect(result[0][2].weight).toBe('100');
+    expect(result[0][0].suggested).toBeFalsy();
+    // Rep suggestion comes from baseline (8) + 1 = 9
+    expect(result[0][0].reps).toBe('9');
+    expect(result[0][1].reps).toBe('9');
+    expect(result[0][2].reps).toBe('9');
+  });
+
+  it('uniform baseline: nudges from heaviest set when top reps hit at heaviest weight (#12b)', () => {
+    // 100/100/95 but reps at the heaviest weight (100) hit the top of
+    // the range (10). Should nudge the heaviest baseline by +5 → 105
+    // across all sets, with reps reset to rangeMin.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '100', reps: '10' },
+        1: { weight: '100', reps: '10' },
+        2: { weight: '95', reps: '8' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
+    expect(result[0][0].weight).toBe('105');
+    expect(result[0][1].weight).toBe('105');
+    expect(result[0][2].weight).toBe('105');
+    expect(result[0][0].suggested).toBe(true);
+    expect(result[0][0].reps).toBe('6'); // rangeMin
+  });
 });
 
 // ============================================================================
