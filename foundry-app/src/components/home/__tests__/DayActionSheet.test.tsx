@@ -7,14 +7,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-const { mockStoreGet, mockLoadCardioSession } = vi.hoisted(() => ({
+const { mockStoreGet, mockLoadCardioSession, mockIsSkipped, mockSetSkipped, mockSyncSkipped } = vi.hoisted(() => ({
   mockStoreGet: vi.fn((_key: string): string | null => null),
   mockLoadCardioSession: vi.fn((): null => null),
+  mockIsSkipped: vi.fn((_d: number, _w: number): boolean => false),
+  mockSetSkipped: vi.fn((_d: number, _w: number, _v: boolean): void => undefined),
+  mockSyncSkipped: vi.fn((): Promise<void> => Promise.resolve()),
 }));
 
 vi.mock('../../../utils/store', () => ({
   store: { get: mockStoreGet, set: vi.fn(), remove: vi.fn() },
   loadCardioSession: mockLoadCardioSession,
+  isSkipped: mockIsSkipped,
+  setSkipped: mockSetSkipped,
+}));
+
+vi.mock('../../../utils/sync', () => ({
+  syncSkippedToSupabase: mockSyncSkipped,
 }));
 
 vi.mock('../../../data/constants', () => ({

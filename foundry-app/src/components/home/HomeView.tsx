@@ -11,6 +11,7 @@ import {
   setSkipped,
   saveProfile,
 } from '../../utils/store';
+import { syncSkippedToSupabase } from '../../utils/sync';
 import { on } from '../../utils/events';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -670,6 +671,11 @@ function HomeView({
               <button
                 onClick={() => {
                   setSkipped(showSkipConfirm.dayIdx, showSkipConfirm.weekIdx, true);
+                  void syncSkippedToSupabase(
+                    showSkipConfirm.dayIdx,
+                    showSkipConfirm.weekIdx,
+                    true,
+                  );
                   setSkipVersion((v) => v + 1);
                   setShowSkipConfirm(null);
                 }}

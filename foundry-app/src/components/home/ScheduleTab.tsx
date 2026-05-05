@@ -218,8 +218,8 @@ function ScheduleTab({
   setShowEditSchedule,
   noteViewer,
   setNoteViewer,
-  skipVersion: _skipVersion,
-  setSkipVersion: _setSkipVersion,
+  skipVersion,
+  setSkipVersion,
   goTo,
   onSelectDay: _onSelectDay,
   onSelectDayWeek: _onSelectDayWeek,
@@ -790,6 +790,7 @@ function ScheduleTab({
         activeDays={activeDays}
         sessionEntry={activeDate ? sessionDateMap[activeDate] : undefined}
         completedDays={completedDays}
+        onSkipChanged={() => setSkipVersion(skipVersion + 1)}
         onPreviewSession={(dIdx, wIdx) => setPreviewState({ dayIdx: dIdx, weekIdx: wIdx })}
         onOpenExtra={onOpenExtra}
         onOpenCardio={onOpenCardio}

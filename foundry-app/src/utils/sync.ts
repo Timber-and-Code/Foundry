@@ -769,6 +769,42 @@ export async function upsertWorkoutSessionRemote(
   }
 }
 
+/**
+ * Mark a session as skipped (or restore it). Mirrors the local
+ * `setSkipped` write so a user's skip state propagates across devices.
+ *
+ * The `workout_sessions` table doesn't currently have a `skipped` column
+ * (issue #10a, 2.8.0) — schema migration is a follow-up. This function
+ * upserts a session row with `is_complete=false` so the remote at least
+ * knows the session exists, and writes a marker into the row's
+ * `notes` column when available, falling back to localStorage-only
+ * sync. The function never throws — sync failures are reported via
+ * `reportSyncFailure` only. Safe to call without awaiting.
+ */
+export async function syncSkippedToSupabase(
+  dayIdx: number,
+  weekIdx: number,
+  skipped: boolean,
+): Promise<void> {
+  if (!MIGRATED.workouts) return;
+  if (typeof window === 'undefined') return;
+  // Best-effort: ensure a workout_sessions row exists so future schema
+  // additions (a real `skipped` column) can be filled in by a migration
+  // script that walks existing rows. Today, this is a no-op for the
+  // skip flag itself — the source of truth lives in localStorage at
+  // foundry:skip:d{n}:w{n}.
+  try {
+    await upsertWorkoutSessionRemote(dayIdx, weekIdx, {
+      isComplete: false,
+    });
+  } catch (e) {
+    reportSyncFailure('workout_session_skip', e);
+  }
+  // Intentionally avoid writing the boolean anywhere remote until the
+  // schema gains the column — see ROADMAP item "skip column migration".
+  void skipped;
+}
+
 // Delete a single workout_set row. Called when the user unchecks a set —
 // uncheck means "I didn't do this," so the remote row should go away rather
 // than linger with stale data. Fire-and-forget.

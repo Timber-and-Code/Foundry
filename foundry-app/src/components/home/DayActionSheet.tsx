@@ -2,7 +2,8 @@ import React from 'react';
 import { tokens } from '../../styles/tokens';
 import Sheet from '../ui/Sheet';
 import { CARDIO_WORKOUTS, MOBILITY_PROTOCOLS, TAG_ACCENT } from '../../data/constants';
-import { store, loadCardioSession } from '../../utils/store';
+import { store, loadCardioSession, isSkipped, setSkipped } from '../../utils/store';
+import { syncSkippedToSupabase } from '../../utils/sync';
 import type { Profile, TrainingDay } from '../../types';
 
 export interface DayActionSheetProps {
@@ -33,6 +34,9 @@ export interface DayActionSheetProps {
   onMoveSession: (sessionKey: string) => void;
   /** Open the "view notes / recap" viewer — optional. */
   onViewNotes?: (args: { type: 'meso'; dayIdx: number; weekIdx: number } | { type: 'extra'; dateStr: string }) => void;
+  /** Fired after a session is skipped or unskipped via this sheet so the
+   *  caller can re-resolve next-session and refresh the calendar. */
+  onSkipChanged?: () => void;
 }
 
 const CARDIO_COLOR = TAG_ACCENT['CARDIO'];
@@ -121,15 +125,18 @@ function DayActionSheet(props: DayActionSheetProps) {
     onAddWorkout,
     onMoveSession,
     onViewNotes,
+    onSkipChanged,
   } = props;
 
   const [cardioOpen, setCardioOpen] = React.useState(false);
   const [mobilityOpen, setMobilityOpen] = React.useState(false);
+  const [skipConfirm, setSkipConfirm] = React.useState<{ dayIdx: number; weekIdx: number; label: string } | null>(null);
 
   React.useEffect(() => {
     if (!open) {
       setCardioOpen(false);
       setMobilityOpen(false);
+      setSkipConfirm(null);
     }
   }, [open]);
 
@@ -294,6 +301,44 @@ function DayActionSheet(props: DayActionSheetProps) {
               }}
             />
           )}
+
+          {/* Skip / Unskip — explicit affordance for marking a session as
+              not-going-to-happen (#10a). Skipped sessions are excluded
+              from next-session resolution (#10b) without losing the
+              schedule. Unskip restores. One row per active session so
+              double-booked days expose both controls. */}
+          {activeKeys.map((sk) => {
+            const [dStr, wStr] = sk.split(':');
+            const dIdx = Number(dStr);
+            const wIdx = Number(wStr);
+            const day = activeDays[dIdx];
+            const sessionLabel: string = (day && day.label) ? day.label : `Day ${dIdx + 1}`;
+            const skipped = isSkipped(dIdx, wIdx);
+            if (skipped) {
+              return (
+                <ActionButton
+                  key={`unskip-${sk}`}
+                  label={`Unskip ${sessionLabel}`}
+                  description="Restore this session to the schedule. It will surface again on Home."
+                  onClick={() => {
+                    setSkipped(dIdx, wIdx, false);
+                    void syncSkippedToSupabase(dIdx, wIdx, false);
+                    onSkipChanged?.();
+                    onClose();
+                  }}
+                />
+              );
+            }
+            return (
+              <ActionButton
+                key={`skip-${sk}`}
+                label="Skip this workout"
+                description="Mark this session as skipped. You can log it later from history."
+                tone="danger"
+                onClick={() => setSkipConfirm({ dayIdx: dIdx, weekIdx: wIdx, label: sessionLabel })}
+              />
+            );
+          })}
 
           {/* Extra (non-meso) session — viewable only when already completed */}
           {hasExtra && extraDone && (
@@ -524,6 +569,103 @@ function DayActionSheet(props: DayActionSheetProps) {
             </div>
           )}
         </div>
+
+        {/* Skip-confirm modal — overlays the sheet content. Roles match
+            the existing HomeView skip dialog so screen-reader behavior is
+            consistent across surfaces. */}
+        {skipConfirm && (
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="das-skip-title"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 480,
+              background: 'rgba(0,0,0,0.78)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
+            }}
+          >
+            <div
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: tokens.radius.xl,
+                padding: 24,
+                maxWidth: 320,
+                width: '100%',
+                boxShadow: 'var(--shadow-xl)',
+              }}
+            >
+              <div
+                id="das-skip-title"
+                style={{
+                  fontSize: 16,
+                  fontWeight: 800,
+                  color: 'var(--text-primary)',
+                  marginBottom: 8,
+                }}
+              >
+                Skip {formatDate(dateStr)}'s {skipConfirm.label}?
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.6,
+                  marginBottom: 20,
+                }}
+              >
+                You can log it later from history.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSkipped(skipConfirm.dayIdx, skipConfirm.weekIdx, true);
+                    void syncSkippedToSupabase(skipConfirm.dayIdx, skipConfirm.weekIdx, true);
+                    onSkipChanged?.();
+                    setSkipConfirm(null);
+                    onClose();
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    borderRadius: tokens.radius.lg,
+                    cursor: 'pointer',
+                    background: 'var(--danger)',
+                    border: '1px solid var(--danger)',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  Skip It
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSkipConfirm(null)}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    borderRadius: tokens.radius.lg,
+                    cursor: 'pointer',
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-secondary)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  Keep It
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Sheet>
   );

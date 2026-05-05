@@ -42,10 +42,16 @@ vi.mock('../../../utils/store', () => ({
   hasAnyNotes: mockHasAnyNotes,
   hasAnyExtraNotes: mockHasAnyExtraNotes,
   buildSessionDateMap: mockBuildSessionDateMap,
+  isSkipped: vi.fn((): boolean => false),
+  setSkipped: vi.fn(),
   setScheduleOverride: vi.fn((p, s, t, k) => ({
     ...(p as Record<string, unknown>),
     scheduleOverrides: { [s]: { to: t, sessionKey: k } },
   })),
+}));
+
+vi.mock('../../../utils/sync', () => ({
+  syncSkippedToSupabase: vi.fn((): Promise<void> => Promise.resolve()),
 }));
 
 vi.mock('../../../data/constants', () => ({
