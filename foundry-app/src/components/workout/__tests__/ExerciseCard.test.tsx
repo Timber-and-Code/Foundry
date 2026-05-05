@@ -7,7 +7,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 /* ------------------------------------------------------------------ */
 
 const mocks = vi.hoisted(() => ({
-  store: { get: vi.fn(), set: vi.fn() },
+  // Pass-through localStorage shim — tests 9b/9c seed `foundry:day0:week0`
+  // and rely on ExerciseCard's prevWeekRaw memo reading it through `store.get`.
+  store: {
+    get: vi.fn((key: string): string | null => localStorage.getItem(key)),
+    set: vi.fn((key: string, val: string): void => {
+      localStorage.setItem(key, val);
+    }),
+  },
   getWarmupDetail: vi.fn(),
   generateWarmupSteps: vi.fn(),
   loadArchive: vi.fn(),
@@ -18,15 +25,25 @@ const mocks = vi.hoisted(() => ({
   getWeekPhase: vi.fn(() => 'accumulation'),
 }));
 
-vi.mock('../../utils/store', () => ({
+// Test file lives at src/components/workout/__tests__/, so utils/store
+// is 3 levels up — the prior `'../../utils/store'` resolved to a
+// non-existent `src/components/utils/store` and was a silent no-op.
+vi.mock('../../../utils/store', () => ({
   store: mocks.store,
   getWarmupDetail: mocks.getWarmupDetail,
   generateWarmupSteps: mocks.generateWarmupSteps,
   loadArchive: mocks.loadArchive,
   loadExerciseHistory: mocks.loadExerciseHistory,
+  // MesoHistoryView (rendered when the LAST WK chip is tapped) reads
+  // prior week data through `loadDayWeek` — pass through real
+  // localStorage so tests that seed `foundry:day0:week0` round-trip.
+  loadDayWeek: vi.fn((dayIdx: number, weekIdx: number) => {
+    const raw = localStorage.getItem(`foundry:day${dayIdx}:week${weekIdx}`);
+    return raw ? JSON.parse(raw) : {};
+  }),
 }));
 
-vi.mock('../../data/constants', () => ({
+vi.mock('../../../data/constants', () => ({
   PHASE_COLOR: {},
   TAG_ACCENT: {},
   getProgTargets: mocks.getProgTargets,
@@ -34,10 +51,6 @@ vi.mock('../../data/constants', () => ({
   // MesoHistoryView (mounted via ExerciseCard's tap-to-history button) reads
   // totalWeeks from this — mock returns the deload-inclusive default.
   getMeso: vi.fn(() => ({ totalWeeks: 7, workWeeks: 6 })),
-}));
-
-vi.mock('../../styles/tokens', () => ({
-  tokens: { colors: { amberHighlight: '#fff3cd' } },
 }));
 
 vi.mock('../../shared/HammerIcon', () => ({
@@ -96,10 +109,17 @@ function defaultProps(overrides: Record<string, unknown> = {}) {
 describe('ExerciseCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.store.get.mockReturnValue(null);
+    // Restore pass-through behavior after clearAllMocks. Tests that seed
+    // `foundry:day0:week0` rely on `store.get` reading real localStorage.
+    mocks.store.get.mockImplementation((key: string) => localStorage.getItem(key));
+    mocks.store.set.mockImplementation((key: string, val: string) => {
+      localStorage.setItem(key, val);
+    });
     mocks.loadArchive.mockReturnValue([]);
     mocks.generateWarmupSteps.mockReturnValue([]);
     mocks.getWarmupDetail.mockReturnValue({ detail: 'warmup detail' });
+    // Clear any seeded keys from prior tests.
+    localStorage.clear();
   });
 
   // 1. Renders exercise name when expanded
@@ -188,11 +208,9 @@ describe('ExerciseCard', () => {
   // sets count at the front. With 3 sets last week (e.g. 30 / 30 / 30 × 12),
   // the chip should read "3-30×12".
   it('renders the LAST WK chip as ${count}-${weight}×${reps} (#2)', () => {
-    // Seed prior week data via real localStorage so the prevWeekRaw memo
-    // (which reads through the live `store.get` shim) sees it. Mocking
-    // `store` via vi.mock doesn't intercept here because the live `store`
-    // is re-exported from utils/storage and ExerciseCard reads it
-    // through that re-export.
+    // Seed prior week data via real localStorage. The mocked `store.get`
+    // is a pass-through to localStorage (see beforeEach), so the
+    // prevWeekRaw memo reads this value through the mock.
     localStorage.setItem(
       'foundry:day0:week0',
       JSON.stringify({
@@ -212,7 +230,6 @@ describe('ExerciseCard', () => {
       />,
     );
     expect(screen.getByText('3-30×12')).toBeInTheDocument();
-    localStorage.clear();
   });
 
   // 9c. Tapping the LAST WK chip opens the MesoHistoryView modal (#2).
@@ -232,7 +249,6 @@ describe('ExerciseCard', () => {
     expect(screen.getAllByText('Bench Press').length).toBeGreaterThanOrEqual(1);
     // Close button is exposed by aria-label.
     expect(screen.getByRole('button', { name: 'Close history' })).toBeInTheDocument();
-    localStorage.clear();
   });
 
   // 10. Note textarea appears and onNoteChange fires

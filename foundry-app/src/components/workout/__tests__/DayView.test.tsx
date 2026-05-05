@@ -7,14 +7,32 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 /* ------------------------------------------------------------------ */
 
 const mocks = vi.hoisted(() => ({
+  // Pass-through localStorage shim — the tests assert against the real
+  // localStorage (because some hooks like useWorkoutTimer read it directly),
+  // so the mocked `store` must mirror writes/reads to the real store.
   store: {
-    get: vi.fn((_key: string) => null as string | null),
-    set: vi.fn(),
-    remove: vi.fn(),
+    get: vi.fn((key: string): string | null => localStorage.getItem(key)),
+    set: vi.fn((key: string, val: string): void => {
+      localStorage.setItem(key, val);
+    }),
+    remove: vi.fn((key: string): void => {
+      localStorage.removeItem(key);
+    }),
   },
-  loadDayWeek: vi.fn(() => ({})),
-  loadDayWeekWithCarryover: vi.fn(() => ({})),
-  saveDayWeek: vi.fn(),
+  // loadDayWeek / saveDayWeek pass through to real localStorage too, so
+  // tests can seed `foundry:day{n}:week{n}` and assert against it after
+  // DayView writes back.
+  loadDayWeek: vi.fn((dayIdx: number, weekIdx: number) => {
+    const raw = localStorage.getItem(`foundry:day${dayIdx}:week${weekIdx}`);
+    return raw ? JSON.parse(raw) : {};
+  }),
+  loadDayWeekWithCarryover: vi.fn((dayIdx: number, weekIdx: number) => {
+    const raw = localStorage.getItem(`foundry:day${dayIdx}:week${weekIdx}`);
+    return raw ? JSON.parse(raw) : {};
+  }),
+  saveDayWeek: vi.fn((dayIdx: number, weekIdx: number, data: unknown) => {
+    localStorage.setItem(`foundry:day${dayIdx}:week${weekIdx}`, JSON.stringify(data));
+  }),
   loadNotes: vi.fn(() => ''),
   saveNotes: vi.fn(),
   loadExNotes: vi.fn(() => ({})),
@@ -53,7 +71,10 @@ const mocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../utils/store', () => ({
+// Test file lives at src/components/workout/__tests__/, so utils/* and
+// data/* are 3 levels up — the prior `'../../utils/store'` etc. resolved
+// to non-existent `src/components/utils/...` and were silent no-ops.
+vi.mock('../../../utils/store', () => ({
   store: mocks.store,
   loadDayWeek: mocks.loadDayWeek,
   loadDayWeekWithCarryover: mocks.loadDayWeekWithCarryover,
@@ -78,7 +99,7 @@ vi.mock('../../utils/store', () => ({
   loadExerciseHistory: mocks.loadExerciseHistory,
 }));
 
-vi.mock('../../data/constants', () => ({
+vi.mock('../../../data/constants', () => ({
   PHASE_COLOR: { accumulation: '#4CAF50' },
   TAG_ACCENT: { PUSH: '#FF6B6B', PULL: '#4ECDC4' },
   RECOVERY_TIPS: [],
@@ -90,16 +111,16 @@ vi.mock('../../data/constants', () => ({
   resetMesoCache: mocks.resetMesoCache,
 }));
 
-vi.mock('../../data/exercises', () => ({
+vi.mock('../../../data/exercises', () => ({
   EXERCISE_DB: [{ id: 'bench', name: 'Bench Press', muscle: 'chest' }],
   SAMPLE_PROGRAMS: [],
 }));
 
-vi.mock('../../utils/helpers', () => ({
+vi.mock('../../../utils/helpers', () => ({
   haptic: mocks.haptic,
 }));
 
-vi.mock('../../styles/tokens', () => ({
+vi.mock('../../../styles/tokens', () => ({
   tokens: {
     colors: {
       amberHighlight: '#fff3cd',
@@ -236,10 +257,28 @@ const defaultProps = () => ({
 describe('DayView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Restore default implementations after clearAllMocks
-    mocks.store.get.mockReturnValue(null);
-    mocks.loadDayWeek.mockReturnValue({});
-    mocks.loadDayWeekWithCarryover.mockReturnValue({});
+    // Restore default implementations after clearAllMocks. Keep the store
+    // shim and loadDayWeek/saveDayWeek as real-localStorage pass-throughs
+    // so tests that assert against `localStorage.getItem(...)` see the
+    // writes DayView makes through the mocked module.
+    mocks.store.get.mockImplementation((key: string) => localStorage.getItem(key));
+    mocks.store.set.mockImplementation((key: string, val: string) => {
+      localStorage.setItem(key, val);
+    });
+    mocks.store.remove.mockImplementation((key: string) => {
+      localStorage.removeItem(key);
+    });
+    mocks.loadDayWeek.mockImplementation((dayIdx: number, weekIdx: number) => {
+      const raw = localStorage.getItem(`foundry:day${dayIdx}:week${weekIdx}`);
+      return raw ? JSON.parse(raw) : {};
+    });
+    mocks.loadDayWeekWithCarryover.mockImplementation((dayIdx: number, weekIdx: number) => {
+      const raw = localStorage.getItem(`foundry:day${dayIdx}:week${weekIdx}`);
+      return raw ? JSON.parse(raw) : {};
+    });
+    mocks.saveDayWeek.mockImplementation((dayIdx: number, weekIdx: number, data: unknown) => {
+      localStorage.setItem(`foundry:day${dayIdx}:week${weekIdx}`, JSON.stringify(data));
+    });
     mocks.loadNotes.mockReturnValue('');
     mocks.loadExNotes.mockReturnValue({});
     mocks.loadExOverride.mockReturnValue(null);
