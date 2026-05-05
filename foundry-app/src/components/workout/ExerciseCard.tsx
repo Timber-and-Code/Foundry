@@ -96,6 +96,17 @@ interface ExerciseCardProps {
   /** Total exercises in the session — shown as "Exercise N of M" only in
    *  editorial mode. */
   totalExercises?: number;
+  /** When set, renders a "+ SUPERSET WITH" chip in the editorial header.
+   *  Tapping invokes the callback. DayView only passes this when the
+   *  next adjacent exercise is unpaired and SUPERSETS_ENABLED is on. */
+  onPairSuperset?: () => void;
+  /** Display label when this exercise is already in a supersetGroupId
+   *  group, e.g. "A1" or "A2". Renders the chip in its paired form
+   *  ("SUPERSET A1") with an unpair × affordance. */
+  supersetLabel?: string;
+  /** Callback for the unpair × on a paired chip. Required when
+   *  supersetLabel is set; no-op otherwise. */
+  onUnpairSuperset?: () => void;
 }
 
 function ExerciseCard({
@@ -126,6 +137,9 @@ function ExerciseCard({
   supersetPartnerName,
   editorial = false,
   totalExercises,
+  onPairSuperset,
+  supersetLabel,
+  onUnpairSuperset,
 }: ExerciseCardProps) {
   const goal = (getProgTargets() as Record<string, string[]>)[exercise.progression ?? '']?.[weekIdx];
 
@@ -479,18 +493,105 @@ function ExerciseCard({
           always expanded. */}
       {editorial && (
         <div style={{ padding: '18px 18px 8px' }}>
-          {totalExercises != null && (
+          {/* Top-row meta: "Exercise N of M" on the left, SUPERSET chip on
+              the right. Chip lives here (top-left vicinity, NOT colliding
+              with the Last Week tap-to-history block which is bottom-right
+              of the reference card grid — see 0cbc56d). #3, #4. */}
+          {(totalExercises != null || supersetLabel || onPairSuperset) && (
             <div
               style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
                 marginBottom: 6,
               }}
             >
-              Exercise {exIdx + 1} of {totalExercises}
+              {totalExercises != null ? (
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-muted)',
+                    flex: '0 1 auto',
+                    minWidth: 0,
+                  }}
+                >
+                  Exercise {exIdx + 1} of {totalExercises}
+                </div>
+              ) : (
+                <span aria-hidden="true" />
+              )}
+              {supersetLabel ? (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                    fontSize: 12,
+                    fontWeight: 400,
+                    letterSpacing: '0.18em',
+                    textTransform: 'uppercase',
+                    color: 'var(--accent)',
+                    background: 'rgba(var(--accent-rgb),0.10)',
+                    border: '1px solid var(--accent)',
+                    borderRadius: tokens.radius.xs,
+                    padding: '3px 8px',
+                    flexShrink: 0,
+                  }}
+                >
+                  Superset {supersetLabel}
+                  {onUnpairSuperset && (
+                    <button
+                      type="button"
+                      onClick={onUnpairSuperset}
+                      aria-label="Unpair superset"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--accent)',
+                        fontSize: 14,
+                        lineHeight: 1,
+                        padding: 0,
+                        marginLeft: 2,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              ) : onPairSuperset ? (
+                <button
+                  type="button"
+                  onClick={onPairSuperset}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                    fontSize: 12,
+                    fontWeight: 400,
+                    letterSpacing: '0.18em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-muted)',
+                    background: 'transparent',
+                    border: '1px dashed var(--border)',
+                    borderRadius: tokens.radius.xs,
+                    padding: '3px 8px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  + Superset With
+                </button>
+              ) : (
+                <span aria-hidden="true" />
+              )}
             </div>
           )}
           <div
@@ -548,9 +649,10 @@ function ExerciseCard({
                 alignItems: 'center',
                 gap: 4,
                 marginBottom: 8,
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
+                fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                fontSize: 12,
+                fontWeight: 400,
+                letterSpacing: '0.16em',
                 color: 'var(--accent)',
                 background: 'rgba(var(--accent-rgb),0.10)',
                 padding: '3px 9px',
@@ -558,7 +660,7 @@ function ExerciseCard({
                 textTransform: 'uppercase',
               }}
             >
-              Superset with {supersetPartnerName}
+              Superset With {supersetPartnerName}
             </div>
           )}
           <div
@@ -755,15 +857,18 @@ function ExerciseCard({
                   alignItems: 'center',
                   gap: 4,
                   marginTop: 4,
-                  fontSize: 11,
-                  fontWeight: 600,
+                  fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                  fontSize: 12,
+                  fontWeight: 400,
+                  letterSpacing: '0.16em',
+                  textTransform: 'uppercase',
                   color: 'var(--accent)',
                   background: 'rgba(var(--accent-rgb),0.10)',
                   padding: '2px 8px',
                   borderRadius: tokens.radius.xs,
                 }}
               >
-                Superset with {supersetPartnerName}
+                Superset With {supersetPartnerName}
               </div>
             )}
           </div>
@@ -1756,7 +1861,8 @@ function areExerciseCardsEqual(prev: ExerciseCardProps, next: ExerciseCardProps)
     prev.readOnly !== next.readOnly ||
     prev.bodyweight !== next.bodyweight ||
     prev.note !== next.note ||
-    prev.active !== next.active
+    prev.active !== next.active ||
+    prev.supersetLabel !== next.supersetLabel
   )
     return false;
 

@@ -1642,7 +1642,7 @@ function DayView({
                 adjacent paired exercises render together inside
                 SupersetGroup so the lifter sees the whole pairing. */}
             {(() => {
-              const cards = groupedIdxs.map((idx) => {
+              const cards = groupedIdxs.map((idx, posInGroup) => {
                 const ex = exercises[idx];
                 if (!ex) return null;
                 let partnerName: string | undefined;
@@ -1651,6 +1651,26 @@ function DayView({
                 } else {
                   const primary = exercises.find((e) => e.supersetWith === idx);
                   if (primary) partnerName = primary.name;
+                }
+                // SUPERSET WITH affordance (#3, #4) — DEV-flagged. Lives in
+                // the editorial header (top-right, opposite "Exercise N of
+                // M"), NOT below the set list. When the card is already in
+                // a supersetGroupId chain, render the paired chip
+                // ("SUPERSET A1") with an unpair × instead.
+                let supersetLabel: string | undefined;
+                let onUnpairCb: (() => void) | undefined;
+                let onPairCb: (() => void) | undefined;
+                if (SUPERSETS_ENABLED) {
+                  if (groupId) {
+                    supersetLabel = `A${posInGroup + 1}`;
+                    onUnpairCb = () => handleUnpairSuperset(groupId);
+                  } else if (
+                    idx === clampedFocus &&
+                    idx < exercises.length - 1 &&
+                    !exercises[idx + 1]?.supersetGroupId
+                  ) {
+                    onPairCb = () => handlePairSuperset(idx);
+                  }
                 }
                 return (
                   <div
@@ -1689,6 +1709,9 @@ function DayView({
                       supersetPartnerName={partnerName}
                       editorial
                       totalExercises={exercises.length}
+                      supersetLabel={supersetLabel}
+                      onUnpairSuperset={onUnpairCb}
+                      onPairSuperset={onPairCb}
                     />
                   </div>
                 );
@@ -1706,38 +1729,6 @@ function DayView({
               }
               return <>{cards}</>;
             })()}
-
-            {/* Pair-as-superset affordance — DEV-flagged. Pairs the focused
-                exercise with the next adjacent unpaired exercise. Hidden
-                when the focused exercise is already in a superset, or
-                when there's no adjacent unpaired neighbor. */}
-            {SUPERSETS_ENABLED &&
-              !focusEx.supersetGroupId &&
-              clampedFocus < exercises.length - 1 &&
-              !exercises[clampedFocus + 1]?.supersetGroupId && (
-                <div style={{ marginBottom: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => handlePairSuperset(clampedFocus)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: 8,
-                      background: 'transparent',
-                      border: '1px dashed var(--border)',
-                      color: 'var(--text-muted)',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      letterSpacing: '0.14em',
-                      textTransform: 'uppercase',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    + Pair with {exercises[clampedFocus + 1]?.name ?? 'next'}
-                  </button>
-                </div>
-              )}
             {upNextIdx !== null && (
               <UpNextCard
                 exercise={exercises[upNextIdx]}
