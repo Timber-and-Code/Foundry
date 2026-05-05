@@ -206,6 +206,64 @@ describe('CardioDesigner — done callback', () => {
   });
 });
 
+describe('CardioDesigner — apply-to-schedule (Bundle G)', () => {
+  it('does NOT render the apply CTA when onApplyToSchedule is omitted', () => {
+    render(
+      <CardioDesigner
+        initial={{ intensity: 'moderate', modality: 'bike', protocol: 'zone2', duration: 30 }}
+        onClose={() => {}}
+        onDone={() => {}}
+      />,
+    );
+    expect(
+      screen.queryByRole('button', { name: /Use this session today/i }),
+    ).toBeNull();
+  });
+
+  it('renders the apply CTA when onApplyToSchedule is wired and dispatches the comp', () => {
+    const onApplyToSchedule = vi.fn();
+    render(
+      <CardioDesigner
+        initial={{ intensity: 'moderate', modality: 'bike', protocol: 'zone2', duration: 30 }}
+        onClose={() => {}}
+        onDone={() => {}}
+        onApplyToSchedule={onApplyToSchedule}
+      />,
+    );
+    const cta = screen.getByRole('button', { name: /Use this session today/i });
+    fireEvent.click(cta);
+    expect(onApplyToSchedule).toHaveBeenCalledTimes(1);
+    expect(onApplyToSchedule.mock.calls[0][0]).toMatchObject({
+      intensity: 'moderate',
+      modality: 'bike',
+      protocol: 'zone2',
+      duration: 30,
+    });
+  });
+
+  it('apply CTA is disabled when modality=Other has no customLabel', () => {
+    const onApplyToSchedule = vi.fn();
+    render(
+      <CardioDesigner
+        initial={{
+          intensity: 'easy',
+          modality: 'other',
+          modalityCustom: '',
+          protocol: 'free',
+          duration: 30,
+        }}
+        onClose={() => {}}
+        onDone={() => {}}
+        onApplyToSchedule={onApplyToSchedule}
+      />,
+    );
+    const cta = screen.getByRole('button', { name: /Use this session today/i });
+    expect((cta as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(cta);
+    expect(onApplyToSchedule).not.toHaveBeenCalled();
+  });
+});
+
 // ─── helper to make TS happy when probing the rendered DOM hierarchy ──
 // (`within` is imported but currently unused — keep available for future
 // scope-narrowing tests without forcing a re-import.)

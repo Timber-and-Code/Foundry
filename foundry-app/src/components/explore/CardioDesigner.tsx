@@ -133,9 +133,14 @@ interface CardioDesignerProps {
    *  parent decides whether to launch a session, schedule, or just stash
    *  it. */
   onDone: (comp: CardioComposition) => void;
+  /** Bundle G — called when the lifter taps "Use this session today".
+   *  Caller opens CardioApplySheet with `{ kind: 'composed', session }`.
+   *  Optional so existing call-sites (which only pass onDone) keep
+   *  working without touching every parent. */
+  onApplyToSchedule?: (comp: CardioComposition) => void;
 }
 
-export default function CardioDesigner({ initial, onClose, onDone }: CardioDesignerProps) {
+export default function CardioDesigner({ initial, onClose, onDone, onApplyToSchedule }: CardioDesignerProps) {
   const [comp, setComp] = useState<CardioComposition>(() =>
     reconcileComposition(initial ?? DEFAULT_CARDIO_COMP),
   );
@@ -441,6 +446,36 @@ export default function CardioDesigner({ initial, onClose, onDone }: CardioDesig
             setComp({ ...comp, duration: d });
           }}
         />
+
+        {/* Bundle G — "Use this session today" CTA. Opens CardioApplySheet
+            via the parent with the composed payload so the lifter can drop
+            this exact session onto a day in their week. Hidden when the
+            host doesn't wire `onApplyToSchedule` (keeps existing standalone
+            uses of CardioDesigner unchanged). */}
+        {onApplyToSchedule && (
+          <button
+            onClick={() => {
+              if (valid) onApplyToSchedule(comp);
+            }}
+            disabled={!valid}
+            style={{
+              width: '100%',
+              padding: 14,
+              marginTop: 8,
+              background: valid ? `${CARDIO_ACCENT}18` : 'transparent',
+              border: `1px solid ${valid ? CARDIO_ACCENT : 'var(--border)'}`,
+              borderRadius: tokens.radius.md,
+              color: valid ? CARDIO_ACCENT : 'var(--text-muted)',
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              cursor: valid ? 'pointer' : 'not-allowed',
+              textTransform: 'uppercase',
+            }}
+          >
+            Use this session today
+          </button>
+        )}
 
         {/* Save as preset */}
         <div style={{ marginTop: 8 }}>

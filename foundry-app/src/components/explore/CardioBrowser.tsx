@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
 import { CARDIO_WORKOUTS } from '../../data/constants';
 import CardioProtocolDetail from './CardioProtocolDetail';
-import CardioDesigner from './CardioDesigner';
-import { loadCardioPresets, deleteCardioPreset } from '../../utils/store';
+import CardioDesigner, { describeCardioComp, type CardioComposition } from './CardioDesigner';
+import CardioApplySheet, { applyCardioScheduleUpdate } from './CardioApplySheet';
+import { loadCardioPresets, deleteCardioPreset, saveProfile } from '../../utils/store';
+import { useToast } from '../../contexts/ToastContext';
 import type { CardioScheduleSlot, Profile, CardioPreset } from '../../types';
 
 const INTENSITY_COLOR: Record<string, string> = {
@@ -22,18 +24,65 @@ function CardioBrowser({ onBack, profile, onProfileUpdate }: CardioBrowserProps)
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showDesigner, setShowDesigner] = useState(false);
   const [userPresets, setUserPresets] = useState<CardioPreset[]>(() => loadCardioPresets());
+  // Bundle G — when the lifter taps "Use this session today" inside the
+  // Designer, we stash the composed session here and render
+  // CardioApplySheet on top with `{ kind: 'composed', session }`.
+  const [pendingApply, setPendingApply] = useState<CardioComposition | null>(null);
+  const { showToast } = useToast();
 
   // Refresh presets when the Designer closes (it may have saved one).
   useEffect(() => {
     if (!showDesigner) setUserPresets(loadCardioPresets());
   }, [showDesigner]);
 
+  // Bundle G — schedule-apply for composed sessions handed up from the
+  // Designer. Mirrors CardioProtocolDetail.handleApply but accepts the
+  // resolvedProtocolId from the sheet so the toast can read out the
+  // freshly-minted preset's label / id.
+  const handleComposedApply = (
+    nextSchedule: CardioScheduleSlot[],
+    addedCount: number,
+    resolvedProtocolId: string,
+  ) => {
+    if (!profile) return;
+    const updated = applyCardioScheduleUpdate(profile, nextSchedule);
+    saveProfile(updated);
+    if (onProfileUpdate) onProfileUpdate({ cardioSchedule: nextSchedule });
+    setPendingApply(null);
+    setShowDesigner(false);
+    setUserPresets(loadCardioPresets());
+
+    const scheduledCount = nextSchedule.filter((s) => s.protocol === resolvedProtocolId).length;
+    if (scheduledCount === 0) {
+      showToast('Removed from schedule', 'info');
+    } else if (addedCount > 0) {
+      showToast(
+        `Session scheduled · ${scheduledCount} day${scheduledCount === 1 ? '' : 's'}/week`,
+        'success',
+      );
+    } else {
+      showToast('Schedule updated', 'info');
+    }
+  };
+
   if (showDesigner) {
     return (
-      <CardioDesigner
-        onClose={() => setShowDesigner(false)}
-        onDone={() => setShowDesigner(false)}
-      />
+      <>
+        <CardioDesigner
+          onClose={() => setShowDesigner(false)}
+          onDone={() => setShowDesigner(false)}
+          onApplyToSchedule={(comp) => setPendingApply(comp)}
+        />
+        {pendingApply && profile && (
+          <CardioApplySheet
+            payload={{ kind: 'composed', session: pendingApply }}
+            protocolLabel={describeCardioComp(pendingApply).line}
+            schedule={profile.cardioSchedule ?? []}
+            onApply={handleComposedApply}
+            onClose={() => setPendingApply(null)}
+          />
+        )}
+      </>
     );
   }
 
