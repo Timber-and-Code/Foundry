@@ -8,6 +8,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { RestTimerProvider, useRestTimer } from './contexts/RestTimerContext';
+import { CardioTimerProvider } from './contexts/CardioTimerContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ActiveSessionProvider } from './contexts/ActiveSessionContext';
@@ -841,9 +842,11 @@ export default function WrappedApp() {
         <ToastProvider>
           <AuthProvider>
             <RestTimerProvider>
-              <ActiveSessionProvider>
-                <AuthGate />
-              </ActiveSessionProvider>
+              <CardioTimerProvider>
+                <ActiveSessionProvider>
+                  <AuthGate />
+                </ActiveSessionProvider>
+              </CardioTimerProvider>
             </RestTimerProvider>
           </AuthProvider>
         </ToastProvider>
