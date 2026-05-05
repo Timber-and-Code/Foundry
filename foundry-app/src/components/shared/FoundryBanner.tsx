@@ -37,7 +37,17 @@ function FoundryBanner({ subtitle, onProfileTap, syncState = 'idle' }: FoundryBa
       role="banner"
       style={{
         background: '#0f0f0f',
-        padding: '14px 16px',
+        // Extend the solid background up into the device notch / status bar
+        // area so when the user scrolls, the page content never peeks above
+        // the title bar (#1, 2.8.0). The negative marginTop pulls the bar
+        // up so its background fills the inset; paddingTop pads the visual
+        // content back down to its original position. The sticky wrapper
+        // in App.tsx keeps `top: 0` aligned at the inset edge.
+        marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
+        paddingTop: 'calc(14px + env(safe-area-inset-top, 0px))',
+        paddingRight: 16,
+        paddingBottom: 14,
+        paddingLeft: 16,
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
