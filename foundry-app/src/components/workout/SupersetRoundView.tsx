@@ -5,6 +5,7 @@ import MesoHistoryView from './MesoHistoryView';
 import { store } from '../../utils/store';
 import { haptic } from '../../utils/helpers';
 import { getMeso } from '../../data/constants';
+import { useExerciseProgression } from '../../hooks/useExerciseProgression';
 import type { Exercise, DayData } from '../../types';
 
 interface SetData {
@@ -281,7 +282,11 @@ export default function SupersetRoundView({
 
   return (
     <div data-testid="superset-round-view">
-      {/* Header strip — one line per exercise, name + last-week stat + swap. */}
+      {/* Header strip — one line per exercise, name + last-week stat +
+          progression / stall chips + swap. Each row is a subcomponent so
+          it can call useExerciseProgression internally — calling the hook
+          inside this map directly would violate the rules-of-hooks
+          stable-order requirement. */}
       <div
         style={{
           display: 'flex',
@@ -292,99 +297,20 @@ export default function SupersetRoundView({
       >
         {exercises.map((ex, gi) => {
           const exIdx = exIdxs[gi];
-          const stat = lastWeekStatFor(exIdx);
-          const repsRange = String(ex.reps ?? '');
           return (
-            <div
+            <SupersetMemberHeader
               key={exIdx}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                minWidth: 0,
-              }}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-                  fontSize: 18,
-                  fontWeight: 400,
-                  color: 'var(--accent)',
-                  letterSpacing: '0.04em',
-                  width: 18,
-                  textAlign: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {positionLetter(gi)}
-              </span>
-              <button
-                type="button"
-                onClick={() => setHistoryExIdx(exIdx)}
-                aria-label={`${ex.name} — view history`}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  gap: 8,
-                  background: 'transparent',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  color: 'inherit',
-                  fontFamily: 'inherit',
-                  textAlign: 'left',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {ex.name}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: 'var(--text-muted)',
-                    flexShrink: 0,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {stat || repsRange}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onSwapClick(exIdx)}
-                disabled={readOnly}
-                aria-label={`Swap ${ex.name}`}
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  letterSpacing: '0.1em',
-                  color: 'var(--text-muted)',
-                  background: 'transparent',
-                  border: '1px solid var(--border)',
-                  borderRadius: tokens.radius.sm,
-                  padding: '4px 8px',
-                  cursor: readOnly ? 'default' : 'pointer',
-                  textTransform: 'uppercase',
-                  fontFamily: 'inherit',
-                  flexShrink: 0,
-                }}
-              >
-                Swap
-              </button>
-            </div>
+              exercise={ex}
+              exIdx={exIdx}
+              positionLetter={positionLetter(gi)}
+              lastWeekStat={lastWeekStatFor(exIdx)}
+              weekData={weekData}
+              prevWeekRaw={prevWeekRaw as Record<number, Record<string, SetData>>}
+              weekIdx={weekIdx}
+              readOnly={readOnly}
+              onHistoryClick={() => setHistoryExIdx(exIdx)}
+              onSwapClick={() => onSwapClick(exIdx)}
+            />
           );
         })}
       </div>
@@ -730,6 +656,200 @@ export default function SupersetRoundView({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  SupersetMemberHeader                                                      */
+/*                                                                            */
+/*  One row in the header strip. Carved out of SupersetRoundView so we can    */
+/*  call useExerciseProgression() per member without violating the            */
+/*  rules-of-hooks stable-order requirement (the map() in the parent emits    */
+/*  N members, but the hook order inside this child stays fixed at one).      */
+/*                                                                            */
+/*  Layout (left → right): [letter] [name + last-week stat] [+5 LBS chip?]    */
+/*  [⚠ DROP chip?] [SWAP button].                                             */
+/* -------------------------------------------------------------------------- */
+
+interface SupersetMemberHeaderProps {
+  exercise: Exercise;
+  exIdx: number;
+  positionLetter: string;
+  lastWeekStat: string;
+  weekData: DayData;
+  prevWeekRaw: Record<number, Record<string, SetData>>;
+  weekIdx: number;
+  readOnly: boolean;
+  onHistoryClick: () => void;
+  onSwapClick: () => void;
+}
+
+function SupersetMemberHeader({
+  exercise,
+  exIdx,
+  positionLetter,
+  lastWeekStat,
+  weekData,
+  prevWeekRaw,
+  weekIdx,
+  readOnly,
+  onHistoryClick,
+  onSwapClick,
+}: SupersetMemberHeaderProps) {
+  const { progressionBanner, stallWarning, stallTarget } = useExerciseProgression({
+    exIdx,
+    exercise,
+    weekData,
+    prevWeekRaw,
+    weekIdx,
+  });
+
+  const repsRange = String(exercise.reps ?? '');
+
+  // Compact chip text. The progression banner's full copy lives on the
+  // tooltip — the chip itself surfaces just the headline number so the
+  // header row stays single-line at iPhone widths. Match the leading
+  // "+X" / "+1 rep" segment.
+  const progressionChipText = (() => {
+    if (!progressionBanner) return null;
+    const m = progressionBanner.text.match(/^\+([\d.]+)\s*lbs/i);
+    if (m) return `+${m[1]} LBS`;
+    if (/\+1\s*rep/i.test(progressionBanner.text)) return '+1 REP';
+    return null;
+  })();
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        minWidth: 0,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+          fontSize: 18,
+          fontWeight: 400,
+          color: 'var(--accent)',
+          letterSpacing: '0.04em',
+          width: 18,
+          textAlign: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {positionLetter}
+      </span>
+      <button
+        type="button"
+        onClick={onHistoryClick}
+        aria-label={`${exercise.name} — view history`}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 8,
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          color: 'inherit',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {exercise.name}
+        </span>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--text-muted)',
+            flexShrink: 0,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {lastWeekStat || repsRange}
+        </span>
+      </button>
+      {progressionChipText && progressionBanner && (
+        <span
+          data-testid={`progression-chip-${exIdx}`}
+          title={progressionBanner.text}
+          style={{
+            fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+            fontSize: 11,
+            fontWeight: 400,
+            letterSpacing: '0.12em',
+            color: progressionBanner.color,
+            border: `1px solid ${progressionBanner.color}`,
+            borderRadius: tokens.radius.sm,
+            padding: '2px 6px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            textTransform: 'uppercase',
+          }}
+        >
+          {progressionChipText}
+        </span>
+      )}
+      {stallWarning && stallTarget && (
+        <span
+          data-testid={`stall-chip-${exIdx}`}
+          title={`Last week: ${stallTarget.w} × ${stallTarget.r}`}
+          style={{
+            fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+            fontSize: 11,
+            fontWeight: 400,
+            letterSpacing: '0.12em',
+            color: 'var(--danger)',
+            border: '1px solid var(--danger)',
+            borderRadius: tokens.radius.sm,
+            padding: '2px 6px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            textTransform: 'uppercase',
+          }}
+        >
+          ⚠ Drop
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={onSwapClick}
+        disabled={readOnly}
+        aria-label={`Swap ${exercise.name}`}
+        style={{
+          fontSize: 10,
+          fontWeight: 800,
+          letterSpacing: '0.1em',
+          color: 'var(--text-muted)',
+          background: 'transparent',
+          border: '1px solid var(--border)',
+          borderRadius: tokens.radius.sm,
+          padding: '4px 8px',
+          cursor: readOnly ? 'default' : 'pointer',
+          textTransform: 'uppercase',
+          fontFamily: 'inherit',
+          flexShrink: 0,
+        }}
+      >
+        Swap
+      </button>
     </div>
   );
 }
