@@ -56,6 +56,7 @@ import NextUpCard from './NextUpCard';
 import SwapMenu from './SwapMenu';
 import ReorderSheet from './ReorderSheet';
 import SupersetGroup from './SupersetGroup';
+import SupersetPickerSheet from './SupersetPickerSheet';
 import { buildSwapGroups, bucketFor } from '../../utils/swapGroups';
 import { expandEquipment } from '../../utils/program';
 import type { Profile, TrainingDay, Exercise } from '../../types';
@@ -278,6 +279,9 @@ function DayView({
   // gets an "I'M READY" interstitial before the focus jumps.
   const [focusedIdx, setFocusedIdx] = useState<number>(0);
   const [pendingNextUpIdx, setPendingNextUpIdx] = useState<number | null>(null);
+  // SupersetPickerSheet — when set, sourceIdx wants to pick a partner from
+  // the rest of the workout. Null when picker is closed.
+  const [supersetPickerSourceIdx, setSupersetPickerSourceIdx] = useState<number | null>(null);
   const [doneExercises, setDoneExercises] = useState<Set<number>>(() => {
     if (isFutureSession) return new Set<number>(); // future — nothing is done
     const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile);
@@ -507,13 +511,26 @@ function DayView({
     const isNowDone = doneExercises.has(focusedIdx);
     const justBecameDone = !wasDone && isNowDone;
     if (justBecameDone && activeExIdx >= 0 && activeExIdx !== focusedIdx) {
-      // Stage the advance behind a NextUpCard interstitial. Focus only
-      // jumps once the user taps "I'm Ready". If this was the final
-      // exercise (activeExIdx wraps or there's no further work), we
-      // skip the card — completion flow takes over.
-      setPendingNextUpIdx(activeExIdx);
+      // If the next active exercise is paired with the just-finished one
+      // (same supersetGroupId), skip the NextUpCard — the SupersetGroup
+      // wrapper already shows both cards together, so just advance focus
+      // directly so the lifter continues without an interstitial.
+      const focusedEx = exercises[focusedIdx];
+      const activeEx = exercises[activeExIdx];
+      const sameSuperset =
+        SUPERSETS_ENABLED &&
+        focusedEx?.supersetGroupId &&
+        focusedEx.supersetGroupId === activeEx?.supersetGroupId;
+      if (sameSuperset) {
+        setFocusedIdx(activeExIdx);
+      } else {
+        // Stage the advance behind a NextUpCard interstitial. Focus only
+        // jumps once the user taps "I'm Ready".
+        setPendingNextUpIdx(activeExIdx);
+      }
     }
     prevDoneRef.current = doneExercises;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doneExercises, activeExIdx, focusedIdx, exercises.length]);
 
   // Keep expandedIdx pinned to focusedIdx in-workout so the active card is
@@ -1200,30 +1217,74 @@ function DayView({
   );
 
   /**
-   * Pair the focused exercise with the next adjacent unpaired exercise as
-   * a superset. Both exercises receive the same fresh `supersetGroupId`.
-   * No-op if the next exercise is already part of another superset, or if
-   * the focused exercise is the last one in the list.
+   * Pair `sourceIdx` with `targetIdx` as a superset. If they're not already
+   * adjacent, the target is moved to sit immediately after the source so the
+   * SupersetGroup wrapper (which collects CONTIGUOUS same-groupId neighbors)
+   * renders both cards together. weekData is reindexed alongside so logged
+   * sets stay attached to the right exercise. Both exercises get the same
+   * fresh supersetGroupId. No-op if either side is already in a superset.
    *
    * DEV-only — gated by SUPERSETS_ENABLED at the call site.
    */
   const handlePairSuperset = useCallback(
-    (exIdx: number) => {
+    (sourceIdx: number, targetIdx: number) => {
+      if (sourceIdx === targetIdx) return;
+      const id = newSupersetId();
+      let mappedTargetIdx = targetIdx;
+      let mappedSourceIdx = sourceIdx;
+
       setExercises((prev) => {
-        if (exIdx < 0 || exIdx >= prev.length - 1) return prev;
-        const next = prev[exIdx + 1];
-        if (!next) return prev;
-        // Don't merge across an existing superset boundary — pick the next
-        // truly unpaired neighbor.
-        if (prev[exIdx].supersetGroupId || next.supersetGroupId) return prev;
-        const id = newSupersetId();
+        if (sourceIdx < 0 || sourceIdx >= prev.length) return prev;
+        if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+        if (prev[sourceIdx].supersetGroupId || prev[targetIdx].supersetGroupId) return prev;
         const updated = [...prev];
-        updated[exIdx] = { ...prev[exIdx], supersetGroupId: id };
-        updated[exIdx + 1] = { ...next, supersetGroupId: id };
+        // Tag both with the new group id.
+        updated[sourceIdx] = { ...prev[sourceIdx], supersetGroupId: id };
+        updated[targetIdx] = { ...prev[targetIdx], supersetGroupId: id };
+        // If already adjacent (target is right after source), nothing else to do.
+        if (targetIdx === sourceIdx + 1) return updated;
+        // Otherwise splice the target out and re-insert right after source.
+        const [moved] = updated.splice(targetIdx, 1);
+        const insertAt = targetIdx > sourceIdx ? sourceIdx + 1 : sourceIdx;
+        updated.splice(insertAt, 0, moved);
+        mappedTargetIdx = insertAt;
+        mappedSourceIdx = targetIdx > sourceIdx ? sourceIdx : sourceIdx + 1;
         return updated;
       });
+
+      // Mirror the splice in weekData so logged sets follow the right exercise.
+      if (targetIdx !== sourceIdx + 1 && targetIdx !== sourceIdx) {
+        setWeekData((prev) => {
+          const reordered: typeof prev = {};
+          const targetData = prev[targetIdx];
+          const dir = targetIdx > sourceIdx ? -1 : 1;
+          // dir = -1: target moved leftward (was after source, now sits right after)
+          // dir = +1: target moved rightward (was before source, now after)
+          const insertAt = targetIdx > sourceIdx ? sourceIdx + 1 : sourceIdx;
+          // Walk every existing index, recompute its new position.
+          const allIndices = Object.keys(prev).map((k) => parseInt(k, 10)).sort((a, b) => a - b);
+          for (const i of allIndices) {
+            if (i === targetIdx) continue;
+            let newI = i;
+            if (dir === -1 && i > sourceIdx && i < targetIdx) newI = i + 1;
+            else if (dir === 1 && i >= insertAt && i < targetIdx) newI = i + 1;
+            else if (dir === 1 && i > targetIdx) newI = i;
+            reordered[newI] = prev[i];
+          }
+          if (targetData !== undefined) reordered[insertAt] = targetData;
+          saveDayWeek(dayIdx, weekIdx, reordered);
+          return reordered;
+        });
+      }
+
+      // After reorder, the focused card may have shifted — track the source's
+      // new position so focus stays on it.
+      if (mappedSourceIdx !== sourceIdx) {
+        setFocusedIdx(mappedSourceIdx);
+      }
+      void mappedTargetIdx;
     },
-    [],
+    [dayIdx, weekIdx],
   );
 
   /**
@@ -1664,16 +1725,21 @@ function DayView({
                 let onPairCb: (() => void) | undefined;
                 if (SUPERSETS_ENABLED) {
                   if (groupId) {
-                    supersetLabel = `A${posInGroup + 1}`;
+                    // Drop A1/A2 enumeration — the SupersetGroup header reads
+                    // "SUPERSET" once for the block; per-card labels are
+                    // redundant and the user found them confusing.
+                    supersetLabel = undefined;
                     onUnpairCb = () => handleUnpairSuperset(groupId);
-                  } else if (
-                    idx === clampedFocus &&
-                    idx < exercises.length - 1 &&
-                    !exercises[idx + 1]?.supersetGroupId
-                  ) {
-                    onPairCb = () => handlePairSuperset(idx);
+                  } else if (idx === clampedFocus && exercises.length > 1) {
+                    // Open the picker so the user can pick ANY other workout
+                    // exercise to pair with — no longer limited to the next
+                    // adjacent slot.
+                    onPairCb = () => setSupersetPickerSourceIdx(idx);
                   }
                 }
+                // posInGroup is no longer used now that supersetLabel is
+                // unconditionally undefined; reference it to keep TS quiet.
+                void posInGroup;
                 return (
                   <div
                     key={idx}
@@ -2025,6 +2091,24 @@ function DayView({
             setPendingNextUpIdx(null);
             setFocusedIdx(nextIdx);
           }}
+        />
+      )}
+
+      {/* Superset partner picker — opened from the "+ SUPERSET WITH" chip in
+          the focused card's header. Lists every other exercise in the
+          workout; on select we pair them and (if not adjacent) move the
+          target to sit right after the source so the SupersetGroup wrapper
+          renders both cards together. DEV-flagged via SUPERSETS_ENABLED. */}
+      {supersetPickerSourceIdx !== null && (
+        <SupersetPickerSheet
+          exercises={exercises}
+          sourceIdx={supersetPickerSourceIdx}
+          doneIndices={doneExercises}
+          onSelect={(targetIdx) => {
+            handlePairSuperset(supersetPickerSourceIdx, targetIdx);
+            setSupersetPickerSourceIdx(null);
+          }}
+          onClose={() => setSupersetPickerSourceIdx(null)}
         />
       )}
 
