@@ -8,6 +8,22 @@ interface CardioIntervalTimerProps {
   onDismiss: () => void;
 }
 
+/**
+ * HIIT/Tabata interval timer. Renders an SVG progress ring + per-phase
+ * digit display, alternating WORK / REST until rounds are exhausted.
+ *
+ * Visual chrome was restyled (Bundle E / 2.8.0) to match the minimal
+ * aesthetic shared by MinimizedTimerBar and ActiveSessionBar:
+ *   - Solid `var(--bg-root)` backgrounds (no blur / translucent layers
+ *     that bleed underlying content — see ActiveSessionBar lesson).
+ *   - Bebas Neue display font on the digit string.
+ *   - tokens.fontFamily.mono for the small "Round N of M" count.
+ *   - Tokens drive every color (var(--accent), var(--text-primary),
+ *     etc.) — no hardcoded hex.
+ *
+ * The ring/state-machine logic is preserved verbatim: same R=72, same
+ * dash math, same haptic('tap')/haptic('complete') triggers.
+ */
 function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioIntervalTimerProps) {
   const { intervals, label } = protocol;
   const { workSecs, restSecs, rounds } = intervals!;
@@ -18,9 +34,13 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
   const [minimized, setMinimized] = React.useState(false);
   const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const WORK_COLOR = tokens.colors.cardioHard;
+  // Phase ring color: WORK uses the brand accent (orange), REST uses
+  // gold (mobility/cardio-rest token), DONE settles on text-primary.
+  // These are the only color values that vary by state — everything
+  // else is solid token chrome.
+  const WORK_COLOR = 'var(--accent)';
   const REST_COLOR = tokens.colors.gold;
-  const DONE_COLOR = tokens.colors.textPrimary;
+  const DONE_COLOR = 'var(--text-primary)';
 
   const ringColor = phase === 'done' ? DONE_COLOR : phase === 'work' ? WORK_COLOR : REST_COLOR;
   const total = phase === 'work' ? workSecs : phase === 'rest' ? restSecs : 1;
@@ -93,92 +113,114 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
     const barPct = phase === 'done' ? 1 : 1 - remaining / total;
     return (
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Interval timer minimized · ${phase === 'done' ? 'Complete' : timeStr}. Tap to expand.`}
         onClick={() => setMinimized(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setMinimized(false);
+          }
+        }}
         style={{
           position: 'fixed',
-          bottom: 64,
-          left: 0,
-          right: 0,
-          zIndex: 225,
-          background: ringColor,
-          borderTop: `3px solid ${ringColor}`,
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.5)',
+          bottom: 80,
+          left: 16,
+          right: 16,
+          maxWidth: 388,
+          margin: '0 auto',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderLeft: `3px solid ${ringColor}`,
+          borderRadius: tokens.radius.md,
+          padding: '12px 16px',
+          display: 'grid',
+          gridTemplateColumns: '1fr auto',
+          alignItems: 'center',
+          gap: 10,
+          zIndex: 500,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          fontFamily: 'inherit',
           cursor: 'pointer',
           userSelect: 'none',
+          overflow: 'hidden',
         }}
       >
+        {/* Subtle progress fill — solid bg, no translucent gradients */}
         <div
+          aria-hidden="true"
           style={{
             position: 'absolute',
             top: 0,
-            right: 0,
+            left: 0,
             bottom: 0,
             width: `${barPct * 100}%`,
-            background: 'rgba(0,0,0,0.28)',
+            background: 'var(--bg-inset)',
             transition: 'width 1s linear',
+            zIndex: 0,
           }}
         />
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '14px 16px',
+            alignItems: 'baseline',
+            gap: 12,
+            textAlign: 'left',
             position: 'relative',
             zIndex: 1,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
-              style={{
-                fontSize: 24,
-                fontWeight: 900,
-                color: tokens.colors.overlayMed,
-                fontVariantNumeric: 'tabular-nums',
-                minWidth: 54,
-                lineHeight: 1,
-              }}
-            >
-              {phase === 'done' ? 'DONE!' : timeStr}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: tokens.colors.overlayMed,
-                  lineHeight: 1,
-                }}
-              >
-                {phase === 'done' ? 'All rounds complete' : phase === 'work' ? 'WORK' : 'REST'}
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: tokens.colors.overlayMed,
-                  lineHeight: 1,
-                }}
-              >
-                {phase === 'done' ? label : `Round ${round} of ${rounds}`}
-              </div>
-            </div>
-          </div>
-          <div
+          <span
             style={{
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: '0.05em',
-              color: '#fff',
-              background: 'rgba(0,0,0,0.2)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: tokens.radius.md,
-              padding: '7px 12px',
-              whiteSpace: 'nowrap',
+              fontSize: 11,
+              color: 'var(--text-muted)',
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
             }}
           >
-            {phase === 'done' ? 'LOG IT \u2191' : 'EXPAND \u2191'}
-          </div>
+            {phase === 'done' ? 'Done' : phase === 'work' ? 'Work' : 'Rest'}
+          </span>
+          <span
+            aria-live="polite"
+            style={{
+              fontFamily: tokens.fontFamily.display,
+              fontSize: 28,
+              color: ringColor,
+              fontVariantNumeric: 'tabular-nums',
+              letterSpacing: '0.02em',
+              fontWeight: 400,
+              lineHeight: 1,
+            }}
+          >
+            {phase === 'done' ? 'DONE' : timeStr}
+          </span>
+          <span
+            style={{
+              fontFamily: tokens.fontFamily.mono,
+              fontSize: 11,
+              color: 'var(--text-muted)',
+              fontWeight: 600,
+              letterSpacing: '0.04em',
+            }}
+          >
+            {phase === 'done' ? label : `R${round}/${rounds}`}
+          </span>
         </div>
+        <span
+          style={{
+            fontSize: 11,
+            color: 'var(--text-secondary)',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {phase === 'done' ? 'Log ↑' : 'Expand ↑'}
+        </span>
       </div>
     );
   }
@@ -186,12 +228,14 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
   // ── FULL MODAL ──
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cardio-interval-phase"
       style={{
         position: 'fixed',
         inset: 0,
         zIndex: 225,
-        background: tokens.colors.overlayHeavy,
-        backdropFilter: 'blur(4px)',
+        background: 'var(--bg-root)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -200,13 +244,12 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
     >
       <div
         style={{
-          background: 'var(--bg-card)',
-          border: `1px solid ${ringColor}44`,
-          borderRadius: tokens.radius.xxl,
-          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+          background: 'var(--bg-root)',
+          border: '1px solid var(--border)',
+          borderRadius: tokens.radius.xl,
           width: '100%',
-          maxWidth: 340,
-          padding: '36px 28px 28px',
+          maxWidth: 360,
+          padding: '32px 24px 24px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -218,37 +261,42 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
         {phase !== 'done' && (
           <button
             onClick={() => setMinimized(true)}
+            aria-label="Minimize interval timer"
             style={{
               position: 'absolute',
               top: 12,
               right: 12,
-              background: 'var(--bg-inset)',
+              background: 'transparent',
               border: '1px solid var(--border)',
-              borderRadius: tokens.radius.md,
-              padding: '4px 8px',
+              borderRadius: tokens.radius.sm,
+              padding: '4px 10px',
               cursor: 'pointer',
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 700,
               color: 'var(--text-muted)',
-              letterSpacing: '0.04em',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              fontFamily: 'inherit',
             }}
           >
-            MINIMIZE &darr;
+            Minimize
           </button>
         )}
 
         {/* Phase label */}
         <div
+          id="cardio-interval-phase"
           style={{
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 800,
-            letterSpacing: '0.12em',
+            letterSpacing: '0.18em',
             color: phase === 'done' ? DONE_COLOR : ringColor,
-            marginBottom: 20,
+            marginBottom: 24,
+            textTransform: 'uppercase',
             transition: 'color 0.3s',
           }}
         >
-          {phase === 'done' ? 'ALL ROUNDS COMPLETE' : phase === 'work' ? 'WORK' : 'REST'}
+          {phase === 'done' ? 'All Rounds Complete' : phase === 'work' ? 'Work' : 'Rest'}
         </div>
 
         {/* Ring */}
@@ -275,6 +323,8 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
             />
           </svg>
           <div
+            aria-live="polite"
+            aria-atomic="true"
             style={{
               position: 'absolute',
               inset: 0,
@@ -287,10 +337,12 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
             {phase === 'done' ? (
               <div
                 style={{
-                  fontSize: 48,
-                  fontWeight: 900,
+                  fontFamily: tokens.fontFamily.display,
+                  fontSize: 56,
                   color: DONE_COLOR,
                   lineHeight: 1,
+                  fontWeight: 400,
+                  letterSpacing: '0.02em',
                 }}
               >
                 &#10003;
@@ -299,20 +351,24 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
               <>
                 <div
                   style={{
-                    fontSize: 54,
-                    fontWeight: 900,
+                    fontFamily: tokens.fontFamily.display,
+                    fontSize: 56,
                     color: 'var(--text-primary)',
                     lineHeight: 1,
-                    letterSpacing: '-0.03em',
+                    letterSpacing: '0.02em',
+                    fontWeight: 400,
+                    fontVariantNumeric: 'tabular-nums',
                   }}
                 >
                   {timeStr}
                 </div>
                 <div
                   style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     color: 'var(--text-muted)',
-                    fontWeight: 600,
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
                     marginTop: 4,
                   }}
                 >
@@ -323,20 +379,23 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
           </div>
         </div>
 
-        {/* Round counter */}
+        {/* Round counter — JetBrains-mono-style monospace for readability */}
         <div
           style={{
-            fontSize: 13,
-            fontWeight: 700,
+            fontFamily: tokens.fontFamily.mono,
+            fontSize: 12,
+            fontWeight: 600,
             color: 'var(--text-secondary)',
-            marginBottom: 6,
+            marginBottom: 8,
+            letterSpacing: '0.04em',
+            fontVariantNumeric: 'tabular-nums',
           }}
         >
           {phase === 'done' ? label : `Round ${round} of ${rounds}`}
         </div>
 
         {/* Round pips */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 28 }} aria-hidden="true">
           {Array.from({ length: rounds }, (_, i) => (
             <div
               key={i}
@@ -363,21 +422,22 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
         {phase === 'done' ? (
           <button
             onClick={handleDone}
-            className="btn-primary"
             style={{
               width: '100%',
-              padding: '16px',
-              fontSize: 14,
+              padding: '14px',
+              fontSize: 13,
               fontWeight: 800,
-              borderRadius: tokens.radius.xl,
+              borderRadius: tokens.radius.md,
               cursor: 'pointer',
-              letterSpacing: '0.04em',
-              background: DONE_COLOR,
-              border: `1px solid ${DONE_COLOR}`,
-              color: '#000',
+              letterSpacing: '0.08em',
+              background: 'var(--accent)',
+              border: '1px solid var(--accent)',
+              color: 'var(--bg-root)',
+              fontFamily: 'inherit',
+              textTransform: 'uppercase',
             }}
           >
-            LOG SESSION &#10003;
+            Log Session &#10003;
           </button>
         ) : (
           <div style={{ display: 'flex', gap: 10, width: '100%' }}>
@@ -386,34 +446,38 @@ function CardioIntervalTimer({ protocol, onComplete, onDismiss }: CardioInterval
               style={{
                 flex: 1,
                 padding: '14px',
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 700,
-                borderRadius: tokens.radius.xl,
+                borderRadius: tokens.radius.md,
                 cursor: 'pointer',
-                background: 'var(--bg-inset)',
+                background: 'transparent',
                 border: '1px solid var(--border)',
                 color: 'var(--text-muted)',
-                letterSpacing: '0.04em',
+                letterSpacing: '0.08em',
+                fontFamily: 'inherit',
+                textTransform: 'uppercase',
               }}
             >
-              STOP
+              Stop
             </button>
             <button
               onClick={handleSkip}
               style={{
                 flex: 2,
                 padding: '14px',
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 800,
-                borderRadius: tokens.radius.xl,
+                borderRadius: tokens.radius.md,
                 cursor: 'pointer',
-                background: `${ringColor}22`,
-                border: `1px solid ${ringColor}55`,
+                background: 'transparent',
+                border: `1px solid ${ringColor}`,
                 color: ringColor,
-                letterSpacing: '0.04em',
+                letterSpacing: '0.08em',
+                fontFamily: 'inherit',
+                textTransform: 'uppercase',
               }}
             >
-              SKIP {phase === 'work' ? 'TO REST \u2192' : 'TO WORK \u2192'}
+              Skip {phase === 'work' ? 'to Rest →' : 'to Work →'}
             </button>
           </div>
         )}
