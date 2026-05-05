@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /* ------------------------------------------------------------------ */
@@ -126,8 +126,26 @@ vi.mock('../../../contexts/ToastContext', () => ({
 }));
 
 vi.mock('../ExerciseCard', () => ({
-  default: ({ exercise }: { exercise: { name: string } }) => (
-    <div data-testid="exercise-card">{exercise.name}</div>
+  default: ({
+    exercise,
+    exIdx,
+    onAddSet,
+  }: {
+    exercise: { name: string };
+    exIdx: number;
+    onAddSet?: (exIdx: number) => void;
+  }) => (
+    <div data-testid="exercise-card">
+      {exercise.name}
+      {onAddSet && (
+        <button
+          data-testid={`add-set-${exIdx}`}
+          onClick={() => onAddSet(exIdx)}
+        >
+          Add set
+        </button>
+      )}
+    </div>
   ),
 }));
 
@@ -300,6 +318,40 @@ describe('DayView', () => {
     const stored = localStorage.getItem(sessionKey);
     expect(stored).not.toBeNull();
     expect(Number(stored)).toBeGreaterThan(0);
+  });
+
+  it('handleAddSet pre-fills the new set\'s weight from the previous set (#7)', () => {
+    // Seed real localStorage with current-week data so the new (4th) set
+    // gets pre-filled from the highest-index existing set's weight (95).
+    const startTime = String(Date.now() - 60000);
+    localStorage.setItem('foundry:sessionStart:d0:w0', startTime);
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({
+        0: {
+          0: { weight: '100', reps: '8' },
+          1: { weight: '100', reps: '8' },
+          2: { weight: '95', reps: '7' },
+        },
+      }),
+    );
+
+    render(<DayView {...defaultProps()} />);
+
+    const btn = screen.getByTestId('add-set-0');
+    act(() => {
+      fireEvent.click(btn);
+    });
+
+    // saveDayWeek persists to localStorage at `foundry:day0:week0`. The new
+    // (4th) set should be present with weight pre-filled from the prior set.
+    const stored = localStorage.getItem('foundry:day0:week0');
+    expect(stored).not.toBeNull();
+    const parsed = JSON.parse(stored!) as Record<string, Record<string, { weight?: string; reps?: string }>>;
+    expect(parsed[0]).toBeDefined();
+    expect(parsed[0][3]).toBeDefined();
+    expect(parsed[0][3].weight).toBe('95');
+    expect(parsed[0][3].reps).toBe('');
   });
 
   it('does not render the removed "End Early" header button', () => {

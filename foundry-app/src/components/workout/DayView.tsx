@@ -1021,8 +1021,31 @@ function DayView({
         }
         return updated;
       });
+      // Seed the new row's weight from the previous (highest-index) set so
+      // the lifter doesn't have to re-type the working weight. Reps stay
+      // blank — they must type actual reps performed.
+      setWeekData((prev) => {
+        const exData = (prev[exIdx] || {}) as unknown as Record<string, Record<string, unknown>>;
+        const indices = Object.keys(exData)
+          .map((k) => parseInt(k, 10))
+          .filter((n) => Number.isFinite(n))
+          .sort((a, b) => a - b);
+        const lastIdx = indices.length > 0 ? indices[indices.length - 1] : undefined;
+        const lastSet = lastIdx !== undefined ? exData[lastIdx] : undefined;
+        const lastWeight = lastSet?.weight ? String(lastSet.weight) : '';
+        const newIdx = lastIdx === undefined ? 0 : lastIdx + 1;
+        const next = {
+          ...prev,
+          [exIdx]: {
+            ...(exData as Record<string, unknown>),
+            [newIdx]: { weight: lastWeight, reps: '', suggested: false, repsSuggested: false },
+          } as unknown as typeof prev[number],
+        } as typeof prev;
+        saveDayWeek(dayIdx, weekIdx, next);
+        return next;
+      });
     },
-    [],
+    [dayIdx, weekIdx],
   );
 
   const handleRemoveSet = useCallback(
