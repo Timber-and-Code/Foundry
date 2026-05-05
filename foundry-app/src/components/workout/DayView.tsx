@@ -741,34 +741,42 @@ function DayView({
       const inSuperset = !!(
         groupId && exercises.some((e, i) => i !== exIdx && e.supersetGroupId === groupId)
       );
-      const nextEx = exIdx !== -1 ? exercises[exIdx + 1] : undefined;
-      const nextExSameGroup = !!(groupId && nextEx?.supersetGroupId === groupId);
 
-      // ── LAST SET OF AN EXERCISE ──────────────────────────────────────
-      if (isLastSet) {
-        // In a superset where the very next exercise is the partner: hop
-        // straight in (#2 — within-superset transition has no rest).
-        if (inSuperset && nextExSameGroup) {
-          if (exIdx !== -1 && exIdx + 1 < exercises.length) {
-            const nextIdx = exIdx + 1;
-            setExpandedIdx(nextIdx);
-            setTimeout(() => {
-              const el = document.getElementById(`ex-${nextIdx}`);
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 150);
-          }
-          if (pendingRest) setPendingRest(null);
-          return;
-        }
-        // End of the superset block (last set of the LAST partner): rest
-        // fires before the next round / next exercise (#2 — "rest fires
-        // after B's set"). No NextUpCard interstitial here — the rest
-        // timer IS the beat.
-        if (inSuperset) {
+      // ── SUPERSET (interleaved rounds) ────────────────────────────────
+      // True superset behaviour: A and B are done back-to-back at each
+      // round, then ONE rest before the next round. So rest fires after
+      // a set check ONLY when every paired exercise has its same-index
+      // set confirmed (the round has completed). Otherwise suppress —
+      // the partner still has the matching set to do.
+      //
+      // Set-count parity: handlePairSuperset equalises both exercises'
+      // set count to max(A,B). Empty rows on the smaller exercise are
+      // benign — they just won't be confirmed, so the round logic waits
+      // until the user fills them in or skips them.
+      if (inSuperset && groupId) {
+        const groupMemberIdxs = exercises
+          .map((e, i) => (e.supersetGroupId === groupId ? i : -1))
+          .filter((i) => i >= 0);
+        const allRoundDone = groupMemberIdxs.every((memberIdx) => {
+          // The just-confirmed set's `confirmed` flag isn't in `weekData`
+          // yet (handleUpdateSet's setWeekData is still queued), so trust
+          // the current exercise as confirmed and check the partners.
+          if (memberIdx === exIdx) return true;
+          const memberData = ((weekData[memberIdx] || {}) as unknown as Record<
+            string,
+            Record<string, unknown>
+          >)[setIdx];
+          return memberData?.confirmed === true;
+        });
+        if (allRoundDone) {
           startRestTimer(restStr, exName, dayIdx, weekIdx);
-          if (pendingRest) setPendingRest(null);
-          return;
         }
+        if (pendingRest) setPendingRest(null);
+        return;
+      }
+
+      // ── LAST SET OF AN EXERCISE (non-superset) ───────────────────────
+      if (isLastSet) {
         // Non-superset last set: NextUpCard owns the transition (d52a574),
         // no rest. Auto-advance by expanding the next exercise card.
         if (exIdx !== -1 && exIdx + 1 < exercises.length) {
@@ -786,15 +794,6 @@ function DayView({
       // ── MID-EXERCISE SET (not last set of the exercise) ──────────────
       if (exIdx === -1) {
         startRestTimer(restStr, exName, dayIdx, weekIdx);
-        return;
-      }
-
-      // Mid-exercise inside a superset: suppress rest. Rest only fires at
-      // the block boundary — after the LAST set of the LAST paired exercise
-      // (handled above as inSuperset && !nextExSameGroup && isLastSet).
-      // Within the block all sets, mid-exercise OR last-of-A-with-B-next,
-      // skip rest so the lifter alternates through the pair without pause.
-      if (inSuperset) {
         return;
       }
 
@@ -1238,9 +1237,16 @@ function DayView({
         if (targetIdx < 0 || targetIdx >= prev.length) return prev;
         if (prev[sourceIdx].supersetGroupId || prev[targetIdx].supersetGroupId) return prev;
         const updated = [...prev];
-        // Tag both with the new group id.
-        updated[sourceIdx] = { ...prev[sourceIdx], supersetGroupId: id };
-        updated[targetIdx] = { ...prev[targetIdx], supersetGroupId: id };
+        // Equalise set counts to max(source, target) so the interleaved-
+        // round rest logic can detect "round complete" cleanly. If the
+        // shorter exercise had 3 sets and the partner had 4, the shorter
+        // gets a 4th empty row; the lifter fills it (or skips). Matches
+        // user expectation: "default to the larger number of sets".
+        const sourceSets = Number(prev[sourceIdx].sets ?? 0);
+        const targetSets = Number(prev[targetIdx].sets ?? 0);
+        const maxSets = Math.max(sourceSets, targetSets, 1);
+        updated[sourceIdx] = { ...prev[sourceIdx], supersetGroupId: id, sets: maxSets };
+        updated[targetIdx] = { ...prev[targetIdx], supersetGroupId: id, sets: maxSets };
         // If already adjacent (target is right after source), nothing else to do.
         if (targetIdx === sourceIdx + 1) return updated;
         // Otherwise splice the target out and re-insert right after source.
