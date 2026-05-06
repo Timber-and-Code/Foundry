@@ -2162,8 +2162,12 @@ function DayView({
       )}
 
       {/* ── Exercise Swap (in-workout) ──────────────────────────────── */}
+      {/* Keep mounted while swapPending is set — SwapScopeSelector renders
+          inside SwapMenu's open-gated tree, so unmounting here would hide
+          the "this session / entire meso" prompt that should appear after
+          the user picks a replacement. */}
       <SwapMenu
-        open={swapTarget !== null || addingExercise}
+        open={swapTarget !== null || addingExercise || !!swapPending}
         onClose={() => {
           setSwapTarget(null);
           setAddingExercise(false);
