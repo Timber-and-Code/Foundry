@@ -62,6 +62,46 @@ export function loadDayWeek(dayIdx: number, weekIdx: number): DayData {
 }
 
 /**
+ * Find the slot in `data` that holds sets for `exId`. Each set written by
+ * handleUpdateSet stamps `_exId: exercise.id` on the set blob; this walks
+ * the slots looking for a match.
+ *
+ * Used by carryover (loadDayWeekWithCarryover) and the per-exercise
+ * "last week" reads in ExerciseCard so that a reorder, superset, or
+ * this-session swap that shifts a slot's exIdx between weeks doesn't
+ * cause the lookup to attribute the wrong exercise's data.
+ *
+ * If no slot matches (legacy data without _exId, or brand-new exercise),
+ * falls back to `data[fallbackExIdx]` — today's behaviour. Returns an
+ * empty object when neither path produces a hit so callers can iterate
+ * without null checks.
+ */
+export function findPrevSlotForExercise(
+  data: DayData,
+  exId: string | number | undefined,
+  fallbackExIdx: number,
+): Record<string, Record<string, unknown>> {
+  const idStr = exId == null ? null : String(exId);
+  if (idStr) {
+    for (const slice of Object.values(data)) {
+      if (!slice || typeof slice !== 'object') continue;
+      for (const set of Object.values(slice as unknown as Record<string, unknown>)) {
+        if (
+          set &&
+          typeof set === 'object' &&
+          String((set as Record<string, unknown>)._exId ?? '') === idStr
+        ) {
+          return slice as unknown as Record<string, Record<string, unknown>>;
+        }
+      }
+    }
+  }
+  return (
+    (data[fallbackExIdx] as unknown as Record<string, Record<string, unknown>>) || {}
+  );
+}
+
+/**
  * Load current week data with automatic weight/rep progression hints.
  * Carry-over logic: if lifter completed ALL prescribed reps on every working set
  * last week, suggest an experience-aware weight bump.
@@ -100,7 +140,14 @@ export function loadDayWeekWithCarryover(
 
     const carried: DayData = {};
     day.exercises.forEach((ex, exIdx) => {
-      const prevEx = prev[exIdx] || {};
+      // Find prior-week slot whose sets carry _exId === ex.id (set when
+      // handleUpdateSet logs a set). Falls back to position-based lookup
+      // when no slot matches — covers (a) legacy data written before
+      // _exId stamping, and (b) brand-new exercises that have no prior
+      // history. The find-by-id path is what immunises carryover from
+      // reorder, superset pairing, and this-session swaps that shift
+      // exIdx between weeks.
+      const prevEx = findPrevSlotForExercise(prev, ex.id, exIdx);
       const repParts = String(ex.reps).split('-');
       const rangeMin = parseInt(repParts[0]) || 1;
       const rangeMax = parseInt(repParts[repParts.length - 1]) || rangeMin;

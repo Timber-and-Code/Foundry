@@ -41,6 +41,13 @@ vi.mock('../../../utils/store', () => ({
     const raw = localStorage.getItem(`foundry:day${dayIdx}:week${weekIdx}`);
     return raw ? JSON.parse(raw) : {};
   }),
+  // Med (2.8.3): id-based lookup helper for prior-week data. Default
+  // mock falls through to position lookup so existing tests keep their
+  // prior-week shape; the prescribed-weight regression suite exercises
+  // the id-match path with seeded `_exId` tags.
+  findPrevSlotForExercise: vi.fn((data: Record<string, unknown> | null | undefined, _exId: string | number | undefined, exIdx: number) => {
+    return (data?.[exIdx] as Record<string, unknown>) || {};
+  }),
 }));
 
 vi.mock('../../../data/constants', () => ({

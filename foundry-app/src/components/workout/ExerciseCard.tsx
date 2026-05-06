@@ -10,6 +10,7 @@ import {
   getWarmupDetail,
   generateWarmupSteps,
   loadArchive,
+  findPrevSlotForExercise,
 } from '../../utils/store';
 import HammerIcon from '../shared/HammerIcon';
 import MesoHistoryView from './MesoHistoryView';
@@ -240,8 +241,10 @@ function ExerciseCard({
       const wTrim = Number.isInteger(w) ? String(w) : w.toFixed(1).replace(/\.0$/, '');
       return `${count}-${wTrim}×${r}`;
     };
-    // Same-meso prior week — preferred.
-    const prev = prevWeekRaw[exIdx] || {};
+    // Same-meso prior week — preferred. Look up by exercise.id rather
+    // than by slot position, so reorder/superset/this-session-swap
+    // doesn't attribute another exercise's history to this card.
+    const prev = findPrevSlotForExercise(prevWeekRaw, exercise.id, exIdx);
     let bestW = 0,
       bestR = 0,
       setsCount = 0;
@@ -398,8 +401,10 @@ function ExerciseCard({
         return parseFloat(String(w));
       }
     }
-    // Fall back to previous week
-    const psd = prevWeekRaw[exIdx] || {};
+    // Fall back to previous week — match by exercise.id so the warmup
+    // weight reference doesn't attach to whatever exercise happened to
+    // sit at this position last week.
+    const psd = findPrevSlotForExercise(prevWeekRaw, exercise.id, exIdx);
     for (let s = 0; s < Number(exercise.sets ?? 0); s++) {
       const w = psd[s]?.weight;
       if (w && !isNaN(parseFloat(String(w)))) {
@@ -985,26 +990,31 @@ function ExerciseCard({
             </div>
           )}
 
-          {/* Previous week hint */}
-          {prevWeekRaw[exIdx] && (
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--text-muted)',
-                marginBottom: 12,
-                padding: '8px',
-                background: 'var(--bg-inset)',
-                borderRadius: tokens.radius.sm,
-              }}
-            >
-              Last session:{' '}
-              {(Object.values(prevWeekRaw[exIdx] || {}) as SetData[]).find(
-                (sd: SetData) => sd.weight && sd.reps && !sd.warmup
-              )
-                ? `${(Object.values(prevWeekRaw[exIdx]) as SetData[])[0]?.weight} × ${(Object.values(prevWeekRaw[exIdx]) as SetData[])[0]?.reps}`
-                : '—'}
-            </div>
-          )}
+          {/* Previous week hint — same id-based lookup as the LAST WK
+              chip so the displayed numbers belong to THIS exercise even
+              after a reorder/superset/swap shifted slot positions. */}
+          {(() => {
+            const prevSlice = findPrevSlotForExercise(prevWeekRaw, exercise.id, exIdx);
+            const sets = Object.values(prevSlice) as unknown as SetData[];
+            if (!sets.some((sd) => sd && sd.weight && sd.reps && !sd.warmup)) {
+              return null;
+            }
+            const first = sets.find((sd) => sd && sd.weight && sd.reps && !sd.warmup);
+            return (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                  marginBottom: 12,
+                  padding: '8px',
+                  background: 'var(--bg-inset)',
+                  borderRadius: tokens.radius.sm,
+                }}
+              >
+                Last session: {first ? `${first.weight} × ${first.reps}` : '—'}
+              </div>
+            );
+          })()}
 
           {/* Cross-meso note */}
           {crossMesoNote && (
