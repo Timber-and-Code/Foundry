@@ -112,9 +112,9 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
     // Pure Strength tweak — keep anchors at full sets (the heavy work), trim
     // accessory volume by one set (floor 2) so total volume stays sane.
     const sets = isPureStrength && !isAnchor ? Math.max(2, baseSets - 1) : baseSets;
-    // Pure Strength anchors: stricter 3-6 range. Accessories still follow the
-    // usual goalReps mapping so you keep a hypertrophy backstop.
-    const reps = isPureStrength && isAnchor ? '3-6' : goalReps(e);
+    // Pure Strength anchors: 4-6 range. Accessories still follow the usual
+    // goalReps mapping so you keep a hypertrophy backstop.
+    const reps = isPureStrength && isAnchor ? '4-6' : goalReps(e);
     return {
       id: e.id,
       name: e.name,

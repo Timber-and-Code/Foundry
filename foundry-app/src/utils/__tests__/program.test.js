@@ -173,16 +173,16 @@ describe('generateProgram — experience level filtering', () => {
 // Goal-based rep ranges
 // ============================================================================
 describe('generateProgram — goal-based rep ranges', () => {
-  it('strength goal: anchor reps are in "3-6" range for Pure Strength', () => {
-    // Pure Strength (goal='build_strength') overrides the compound goalReps
-    // mapping (4-6) with a stricter 3-6 anchor range. See program.pure-strength
-    // test for the accompanying accessory-set reduction.
+  it('strength goal: anchor reps are in "4-6" range for Pure Strength', () => {
+    // Pure Strength (goal='build_strength') anchors at 4-6 — same as the
+    // compound goalReps for non-anchors, pulling isolation anchors in line too.
+    // See program.pure-strength test for the accompanying accessory-set reduction.
     const days = generateProgram(
       { ...BASE_PROFILE, splitType: 'ppl', daysPerWeek: 3, goal: 'build_strength' },
       EXERCISE_DB
     );
     const anchor = days[0].exercises[0];
-    expect(anchor.reps).toBe('3-6');
+    expect(anchor.reps).toBe('4-6');
   });
 
   it('build_muscle goal: compound anchor reps are "6-10"', () => {

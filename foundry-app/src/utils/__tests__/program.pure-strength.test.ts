@@ -2,8 +2,8 @@
  * program.pure-strength.test.ts
  *
  * Pure Strength goal branches generateProgram in two places:
- *   1. Anchor reps drop to '3-6' (stricter than the generic strength 4-6 that
- *      non-anchor compounds still get via goalReps).
+ *   1. Anchor reps land at '4-6' (matches the compound goalReps for non-anchors;
+ *      pulls isolation anchors down from '6-10' to '4-6' as well).
  *   2. Non-anchor set count is trimmed by 1 with a floor of 2, to offset the
  *      higher-intensity anchor work.
  *
@@ -98,7 +98,7 @@ describe('generateProgram — Pure Strength goal', () => {
     });
   });
 
-  it('pure strength (build_strength): anchor reps = "3-6"', () => {
+  it('pure strength (build_strength): anchor reps = "4-6"', () => {
     const days = generateProgram(
       { ...BASE_PROFILE, goal: 'build_strength' },
       EXERCISE_DB as any,
@@ -106,7 +106,7 @@ describe('generateProgram — Pure Strength goal', () => {
     days.forEach((day) => {
       const anchor = day.exercises[0];
       expect(anchor.anchor).toBe(true);
-      expect(anchor.reps).toBe('3-6');
+      expect(anchor.reps).toBe('4-6');
     });
   });
 
@@ -156,8 +156,8 @@ describe('generateProgram — Pure Strength goal', () => {
       expect(dayA.exercises.length).toBe(dayB.exercises.length);
       // Anchor rep range is deterministic per profile.goal regardless of which
       // specific compound got picked as today's anchor.
-      expect(dayA.exercises[0].reps).toBe('3-6');
-      expect(dayB.exercises[0].reps).toBe('3-6');
+      expect(dayA.exercises[0].reps).toBe('4-6');
+      expect(dayB.exercises[0].reps).toBe('4-6');
       // Every accessory in both runs is at the floor.
       dayA.exercises.slice(1).forEach((acc) => expect(acc.sets).toBe(2));
       dayB.exercises.slice(1).forEach((acc) => expect(acc.sets).toBe(2));
