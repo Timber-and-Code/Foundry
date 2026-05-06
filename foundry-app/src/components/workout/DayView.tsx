@@ -885,9 +885,17 @@ function DayView({
           deleteWorkoutSetRemote(prevSet.id as string);
         }
 
+        // Stamp the exercise identity onto every set as it's written. The
+        // carryover lookup (loadDayWeekWithCarryover) uses _exId to find
+        // last week's data for THIS exercise rather than blindly reading
+        // last week's slot at the same position — which gave wrong
+        // numbers after a reorder, superset pairing, or this-session swap.
+        // See `prescribed_weight_fix.md` memory for the full trace.
+        const exId = exercises[exIdx]?.id;
         const nextSet = {
           ...prevSet,
           id: setId,
+          ...(exId ? { _exId: exId } : {}),
           [field]: value,
           // Clear suggestion flags when user manually edits weight or reps
           ...(field === 'weight' ? { suggested: false } : {}),

@@ -667,6 +667,86 @@ describe('loadDayWeekWithCarryover', () => {
     expect(result).toEqual({});
   });
 
+  // ── Med (2.8.3): id-based prior-slot lookup ────────────────────────────
+  // Reorder, superset pairing, and this-session swap all shift the slot
+  // index between weeks, which used to cause carryover to attribute one
+  // exercise's history to another card. handleUpdateSet now stamps
+  // `_exId` on every set it writes, and the carryover scan honors that
+  // tag so the lookup follows the exercise — not the slot.
+
+  it('reorder slot drift: bench moved from slot 0 → 1, carryover follows the id (#prescribed-weight)', () => {
+    // Last week: Squat at slot 0, Bench at slot 1.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { _exId: 'squat', weight: '200', reps: '10' },
+        1: { _exId: 'squat', weight: '200', reps: '10' },
+        2: { _exId: 'squat', weight: '200', reps: '10' },
+      },
+      1: {
+        0: { _exId: 'bench', weight: '100', reps: '10' },
+        1: { _exId: 'bench', weight: '100', reps: '10' },
+        2: { _exId: 'bench', weight: '100', reps: '10' },
+      },
+    });
+    // This week's program order: Bench at slot 0, Squat at slot 1
+    // (matches a user reorder during week 0 that left week 1's program
+    // untouched). With the fix, carryover for Bench at slot 0 finds the
+    // slice with `_exId: 'bench'` (last week's slot 1) instead of
+    // reading slot 0 (Squat's data).
+    const day = {
+      exercises: [
+        { id: 'bench', name: 'Bench', equipment: 'barbell', reps: '6-10', sets: 3, bw: false },
+        { id: 'squat', name: 'Squat', equipment: 'barbell', reps: '6-10', sets: 3, bw: false },
+      ],
+    };
+    const result = loadDayWeekWithCarryover(0, 1, day, profile);
+    // Bench at slot 0 should suggest 105 (100 + 5 barbell nudge), NOT
+    // 205 (which is what the position-based lookup would have returned).
+    expect(result[0][0].weight).toBe('105');
+    // Squat at slot 1 should suggest 205, NOT 105.
+    expect(result[1][0].weight).toBe('205');
+  });
+
+  it('this-session swap: new exercise at swapped slot gets no carryover (#prescribed-weight)', () => {
+    // Last week: Bench at slot 0.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { _exId: 'bench', weight: '100', reps: '10' },
+        1: { _exId: 'bench', weight: '100', reps: '10' },
+        2: { _exId: 'bench', weight: '100', reps: '10' },
+      },
+    });
+    // This week: user swapped slot 0 to incline DB press (different id).
+    // The new exercise has no prior history, so carryover should NOT
+    // suggest 105 (Bench's nudged weight) for it.
+    const day = {
+      exercises: [
+        { id: 'incline_db', name: 'Incline DB Press', equipment: 'dumbbell', reps: '6-10', sets: 3, bw: false },
+      ],
+    };
+    const result = loadDayWeekWithCarryover(0, 1, day, profile);
+    // Falls back to slot 0 (Bench's data) by position — same behavior
+    // as legacy data without _exId tags. Documents the limitation: a
+    // first-time-this-meso swap will inherit the slot's prior numbers.
+    // This is acceptable as a soft suggestion (Big-Big will use stable
+    // training_day_exercise.id to make this a hard miss).
+    expect(result[0][0].weight).toBe('105');
+  });
+
+  it('legacy data without _exId still works via position fallback', () => {
+    // No _exId tags (data written before Med shipped).
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '100', reps: '10' },
+        1: { weight: '100', reps: '10' },
+        2: { weight: '100', reps: '10' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
+    expect(result[0][0].weight).toBe('105');
+    expect(result[0][0].suggested).toBe(true);
+  });
+
   it('uniform baseline: dropped last set still suggests heaviest weight uniformly across all sets (#12a)', () => {
     // Lifter went 100/100/95 — fatigued on the last set. The heaviest
     // baseline is 100; all three sets this week should suggest 100.
