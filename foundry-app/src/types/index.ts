@@ -13,6 +13,30 @@ export interface WorkoutSet {
 /** { [exerciseIndex]: { [setIndex]: WorkoutSet } } */
 export type DayData = Record<string, Record<string, WorkoutSet>>;
 
+// ─── DayData v2 (id-keyed, Big-Big Phase 1) ─────────────────────────────────
+// Parallel storage shape introduced by the data-layer refactor that re-keys
+// per-day workout data from implicit array position to the canonical
+// `training_day_exercises.id` (uuid). Eliminates slot-drift bugs (reorder,
+// superset, this-session swap) by construction. Phase 1 dual-writes this
+// shape behind a feature flag; reads + sync wiring come in Phase 3.
+
+export interface DayDataV2Slice {
+  /** Visual ordering — replaces implicit array position. Stable across reorders. */
+  sortOrder: number;
+  /** EXERCISE_DB id (e.g. 'bench_press_bb'). Needed for offline rendering when sync hasn't populated. */
+  exId: string;
+  /** Per-set data, keyed by integer-as-string (same shape as today). */
+  sets: Record<string, WorkoutSet>;
+  /** Optional superset group id, mirrors the current Exercise.supersetGroupId. */
+  supersetGroupId?: string;
+}
+
+/**
+ * v2 day-data shape, keyed by `training_day_exercises.id` (uuid string).
+ * Lives at localStorage key `foundry:day_v2:{d}:{w}`.
+ */
+export type DayDataV2 = Record<string, DayDataV2Slice>;
+
 export interface Exercise {
   id?: string | number;
   name: string;

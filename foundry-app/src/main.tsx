@@ -24,6 +24,23 @@ Sentry.init({
 _setMarkDirty(markDirty);
 window.addEventListener('online', () => flushDirty());
 
+// Dev-only console toggle for the Big-Big Phase 1 v2 dual-write feature
+// flag. The flag lives in localStorage so it survives reloads but stays
+// scoped per-device. Flip via:
+//   __foundryEnableDayV2Writes(true)   // turn dual-write on
+//   __foundryEnableDayV2Writes(false)  // turn it off
+if (import.meta.env.DEV) {
+  (window as unknown as { __foundryEnableDayV2Writes?: (on: boolean) => void })
+    .__foundryEnableDayV2Writes = (on: boolean) => {
+    try {
+      localStorage.setItem('foundry:flag:day_v2_writes', on ? '1' : '0');
+      console.log(`[Foundry] day_v2 dual-writes ${on ? 'ENABLED' : 'disabled'}`);
+    } catch (e) {
+      console.warn('[Foundry] Failed to toggle day_v2 flag', e);
+    }
+  };
+}
+
 // Request persistent storage
 if (navigator.storage && navigator.storage.persist) {
   navigator.storage.persist();

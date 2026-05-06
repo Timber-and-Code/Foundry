@@ -7,7 +7,16 @@ import {
   syncCardioPresetToSupabase,
   deleteCardioPresetRemote,
 } from './sync';
-import type { DayData, TrainingDay, Profile, CardioSession, CardioPreset } from '../types';
+import type {
+  DayData,
+  DayDataV2,
+  DayDataV2Slice,
+  TrainingDay,
+  Profile,
+  CardioSession,
+  CardioPreset,
+  WorkoutSet,
+} from '../types';
 
 // ─── ACTIVE SESSION (top-of-shell bar) ────────────────────────────────────────
 // Persistent marker so the user always sees that a workout/cardio session is
@@ -241,9 +250,125 @@ export function loadDayWeekWithCarryover(
   return current;
 }
 
+// ─── DayData v2 (id-keyed) — Big-Big Phase 1 ───────────────────────────────
+// Parallel storage that re-keys per-day data from implicit array position to
+// `training_day_exercises.id` (uuid). Phase 1 dual-writes only; reads + sync
+// wiring come in Phase 3. Default-OFF feature flag; flip with the dev-only
+// `window.__foundryEnableDayV2Writes(true)` helper exposed in main.tsx.
+
+const DAY_V2_WRITES_FLAG = 'foundry:flag:day_v2_writes';
+
+/**
+ * Whether dual-write of v2 (id-keyed) DayData is enabled. Default OFF.
+ * Phase 3 will introduce a separate read-side flag.
+ */
+export function isDayV2WritesEnabled(): boolean {
+  return store.get(DAY_V2_WRITES_FLAG) === '1';
+}
+
+function v2KeyFor(dayIdx: number, weekIdx: number): string {
+  return `foundry:day_v2:${dayIdx}:${weekIdx}`;
+}
+
+/**
+ * Load v2-shape DayData for (dayIdx, weekIdx). Returns `{}` for missing keys
+ * or malformed JSON. Pure localStorage read — never falls back to v1.
+ */
+export function loadDayWeekV2(dayIdx: number, weekIdx: number): DayDataV2 {
+  const raw = store.get(v2KeyFor(dayIdx, weekIdx));
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed as DayDataV2;
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to parse v2 day data', e);
+    return {};
+  }
+}
+
+/**
+ * Persist v2-shape DayData. localStorage only — Phase 3 owns Supabase wiring.
+ */
+export function saveDayWeekV2(dayIdx: number, weekIdx: number, data: DayDataV2): void {
+  store.set(v2KeyFor(dayIdx, weekIdx), JSON.stringify(data));
+}
+
+/**
+ * Build the v2 shape from the v1 shape using the (mesoId-scoped) tde-id cache.
+ * Slots whose tde-id is missing from the cache or whose set blobs lack
+ * `_exId` (Med-patch carryover marker) are SKIPPED — Phase 2 migration will
+ * backfill them from the program. Pure helper; no I/O.
+ */
+function buildV2FromV1(
+  dayIdx: number,
+  data: DayData,
+  tdeIds: Record<string, string>,
+): DayDataV2 {
+  const v2: DayDataV2 = {};
+  for (const exIdxStr of Object.keys(data)) {
+    const exIdx = parseInt(exIdxStr, 10);
+    if (!Number.isFinite(exIdx)) continue;
+    const tdeId = tdeIds[`${dayIdx}:${exIdx}`];
+    if (!tdeId) continue; // No id mapping yet — Phase 2 will backfill.
+    const setsMap = data[exIdxStr] || {};
+    // Pull `_exId` from any set in the slice (Med stamps it on every write).
+    // Sets are typed as WorkoutSet but allow extras to pass through; treat as
+    // Record<string, unknown> for the lookup so we don't widen the public type.
+    let exId: string | undefined;
+    for (const setKey of Object.keys(setsMap)) {
+      const blob = setsMap[setKey] as unknown as Record<string, unknown>;
+      const candidate = blob && typeof blob._exId === 'string' ? blob._exId : undefined;
+      if (candidate) {
+        exId = candidate;
+        break;
+      }
+    }
+    if (!exId) {
+      // Legacy data written before Med stamped `_exId`. Skip; Phase 2 backfill.
+      console.debug('[Foundry] v2 dual-write: skipping slot without _exId', {
+        dayIdx,
+        exIdx,
+      });
+      continue;
+    }
+    const slice: DayDataV2Slice = {
+      sortOrder: exIdx,
+      exId,
+      sets: setsMap as Record<string, WorkoutSet>,
+    };
+    v2[tdeId] = slice;
+  }
+  return v2;
+}
+
 export function saveDayWeek(dayIdx: number, weekIdx: number, data: DayData): void {
   store.set(`foundry:day${dayIdx}:week${weekIdx}`, JSON.stringify(data));
   syncWorkoutToSupabase(dayIdx, weekIdx, data);
+
+  // Phase 1 dual-write: gated on flag + tde-id cache availability. Wrapped in
+  // try/catch so a v2 write failure cannot break the v1 path (which is still
+  // the source of truth until Phase 4).
+  if (!isDayV2WritesEnabled()) return;
+  try {
+    const mesoId = store.get('foundry:active_meso_id');
+    if (!mesoId) return;
+    const tdeRaw = store.get(`foundry:tde_ids:${mesoId}`);
+    if (!tdeRaw) return;
+    let tdeIds: Record<string, string>;
+    try {
+      const parsed = JSON.parse(tdeRaw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+      tdeIds = parsed as Record<string, string>;
+    } catch {
+      return;
+    }
+    const v2 = buildV2FromV1(dayIdx, data, tdeIds);
+    if (Object.keys(v2).length === 0) return;
+    saveDayWeekV2(dayIdx, weekIdx, v2);
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to dual-write v2 day data', e);
+  }
 }
 
 export type SupersetPair = [string, string];
