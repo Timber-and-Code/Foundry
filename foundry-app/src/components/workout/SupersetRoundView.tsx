@@ -270,14 +270,6 @@ export default function SupersetRoundView({
     onRemoveSet?.(exIdx, setIdx);
   };
 
-  // Short-form name for the row label inside a round (leading column is
-  // ~72px wide so we keep names tight — 8 chars before the ellipsis).
-  // Header-strip member rows can afford the longer 12-char form.
-  const shortName = (name: string, max = 8): string => {
-    const upper = name.toUpperCase();
-    return upper.length > max ? upper.slice(0, max).trimEnd() + '…' : upper;
-  };
-
   return (
     <div data-testid="superset-round-view">
       {/* Header strip — one line per exercise, name + last-week stat +
@@ -353,7 +345,7 @@ export default function SupersetRoundView({
                     opacity: 0.5,
                   }}
                 >
-                  {shortName(ex.name)} — rest
+                  {ex.name.toUpperCase()} — rest
                 </div>
               );
             }
@@ -379,8 +371,26 @@ export default function SupersetRoundView({
             const canRemove =
               !isDone && !readOnly && !!onRemoveSet && totalSets > 1;
             return (
+              <div key={`${exIdx}-${r}`} style={{ marginBottom: 4 }}>
+                <div
+                  style={{
+                    fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
+                    fontSize: 14,
+                    fontWeight: 400,
+                    letterSpacing: '0.06em',
+                    color: isDone
+                      ? 'var(--accent)'
+                      : isActive
+                      ? 'var(--text-primary)'
+                      : 'var(--text-secondary)',
+                    textTransform: 'uppercase',
+                    padding: '6px 0 2px',
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {ex.name.toUpperCase()}
+                </div>
               <SetRow
-                key={`${exIdx}-${r}`}
                 exIdx={exIdx}
                 setIdx={r}
                 weight={(sd.weight ?? '') as string | number}
@@ -393,8 +403,7 @@ export default function SupersetRoundView({
                 canRemove={canRemove}
                 readOnly={readOnly}
                 exerciseName={ex.name}
-                rowLabel={shortName(ex.name)}
-                hideBadgeFallback
+                noLeadingColumn
                 onUpdateWeight={(value) => {
                   onUpdateSet(exIdx, r, 'weight', value);
                   // Edit unconfirms the row, mirroring ExerciseCard.
@@ -431,6 +440,7 @@ export default function SupersetRoundView({
                 }
                 variant="editorial"
               />
+              </div>
             );
           })}
         </div>

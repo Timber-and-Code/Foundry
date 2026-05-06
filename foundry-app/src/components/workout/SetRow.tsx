@@ -25,6 +25,11 @@ export interface SetRowProps {
    *  column shows ONLY the rowLabel (exercise name) without a set-number
    *  badge above it. */
   hideBadgeFallback?: boolean;
+  /** When true, the leading column is dropped entirely from the editorial
+   *  grid. Used by SupersetRoundView where the exercise name is rendered as
+   *  its own row above the inputs (full container width, no truncation
+   *  regardless of name length). Solo cards keep the leading badge column. */
+  noLeadingColumn?: boolean;
   onUpdateWeight: (value: string) => void;
   onUpdateReps: (value: string) => void;
   onWeightBlur: (value: string) => void;
@@ -63,6 +68,7 @@ export default function SetRow({
   rowNumber,
   rowLabel,
   hideBadgeFallback = false,
+  noLeadingColumn = false,
   onUpdateWeight,
   onUpdateReps,
   onWeightBlur,
@@ -125,12 +131,13 @@ export default function SetRow({
       : hideBadgeFallback
       ? null
       : String(setIdx + 1).padStart(2, '0');
-  // When the leading slot holds only an exercise name (round view) we widen
-  // the column so the name has room to read — 32px is sized for the "01"
-  // Bebas badge, not multi-char names. 72px fits 8 chars at 15px Bebas
-  // comfortably while leaving the weight/reps inputs ~88px each on iPhone.
-  const wideLeading = badgeText === null && !!rowLabel;
-  const leadingCol = wideLeading ? '72px' : '32px';
+  // SupersetRoundView renders the exercise name as its own row ABOVE the
+  // inputs (no character-count limit), so the leading badge column is
+  // dropped entirely in that mode. Solo cards keep the 32px leading column
+  // for the "01" / "02" zero-padded set number.
+  const editorialCols = noLeadingColumn
+    ? '1fr 1fr 44px 28px'
+    : '32px 1fr 1fr 44px 28px';
 
   return (
     <div
@@ -138,9 +145,7 @@ export default function SetRow({
       data-testid={`set-row-${setIdx}`}
       style={{
         display: 'grid',
-        gridTemplateColumns: editorial
-          ? `${leadingCol} 1fr 1fr 44px 28px`
-          : '1fr 1fr 1fr 28px',
+        gridTemplateColumns: editorial ? editorialCols : '1fr 1fr 1fr 28px',
         gap: editorial ? 10 : 8,
         alignItems: 'center',
         padding: editorial ? '12px 0' : 0,
@@ -150,7 +155,7 @@ export default function SetRow({
         opacity: !editorial && isDone ? 0.6 : 1,
       }}
     >
-      {editorial && (
+      {editorial && !noLeadingColumn && (
         <span
           style={{
             display: 'flex',
