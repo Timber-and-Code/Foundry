@@ -22,6 +22,11 @@
 
 /* ── Reset & base ── */
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* html background mirrors body so iOS rubber-band overscroll never reveals
+   the WebView's white default behind the app. Pairs with viewport-fit=cover
+   in index.html, which is what enables the FoundryBanner's safe-area
+   extension into the status-bar inset. */
+html { background: var(--bg-root); }
 /* Global font-feature-settings:
    - tnum: tabular numerals — keeps numeric columns (ExerciseCard weight/reps,
      rest timer, PR cards) aligned without requiring per-component fontVariantNumeric.
