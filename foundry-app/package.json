@@ -13,6 +13,7 @@
     "cap:dev:ios": "npx cap run ios --live-reload --external --port 3001",
     "build:android": "npm run build && npx cap sync android",
     "build:ios": "npm run build && npx cap sync ios",
+    "ios:setup-archive-hook": "bash scripts/setup-ios-archive-hook.sh",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
