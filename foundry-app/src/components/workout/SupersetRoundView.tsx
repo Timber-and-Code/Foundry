@@ -324,7 +324,7 @@ export default function SupersetRoundView({
               padding: '4px 4px 6px',
             }}
           >
-            ROUND {r + 1}
+            SET {r + 1}
           </div>
           {exercises.map((ex, gi) => {
             const exIdx = exIdxs[gi];
@@ -374,18 +374,22 @@ export default function SupersetRoundView({
               <div key={`${exIdx}-${r}`} style={{ marginBottom: 4 }}>
                 <div
                   style={{
+                    // Match the 22px Bebas baseline used for the weight/reps
+                    // inputs (and the solo-card "01" badge) so the name reads
+                    // as part of the same typographic system, not a small
+                    // label tacked above.
                     fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-                    fontSize: 14,
+                    fontSize: 22,
                     fontWeight: 400,
-                    letterSpacing: '0.06em',
+                    letterSpacing: '0.02em',
                     color: isDone
                       ? 'var(--accent)'
                       : isActive
                       ? 'var(--text-primary)'
                       : 'var(--text-secondary)',
                     textTransform: 'uppercase',
-                    padding: '6px 0 2px',
-                    lineHeight: 1.1,
+                    padding: '4px 0 2px',
+                    lineHeight: 1.0,
                   }}
                 >
                   {ex.name.toUpperCase()}
