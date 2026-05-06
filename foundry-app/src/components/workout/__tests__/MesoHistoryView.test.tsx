@@ -40,6 +40,7 @@ describe('MesoHistoryView', () => {
       <MesoHistoryView
         exercise={exercise}
         dayIdx={0}
+        exIdx={0}
         currentWeekIdx={1}
         mesoWeeks={6}
         onClose={() => {}}
@@ -57,6 +58,7 @@ describe('MesoHistoryView', () => {
       <MesoHistoryView
         exercise={exercise}
         dayIdx={0}
+        exIdx={0}
         currentWeekIdx={2}
         mesoWeeks={6}
         onClose={() => {}}
@@ -83,6 +85,7 @@ describe('MesoHistoryView', () => {
       <MesoHistoryView
         exercise={exercise}
         dayIdx={0}
+        exIdx={0}
         currentWeekIdx={1}
         mesoWeeks={6}
         onClose={() => {}}
@@ -93,12 +96,48 @@ describe('MesoHistoryView', () => {
     expect(prBadges).toHaveLength(1);
   });
 
+  it('reads only the requested slot — does not bleed data from other exercises in the day', () => {
+    // Day 0 has two exercises in week 0:
+    //   slot 0 = Bench Press, 4 sets logged (heavier, more sets)
+    //   slot 1 = Pull-ups,    1 set  logged
+    // The previous "pick the slice with the most logged sets" path would
+    // attribute Bench Press's 4 sets to whichever exercise was tapped.
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({
+        0: {
+          0: { weight: 185, reps: 8 },
+          1: { weight: 185, reps: 8 },
+          2: { weight: 185, reps: 7 },
+          3: { weight: 175, reps: 8 },
+        },
+        1: { 0: { weight: 25, reps: 8 } },
+      }),
+    );
+
+    render(
+      <MesoHistoryView
+        exercise={exercise}
+        dayIdx={0}
+        exIdx={1}
+        currentWeekIdx={0}
+        mesoWeeks={6}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('25 × 8')).toBeInTheDocument();
+    // Bench Press numbers must NOT show up under Pull-ups.
+    expect(screen.queryByText(/185/)).not.toBeInTheDocument();
+  });
+
   it('closes via the close button', () => {
     const onClose = vi.fn();
     render(
       <MesoHistoryView
         exercise={exercise}
         dayIdx={0}
+        exIdx={0}
         currentWeekIdx={0}
         mesoWeeks={6}
         onClose={onClose}

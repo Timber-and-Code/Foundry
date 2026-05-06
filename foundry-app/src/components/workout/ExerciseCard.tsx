@@ -1625,6 +1625,7 @@ function ExerciseCard({
         <MesoHistoryView
           exercise={exercise}
           dayIdx={dayIdx}
+          exIdx={exIdx}
           currentWeekIdx={weekIdx}
           mesoWeeks={getMeso().totalWeeks}
           onClose={() => setHistoryOpen(false)}

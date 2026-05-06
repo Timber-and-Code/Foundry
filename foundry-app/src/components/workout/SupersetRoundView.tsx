@@ -493,6 +493,7 @@ export default function SupersetRoundView({
           <MesoHistoryView
             exercise={ex}
             dayIdx={dayIdx}
+            exIdx={historyExIdx}
             currentWeekIdx={weekIdx}
             mesoWeeks={getMeso().totalWeeks}
             onClose={() => setHistoryExIdx(null)}

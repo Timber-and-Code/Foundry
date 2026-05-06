@@ -9,6 +9,13 @@ export interface MesoHistoryViewProps {
    *  by name fallback when older logs predated stable IDs. */
   exercise: Exercise;
   dayIdx: number;
+  /** Slot index of this exercise within the day. DayData is keyed by
+   *  exIdx-as-string, so we read `data[exIdx]` directly. The slot is
+   *  stable across the meso (swaps reuse the slot, reorders rewrite the
+   *  array). Required — the previous fallback that picked the slice with
+   *  the most logged sets attributed another exercise's data to whichever
+   *  card was tapped. */
+  exIdx: number;
   /** Currently focused week — gets the muted "TODAY" tag. */
   currentWeekIdx: number;
   /** Total weeks in the active meso (working weeks + deload). */
@@ -43,26 +50,15 @@ function fmtNumber(n: number): string {
  * Per-exercise history modal — week-by-week log, top-down (current week
  * first). Read-only. Tapped from the LAST WK chip on ExerciseCard.
  *
- * Set matching: each week is loaded via `loadDayWeek(dayIdx, weekIdx)`;
- * the exercise slice is found by matching either:
- *   1. exercise.id (preferred — set when the program was generated)
- *   2. position fallback (DayData is keyed by exIdx, but we don't know the
- *      exIdx in past weeks — we walk every slot and pick the first whose
- *      `_exId` matches; not stored in DayData today, so #1 is moot for
- *      historical sessions). For now we walk all slots and aggregate sets
- *      whose set blob has a non-empty weight; this matches how
- *      `prevWeekRaw` is read in ExerciseCard. To stay accurate, we honor
- *      `dayIdx + weekIdx` as the canonical path and assume the program
- *      slot for this exercise is stable across the meso.
- *
- * In practice the slot index doesn't change during a meso (swaps reuse
- * the same slot), so reading `data[dayIdx-derived-exIdx]` is fine. Here
- * we accept the exIdx via prop derivation: caller passes the same exIdx
- * the card uses; we walk back through that slot per week.
+ * Set matching: each week is loaded via `loadDayWeek(dayIdx, weekIdx)`
+ * and the exercise's slice is read directly at `data[exIdx]`. The slot
+ * is stable across the meso (swaps reuse the slot, reorders rewrite the
+ * array in place), so position-based lookup is the source of truth.
  */
 export default function MesoHistoryView({
   exercise,
   dayIdx,
+  exIdx,
   currentWeekIdx,
   mesoWeeks,
   onClose,
@@ -93,33 +89,20 @@ export default function MesoHistoryView({
     const upperBound = Math.min(currentWeekIdx, Math.max(0, mesoWeeks - 1));
     for (let w = upperBound; w >= 0; w--) {
       const data = loadDayWeek(dayIdx, w);
-      // Find the slice for this exercise — DayData is keyed by exIdx as a
-      // string. We don't have the exIdx directly, but the caller already
-      // points at `exercise` for the current view. We therefore read by
-      // exercise.id when available; fall back to the first slice whose
-      // sets reference a weight at all.
-      // Practically the slot is stable across the meso so we walk every
-      // slice and pick the one with the most logged sets — duplicates are
-      // safe since same-name exercises in the same day are extremely rare.
-      let bestSlice: Record<string, WorkoutSet> = {};
-      let bestSliceCount = -1;
-      Object.entries(data).forEach(([_key, slice]) => {
-        if (!slice) return;
-        const ct = Object.values(slice as Record<string, WorkoutSet>).filter(
-          (s) => s && (s.weight || s.reps),
-        ).length;
-        if (ct > bestSliceCount) {
-          bestSliceCount = ct;
-          bestSlice = slice as Record<string, WorkoutSet>;
-        }
-      });
+      // DayData is keyed by exIdx-as-string. Read the slot directly —
+      // walking all slices and picking "the one with the most logged
+      // sets" (the prior approach) attributed another exercise's data to
+      // whichever card was tapped whenever a heavier exercise existed in
+      // the same day.
+      const slice = ((data as unknown as Record<string, Record<string, WorkoutSet>>)[exIdx]
+        || {}) as Record<string, WorkoutSet>;
 
       const sets: SetRow[] = [];
-      const setKeys = Object.keys(bestSlice).sort((a, b) => Number(a) - Number(b));
+      const setKeys = Object.keys(slice).sort((a, b) => Number(a) - Number(b));
       let bestWeight = 0;
       let bestRepsAtBestWeight = 0;
       setKeys.forEach((k) => {
-        const s = bestSlice[k] as WorkoutSet | undefined;
+        const s = slice[k] as WorkoutSet | undefined;
         if (!s) return;
         const wRaw = s.weight;
         const rRaw = s.reps;
@@ -171,7 +154,7 @@ export default function MesoHistoryView({
       });
     }
     return out;
-  }, [dayIdx, currentWeekIdx, mesoWeeks, startDate]);
+  }, [dayIdx, exIdx, currentWeekIdx, mesoWeeks, startDate]);
 
   // PR row across all weeks except the in-progress current week.
   const prRef = useMemo<{ weight: number; reps: number } | null>(() => {
