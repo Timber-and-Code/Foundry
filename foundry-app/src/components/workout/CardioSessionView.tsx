@@ -113,18 +113,14 @@ function CardioSessionView({ dateStr, plannedProtocolId, onBack, profile }: Card
         : null;
       const durationMin =
         parseInt(String(saved.duration ?? ''), 10) || proto?.defaultDuration || 30;
-      // CardioTimerContext.startCardio always uses Date.now() — that would
-      // lose the actual startedAt of the saved session. The next iteration
-      // of the context could accept a `startedAt` override; for now, we
-      // accept this small caveat: post-restore the elapsed counter resets
-      // to 0 from the moment of restore (instead of the original start).
-      // This matches the prior behavior since the prior local tick also
-      // re-derived elapsed from saved.startedAt and ALSO didn't carry the
-      // chime-fired flag — restored sessions can re-fire the chime when
-      // the original target is met. Acceptable for v1 of the refactor.
+      // Pass the saved startedAt so the context resumes the elapsed
+      // counter from the real session start instead of resetting to 0.
+      // The context also seeds isComplete + suppresses the chime when
+      // the saved session was already past its target.
       cardioTimerCtx.startCardio({
         protocolId: saved.protocolId || 'composed',
         targetSeconds: durationMin > 0 ? durationMin * 60 : null,
+        startedAt: typeof saved.startedAt === 'number' ? saved.startedAt : Number(saved.startedAt),
       });
     }
     // Intentionally only depend on dateStr — cardioTimerCtx is stable

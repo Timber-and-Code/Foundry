@@ -44,7 +44,12 @@ interface CardioTimerState {
 }
 
 interface CardioTimerActions {
-  startCardio: (opts: { protocolId: string; targetSeconds: number | null }) => void;
+  startCardio: (opts: {
+    protocolId: string;
+    targetSeconds: number | null;
+    /** Optional override — see implementation. */
+    startedAt?: number;
+  }) => void;
   extendByMinutes: (n: number) => void;
   /** Confirm + close session early (returns elapsedSeconds). The dialog is
    *  the caller's responsibility — this resolves immediately. */
@@ -130,19 +135,38 @@ export function CardioTimerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startCardio = useCallback(
-    ({ protocolId, targetSeconds }: { protocolId: string; targetSeconds: number | null }) => {
+    ({
+      protocolId,
+      targetSeconds,
+      startedAt: startedAtOverride,
+    }: {
+      protocolId: string;
+      targetSeconds: number | null;
+      /** Optional original start timestamp — used by the cold-restore path
+       *  (CardioSessionView) so the elapsed counter resumes from the real
+       *  session start instead of resetting to 0 on app relaunch. If the
+       *  override is already past the target, isComplete is seeded true
+       *  and the chime is suppressed (already fired in the original run). */
+      startedAt?: number;
+    }) => {
       const now = Date.now();
-      startedAtRef.current = now;
+      const effectiveStart = typeof startedAtOverride === 'number' ? startedAtOverride : now;
+      const initialElapsed = Math.max(0, Math.floor((now - effectiveStart) / 1000));
+      const alreadyComplete =
+        targetSeconds != null && initialElapsed >= targetSeconds;
+      startedAtRef.current = effectiveStart;
       targetRef.current = targetSeconds;
-      completeFiredRef.current = false;
+      // Suppress chime re-fire on restored sessions whose target was
+      // already met during the original run.
+      completeFiredRef.current = alreadyComplete;
       if (intervalRef.current) clearInterval(intervalRef.current);
       setState({
         isActive: true,
-        startedAt: now,
+        startedAt: effectiveStart,
         protocolId,
         targetSeconds,
-        elapsedSeconds: 0,
-        isComplete: false,
+        elapsedSeconds: initialElapsed,
+        isComplete: alreadyComplete,
       });
       // Tick at 1Hz — the count-up display only needs second-level
       // resolution. Recompute (not increment) so a backgrounded tab
