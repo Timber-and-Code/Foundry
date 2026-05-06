@@ -121,7 +121,7 @@ export function generateAppIcon() {
     document.querySelectorAll('link[rel="apple-touch-icon"],link[rel="icon"]').forEach((el) => {
       el.href = png;
     });
-  } catch (e) {
+  } catch {
     // Silently fail if canvas drawing is not supported
   }
 }

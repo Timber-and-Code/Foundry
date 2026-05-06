@@ -3,7 +3,7 @@
  * Tests: generateProgram, detectStallingLifts, detectSessionPRs,
  *        loadDayWeekWithCarryover, archiveCurrentMeso
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { generateProgram } from '../program';
 import {
   detectStallingLifts,

@@ -4804,6 +4804,10 @@ export const EXERCISE_DB = [
   },
 ];
 
+// Share-card content data — referenced from share-card / coach surfaces
+// (work in progress 2026-05-06). Kept inline rather than re-exported so the
+// share-card refactor lands the import path intentionally.
+// eslint-disable-next-line no-unused-vars
 const QUOTES = [
   {
     text: 'We are what we repeatedly do. Excellence, then, is not an act, but a habit.',
@@ -5675,6 +5679,7 @@ const QUOTES = [
   },
 ];
 
+// eslint-disable-next-line no-unused-vars
 const CONGRATS = [
   {
     headline: 'SESSION LOGGED.',
@@ -5701,6 +5706,7 @@ const CONGRATS = [
   },
 ];
 
+// eslint-disable-next-line no-unused-vars
 const RECOVERY_TIPS = [
   {
     label: 'Protein window',
@@ -5761,6 +5767,7 @@ const RECOVERY_TIPS = [
 ];
 
 // gender: 'm'=male-leaning, 'f'=female-leaning, 'a'=any
+// eslint-disable-next-line no-unused-vars
 const QUOTES_FEMALE = [
   {
     text: "I'd rather regret the things I've done than regret the things I haven't done.",
@@ -5830,6 +5837,7 @@ const QUOTES_FEMALE = [
   },
 ];
 
+// eslint-disable-next-line no-unused-vars
 const QUOTES_MALE = [
   {
     text: "I hated every minute of training, but I said, don't quit. Suffer now and live the rest of your life as a champion.",
@@ -5902,6 +5910,7 @@ const QUOTES_MALE = [
   },
 ];
 
+// eslint-disable-next-line no-unused-vars
 const CALENDAR = [
   { day: 'MON', dayIdx: 0, cardio: '4x4 #1 PM' },
   { day: 'TUE', dayIdx: 1, cardio: null },
