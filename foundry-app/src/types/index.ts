@@ -130,8 +130,8 @@ export interface CardioSession {
 // "pick one of 7 hardcoded protocols" pattern with an orthogonal axes
 // composition. Built-in protocols (CARDIO_WORKOUTS) are seeded as
 // `CardioPreset` records with `isUserSaved: false`; user-saved presets
-// persist to localStorage under `foundry:cardio:user-presets` and (later)
-// sync to Supabase via a `user_cardio_presets` table.
+// persist to localStorage under `foundry:cardio:user-presets` and now
+// echo to Supabase via the `user_cardio_presets` table (migration 006).
 
 export type Intensity = 'easy' | 'moderate' | 'hard';
 

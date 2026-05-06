@@ -4,6 +4,8 @@ import {
   syncWorkoutToSupabase,
   syncCardioSessionToSupabase,
   syncNotesToSupabase,
+  syncCardioPresetToSupabase,
+  deleteCardioPresetRemote,
 } from './sync';
 import type { DayData, TrainingDay, Profile, CardioSession, CardioPreset } from '../types';
 
@@ -251,21 +253,21 @@ export function loadCardioPresets(): CardioPreset[] {
 }
 
 export function saveCardioPreset(preset: CardioPreset): void {
-  // TODO: Supabase sync via user_cardio_presets table — pattern after
-  //   user_friendships migration.
   const all = loadCardioPresets();
   const idx = all.findIndex((p) => p.id === preset.id);
   if (idx >= 0) all[idx] = preset;
   else all.push(preset);
   store.set(CARDIO_PRESETS_KEY, JSON.stringify(all));
+  // Fire-and-forget remote echo. Failures land in reportSyncFailure
+  // (not the user's face) so offline saves still feel instant.
+  void syncCardioPresetToSupabase(preset);
 }
 
 export function deleteCardioPreset(id: string): void {
-  // TODO: Supabase sync via user_cardio_presets table — pattern after
-  //   user_friendships migration.
   const all = loadCardioPresets();
   const next = all.filter((p) => p.id !== id);
   store.set(CARDIO_PRESETS_KEY, JSON.stringify(next));
+  void deleteCardioPresetRemote(id);
 }
 
 export function loadMobilitySession(dateStr: string): { protocolId?: string | null; completed?: boolean; completedAt?: string | null; [key: string]: unknown } | null {

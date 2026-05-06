@@ -11,6 +11,8 @@ vi.mock('../../../utils/supabase', () => ({
 }));
 vi.mock('../../../utils/sync', () => ({
   syncWorkoutToSupabase: vi.fn(),
+  syncCardioPresetToSupabase: vi.fn(),
+  deleteCardioPresetRemote: vi.fn(),
   syncCardioSessionToSupabase: vi.fn(),
   syncNotesToSupabase: vi.fn(),
   pullFromSupabase: vi.fn(),

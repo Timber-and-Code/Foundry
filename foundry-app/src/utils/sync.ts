@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react';
 import { supabase } from './supabase.js';
 import { store } from './storage.js';
 import { emit } from './events';
-import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData } from '../types';
+import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData, CardioPreset } from '../types';
 // validateDayData + validateProfile are imported by other modules; sync.ts
 // will use them again once workouts/readiness chunks migrate to the
 // normalized schema. For chunk 1 (profile only), neither is needed here.
@@ -22,6 +22,7 @@ const MIGRATED = {
   bodyweight: true,         // Chunk 5a
   cardio: true,             // Chunk 5c
   notes: true,              // Chunk 5d
+  cardio_presets: true,     // Migration 006 — user_cardio_presets
 };
 
 // ─── PROFILE FIELD MAPPERS (app <-> normalized user_profiles) ───────────────
@@ -698,6 +699,7 @@ interface WorkoutSessionPayload {
   started_at: string | null;
   completed_at: string | null;
   is_complete: boolean;
+  skipped?: boolean;
 }
 
 // Generates or retrieves the stable uuid for a (dayIdx, weekIdx) session.
@@ -720,6 +722,7 @@ export async function upsertWorkoutSessionRemote(
     startedAt?: string | null;
     completedAt?: string | null;
     isComplete?: boolean;
+    skipped?: boolean;
   } = {},
 ): Promise<void> {
   if (!MIGRATED.workouts) return;
@@ -757,6 +760,13 @@ export async function upsertWorkoutSessionRemote(
       completed_at: opts.completedAt ?? null,
       is_complete: opts.isComplete ?? false,
     };
+    // Only attach `skipped` when the caller actually passed it. Omitting
+    // the column on regular upserts preserves whatever value is already on
+    // the row (we don't want a normal "complete" upsert to clobber the
+    // skip flag a different device wrote).
+    if (typeof opts.skipped === 'boolean') {
+      row.skipped = opts.skipped;
+    }
 
     const { error } = await supabase
       .from('workout_sessions')
@@ -773,12 +783,10 @@ export async function upsertWorkoutSessionRemote(
  * Mark a session as skipped (or restore it). Mirrors the local
  * `setSkipped` write so a user's skip state propagates across devices.
  *
- * The `workout_sessions` table doesn't currently have a `skipped` column
- * (issue #10a, 2.8.0) — schema migration is a follow-up. This function
- * upserts a session row with `is_complete=false` so the remote at least
- * knows the session exists, and writes a marker into the row's
- * `notes` column when available, falling back to localStorage-only
- * sync. The function never throws — sync failures are reported via
+ * Now writes the dedicated `skipped` column added in migration
+ * 005_workout_session_skipped. Local source of truth still lives in
+ * `foundry:skip:d{n}:w{n}` for offline use; this is the remote echo.
+ * The function never throws — sync failures are reported via
  * `reportSyncFailure` only. Safe to call without awaiting.
  */
 export async function syncSkippedToSupabase(
@@ -788,21 +796,14 @@ export async function syncSkippedToSupabase(
 ): Promise<void> {
   if (!MIGRATED.workouts) return;
   if (typeof window === 'undefined') return;
-  // Best-effort: ensure a workout_sessions row exists so future schema
-  // additions (a real `skipped` column) can be filled in by a migration
-  // script that walks existing rows. Today, this is a no-op for the
-  // skip flag itself — the source of truth lives in localStorage at
-  // foundry:skip:d{n}:w{n}.
   try {
     await upsertWorkoutSessionRemote(dayIdx, weekIdx, {
       isComplete: false,
+      skipped,
     });
   } catch (e) {
     reportSyncFailure('workout_session_skip', e);
   }
-  // Intentionally avoid writing the boolean anywhere remote until the
-  // schema gains the column — see ROADMAP item "skip column migration".
-  void skipped;
 }
 
 // Delete a single workout_set row. Called when the user unchecks a set —
@@ -1761,6 +1762,84 @@ export async function syncCardioSessionToSupabase(
     if (error) throw error;
   } catch (e) {
     reportSyncFailure('cardio', e);
+  } finally {
+    syncEnd();
+  }
+}
+
+// Migration 006 — user-saved CardioDesigner presets sync helpers.
+// Presets are owned by the user; ID is client-generated and matches the
+// localStorage entry's id so round-trips are clean. Composite primary key
+// (user_id, id) lets two users share id-space without collision.
+
+interface CardioPresetRow {
+  user_id: string;
+  id: string;
+  label: string;
+  description: string | null;
+  intensity: string;
+  modality: string;
+  modality_custom: string | null;
+  protocol: string;
+  target_minutes: number;
+  intervals: { workSecs: number; restSecs: number; rounds: number } | null;
+  recommended_for: string[];
+  updated_at?: string;
+}
+
+function presetToRow(p: CardioPreset, userId: string): CardioPresetRow {
+  return {
+    user_id: userId,
+    id: p.id,
+    label: p.label,
+    description: p.description ?? null,
+    intensity: p.intensity,
+    modality: p.modality,
+    modality_custom: p.modalityCustom ?? null,
+    protocol: p.protocol,
+    target_minutes: p.target.minutes,
+    intervals: p.intervals ?? null,
+    recommended_for: p.recommendedFor ?? [],
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export async function syncCardioPresetToSupabase(preset: CardioPreset): Promise<void> {
+  if (!MIGRATED.cardio_presets) return;
+  if (typeof window === 'undefined') return;
+  // Built-ins are sourced from CARDIO_WORKOUTS — only sync user-saved
+  // ones. The persistence helpers already only call this for saves.
+  if (!preset.isUserSaved) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('user_cardio_presets')
+      .upsert(presetToRow(preset, user.id), { onConflict: 'user_id,id' });
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('cardio_preset_save', e);
+  } finally {
+    syncEnd();
+  }
+}
+
+export async function deleteCardioPresetRemote(id: string): Promise<void> {
+  if (!MIGRATED.cardio_presets) return;
+  if (typeof window === 'undefined') return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('user_cardio_presets')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('id', id);
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('cardio_preset_delete', e);
   } finally {
     syncEnd();
   }

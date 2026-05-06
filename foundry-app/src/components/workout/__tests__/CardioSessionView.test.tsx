@@ -13,6 +13,8 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../../utils/sync', () => ({
   syncWorkoutToSupabase: vi.fn(),
+  syncCardioPresetToSupabase: vi.fn(),
+  deleteCardioPresetRemote: vi.fn(),
   syncCardioSessionToSupabase: vi.fn(),
   syncNotesToSupabase: vi.fn(),
 }));

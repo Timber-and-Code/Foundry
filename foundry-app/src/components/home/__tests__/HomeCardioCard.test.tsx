@@ -10,6 +10,8 @@ vi.mock('../../../utils/sync', () => ({
   syncWorkoutToSupabase: vi.fn(),
   syncCardioSessionToSupabase: vi.fn(),
   syncNotesToSupabase: vi.fn(),
+  syncCardioPresetToSupabase: vi.fn(),
+  deleteCardioPresetRemote: vi.fn(),
 }));
 
 import HomeCardioCard from '../HomeCardioCard';
