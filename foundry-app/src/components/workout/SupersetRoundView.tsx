@@ -49,6 +49,11 @@ export interface SupersetRoundViewProps {
   onAddSet?: (exIdx: number) => void;
   onRemoveSet?: (exIdx: number, setIdx: number) => void;
   onSwapClick: (exIdx: number) => void;
+  /** Per-exercise notes keyed by exIdx — same shape DayView passes to
+   *  ExerciseCard. Optional so older render paths still compile. */
+  notes?: Record<number, string>;
+  /** Note edit callback — DayView merges into its exNotes map and persists. */
+  onNoteChange?: (exIdx: number, value: string) => void;
 }
 
 /**
@@ -90,7 +95,30 @@ export default function SupersetRoundView({
   onAddSet,
   onRemoveSet,
   onSwapClick,
+  notes,
+  onNoteChange,
 }: SupersetRoundViewProps) {
+  // Open-note tracking — set of exIdxs whose notes textarea is expanded.
+  // Seeded with any exercise that already has saved note text so the
+  // textarea is visible on mount when notes exist.
+  const [openNoteIdxs, setOpenNoteIdxs] = useState<Set<number>>(() => {
+    const open = new Set<number>();
+    if (notes) {
+      exIdxs.forEach((idx) => {
+        const v = notes[idx];
+        if (v && v.trim()) open.add(idx);
+      });
+    }
+    return open;
+  });
+  const toggleNote = (exIdx: number) => {
+    setOpenNoteIdxs((prev) => {
+      const next = new Set(prev);
+      if (next.has(exIdx)) next.delete(exIdx);
+      else next.add(exIdx);
+      return next;
+    });
+  };
   // Per-exercise done sets — one entry per exIdx in the group.
   // Restored from weekData on mount so the round view recovers state across
   // unmounts (e.g. user scrolls away and back). Keeps the same restore rule
@@ -299,6 +327,12 @@ export default function SupersetRoundView({
               readOnly={readOnly}
               onHistoryClick={() => setHistoryExIdx(exIdx)}
               onSwapClick={() => onSwapClick(exIdx)}
+              noteValue={notes ? notes[exIdx] : undefined}
+              noteOpen={openNoteIdxs.has(exIdx)}
+              onNoteToggle={onNoteChange ? () => toggleNote(exIdx) : undefined}
+              onNoteChange={
+                onNoteChange ? (val: string) => onNoteChange(exIdx, val) : undefined
+              }
             />
           );
         })}
@@ -695,6 +729,13 @@ interface SupersetMemberHeaderProps {
   readOnly: boolean;
   onHistoryClick: () => void;
   onSwapClick: () => void;
+  /** Note text + open state + handlers — wired only when DayView passes
+   *  the parent `notes` + `onNoteChange` props. The textarea renders
+   *  inline below the header row when the user taps NOTE. */
+  noteValue?: string;
+  noteOpen?: boolean;
+  onNoteToggle?: () => void;
+  onNoteChange?: (value: string) => void;
 }
 
 function SupersetMemberHeader({
@@ -707,6 +748,10 @@ function SupersetMemberHeader({
   readOnly,
   onHistoryClick,
   onSwapClick,
+  noteValue,
+  noteOpen,
+  onNoteToggle,
+  onNoteChange,
 }: SupersetMemberHeaderProps) {
   const { progressionBanner, stallWarning, stallTarget } = useExerciseProgression({
     exIdx,
@@ -730,21 +775,25 @@ function SupersetMemberHeader({
     return null;
   })();
 
+  const noteWired = typeof onNoteToggle === 'function' && typeof onNoteChange === 'function';
+  const hasNoteText = !!(noteValue && noteValue.trim());
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        // Allow the chips + swap button to wrap below the name on
-        // narrow screens (e.g. iPhone SE, side-by-side iPad split). The
-        // name button keeps flex: 1 so it fills row 1 alone when chips
-        // are shoved to row 2; rowGap gives the wrap a clean spacer.
-        flexWrap: 'wrap',
-        rowGap: 6,
-        minWidth: 0,
-      }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          // Allow the chips + swap button to wrap below the name on
+          // narrow screens (e.g. iPhone SE, side-by-side iPad split). The
+          // name button keeps flex: 1 so it fills row 1 alone when chips
+          // are shoved to row 2; rowGap gives the wrap a clean spacer.
+          flexWrap: 'wrap',
+          rowGap: 6,
+          minWidth: 0,
+        }}
+      >
       <button
         type="button"
         onClick={onHistoryClick}
@@ -830,6 +879,31 @@ function SupersetMemberHeader({
           ⚠ Drop
         </span>
       )}
+      {noteWired && (
+        <button
+          type="button"
+          onClick={onNoteToggle}
+          aria-label={`${noteOpen ? 'Hide' : 'Add'} note for ${exercise.name}`}
+          aria-pressed={!!noteOpen}
+          data-testid={`note-toggle-${exIdx}`}
+          style={{
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: '0.1em',
+            color: hasNoteText ? 'var(--accent)' : 'var(--text-muted)',
+            background: 'transparent',
+            border: `1px solid ${hasNoteText ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: tokens.radius.sm,
+            padding: '4px 8px',
+            cursor: 'pointer',
+            textTransform: 'uppercase',
+            fontFamily: 'inherit',
+            flexShrink: 0,
+          }}
+        >
+          Note
+        </button>
+      )}
       <button
         type="button"
         onClick={onSwapClick}
@@ -852,6 +926,30 @@ function SupersetMemberHeader({
       >
         Swap
       </button>
+      </div>
+      {noteWired && noteOpen && (
+        <textarea
+          value={noteValue || ''}
+          onChange={(e) => onNoteChange?.(e.target.value)}
+          placeholder={`Note for ${exercise.name}…`}
+          aria-label={`Note for ${exercise.name}`}
+          data-testid={`note-textarea-${exIdx}`}
+          rows={2}
+          style={{
+            width: '100%',
+            background: 'var(--bg-inset)',
+            border: '1px solid var(--border)',
+            borderRadius: tokens.radius.sm,
+            color: 'var(--text-primary)',
+            fontSize: 13,
+            fontFamily: 'inherit',
+            lineHeight: 1.4,
+            padding: '6px 8px',
+            resize: 'vertical',
+            boxSizing: 'border-box',
+          }}
+        />
+      )}
     </div>
   );
 }

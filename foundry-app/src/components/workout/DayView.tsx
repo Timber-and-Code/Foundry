@@ -21,6 +21,7 @@ import {
   saveDayWeek,
   loadNotes,
   loadExNotes,
+  saveExNotes,
   loadExOverride,
   saveExOverride,
   bwPromptShownThisWeek,
@@ -1736,6 +1737,12 @@ function DayView({
                       onAddSet={handleAddSet}
                       onRemoveSet={handleRemoveSet}
                       onSwapClick={(i) => setSwapTarget({ exIdx: i })}
+                      notes={exNotes}
+                      onNoteChange={(i: number, val: string) => {
+                        const next = { ...exNotes, [i]: val };
+                        setExNotes(next);
+                        saveExNotes(dayIdx, weekIdx, next);
+                      }}
                     />
                   </SupersetGroup>
                 );
@@ -1801,6 +1808,7 @@ function DayView({
                       onNoteChange={(i: number, val: string) => {
                         const next = { ...exNotes, [i]: val };
                         setExNotes(next);
+                        saveExNotes(dayIdx, weekIdx, next);
                       }}
                       onAddSet={handleAddSet}
                       onRemoveSet={handleRemoveSet}
