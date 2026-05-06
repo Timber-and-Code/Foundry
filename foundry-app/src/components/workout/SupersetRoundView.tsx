@@ -736,6 +736,12 @@ function SupersetMemberHeader({
         display: 'flex',
         alignItems: 'center',
         gap: 10,
+        // Allow the chips + swap button to wrap below the name on
+        // narrow screens (e.g. iPhone SE, side-by-side iPad split). The
+        // name button keeps flex: 1 so it fills row 1 alone when chips
+        // are shoved to row 2; rowGap gives the wrap a clean spacer.
+        flexWrap: 'wrap',
+        rowGap: 6,
         minWidth: 0,
       }}
     >
