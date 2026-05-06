@@ -27,6 +27,7 @@ import {
 import { migrateKeys } from './utils/storage';
 import { on } from './utils/events';
 import { formatSplitName } from './utils/splitLabel';
+import { runDayDataV2Migration } from './utils/dayDataV2Migration';
 import {
   store,
   loadProfile,
@@ -306,6 +307,31 @@ function App() {
       setTimeout(() => setShowTour(true), 800);
     }
   }, [profile, v2]);
+
+  // ── Big-Big Phase 2: DayData v1 → v2 migration ─────────────────────────
+  // Fire once per session per active meso, after the profile is hydrated and
+  // we've cleared the auth/onboarding gates above. Deferred to next tick so
+  // it never blocks first paint. Re-runs after a meso change so the new
+  // meso's v1 history gets v2 records too. Independent of the dual-write
+  // flag — this just backfills v2 for users who have v1 data; reads
+  // continue from v1 until Phase 3 flips the read path.
+  useEffect(() => {
+    if (!profile) return;
+    const mesoId = store.get('foundry:active_meso_id');
+    if (!mesoId) return;
+    const flagKey = `foundry:flag:day_v2_migration_ran:${mesoId}`;
+    if (store.get(flagKey) === '1') return;
+    const handle = setTimeout(() => {
+      try {
+        const result = runDayDataV2Migration();
+        console.info('[Foundry] Day data v2 migration:', result);
+      } catch (e) {
+        console.warn('[Foundry] Day data v2 migration threw', e);
+      }
+      store.set(flagKey, '1');
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [profile]);
 
   // Onboarding v2: bridge first-set-logged, first-week-done, and
   // meso-complete events to the SaveProgressSheet triggers. Cap at 3 auto
