@@ -293,8 +293,13 @@ function DayView({
       let allFilled = true;
       for (let s = 0; s < Number(ex.sets ?? 0); s++) {
         const sd = exData[s] || {};
-        // Only count as done if user actually confirmed — not from suggestion engine
-        if (!sd.reps || sd.reps === '' || sd.repsSuggested) {
+        // `confirmed` is the explicit checkmark action — the only signal we
+        // can trust. The prior `repsSuggested` guard wrongly excluded sets
+        // where the lifter accepted the suggested reps without editing
+        // them: handleUpdateSet only clears repsSuggested when field is
+        // 'weight' or 'reps', so confirmed-but-not-edited sets carry the
+        // suggested flag forward and got dropped on remount.
+        if (sd.confirmed !== true) {
           allFilled = false;
           break;
         }
