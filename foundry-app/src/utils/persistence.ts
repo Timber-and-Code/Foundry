@@ -111,18 +111,95 @@ export function findPrevSlotForExercise(
 }
 
 /**
- * Load current week data with automatic weight/rep progression hints.
- * Carry-over logic: if lifter completed ALL prescribed reps on every working set
- * last week, suggest an experience-aware weight bump.
- * Barbell min is always 5 lbs (2.5/side floor). DB increments respect real-world sizes.
- * Cable/machine advanced gets smaller jumps.
+ * Per-exercise carryover math, shared by the v1 (position-keyed) and v2
+ * (id-keyed) read paths. Given an exercise spec + the prior-week slice that
+ * holds its sets + the experience key, returns the per-set carryover values
+ * (suggested weight, reps, flags). Pure function — no I/O.
+ *
+ * Algorithm:
+ *  - Uniform baseline: prescription = heaviest working-weight hit last week.
+ *  - Nudge calc: if reps achieved at baseline ≥ rangeMax, bump weight by
+ *    equipment- and experience-aware delta. Bodyweight → progress reps.
+ *  - Otherwise: hold weight, suggest +1 rep up to rangeMax.
  */
-export function loadDayWeekWithCarryover(
-  dayIdx: number,
-  weekIdx: number,
-  day: TrainingDay,
-  profile: Profile | null | undefined,
-): DayData {
+function computeCarryoverForOneExercise(
+  ex: TrainingDay['exercises'][number],
+  prevEx: Record<string, Record<string, unknown>>,
+  expKey: string,
+): Record<string, WorkoutSet> {
+  const repParts = String(ex.reps).split('-');
+  const rangeMin = parseInt(repParts[0]) || 1;
+  const rangeMax = parseInt(repParts[repParts.length - 1]) || rangeMin;
+  const sets = typeof ex.sets === 'number' ? ex.sets : parseInt(String(ex.sets)) || 0;
+
+  type PrevSetShape = { weight?: unknown; reps?: unknown; warmup?: unknown };
+  const completedPrevSets: { weight: number; reps: number }[] = [];
+  for (let s = 0; s < sets; s++) {
+    const psd = (prevEx[s] || {}) as PrevSetShape;
+    if (psd.warmup) continue;
+    const wRaw = psd.weight;
+    const w = wRaw === undefined || wRaw === null || String(wRaw).trim() === ''
+      ? NaN
+      : parseFloat(String(wRaw));
+    const r = parseInt(String(psd.reps ?? '0')) || 0;
+    if (Number.isFinite(w) && w > 0) {
+      completedPrevSets.push({ weight: w, reps: r });
+    }
+  }
+  const baselineWeight = completedPrevSets.length > 0
+    ? Math.max(...completedPrevSets.map((s) => s.weight))
+    : 0;
+  const baselineReps = baselineWeight > 0
+    ? completedPrevSets
+        .filter((s) => s.weight === baselineWeight)
+        .reduce((best, s) => Math.max(best, s.reps), 0)
+    : 0;
+
+  const allRepsHit = baselineReps >= rangeMax && completedPrevSets.length > 0;
+  let nudge = 0;
+  let bwRepBump = false;
+  if (allRepsHit) {
+    const equip = ex.equipment || '';
+    if (ex.bw) {
+      nudge = 0;
+      bwRepBump = true;
+    } else if (equip === 'barbell') {
+      nudge = 5;
+    } else if (equip === 'dumbbell') {
+      nudge = baselineWeight < 25 ? 2.5 : 5;
+    } else {
+      nudge = expKey === 'experienced' ? 2.5 : 5;
+    }
+  }
+
+  const suggestedWeightStr = baselineWeight > 0
+    ? (nudge > 0 ? String(baselineWeight + nudge) : String(baselineWeight))
+    : '';
+
+  let suggestedRepsStr: string;
+  if (nudge > 0) {
+    suggestedRepsStr = String(rangeMin);
+  } else if (bwRepBump && baselineReps > 0) {
+    suggestedRepsStr = String(baselineReps + 1);
+  } else if (baselineReps > 0) {
+    suggestedRepsStr = String(Math.min(baselineReps + 1, rangeMax));
+  } else {
+    suggestedRepsStr = String(rangeMin);
+  }
+
+  const out: Record<string, WorkoutSet> = {};
+  for (let s = 0; s < sets; s++) {
+    out[s] = {
+      weight: suggestedWeightStr,
+      reps: suggestedRepsStr,
+      suggested: nudge > 0 && suggestedWeightStr !== '',
+      repsSuggested: true,
+    };
+  }
+  return out;
+}
+
+function expKeyFromProfile(profile: Profile | null | undefined): string {
   const expRaw = profile?.experience || 'intermediate';
   const expNorm: Record<string, string> = {
     new: 'beginner',
@@ -131,15 +208,22 @@ export function loadDayWeekWithCarryover(
     advanced: 'experienced',
     experienced: 'experienced',
   };
-  const expKey = expNorm[expRaw] || 'intermediate';
-  const current = loadDayWeek(dayIdx, weekIdx);
+  return expNorm[expRaw] || 'intermediate';
+}
 
-  const hasData = Object.values(current).some((exData) =>
-    Object.values(exData).some((s) => s && (s.weight || s.reps))
-  );
-  if (hasData || weekIdx === 0) return current;
-
-  // Nothing logged yet this week — carry forward weights from the most recent prior week
+/**
+ * v1 carryover walk — position-keyed storage with `_exId`-stamp lookup
+ * (Med-fix). Returns `current` if no prior week has weights. Pre-condition:
+ * `current` already known not to have data (caller checks).
+ */
+function loadDayWeekWithCarryoverV1(
+  dayIdx: number,
+  weekIdx: number,
+  day: TrainingDay,
+  profile: Profile | null | undefined,
+  current: DayData,
+): DayData {
+  const expKey = expKeyFromProfile(profile);
   for (let w = weekIdx - 1; w >= 0; w--) {
     const prev = loadDayWeek(dayIdx, w);
     const prevHasWeights = Object.values(prev).some((exData) =>
@@ -149,105 +233,104 @@ export function loadDayWeekWithCarryover(
 
     const carried: DayData = {};
     day.exercises.forEach((ex, exIdx) => {
-      // Find prior-week slot whose sets carry _exId === ex.id (set when
-      // handleUpdateSet logs a set). Falls back to position-based lookup
-      // when no slot matches — covers (a) legacy data written before
-      // _exId stamping, and (b) brand-new exercises that have no prior
-      // history. The find-by-id path is what immunises carryover from
-      // reorder, superset pairing, and this-session swaps that shift
-      // exIdx between weeks.
+      // Find prior-week slot whose sets carry _exId === ex.id (Med-fix).
+      // Falls back to position-based lookup for legacy data / brand-new
+      // exercises with no prior history.
       const prevEx = findPrevSlotForExercise(prev, ex.id, exIdx);
-      const repParts = String(ex.reps).split('-');
-      const rangeMin = parseInt(repParts[0]) || 1;
-      const rangeMax = parseInt(repParts[repParts.length - 1]) || rangeMin;
-      const sets = typeof ex.sets === 'number' ? ex.sets : parseInt(String(ex.sets)) || 0;
-
-      // ── Uniform baseline (#12a) ────────────────────────────────────────
-      // The working-weight prescription this week is the HEAVIEST weight
-      // hit on any working (non-warmup) set last week. If the lifter went
-      // 100/100/95, the baseline is 100 — drops on later sets are fatigue,
-      // not prescription. baselineReps = the reps achieved AT that
-      // baseline weight (best rep performance among sets at the heaviest
-      // weight) — this is what the nudge calc compares against.
-      type PrevSetShape = { weight?: unknown; reps?: unknown; warmup?: unknown };
-      const completedPrevSets: { weight: number; reps: number }[] = [];
-      for (let s = 0; s < sets; s++) {
-        const psd = (prevEx[s] || {}) as PrevSetShape;
-        if (psd.warmup) continue;
-        const wRaw = psd.weight;
-        const w = wRaw === undefined || wRaw === null || String(wRaw).trim() === ''
-          ? NaN
-          : parseFloat(String(wRaw));
-        const r = parseInt(String(psd.reps ?? '0')) || 0;
-        if (Number.isFinite(w) && w > 0) {
-          completedPrevSets.push({ weight: w, reps: r });
-        }
-      }
-      const baselineWeight = completedPrevSets.length > 0
-        ? Math.max(...completedPrevSets.map((s) => s.weight))
-        : 0;
-      // Reps achieved at the baseline (heaviest) weight — pick the best
-      // rep count among sets matching the baseline weight, so a 100x10 +
-      // 100x8 prior week reads as "10 reps at 100" for nudge purposes.
-      const baselineReps = baselineWeight > 0
-        ? completedPrevSets
-            .filter((s) => s.weight === baselineWeight)
-            .reduce((best, s) => Math.max(best, s.reps), 0)
-        : 0;
-
-      // ── Nudge calc (#12b) ─────────────────────────────────────────────
-      // Bumping weight requires the lifter to have hit the TOP of the
-      // range at the baseline weight. Earlier behavior compared per-index
-      // reps against rangeMax — under uniform-baseline that's still the
-      // right idea but evaluated against `baselineReps`, the reps hit at
-      // the heaviest weight.
-      const allRepsHit = baselineReps >= rangeMax && completedPrevSets.length > 0;
-      let nudge = 0;
-      let bwRepBump = false;
-      if (allRepsHit) {
-        const equip = ex.equipment || '';
-        if (ex.bw) {
-          nudge = 0;
-          bwRepBump = true;
-        } else if (equip === 'barbell') {
-          nudge = 5;
-        } else if (equip === 'dumbbell') {
-          nudge = baselineWeight < 25 ? 2.5 : 5;
-        } else {
-          nudge = expKey === 'experienced' ? 2.5 : 5;
-        }
-      }
-
-      const suggestedWeightStr = baselineWeight > 0
-        ? (nudge > 0 ? String(baselineWeight + nudge) : String(baselineWeight))
-        : '';
-
-      let suggestedRepsStr: string;
-      if (nudge > 0) {
-        // Weight went up → reset reps to bottom of range
-        suggestedRepsStr = String(rangeMin);
-      } else if (bwRepBump && baselineReps > 0) {
-        // Bodyweight: no weight to add, so progress reps beyond rangeMax
-        suggestedRepsStr = String(baselineReps + 1);
-      } else if (baselineReps > 0) {
-        suggestedRepsStr = String(Math.min(baselineReps + 1, rangeMax));
-      } else {
-        suggestedRepsStr = String(rangeMin);
-      }
-
-      carried[exIdx] = {};
-      for (let s = 0; s < sets; s++) {
-        carried[exIdx][s] = {
-          weight: suggestedWeightStr,
-          reps: suggestedRepsStr,
-          suggested: nudge > 0 && suggestedWeightStr !== '',
-          repsSuggested: true,
-        };
-      }
+      carried[exIdx] = computeCarryoverForOneExercise(ex, prevEx, expKey);
     });
     return carried;
   }
   return current;
+}
+
+/**
+ * v2 carryover walk — id-keyed storage. Walks prior weeks looking for v2
+ * data with weights. Returns `null` when no v2 prior week is usable, so the
+ * caller can fall through to v1. Pre-condition: caller already determined
+ * carryover is needed (current week has no data, weekIdx > 0).
+ *
+ * Per-exercise lookup: tdeIds[`${dayIdx}:${exIdx}`] → tdeId → prevV2[tdeId].
+ * Slots without a tde-id mapping (Phase 2 backfill misses) skip carryover
+ * for that exercise and yield empty carried sets — the lifter sees no
+ * suggestion, same as a brand-new exercise, no inheritance from a stale
+ * slot's history.
+ */
+function loadDayWeekWithCarryoverV2(
+  dayIdx: number,
+  weekIdx: number,
+  day: TrainingDay,
+  profile: Profile | null | undefined,
+  tdeIds: Record<string, string>,
+): DayData | null {
+  const expKey = expKeyFromProfile(profile);
+  for (let w = weekIdx - 1; w >= 0; w--) {
+    const prevV2 = loadDayWeekV2(dayIdx, w);
+    if (Object.keys(prevV2).length === 0) continue;
+    const prevHasWeights = Object.values(prevV2).some((slice) =>
+      Object.values(slice?.sets || {}).some((s) => s && s.weight),
+    );
+    if (!prevHasWeights) continue;
+
+    const carried: DayData = {};
+    day.exercises.forEach((ex, exIdx) => {
+      const tdeId = tdeIds[`${dayIdx}:${exIdx}`];
+      const prevSlice = tdeId ? prevV2[tdeId]?.sets || {} : {};
+      carried[exIdx] = computeCarryoverForOneExercise(
+        ex,
+        prevSlice as unknown as Record<string, Record<string, unknown>>,
+        expKey,
+      );
+    });
+    return carried;
+  }
+  return null;
+}
+
+/**
+ * Load current week data with automatic weight/rep progression hints.
+ *
+ * Reads from v2 (id-keyed) storage when `foundry:flag:day_v2_reads === '1'`
+ * AND a tde-id cache is available, falling through to v1 (position-keyed)
+ * when v2 has no usable prior data, the flag is off, or the cache is missing.
+ * Single public entry point — callers don't need to know which storage is
+ * authoritative.
+ */
+export function loadDayWeekWithCarryover(
+  dayIdx: number,
+  weekIdx: number,
+  day: TrainingDay,
+  profile: Profile | null | undefined,
+): DayData {
+  const current = loadDayWeek(dayIdx, weekIdx);
+  const hasData = Object.values(current).some((exData) =>
+    Object.values(exData).some((s) => s && (s.weight || s.reps))
+  );
+  if (hasData || weekIdx === 0) return current;
+
+  if (isDayV2ReadsEnabled()) {
+    const tdeIds = loadTdeIdsForActiveMeso();
+    if (tdeIds) {
+      const v2Result = loadDayWeekWithCarryoverV2(dayIdx, weekIdx, day, profile, tdeIds);
+      if (v2Result !== null) return v2Result;
+    }
+  }
+  return loadDayWeekWithCarryoverV1(dayIdx, weekIdx, day, profile, current);
+}
+
+/** Load + parse the active meso's tde-id positional→uuid map. Null on any miss. */
+function loadTdeIdsForActiveMeso(): Record<string, string> | null {
+  const mesoId = store.get('foundry:active_meso_id');
+  if (!mesoId) return null;
+  const raw = store.get(`foundry:tde_ids:${mesoId}`);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed as Record<string, string>;
+  } catch {
+    return null;
+  }
 }
 
 // ─── DayData v2 (id-keyed) — Big-Big Phase 1 ───────────────────────────────
@@ -257,13 +340,23 @@ export function loadDayWeekWithCarryover(
 // `window.__foundryEnableDayV2Writes(true)` helper exposed in main.tsx.
 
 const DAY_V2_WRITES_FLAG = 'foundry:flag:day_v2_writes';
+const DAY_V2_READS_FLAG = 'foundry:flag:day_v2_reads';
 
 /**
  * Whether dual-write of v2 (id-keyed) DayData is enabled. Default OFF.
- * Phase 3 will introduce a separate read-side flag.
  */
 export function isDayV2WritesEnabled(): boolean {
   return store.get(DAY_V2_WRITES_FLAG) === '1';
+}
+
+/**
+ * Whether read-from-v2 is enabled. Default OFF. Phase 3 — when ON the
+ * carryover read tries v2 storage first, falling through to v1 on miss.
+ * Independent of the writes flag so we can roll out reads progressively
+ * (writes-on for a session, reads still on v1, then flip reads).
+ */
+export function isDayV2ReadsEnabled(): boolean {
+  return store.get(DAY_V2_READS_FLAG) === '1';
 }
 
 function v2KeyFor(dayIdx: number, weekIdx: number): string {
