@@ -246,6 +246,36 @@ export function saveDayWeek(dayIdx: number, weekIdx: number, data: DayData): voi
   syncWorkoutToSupabase(dayIdx, weekIdx, data);
 }
 
+export type SupersetPair = [string, string];
+
+export function loadSupersets(dayIdx: number, weekIdx: number): SupersetPair[] {
+  const raw = store.get(`foundry:supersets:d${dayIdx}:w${weekIdx}`);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (p: unknown): p is SupersetPair =>
+        Array.isArray(p) && p.length === 2 && typeof p[0] === 'string' && typeof p[1] === 'string',
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function saveSupersets(
+  dayIdx: number,
+  weekIdx: number,
+  pairs: SupersetPair[],
+): void {
+  const key = `foundry:supersets:d${dayIdx}:w${weekIdx}`;
+  if (!pairs.length) {
+    store.remove(key);
+    return;
+  }
+  store.set(key, JSON.stringify(pairs));
+}
+
 export function loadCardioLog(dayIdx: number, weekIdx: number): unknown {
   const raw = store.get(`foundry:cardio:d${dayIdx}:w${weekIdx}`);
   return raw ? JSON.parse(raw) : null;

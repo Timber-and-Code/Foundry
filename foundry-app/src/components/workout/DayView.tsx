@@ -30,7 +30,10 @@ import {
   addBwEntry,
   loadBwLog,
   getWeekSets,
+  loadSupersets,
+  saveSupersets,
 } from '../../utils/store';
+import { applyPersistedSupersets, newSupersetId } from '../../utils/supersets';
 import {
   syncExerciseSwapRemote,
   upsertWorkoutSessionRemote,
@@ -70,20 +73,6 @@ import type { Profile, TrainingDay, Exercise } from '../../types';
  * (no exercise has it set), so it round-trips through state cleanly.
  */
 const SUPERSETS_ENABLED = true;
-
-/**
- * Browser-safe random id used for `supersetGroupId`. Falls back to a
- * Math.random-based id when crypto.randomUUID isn't available (older
- * browsers, server-rendered tests).
- */
-function newSupersetId(): string {
-  try {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID();
-    }
-  } catch { /* fall through */ }
-  return `ss_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
 
 interface DayViewProps {
   dayIdx: number;
@@ -474,14 +463,21 @@ function DayView({
       } as Exercise;
     });
   }, [weekDay.exercises, dayIdx, weekIdx]);
-  const [exercises, setExercises] = useState(resolveExercises);
+  // Wrap resolveExercises so persisted superset pairings (saved via
+  // saveSupersets in handlePairSuperset) are replayed onto the freshly
+  // rebuilt list. Without this, exiting the day mid-workout and returning
+  // loses the user's pairings — they only live in component state otherwise.
+  const buildInitialExercises = useCallback(() => {
+    return applyPersistedSupersets(resolveExercises(), loadSupersets(dayIdx, weekIdx));
+  }, [resolveExercises, dayIdx, weekIdx]);
+  const [exercises, setExercises] = useState(buildInitialExercises);
 
   // Defensive sync: if the component mounted while activeDays was empty/stale
   // (e.g. exercise DB still lazy-loading), local `exercises` state would be
   // stuck at []. When the upstream day populates, pick it up.
   useEffect(() => {
     if (exercises.length === 0 && weekDay.exercises && weekDay.exercises.length > 0) {
-      setExercises(resolveExercises());
+      setExercises(buildInitialExercises());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekDay.exercises]);
@@ -1247,11 +1243,15 @@ function DayView({
       const id = newSupersetId();
       let mappedTargetIdx = targetIdx;
       let mappedSourceIdx = sourceIdx;
+      let sourceExId = '';
+      let targetExId = '';
 
       setExercises((prev) => {
         if (sourceIdx < 0 || sourceIdx >= prev.length) return prev;
         if (targetIdx < 0 || targetIdx >= prev.length) return prev;
         if (prev[sourceIdx].supersetGroupId || prev[targetIdx].supersetGroupId) return prev;
+        sourceExId = String(prev[sourceIdx].id ?? '');
+        targetExId = String(prev[targetIdx].id ?? '');
         const updated = [...prev];
         // Equalise set counts to max(source, target) so the interleaved-
         // round rest logic can detect "round complete" cleanly. If the
@@ -1304,6 +1304,11 @@ function DayView({
       if (mappedSourceIdx !== sourceIdx) {
         setFocusedIdx(mappedSourceIdx);
       }
+      // Persist the pair so it survives a remount (back-out and return).
+      if (sourceExId && targetExId) {
+        const existing = loadSupersets(dayIdx, weekIdx);
+        saveSupersets(dayIdx, weekIdx, [...existing, [sourceExId, targetExId]]);
+      }
       void mappedTargetIdx;
     },
     [dayIdx, weekIdx],
@@ -1315,15 +1320,26 @@ function DayView({
    */
   const handleUnpairSuperset = useCallback(
     (groupId: string) => {
-      setExercises((prev) =>
-        prev.map((ex) =>
+      let pairedExIds: string[] = [];
+      setExercises((prev) => {
+        pairedExIds = prev
+          .filter((ex) => ex.supersetGroupId === groupId)
+          .map((ex) => String(ex.id ?? ''));
+        return prev.map((ex) =>
           ex.supersetGroupId === groupId
             ? { ...ex, supersetGroupId: undefined }
             : ex,
-        ),
-      );
+        );
+      });
+      if (pairedExIds.length >= 2) {
+        const existing = loadSupersets(dayIdx, weekIdx);
+        const filtered = existing.filter(
+          ([a, b]) => !(pairedExIds.includes(a) && pairedExIds.includes(b)),
+        );
+        saveSupersets(dayIdx, weekIdx, filtered);
+      }
     },
-    [],
+    [dayIdx, weekIdx],
   );
 
   // handleNoteChange — reserved for note editing
