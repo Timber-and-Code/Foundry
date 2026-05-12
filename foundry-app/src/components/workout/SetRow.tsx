@@ -257,7 +257,7 @@ export default function SetRow({
                 width: 36,
                 height: 36,
                 justifySelf: 'end',
-                border: isDone ? 'none' : '1px solid var(--border)',
+                border: isDone ? 'none' : '1.5px solid var(--accent)',
                 borderRadius: 8,
                 background: isDone ? 'var(--accent)' : 'transparent',
                 color: isDone ? 'var(--bg-root, #0A0A0C)' : 'var(--text-muted)',
@@ -272,7 +272,7 @@ export default function SetRow({
             : {
                 minWidth: 0,
                 width: '100%',
-                border: isDone ? '2px solid var(--success)' : '1px solid var(--border)',
+                border: isDone ? '2px solid var(--success)' : '1.5px solid var(--accent)',
                 borderRadius: tokens.radius.sm,
                 padding: '8px 6px',
                 background: isDone ? 'var(--success)' : 'var(--bg-inset)',
