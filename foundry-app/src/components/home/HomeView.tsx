@@ -14,6 +14,7 @@ import {
 } from '../../utils/store';
 import { syncSkippedToSupabase } from '../../utils/sync';
 import { on } from '../../utils/events';
+import { dayDisplayName } from '../../utils/splitLabel';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Shared UI
@@ -608,7 +609,7 @@ function HomeView({
         const mesoId = store.get('foundry:active_meso_id');
         return (
           <WorkoutSplash
-            dayName={day.name || `Day ${previewSession.dayIdx + 1}`}
+            dayName={dayDisplayName(day, previewSession.dayIdx)}
             dayIdx={previewSession.dayIdx}
             weekIdx={previewSession.weekIdx}
             exercises={day.exercises || []}

@@ -34,6 +34,7 @@ import {
   saveSupersets,
 } from '../../utils/store';
 import { applyPersistedSupersets, newSupersetId } from '../../utils/supersets';
+import { dayDisplayName } from '../../utils/splitLabel';
 import {
   syncExerciseSwapRemote,
   upsertWorkoutSessionRemote,
@@ -1444,7 +1445,7 @@ function DayView({
               margin: 0,
             }}
           >
-            {day.name} - Week {weekIdx + 1}
+            {dayDisplayName(day, dayIdx)} - Week {weekIdx + 1}
           </h1>
           <div style={{ width: 72 }} aria-hidden="true" />
         </div>
@@ -2230,7 +2231,7 @@ function DayView({
       {/* Workout Complete Modal */}
       {showWorkoutModal && workoutStats && (
         <WorkoutCompleteModal
-          dayLabel={day.label || day.name || ''}
+          dayLabel={dayDisplayName(day, dayIdx)}
           dayTag={day.tag}
           gender={profile?.gender}
           profile={profile}

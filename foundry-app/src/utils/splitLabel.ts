@@ -49,3 +49,44 @@ export function formatSplitName(
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())
     .join(' ');
 }
+
+/**
+ * Friendly name to display for a `TrainingDay`'s tag, used by the workout
+ * title bar and any other UI surface that needs a human-readable label
+ * INDEPENDENT of the meso's stored `day.name`.
+ *
+ * Root-cause context: `day.name` is set once at `generateProgram` time and
+ * never re-derived. If a user changes `profile.splitType` later (or the
+ * meso was generated under a different splitType than what's currently
+ * stored on profile), `day.name` goes stale — e.g. "Push Day 1" lingers
+ * on an Upper/Lower meso. `day.tag` is the structural classification
+ * (UPPER / LOWER / PUSH / PULL / LEGS / ARMS / FULL / CARDIO / MOBILITY /
+ * BW) and stays correct relative to the day's actual role, so we prefer
+ * it for display.
+ *
+ * Precedence: `day.label` > tag-derived name > `day.name` > "Day N".
+ */
+const TAG_FRIENDLY_NAME: Record<string, string> = {
+  PUSH: 'Push Day',
+  PULL: 'Pull Day',
+  LEGS: 'Leg Day',
+  UPPER: 'Upper Body',
+  LOWER: 'Lower Body',
+  ARMS: 'Arm Day',
+  FULL: 'Full Body',
+  CARDIO: 'Cardio',
+  MOBILITY: 'Mobility',
+  BW: 'Bodyweight',
+};
+
+export function dayDisplayName(
+  day: { label?: string; tag?: string; name?: string } | null | undefined,
+  idx?: number,
+): string {
+  if (!day) return idx != null ? `Day ${idx + 1}` : 'Workout';
+  if (day.label) return day.label;
+  const tag = (day.tag || '').toUpperCase();
+  if (tag && TAG_FRIENDLY_NAME[tag]) return TAG_FRIENDLY_NAME[tag];
+  if (day.name) return day.name;
+  return idx != null ? `Day ${idx + 1}` : 'Workout';
+}
