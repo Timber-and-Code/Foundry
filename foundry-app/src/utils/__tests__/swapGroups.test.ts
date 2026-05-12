@@ -73,6 +73,26 @@ describe('buildSwapGroups', () => {
     const groups = buildSwapGroups(db, 'FULL');
     expect(groups.abs).toBeDefined();
   });
+
+  it('sourceTag forces inclusion of like-for-like swaps even when dayTag would exclude them', () => {
+    // Reported regression: a Back (PULL) exercise stuck on a stale PUSH-tagged
+    // day showed NO back options in the swap picker. Passing the source's tag
+    // through to buildSwapGroups always allows same-tag swaps.
+    const groups = buildSwapGroups(db, 'PUSH', 'PULL');
+    expect(groups.back).toBeDefined();
+    expect(groups.back[0].id).toBe('bb_row');
+    // Original day-tag allow-set is still honoured for everything else.
+    expect(groups.chest).toBeDefined();
+    expect(groups.quads).toBeDefined(); // LEGS still included with PUSH
+  });
+
+  it('sourceTag is a no-op when already in the dayTag allow-set', () => {
+    // UPPER already includes PULL, so passing sourceTag='PULL' doesn't change
+    // the output — both groups appear either way.
+    const withSource = buildSwapGroups(db, 'UPPER', 'PULL');
+    const withoutSource = buildSwapGroups(db, 'UPPER');
+    expect(Object.keys(withSource).sort()).toEqual(Object.keys(withoutSource).sort());
+  });
 });
 
 describe('bucketFor — movement family merge (#4)', () => {

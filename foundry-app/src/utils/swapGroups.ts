@@ -83,12 +83,21 @@ export function bucketFor(muscle: string): string {
  * picker as `Record<muscle, Exercise[]>`. Related muscle tags are
  * collapsed into one bucket via `MUSCLE_FAMILIES` so movement variants
  * sit in the same accordion group (#4).
+ *
+ * `sourceTag` (optional) is the EXERCISE_DB tag of the exercise the user is
+ * currently swapping out. We always allow exercises sharing that tag so
+ * like-for-like swaps remain available even when `dayTag` has drifted —
+ * e.g. a Back (PULL) exercise stuck on a stale PUSH-tagged day still gets
+ * back/pull options. Without this, the swap picker would silently exclude
+ * the exact muscle the lifter is trying to replace.
  */
 export function buildSwapGroups(
   db: ExerciseEntry[],
   dayTag: string | undefined | null,
+  sourceTag?: string | null,
 ): Record<string, ExerciseEntry[]> {
   const allow = new Set(tagsForDay(dayTag));
+  if (sourceTag) allow.add(sourceTag.toUpperCase());
   const groups: Record<string, ExerciseEntry[]> = {};
   for (const ex of db) {
     if (!allow.has(ex.tag || '')) continue;

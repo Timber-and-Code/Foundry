@@ -142,11 +142,17 @@ function SwapMenu({
         }}
       >
         {/* ── Sticky header ─────────────────────────────────────────── */}
+        {/* paddingTop respects iOS safe-area so the BACK button never sits
+            under the status bar / Dynamic Island where iOS swallows taps.
+            Reported symptom: BACK was visible but unclickable on iPhone. */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            padding: '10px 8px',
+            paddingTop: 'max(10px, env(safe-area-inset-top))',
+            paddingRight: 8,
+            paddingBottom: 10,
+            paddingLeft: 8,
             borderBottom: '1px solid var(--border-subtle, var(--border))',
             background: 'var(--bg-root)',
             flexShrink: 0,

@@ -565,9 +565,16 @@ function DayView({
   // Day-tag → EXERCISE_DB tag-set mapping lives in swapGroups.ts so the
   // setup builder (DayAccordion) and the workout view share one source of
   // truth. See `foundry/beat2_preview_fixes.md` #2.
+  //
+  // sourceTag: when swapping an existing exercise, pass through its tag so
+  // the allow-set always includes it. Otherwise a Back/PULL exercise on a
+  // mis-tagged day (e.g. day.tag='PUSH' after splitType drift) would have
+  // no Back options listed at all — reported regression in 2.8.4.
+  const swapSourceTag =
+    swapTarget !== null ? exercises[swapTarget.exIdx]?.tag : undefined;
   const swapExGroups = useMemo(
-    () => buildSwapGroups(getExerciseDB(), day?.tag),
-    [day?.tag],
+    () => buildSwapGroups(getExerciseDB(), day?.tag, swapSourceTag),
+    [day?.tag, swapSourceTag],
   );
 
   // Resolve through bucketFor so a swap from a 'Lats' exercise still
