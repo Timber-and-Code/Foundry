@@ -62,6 +62,25 @@ export function playTimerCompleteChime(): void {
   } catch { /* AudioContext blew up — silent fail is fine */ }
 }
 
+/**
+ * Pre-warm the AudioContext from inside a user-gesture handler so the chime
+ * fired later (possibly while the app is backgrounded) has unlocked audio
+ * waiting for it. Safe to call repeatedly — idempotent. iOS Safari/WKWebView
+ * suspends the ctx until a gesture; without this prewarm the first chime
+ * after a fresh app launch can be silent.
+ */
+export function unlockAudio(): void {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+  } catch {
+    /* unsupported — silent */
+  }
+}
+
 // Test-only export — lets unit tests verify the chime path is wired
 // without needing window.AudioContext spies in every test file.
 export const __test__playTimerCompleteChime = playTimerCompleteChime;

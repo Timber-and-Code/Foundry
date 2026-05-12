@@ -9,8 +9,16 @@ import React, {
   type MutableRefObject,
 } from 'react';
 import { parseRestSeconds } from '../utils/helpers';
-import { playTimerCompleteChime } from '../utils/audio';
+import { playTimerCompleteChime, unlockAudio } from '../utils/audio';
 import { store } from '../utils/store';
+
+/**
+ * Spacing of the looping alarm fired once the rest countdown reaches zero.
+ * The chime/haptic repeats until the lifter taps "I'm Ready" (dismiss).
+ * Picked at 2500ms so each chime fully decays (~600ms) before the next, with
+ * enough silence between pulses that two haptic bumps register as separate.
+ */
+const ALARM_LOOP_MS = 2500;
 
 interface RestTimerState {
   remaining: number;
@@ -45,6 +53,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   const [restTimer, setRestTimer] = useState<RestTimerState | null>(null);
   const [restTimerMinimized, setRestTimerMinimized] = useState(false);
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const alarmIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const restEndTimeRef = useRef<number | null>(null);
   const timerDayRef = useRef<TimerDayRef | null>(null);
   const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
@@ -76,9 +85,26 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const fireTimerComplete = useCallback(() => {
-    playTimerCompleteChime();
+  const stopAlarmLoop = useCallback(() => {
+    if (alarmIntervalRef.current) {
+      clearInterval(alarmIntervalRef.current);
+      alarmIntervalRef.current = null;
+    }
   }, []);
+
+  /**
+   * Start (or restart) the at-zero alarm loop. Fires the chime + haptic
+   * immediately, then repeats every ALARM_LOOP_MS until dismissRestTimer is
+   * called. This replaces the single-fire ding that was easy to miss when the
+   * phone was in a pocket or the AudioContext briefly suspended on resume.
+   */
+  const fireTimerComplete = useCallback(() => {
+    stopAlarmLoop();
+    playTimerCompleteChime();
+    alarmIntervalRef.current = setInterval(() => {
+      playTimerCompleteChime();
+    }, ALARM_LOOP_MS);
+  }, [stopAlarmLoop]);
 
   const startRestTimer = useCallback(
     (restStr: string, exName: string, dayIdx?: number, weekIdx?: number) => {
@@ -88,8 +114,14 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         store.set('foundry:first_rest_timer_emitted', '1');
         window.dispatchEvent(new Event('foundry:first-rest-timer'));
       }
+      // Prewarm: this call site is a user-gesture path (lifter just tapped a
+      // set checkmark). Unlocking now lets a chime fire reliably at zero, even
+      // if the OS has briefly suspended the context by then.
+      unlockAudio();
       const secs = parseRestSeconds(restStr);
       if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+      // Starting a new rest cancels any in-flight alarm from a prior set.
+      stopAlarmLoop();
       const endTime = Date.now() + secs * 1000;
       restEndTimeRef.current = endTime;
       if (dayIdx !== undefined) timerDayRef.current = { dayIdx, weekIdx };
@@ -110,7 +142,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         });
       }, 500);
     },
-    [fireTimerComplete, acquireWakeLock]
+    [fireTimerComplete, acquireWakeLock, stopAlarmLoop]
   );
 
   useEffect(() => {
@@ -135,12 +167,13 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   const dismissRestTimer = useCallback(() => {
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    stopAlarmLoop();
     restEndTimeRef.current = null;
     timerDayRef.current = null;
     releaseWakeLock();
     setRestTimer(null);
     setRestTimerMinimized(false);
-  }, [releaseWakeLock]);
+  }, [releaseWakeLock, stopAlarmLoop]);
 
   return (
     <RestTimerContext.Provider
