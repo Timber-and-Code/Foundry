@@ -320,15 +320,53 @@ function DayView({
   // Session duration tracking — shared hook manages timer, start/end timestamps
   const {
     workoutStarted,
+    setWorkoutStarted,
     elapsedSecs,
     sessionStartRef,
     beginWorkout: startTimer,
+    clearTimers,
   } = useWorkoutTimer({
     startKey: `foundry:sessionStart:d${dayIdx}:w${weekIdx}`,
     strengthEndKey: `foundry:strengthEnd:d${dayIdx}:w${weekIdx}`,
     isDone,
     isLocked,
   });
+
+  // Stop-workout flow — distinct from "Complete Workout." Cancels an
+  // accidentally-started session without recording it as done. If any sets
+  // are logged, a confirm modal protects the lifter; otherwise it stops
+  // silently. handleStopWorkout / performStopWorkout are defined after
+  // weekData state below so the "any sets logged" check can read it.
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const performStopWorkout = useCallback(() => {
+    clearTimers();
+    setWorkoutStarted(false);
+    clearActiveSessionBar();
+    setShowStopConfirm(false);
+    onBack();
+  }, [clearTimers, setWorkoutStarted, clearActiveSessionBar, onBack]);
+  const handleStopWorkout = useCallback(() => {
+    // Any set with a logged weight or reps means there's something to lose —
+    // surface the confirm. Empty session stops silently.
+    const hasLoggedSets = Object.values(weekData || {}).some(
+      (exRow) =>
+        exRow &&
+        typeof exRow === 'object' &&
+        Object.values(exRow).some(
+          (set: unknown) =>
+            !!set &&
+            typeof set === 'object' &&
+            (Boolean((set as { weight?: unknown }).weight) ||
+              Boolean((set as { reps?: unknown }).reps) ||
+              Boolean((set as { done?: unknown }).done)),
+        ),
+    );
+    if (hasLoggedSets) {
+      setShowStopConfirm(true);
+    } else {
+      performStopWorkout();
+    }
+  }, [weekData, performStopWorkout]);
 
   // Backfill the active-session context when DayView mounts on a workout
   // that's already in progress (started in a prior page load — workoutStarted
@@ -1675,7 +1713,34 @@ function DayView({
             </span>
           </button>
         ) : (
-          <div aria-hidden="true" />
+          /* Stop Workout — kill switch for accidentally-started sessions.
+             Distinct from "Complete Workout" at the end of the session.
+             Only renders when a workout is in progress and rest chip is
+             not occupying this slot. */
+          workoutStarted && !isDone && !isLocked ? (
+            <button
+              type="button"
+              onClick={handleStopWorkout}
+              aria-label="Stop workout without completing"
+              style={{
+                justifySelf: 'end',
+                padding: '6px 10px',
+                borderRadius: 8,
+                border: '1px solid var(--text-muted)',
+                background: 'transparent',
+                color: 'var(--text-muted)',
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              Stop
+            </button>
+          ) : (
+            <div aria-hidden="true" />
+          )
         )}
       </div>
 
@@ -2301,6 +2366,101 @@ function DayView({
           onKeepGoing={() => setShowUnfinishedPrompt(false)}
           onMarkComplete={() => { setShowUnfinishedPrompt(false); openNoteReview(); }}
         />
+      )}
+
+      {/* Stop Workout confirm — fires only when the lifter has logged sets.
+          Empty-session stops bypass this and exit silently. */}
+      {showStopConfirm && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="stop-workout-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 320,
+            background: 'rgba(0,0,0,0.78)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.xl,
+              padding: 24,
+              maxWidth: 340,
+              width: '100%',
+              boxShadow: 'var(--shadow-xl)',
+            }}
+          >
+            <div
+              id="stop-workout-title"
+              style={{
+                fontSize: 16,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                marginBottom: 8,
+              }}
+            >
+              Stop this workout?
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+                marginBottom: 20,
+              }}
+            >
+              You have logged sets in this session. Stopping discards them
+              and returns to Home. The day is not marked complete.
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setShowStopConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: tokens.radius.md,
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                Keep going
+              </button>
+              <button
+                type="button"
+                onClick={performStopWorkout}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: tokens.radius.md,
+                  background: 'var(--accent)',
+                  border: '1px solid var(--accent)',
+                  color: 'var(--bg-root, #0A0A0C)',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                Stop
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Keyboard-aware bottom spacer — keeps the focused set row scrollable
