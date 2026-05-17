@@ -1286,18 +1286,28 @@ function DayView({
   const handlePairSuperset = useCallback(
     (sourceIdx: number, targetIdx: number) => {
       if (sourceIdx === targetIdx) return;
+      // Read ids + the post-splice focus index SYNCHRONOUSLY from current
+      // state. The setExercises updater below runs asynchronously, so any
+      // value it assigns is NOT visible to the saveSupersets / setFocusedIdx
+      // calls that follow — that was the bug: the pair was never persisted
+      // because sourceExId/targetExId were still '' when the guard ran.
+      if (sourceIdx < 0 || sourceIdx >= exercises.length) return;
+      if (targetIdx < 0 || targetIdx >= exercises.length) return;
+      if (exercises[sourceIdx]?.supersetGroupId || exercises[targetIdx]?.supersetGroupId) return;
+      const sourceExId = String(exercises[sourceIdx]?.id ?? '');
+      const targetExId = String(exercises[targetIdx]?.id ?? '');
       const id = newSupersetId();
-      let mappedTargetIdx = targetIdx;
-      let mappedSourceIdx = sourceIdx;
-      let sourceExId = '';
-      let targetExId = '';
+      // Source's index after the (possible) splice — deterministic from the
+      // two indices, so compute it here rather than inside the updater.
+      const mappedSourceIdx =
+        targetIdx === sourceIdx + 1 || targetIdx > sourceIdx
+          ? sourceIdx
+          : sourceIdx + 1;
 
       setExercises((prev) => {
         if (sourceIdx < 0 || sourceIdx >= prev.length) return prev;
         if (targetIdx < 0 || targetIdx >= prev.length) return prev;
         if (prev[sourceIdx].supersetGroupId || prev[targetIdx].supersetGroupId) return prev;
-        sourceExId = String(prev[sourceIdx].id ?? '');
-        targetExId = String(prev[targetIdx].id ?? '');
         const updated = [...prev];
         // Equalise set counts to max(source, target) so the interleaved-
         // round rest logic can detect "round complete" cleanly. If the
@@ -1315,8 +1325,6 @@ function DayView({
         const [moved] = updated.splice(targetIdx, 1);
         const insertAt = targetIdx > sourceIdx ? sourceIdx + 1 : sourceIdx;
         updated.splice(insertAt, 0, moved);
-        mappedTargetIdx = insertAt;
-        mappedSourceIdx = targetIdx > sourceIdx ? sourceIdx : sourceIdx + 1;
         return updated;
       });
 
@@ -1355,9 +1363,8 @@ function DayView({
         const existing = loadSupersets(dayIdx, weekIdx);
         saveSupersets(dayIdx, weekIdx, [...existing, [sourceExId, targetExId]]);
       }
-      void mappedTargetIdx;
     },
-    [dayIdx, weekIdx],
+    [dayIdx, weekIdx, exercises],
   );
 
   /**
@@ -1366,17 +1373,19 @@ function DayView({
    */
   const handleUnpairSuperset = useCallback(
     (groupId: string) => {
-      let pairedExIds: string[] = [];
-      setExercises((prev) => {
-        pairedExIds = prev
-          .filter((ex) => ex.supersetGroupId === groupId)
-          .map((ex) => String(ex.id ?? ''));
-        return prev.map((ex) =>
+      // Compute the paired ids from current state synchronously — see the
+      // handlePairSuperset note: the setExercises updater runs too late to
+      // feed the saveSupersets call below.
+      const pairedExIds = exercises
+        .filter((ex) => ex.supersetGroupId === groupId)
+        .map((ex) => String(ex.id ?? ''));
+      setExercises((prev) =>
+        prev.map((ex) =>
           ex.supersetGroupId === groupId
             ? { ...ex, supersetGroupId: undefined }
             : ex,
-        );
-      });
+        ),
+      );
       if (pairedExIds.length >= 2) {
         const existing = loadSupersets(dayIdx, weekIdx);
         const filtered = existing.filter(
@@ -1385,7 +1394,7 @@ function DayView({
         saveSupersets(dayIdx, weekIdx, filtered);
       }
     },
-    [dayIdx, weekIdx],
+    [dayIdx, weekIdx, exercises],
   );
 
   // handleNoteChange — reserved for note editing
