@@ -494,6 +494,48 @@ export function saveSupersets(
   store.set(key, JSON.stringify(pairs));
 }
 
+/**
+ * Per-exercise set-count overrides for a given (day, week).
+ *
+ * The program prescribes a set count, and getWeekSets() week-adjusts it.
+ * But when the lifter adds or removes a set mid-workout, that change only
+ * lives in component state — `resolveExercises` and the done-exercise calc
+ * both rebuild the count from the program on every mount, so the change
+ * vanishes on re-entry (a removed set re-appears as an incomplete row).
+ *
+ * This map records the lifter's actual chosen count. Keyed by EXERCISE_DB
+ * id (stable across reorder; no reindexing needed). Same-exercise-in-two-
+ * slots shares the override — an accepted edge case, mirroring supersets.
+ */
+export function loadSetCounts(dayIdx: number, weekIdx: number): Record<string, number> {
+  const raw = store.get(`foundry:setcount:d${dayIdx}:w${weekIdx}`);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n > 0) out[k] = n;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveSetCount(
+  dayIdx: number,
+  weekIdx: number,
+  exId: string,
+  count: number,
+): void {
+  if (!exId || !Number.isFinite(count) || count < 1) return;
+  const current = loadSetCounts(dayIdx, weekIdx);
+  current[exId] = count;
+  store.set(`foundry:setcount:d${dayIdx}:w${weekIdx}`, JSON.stringify(current));
+}
+
 export function loadCardioLog(dayIdx: number, weekIdx: number): unknown {
   const raw = store.get(`foundry:cardio:d${dayIdx}:w${weekIdx}`);
   return raw ? JSON.parse(raw) : null;

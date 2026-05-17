@@ -32,6 +32,8 @@ import {
   getWeekSets,
   loadSupersets,
   saveSupersets,
+  loadSetCounts,
+  saveSetCount,
 } from '../../utils/store';
 import { applyPersistedSupersets, newSupersetId } from '../../utils/supersets';
 import { dayDisplayName } from '../../utils/splitLabel';
@@ -278,11 +280,16 @@ function DayView({
   const [doneExercises, setDoneExercises] = useState<Set<number>>(() => {
     if (isFutureSession) return new Set<number>(); // future — nothing is done
     const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile);
+    // Honor any persisted add/remove-set overrides so an exercise the
+    // lifter shortened to 3 sets isn't judged against the program's 4.
+    const setCounts = loadSetCounts(dayIdx, weekIdx);
     const restored = new Set<number>();
     weekDay.exercises.forEach((ex: Exercise, i: number) => {
       const exData = (saved as unknown as Record<string, Record<string, Record<string, unknown>>>)[i] || {};
+      const expectedSets =
+        (ex.id != null ? setCounts[ex.id] : undefined) ?? Number(ex.sets ?? 0);
       let allFilled = true;
-      for (let s = 0; s < Number(ex.sets ?? 0); s++) {
+      for (let s = 0; s < expectedSets; s++) {
         const sd = exData[s] || {};
         // `confirmed` is the explicit checkmark action — the only signal we
         // can trust. The prior `repsSuggested` guard wrongly excluded sets
@@ -471,9 +478,16 @@ function DayView({
   // MUST be declared before prevWeekNotes useMemo — Babel hoists var to undefined otherwise
   const resolveExercises = useCallback(() => {
     const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');
+    // Persisted add/remove-set overrides — applied to whichever exercise
+    // ends up in the slot (program default or swap override) so a
+    // shortened/extended exercise keeps its set count across re-entry.
+    const setCounts = loadSetCounts(dayIdx, weekIdx);
     return (weekDay.exercises || []).map((ex: Exercise, i: number) => {
       const ovId = loadExOverride(dayIdx, weekIdx, i);
-      if (!ovId) return ex;
+      if (!ovId) {
+        const c = ex.id != null ? setCounts[ex.id] : undefined;
+        return c ? ({ ...ex, sets: c } as Exercise) : ex;
+      }
       const dbEx = findExercise(ovId);
       // Check custom exercises if not in DB
       const customEx = !dbEx && ovId.startsWith('custom:') ? customExercises[ovId] : null;
@@ -491,7 +505,9 @@ function DayView({
         equipment: resolved.equipment || 'other',
         tag: resolved.tag || ex.tag,
         anchor: ex.anchor,
-        sets: getWeekSets(Number((resolved.sets || ex.sets) ?? 0), weekIdx, getMeso().totalWeeks),
+        sets:
+          (resolved.id != null ? setCounts[resolved.id] : undefined) ??
+          getWeekSets(Number((resolved.sets || ex.sets) ?? 0), weekIdx, getMeso().totalWeeks),
         reps: resolved.reps || ex.reps,
         rest: resolved.rest || ex.rest,
         warmup: wu,
@@ -539,7 +555,11 @@ function DayView({
   // immediately yank it forward, making it impossible to revisit a completed
   // exercise. The prevDoneRef captures the previous frame's done set so we
   // can detect the new-done-this-render edge.
-  const prevDoneRef = React.useRef<Set<number>>(new Set());
+  // Seed with the mount-time done set — NOT an empty set. An empty seed
+  // made the effect below treat every already-done exercise as "just
+  // became done" on the first render after a remount, firing a spurious
+  // NextUpCard that pointed at an exercise the lifter had already finished.
+  const prevDoneRef = React.useRef<Set<number>>(doneExercises);
   useEffect(() => {
     if (exercises.length === 0) {
       prevDoneRef.current = doneExercises;
@@ -1171,6 +1191,10 @@ function DayView({
 
   const handleAddSet = useCallback(
     (exIdx: number) => {
+      // Persist the new count so the added set survives a back-out + return.
+      const addExId = String(exercises[exIdx]?.id ?? '');
+      const addCount = (Number(exercises[exIdx]?.sets) || 0) + 1;
+      if (addExId) saveSetCount(dayIdx, weekIdx, addExId, addCount);
       setExercises((prev) => {
         const updated = [...prev];
         const ex = updated[exIdx];
@@ -1203,11 +1227,15 @@ function DayView({
         return next;
       });
     },
-    [dayIdx, weekIdx],
+    [dayIdx, weekIdx, exercises],
   );
 
   const handleRemoveSet = useCallback(
     (exIdx: number, setIdx: number) => {
+      // Persist the reduced count so the removed set stays removed on re-entry.
+      const rmExId = String(exercises[exIdx]?.id ?? '');
+      const rmCount = Math.max(1, (Number(exercises[exIdx]?.sets) || 0) - 1);
+      if (rmExId) saveSetCount(dayIdx, weekIdx, rmExId, rmCount);
       setExercises((prev) => {
         const updated = [...prev];
         const ex = updated[exIdx];
@@ -1237,7 +1265,7 @@ function DayView({
         return next;
       });
     },
-    [dayIdx, weekIdx],
+    [dayIdx, weekIdx, exercises],
   );
 
   const handleMoveExercise = useCallback(

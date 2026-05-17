@@ -53,6 +53,8 @@ const mocks = vi.hoisted(() => ({
   loadExerciseHistory: vi.fn(() => []),
   loadSupersets: vi.fn(() => []),
   saveSupersets: vi.fn(),
+  loadSetCounts: vi.fn(() => ({})),
+  saveSetCount: vi.fn(),
 
   getMeso: vi.fn(() => ({
     weeks: 6,
@@ -92,6 +94,8 @@ vi.mock('../../../utils/store', () => ({
   saveExOverride: mocks.saveExOverride,
   loadSupersets: mocks.loadSupersets,
   saveSupersets: mocks.saveSupersets,
+  loadSetCounts: mocks.loadSetCounts,
+  saveSetCount: mocks.saveSetCount,
   saveProfile: mocks.saveProfile,
   loadBwLog: mocks.loadBwLog,
   bwPromptShownThisWeek: mocks.bwPromptShownThisWeek,
