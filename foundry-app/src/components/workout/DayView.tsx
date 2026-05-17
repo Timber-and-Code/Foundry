@@ -65,7 +65,7 @@ import ReorderSheet from './ReorderSheet';
 import SupersetGroup from './SupersetGroup';
 import SupersetRoundView from './SupersetRoundView';
 import SupersetPickerSheet from './SupersetPickerSheet';
-import { buildSwapGroups, bucketFor } from '../../utils/swapGroups';
+import { buildAllSwapGroups, bucketFor } from '../../utils/swapGroups';
 import { expandEquipment } from '../../utils/program';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
@@ -620,19 +620,17 @@ function DayView({
   const [addingExercise, setAddingExercise] = useState(false);
 
   /* ── Swap: build exercise groups for picker ─────────────────────────────── */
-  // Day-tag → EXERCISE_DB tag-set mapping lives in swapGroups.ts so the
-  // setup builder (DayAccordion) and the workout view share one source of
-  // truth. See `foundry/beat2_preview_fixes.md` #2.
-  //
-  // sourceTag: when swapping an existing exercise, pass through its tag so
-  // the allow-set always includes it. Otherwise a Back/PULL exercise on a
-  // mis-tagged day (e.g. day.tag='PUSH' after splitType drift) would have
-  // no Back options listed at all — reported regression in 2.8.4.
-  const swapSourceTag =
-    swapTarget !== null ? exercises[swapTarget.exIdx]?.tag : undefined;
+  // The swap picker lists the ENTIRE exercise database, grouped by muscle.
+  // Day-tag filtering was repeatedly reported as "missing" exercises (e.g.
+  // no Back options on a Push day) — the lifter wants every option, always.
+  // The relevant muscle is still hoisted + auto-expanded via `swapMuscle`
+  // below, so the most-likely picks stay at the top.
   const swapExGroups = useMemo(
-    () => buildSwapGroups(getExerciseDB(), day?.tag, swapSourceTag),
-    [day?.tag, swapSourceTag],
+    () => buildAllSwapGroups(getExerciseDB()),
+    // Recompute once the lazily-loaded DB lands (length 0 → ~240). DayView
+    // re-renders every second via the workout timer, so this refreshes
+    // promptly even though getExerciseDB() itself isn't reactive.
+    [getExerciseDB().length],
   );
 
   // Resolve through bucketFor so a swap from a 'Lats' exercise still

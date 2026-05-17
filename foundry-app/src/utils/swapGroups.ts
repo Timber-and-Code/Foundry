@@ -107,3 +107,24 @@ export function buildSwapGroups(
   }
   return groups;
 }
+
+/**
+ * Group the ENTIRE exercise DB by muscle bucket — no day-tag filtering.
+ *
+ * The in-workout swap picker uses this: lifters repeatedly reported the
+ * tag-filtered list as "missing" exercises (no Back options on a Push day,
+ * etc.). Showing everything, with the relevant muscle hoisted + expanded
+ * by the caller (`autoExpandMuscle`), keeps the likely picks on top while
+ * never hiding a valid option.
+ */
+export function buildAllSwapGroups(
+  db: ExerciseEntry[],
+): Record<string, ExerciseEntry[]> {
+  const groups: Record<string, ExerciseEntry[]> = {};
+  for (const ex of db) {
+    const m = bucketFor(ex.muscle || 'other');
+    if (!groups[m]) groups[m] = [];
+    groups[m].push(ex);
+  }
+  return groups;
+}
