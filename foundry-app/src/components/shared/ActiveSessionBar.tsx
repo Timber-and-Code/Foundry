@@ -57,8 +57,9 @@ function MobilityIcon({ size = 18, color }: { size?: number; color: string }) {
 }
 
 /**
- * Sticky banner announcing an in-flight workout or cardio session. Rendered
- * once at the top of the HomeView shell. Hides itself when:
+ * Banner announcing an in-flight workout or cardio session. Rendered once
+ * in App's sticky header stack, directly below FoundryBanner. Hides itself
+ * when:
  *   - there is no active session, or
  *   - the user is already on the session's route (no need to nag them back).
  *
@@ -125,10 +126,10 @@ function ActiveSessionBar() {
       aria-live="polite"
       aria-label={`${ariaPrefix} in progress — ${label}`}
       style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 90,
-        paddingTop: 'env(safe-area-inset-top, 0px)',
+        // Rendered inside App's sticky header stack (below FoundryBanner),
+        // so this bar no longer pins itself — that overlap hid the banner.
+        display: 'flex',
+        alignItems: 'stretch',
         background: 'var(--bg-root)',
         borderBottom: `2px solid ${accent}`,
       }}
@@ -140,7 +141,8 @@ function ActiveSessionBar() {
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          width: '100%',
+          flex: 1,
+          minWidth: 0,
           padding: '8px 14px',
           background: 'transparent',
           border: 'none',
@@ -191,19 +193,19 @@ function ActiveSessionBar() {
           }}
           aria-label="Dismiss inactive session"
           style={{
-            position: 'absolute',
-            top: 'calc(env(safe-area-inset-top, 0px) + 6px)',
-            right: 6,
-            width: 24,
-            height: 24,
+            // Inline flex sibling of the main button — was position:absolute,
+            // which dropped the × on top of the → arrow.
+            flexShrink: 0,
+            minWidth: 44,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             background: 'transparent',
             border: 'none',
+            borderLeft: '1px solid var(--border-subtle, var(--border))',
             color: 'var(--text-muted)',
             cursor: 'pointer',
-            fontSize: 16,
+            fontSize: 18,
             lineHeight: 1,
           }}
         >

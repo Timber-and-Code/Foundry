@@ -20,7 +20,6 @@ import { useAuth } from '../../contexts/AuthContext';
 // Shared UI
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import ActiveSessionBar from '../shared/ActiveSessionBar';
 
 // Sub-components
 import HomeTab from './HomeTab';
@@ -588,11 +587,6 @@ function HomeView({
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ paddingBottom: 140 }}>
-      {/* Persistent in-app session bar — sticks to the top of the Home shell
-          so the user always sees that a workout or cardio session is running.
-          Hides itself on the route that owns the session. */}
-      <ActiveSessionBar />
-
       {/* Global overlays */}
       {showReset && <ResetDialog />}
       <AddWorkoutModal />

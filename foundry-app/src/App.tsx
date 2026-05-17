@@ -42,6 +42,7 @@ migrateKeys();
 
 // Components
 import FoundryBanner from './components/shared/FoundryBanner';
+import ActiveSessionBar from './components/shared/ActiveSessionBar';
 import { useSyncState } from './hooks/useSyncState';
 import ErrorBoundary from './components/ErrorBoundary';
 import MinimizedTimerBar from './components/MinimizedTimerBar';
@@ -566,7 +567,9 @@ function App() {
           margin: '0 auto',
         }}
       >
-        {/* Header */}
+        {/* Header — banner + the in-progress session bar share one sticky
+            stack so the bar sits BELOW "THE FOUNDRY" instead of covering
+            it (both used to pin at top:0 and the bar's higher z-index won). */}
         <div style={{ position: 'sticky', top: 0, zIndex: 50 }}>
           <FoundryBanner
             // Single source of truth: profile.splitType (set in setup).
@@ -577,6 +580,7 @@ function App() {
             onProfileTap={isHome ? () => setShowProfileDrawer(true) : undefined}
             syncState={syncState}
           />
+          <ActiveSessionBar />
         </div>
 
         {/* Profile Drawer */}
