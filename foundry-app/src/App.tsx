@@ -26,7 +26,7 @@ import {
 // Utils
 import { migrateKeys } from './utils/storage';
 import { on } from './utils/events';
-import { formatSplitName } from './utils/splitLabel';
+import { formatSplitName, classifySplitFromDays } from './utils/splitLabel';
 import { runDayDataV2Migration } from './utils/dayDataV2Migration';
 import {
   store,
@@ -538,6 +538,22 @@ function App() {
     saveProfile(updated);
   };
 
+  // Self-heal: profile.splitType can drift out of sync with the actual
+  // generated program — e.g. changing the day count in setup coerces the
+  // split to a compatible one, but a stale splitType can survive. The
+  // program's day tags are ground truth, so classify from them and, when
+  // they disagree, correct the stored splitType. `splitType` is not in the
+  // ('split' | 'days') set handleProfileUpdate watches, so this does NOT
+  // trigger a program regeneration — it only fixes the label field.
+  const programSplit = classifySplitFromDays(activeDays);
+  useEffect(() => {
+    if (programSplit && profile && profile.splitType !== programSplit) {
+      handleProfileUpdate({ splitType: programSplit });
+      resetMesoCache();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programSplit, profile?.splitType]);
+
   const isHome = location.pathname === '/';
 
   return (
@@ -572,11 +588,12 @@ function App() {
             it (both used to pin at top:0 and the bar's higher z-index won). */}
         <div style={{ position: 'sticky', top: 0, zIndex: 50 }}>
           <FoundryBanner
-            // Single source of truth: profile.splitType (set in setup).
-            // Day-tag derivation is a trap — Traditional/Custom day tags
-            // overlap with PPL's so the banner used to falsely collapse
-            // Upper/Lower or Traditional mesos to "PUSH PULL LEGS".
-            subtitle={formatSplitName(getMeso().splitType, 'caps')}
+            // Derive the split from the actual program day-tags — that's
+            // ground truth and immune to a drifted profile.splitType. Falls
+            // back to the stored splitType only when the day-tags can't be
+            // confidently classified (custom splits). classifySplitFromDays
+            // resolves the old Traditional-vs-PPL ambiguity via ARMS days.
+            subtitle={formatSplitName(programSplit ?? getMeso().splitType, 'caps')}
             onProfileTap={isHome ? () => setShowProfileDrawer(true) : undefined}
             syncState={syncState}
           />

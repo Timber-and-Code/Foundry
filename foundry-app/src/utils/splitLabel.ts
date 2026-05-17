@@ -51,6 +51,55 @@ export function formatSplitName(
 }
 
 /**
+ * Classify a split type from a program's actual day tags.
+ *
+ * `profile.splitType` can drift out of sync with the generated program
+ * (e.g. a setup day-count change silently coerces the split). The program
+ * day tags are ground truth, so this re-derives the split from them.
+ *
+ * The naive day-tag UNION was rejected before because Traditional uses
+ * PUSH/PULL/LEGS tags and would look like PPL — but Traditional ALSO has
+ * arm-focused days tagged ARMS, which disambiguates it cleanly here.
+ *
+ * Returns null when the tags can't be confidently classified (custom
+ * splits) — callers should fall back to the stored splitType then.
+ */
+const SPLIT_LIFTING_TAGS = ['PUSH', 'PULL', 'LEGS', 'UPPER', 'LOWER', 'ARMS', 'FULL'];
+
+export function classifySplitFromDays(
+  days: ReadonlyArray<{ tag?: string }> | null | undefined,
+): string | null {
+  if (!days || days.length === 0) return null;
+  // Lifting tags only — ignore CARDIO / MOBILITY / BW / rest entries.
+  const tags = new Set<string>();
+  for (const d of days) {
+    const t = (d?.tag || '').toUpperCase();
+    if (SPLIT_LIFTING_TAGS.includes(t)) tags.add(t);
+  }
+  if (tags.size === 0) return null;
+  const has = (t: string) => tags.has(t);
+  // Arm-focused day present → Traditional bro-split.
+  if (has('ARMS')) return 'traditional';
+  // Upper/Lower — only UPPER and/or LOWER days.
+  if ((has('UPPER') || has('LOWER')) && !has('PUSH') && !has('PULL') && !has('LEGS')) {
+    return 'upper_lower';
+  }
+  // Full body — only FULL days.
+  if (
+    has('FULL') &&
+    !has('PUSH') && !has('PULL') && !has('LEGS') && !has('UPPER') && !has('LOWER')
+  ) {
+    return 'full_body';
+  }
+  // Push / Pull / Legs.
+  if (has('PUSH') && has('PULL') && has('LEGS')) return 'ppl';
+  // Push / Pull (no dedicated leg day).
+  if (has('PUSH') && has('PULL') && !has('LEGS')) return 'push_pull';
+  // Anything else — don't guess.
+  return null;
+}
+
+/**
  * Friendly name to display for a `TrainingDay`'s tag, used by the workout
  * title bar and any other UI surface that needs a human-readable label
  * INDEPENDENT of the meso's stored `day.name`.
