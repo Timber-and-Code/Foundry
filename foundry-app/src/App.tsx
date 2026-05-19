@@ -28,6 +28,7 @@ import { migrateKeys } from './utils/storage';
 import { on } from './utils/events';
 import { formatSplitName } from './utils/splitLabel';
 import { runDayDataV2Migration } from './utils/dayDataV2Migration';
+import { repairDriftedSplitType } from './utils/splitTypeRepair';
 import {
   store,
   loadProfile,
@@ -330,6 +331,24 @@ function App() {
         console.warn('[Foundry] Day data v2 migration threw', e);
       }
       store.set(flagKey, '1');
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [profile]);
+
+  // One-time recovery: a pre-2026-04-27 sync bug stored a wrong split_type
+  // enum, which then clobbered profile.splitType to 'ppl' on every pull.
+  // Re-derive the real split from the stored program's day tags once.
+  useEffect(() => {
+    if (!profile) return;
+    const handle = setTimeout(() => {
+      try {
+        const result = repairDriftedSplitType();
+        if (result.repaired) {
+          console.info('[Foundry] splitType repaired:', result.from, '→', result.to);
+        }
+      } catch (e) {
+        console.warn('[Foundry] splitType repair threw', e);
+      }
     }, 0);
     return () => clearTimeout(handle);
   }, [profile]);
