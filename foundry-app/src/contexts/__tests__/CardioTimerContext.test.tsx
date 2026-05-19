@@ -148,14 +148,18 @@ describe('CardioTimerContext', () => {
     expect(captured!.elapsedSeconds).toBe(3);
     expect(captured!.isComplete).toBe(true);
     expect(captured!.isActive).toBe(true);          // not auto-ended
-    expect(oscStartSpy).toHaveBeenCalledTimes(1);
+    // The completion chime is a two-note rising tone, so one chime is
+    // multiple osc.start() calls. Snapshot the count, then assert it does
+    // not change — i.e. the chime fired exactly once.
+    const startsAfterChime = oscStartSpy.mock.calls.length;
+    expect(startsAfterChime).toBeGreaterThan(0);
     // Keep ticking — chime must NOT fire again.
     await act(async () => {
       vi.advanceTimersByTime(5000);
     });
     expect(captured!.elapsedSeconds).toBe(8);
     expect(captured!.isActive).toBe(true);
-    expect(oscStartSpy).toHaveBeenCalledTimes(1);
+    expect(oscStartSpy).toHaveBeenCalledTimes(startsAfterChime);
     await cleanup();
   });
 
@@ -169,6 +173,8 @@ describe('CardioTimerContext', () => {
       vi.advanceTimersByTime(60_000);
     });
     expect(captured!.isComplete).toBe(true);
+    const startsAfterFirstChime = oscStartSpy.mock.calls.length;
+    expect(startsAfterFirstChime).toBeGreaterThan(0);
     await act(async () => {
       captured!.extendByMinutes(2);
     });
@@ -179,7 +185,7 @@ describe('CardioTimerContext', () => {
       vi.advanceTimersByTime(120_000);
     });
     expect(captured!.isComplete).toBe(true);
-    expect(oscStartSpy).toHaveBeenCalledTimes(2);
+    expect(oscStartSpy.mock.calls.length).toBeGreaterThan(startsAfterFirstChime);
     await cleanup();
   });
 

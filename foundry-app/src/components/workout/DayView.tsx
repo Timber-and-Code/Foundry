@@ -845,9 +845,11 @@ function DayView({
 
       // ── LAST SET OF AN EXERCISE (non-superset) ───────────────────────
       if (isLastSet) {
-        // Non-superset last set: NextUpCard owns the transition (d52a574),
-        // no rest. Auto-advance by expanding the next exercise card.
+        // The rest cue should fire after EVERY set — the last set still
+        // earns a rest before the next exercise. The NextUpCard transition
+        // (expand + scroll to the next card) runs alongside the timer.
         if (exIdx !== -1 && exIdx + 1 < exercises.length) {
+          startRestTimer(restStr, exName, dayIdx, weekIdx);
           const nextIdx = exIdx + 1;
           setExpandedIdx(nextIdx);
           setTimeout(() => {
@@ -1616,21 +1618,25 @@ function DayView({
         padding: '20px',
       }}
     >
-      {/* Sticky session timer bar — escapes parent padding via negative margins
-          and sits above the FoundryBanner (zIndex 60 > banner's 50) so it
-          remains the persistent top surface during a workout.
+      {/* Sticky session timer bar — escapes parent padding via negative
+          margins and sticks just BELOW the FoundryBanner (top: 79px ≈ the
+          banner's height with subtitle) so THE FOUNDRY title stays visible
+          during a workout instead of being covered. zIndex sits under the
+          banner (50) so any sub-pixel overlap resolves in the banner's
+          favour — the notch inset is already absorbed by the banner, so
+          this bar no longer pads for it.
           Layout: [← back] [SESSION mm:ss] [REST m:ss] — the rest chip
           replaces the old fixed-bottom MinimizedTimerBar (#5). */}
       <div
         style={{
           position: 'sticky',
-          top: 0,
-          zIndex: 60,
+          top: 79,
+          zIndex: 40,
           marginTop: -20,
           marginLeft: -20,
           marginRight: -20,
           marginBottom: 20,
-          paddingTop: `calc(12px + env(safe-area-inset-top))`,
+          paddingTop: 12,
           paddingRight: 16,
           paddingBottom: 12,
           paddingLeft: 16,

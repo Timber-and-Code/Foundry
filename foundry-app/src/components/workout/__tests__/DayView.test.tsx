@@ -480,9 +480,10 @@ describe('DayView', () => {
     expect(startRestTimer).toHaveBeenCalledWith('90', 'Bench Press', 0, 0);
   });
 
-  // Last set of a non-superset exercise hands off via NextUpCard, NOT
-  // a rest timer (per d52a574). This codifies that contract.
-  it('does NOT start the rest timer on a last-set log (NextUpCard handoff)', () => {
+  // Last set of a non-superset exercise still starts a rest timer — the
+  // cue must fire after EVERY set. The NextUpCard auto-advance (expand +
+  // scroll to the next card) runs alongside the timer.
+  it('starts the rest timer on a last-set log when a next exercise follows', () => {
     const startRestTimer = vi.fn();
     mocks.useRestTimer.mockReturnValue({
       restTimer: null,
@@ -505,6 +506,7 @@ describe('DayView', () => {
       fireEvent.click(lastBtn);
     });
 
-    expect(startRestTimer).not.toHaveBeenCalled();
+    expect(startRestTimer).toHaveBeenCalledTimes(1);
+    expect(startRestTimer).toHaveBeenCalledWith('90', 'Bench Press', 0, 0);
   });
 });

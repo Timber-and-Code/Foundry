@@ -49,16 +49,28 @@ export function playTimerCompleteChime(): void {
     if (ctx.state === 'suspended') {
       void ctx.resume();
     }
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.4, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.6);
+    // Two-note rising chime (G5 → C6), louder and a touch longer than a
+    // single tone so it cuts through with the phone in a pocket. Fired
+    // once — the looping alarm was replaced by this single, stronger cue.
+    const now = ctx.currentTime;
+    const notes = [
+      { freq: 784, start: 0, dur: 0.42 },     // G5
+      { freq: 1047, start: 0.34, dur: 0.6 },  // C6 — overlaps the tail of G5
+    ];
+    for (const n of notes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = n.freq;
+      osc.type = 'sine';
+      const t0 = now + n.start;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.55, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
+      osc.start(t0);
+      osc.stop(t0 + n.dur);
+    }
   } catch { /* AudioContext blew up — silent fail is fine */ }
 }
 
