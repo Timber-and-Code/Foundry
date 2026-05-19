@@ -333,30 +333,33 @@ function loadTdeIdsForActiveMeso(): Record<string, string> | null {
   }
 }
 
-// ─── DayData v2 (id-keyed) — Big-Big Phase 1 ───────────────────────────────
+// ─── DayData v2 (id-keyed) — Big-Big Phase 3 (default ON) ──────────────────
 // Parallel storage that re-keys per-day data from implicit array position to
-// `training_day_exercises.id` (uuid). Phase 1 dual-writes only; reads + sync
-// wiring come in Phase 3. Default-OFF feature flag; flip with the dev-only
-// `window.__foundryEnableDayV2Writes(true)` helper exposed in main.tsx.
+// `training_day_exercises.id` (uuid). Both flags now default ON (Phase 3):
+// writes dual-write to v2 so it stays fresh, and reads pull from v2 first
+// with a v1 fall-through on miss (covers un-migrated users). Both can be
+// force-disabled per device — set the flag to '0' via the dev-only
+// `window.__foundryEnableDayV2Writes(false)` / `...Reads(false)` helpers.
 
 const DAY_V2_WRITES_FLAG = 'foundry:flag:day_v2_writes';
 const DAY_V2_READS_FLAG = 'foundry:flag:day_v2_reads';
 
 /**
- * Whether dual-write of v2 (id-keyed) DayData is enabled. Default OFF.
+ * Whether dual-write of v2 (id-keyed) DayData is enabled. Default ON —
+ * only an explicit '0' disables it. Writes must stay on for reads to be
+ * safe: otherwise v2 goes stale and v2-first reads serve stale carryover.
  */
 export function isDayV2WritesEnabled(): boolean {
-  return store.get(DAY_V2_WRITES_FLAG) === '1';
+  return store.get(DAY_V2_WRITES_FLAG) !== '0';
 }
 
 /**
- * Whether read-from-v2 is enabled. Default OFF. Phase 3 — when ON the
- * carryover read tries v2 storage first, falling through to v1 on miss.
- * Independent of the writes flag so we can roll out reads progressively
- * (writes-on for a session, reads still on v1, then flip reads).
+ * Whether read-from-v2 is enabled. Default ON — only an explicit '0'
+ * disables it. When ON the carryover read tries v2 storage first, falling
+ * through to v1 on miss (un-migrated users / pre-v2 data).
  */
 export function isDayV2ReadsEnabled(): boolean {
-  return store.get(DAY_V2_READS_FLAG) === '1';
+  return store.get(DAY_V2_READS_FLAG) !== '0';
 }
 
 function v2KeyFor(dayIdx: number, weekIdx: number): string {

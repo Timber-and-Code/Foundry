@@ -76,8 +76,8 @@ function dayWith(exId1: string, exId2: string): TrainingDay {
 describe('isDayV2ReadsEnabled', () => {
   beforeEach(() => localStorage.clear());
 
-  it('defaults to false when flag is unset', () => {
-    expect(isDayV2ReadsEnabled()).toBe(false);
+  it('defaults to true when flag is unset (Phase 3 — default ON)', () => {
+    expect(isDayV2ReadsEnabled()).toBe(true);
   });
 
   it('is true when flag is set to "1"', () => {
@@ -85,11 +85,11 @@ describe('isDayV2ReadsEnabled', () => {
     expect(isDayV2ReadsEnabled()).toBe(true);
   });
 
-  it('is false for any value other than "1"', () => {
+  it('is false only when flag is explicitly "0"', () => {
     localStorage.setItem(READS_FLAG, '0');
     expect(isDayV2ReadsEnabled()).toBe(false);
     localStorage.setItem(READS_FLAG, 'true');
-    expect(isDayV2ReadsEnabled()).toBe(false);
+    expect(isDayV2ReadsEnabled()).toBe(true);
   });
 });
 
@@ -97,6 +97,7 @@ describe('loadDayWeekWithCarryover — flag OFF (regression)', () => {
   beforeEach(() => localStorage.clear());
 
   it('carries over from v1 when flag is OFF (no v2 read attempted)', () => {
+    localStorage.setItem(READS_FLAG, '0'); // default is now ON — force OFF
     // Week 0 v1: bench 100x10, OHP 50x10 — both at top of range → expect bumps.
     seedV1(0, 0, {
       0: { 0: { weight: '100', reps: '10' }, 1: { weight: '100', reps: '10' }, 2: { weight: '100', reps: '10' } },

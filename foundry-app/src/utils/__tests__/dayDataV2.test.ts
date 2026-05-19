@@ -35,8 +35,8 @@ function seedTdeCache(mesoId: string, map: Record<string, string>): void {
 describe('isDayV2WritesEnabled', () => {
   beforeEach(() => localStorage.clear());
 
-  it('defaults to false when flag is unset', () => {
-    expect(isDayV2WritesEnabled()).toBe(false);
+  it('defaults to true when flag is unset (Phase 3 — default ON)', () => {
+    expect(isDayV2WritesEnabled()).toBe(true);
   });
 
   it('is true when flag is set to "1"', () => {
@@ -44,11 +44,11 @@ describe('isDayV2WritesEnabled', () => {
     expect(isDayV2WritesEnabled()).toBe(true);
   });
 
-  it('is false when flag is set to anything other than "1"', () => {
+  it('is false only when flag is explicitly "0"', () => {
     localStorage.setItem(FLAG_KEY, '0');
     expect(isDayV2WritesEnabled()).toBe(false);
     localStorage.setItem(FLAG_KEY, 'true');
-    expect(isDayV2WritesEnabled()).toBe(false);
+    expect(isDayV2WritesEnabled()).toBe(true);
   });
 });
 
@@ -86,10 +86,11 @@ describe('saveDayWeekV2 / loadDayWeekV2', () => {
   });
 });
 
-describe('saveDayWeek dual-write — flag OFF (default)', () => {
+describe('saveDayWeek dual-write — flag OFF (explicit "0")', () => {
   beforeEach(() => localStorage.clear());
 
-  it('does NOT write the v2 key when the flag is off, even with full cache', () => {
+  it('does NOT write the v2 key when the flag is explicitly off, even with full cache', () => {
+    localStorage.setItem(FLAG_KEY, '0');
     localStorage.setItem(ACTIVE_MESO_KEY, 'meso-1');
     seedTdeCache('meso-1', { '0:0': 'tde-uuid-a' });
     const v1: DayData = { 0: { 0: { weight: '135', reps: '8', _exId: 'bench_press_bb' } as never } };
