@@ -623,11 +623,26 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
     // training_days + training_day_exercises rows we just pulled.
     try {
       localStorage.setItem('foundry:storedProgram', JSON.stringify(program));
-      // Clear any stale exOv keys — the swaps are now baked into storedProgram
+      // Drop a swap override ONLY when the freshly-pulled program already
+      // reflects it — i.e. the swap synced and is now baked into
+      // training_day_exercises, so the override is redundant. Overrides NOT
+      // reflected are KEPT: they belong to a shared-meso member (whose local
+      // swap intentionally never mutates the owner's program) or to an owner
+      // swap that hasn't synced yet. Wiping them unconditionally is what made
+      // meso-wide swaps "not stick".
+      const exovRe = /^foundry:exov:d(\d+):(?:w\d+:)?ex(\d+)$/;
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && k.startsWith('foundry:exov:')) keysToRemove.push(k);
+        if (!k || !k.startsWith('foundry:exov:')) continue;
+        const m = exovRe.exec(k);
+        if (!m) continue;
+        const dIdx = Number(m[1]);
+        const eIdx = Number(m[2]);
+        const bakedId = program[dIdx]?.exercises?.[eIdx]?.id;
+        if (bakedId != null && String(bakedId) === localStorage.getItem(k)) {
+          keysToRemove.push(k);
+        }
       }
       keysToRemove.forEach((k) => localStorage.removeItem(k));
     } catch (e) {
