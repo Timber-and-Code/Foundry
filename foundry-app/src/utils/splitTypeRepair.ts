@@ -6,19 +6,24 @@
 // that pinned the banner + profile drawer to PUSH/PULL/LEGS while the actual
 // program stayed correct.
 //
-// The stored program's day tags are the ground truth. This repair runs once
-// and only corrects UNAMBIGUOUS cases: UPPER/LOWER and FULL day tags cannot
-// appear in a PPL or Traditional program. PUSH/PULL/LEGS is deliberately left
-// alone — a 4-day Traditional split is byte-identical to PPL by day tags, so
-// "repairing" it would risk a wrong guess. Those users keep their stored
-// splitType untouched.
+// The stored program's day LABELS are the ground truth (a synced program's
+// day TAGS are rebuilt from exercise tags and lose UPPER/LOWER). This repair
+// runs once and only corrects UNAMBIGUOUS cases: "Upper/Lower" and "Full
+// Body" labels can't belong to a PPL or Traditional program. PPL /
+// Traditional labels are deliberately left alone — a 4-day Traditional split
+// is indistinguishable from PPL, so "repairing" it would risk a wrong guess.
 
 import { store } from './storage';
 import { saveProfile } from './training';
 import { resetMesoCache } from '../data/constants';
 import type { TrainingDay } from '../types';
 
-const REPAIR_FLAG = 'foundry:flag:splitType_repair_v1';
+// v2: the v1 repair classified from day TAGS, but a synced program's day
+// tag is rebuilt from the first exercise's tag (PUSH/PULL/LEGS only) — it
+// never carries UPPER/LOWER, so v1 could not classify an Upper/Lower meso.
+// v2 classifies from day LABELS ("Upper A", "Lower B"…), which survive the
+// sync round-trip. New flag key so devices that latched v1 re-run.
+const REPAIR_FLAG = 'foundry:flag:splitType_repair_v2';
 
 export interface SplitRepairResult {
   repaired: boolean;
@@ -27,29 +32,32 @@ export interface SplitRepairResult {
 }
 
 /**
- * Classify a split from program day tags — but ONLY when the tags make the
- * answer unambiguous. Returns null for PPL-style tags (could be PPL or a
- * 4-day Traditional) and for anything that can't be confidently named.
+ * Classify a split from program day LABELS — but ONLY when the labels make
+ * the answer unambiguous. Returns null for PPL / Traditional labels (a
+ * 4-day Traditional looks like PPL, so it's never auto-corrected) and for
+ * anything that can't be confidently named. Day labels ("Upper A",
+ * "Lower B", "Full Body A") survive the sync round-trip; day tags do not.
  */
 export function classifyUnambiguousSplit(
-  tags: ReadonlySet<string>,
+  labels: readonly string[],
 ): 'upper_lower' | 'full_body' | null {
-  const hasPPLTag = tags.has('PUSH') || tags.has('PULL') || tags.has('LEGS');
-  if ((tags.has('UPPER') || tags.has('LOWER')) && !hasPPLTag) return 'upper_lower';
-  if (
-    tags.has('FULL') &&
-    !hasPPLTag &&
-    !tags.has('UPPER') &&
-    !tags.has('LOWER')
-  ) {
-    return 'full_body';
-  }
+  const text = labels.join(' ').toLowerCase();
+  // Any PPL- or Traditional-style day word means the split is NOT
+  // unambiguously upper/lower or full-body — don't guess.
+  const looksPplOrTraditional =
+    /\b(push|pull|legs?|chest|back|shoulders?|arms?|quads?|hams?|hamstrings?|glutes?|biceps?|triceps?|delts?)\b/.test(
+      text,
+    );
+  const hasUpperLower = /\b(upper|lower)\b/.test(text);
+  const hasFull = /\bfull\b/.test(text);
+  if (hasUpperLower && !looksPplOrTraditional) return 'upper_lower';
+  if (hasFull && !hasUpperLower && !looksPplOrTraditional) return 'full_body';
   return null;
 }
 
 /**
  * One-shot, idempotent. Corrects `profile.splitType` from the stored
- * program's day tags when it has unambiguously drifted, then persists +
+ * program's day labels when it has unambiguously drifted, then persists +
  * syncs via `saveProfile`. Re-running is a no-op once the flag is set.
  *
  * Bails WITHOUT latching the flag when the profile or program isn't in
@@ -67,12 +75,10 @@ export function repairDriftedSplitType(): SplitRepairResult {
     const program = JSON.parse(programRaw) as TrainingDay[];
     if (!Array.isArray(program) || program.length === 0) return { repaired: false };
 
-    const tags = new Set<string>(
-      program
-        .map((d) => String(d?.tag || '').toUpperCase())
-        .filter((t) => t.length > 0),
-    );
-    const derived = classifyUnambiguousSplit(tags);
+    const labels = program
+      .map((d) => String(d?.label || ''))
+      .filter((l) => l.length > 0);
+    const derived = classifyUnambiguousSplit(labels);
 
     let result: SplitRepairResult = { repaired: false };
     if (derived && profile.splitType !== derived) {
