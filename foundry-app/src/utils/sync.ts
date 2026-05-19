@@ -129,13 +129,21 @@ function appSplitToEnum(split: unknown): SupabaseSplitType {
 // the canonical names) renders the correct label after a sync round-trip.
 // Without this, `row.split_type.toLowerCase()` produced 'ul' / 'fb' / 'pp'
 // which formatSplitName treated as unknown and slug-titled.
-function enumToAppSplit(enumValue: SupabaseSplitType | string | null | undefined): string {
-  if (typeof enumValue !== 'string') return 'ppl';
-  const v = enumValue.toUpperCase();
+function enumToAppSplit(
+  enumValue: SupabaseSplitType | string | null | undefined,
+): string | undefined {
+  if (typeof enumValue !== 'string') return undefined;
+  const v = enumValue.toUpperCase().trim();
   if (v === 'UL') return 'upper_lower';
   if (v === 'FB') return 'full_body';
   if (v === 'PP') return 'push_pull';
-  return 'ppl';
+  if (v === 'PPL') return 'ppl';
+  // NULL / empty / unrecognized column. Return undefined — NOT 'ppl' — so
+  // the merge layer DROPS the field instead of clobbering the user's real
+  // splitType with a guessed default. A wrong split_type echoing back on
+  // every pull (and being pushed straight back) was the self-perpetuating
+  // loop that pinned the banner + profile drawer to PUSH/PULL/LEGS.
+  return undefined;
 }
 
 // Local splits the DB enum can't represent. When merging a remote profile
@@ -2085,14 +2093,32 @@ export async function pullFromSupabase(): Promise<void> {
           const localKey = 'foundry:profile';
           const localRaw = store.get(localKey);
           const mesoFields = supabaseMesoRowToAppFields(mesoRow);
+          const remoteTs = mesoRow.updated_at ?? new Date().toISOString();
           try {
             const current = localRaw ? JSON.parse(localRaw) : {};
-            // Preserve local 'traditional'/'custom' splitType (DB enum can't
-            // represent them, so the remote value is always PPL fallback).
-            if (isUnrepresentableSplit(current.splitType)) {
+            // splitType is a build-time choice the local profile owns; the
+            // mesocycles row only mirrors it. For the user's OWN meso, keep
+            // the local value unless the remote row is genuinely newer (a
+            // real cross-device rebuild). Otherwise a stale split_type gets
+            // echoed back over the real split and pushed straight back — a
+            // self-perpetuating loop that pinned the banner to PUSH/PULL/LEGS.
+            // Members of a shared meso still follow the owner. traditional/
+            // custom are always kept local (the DB enum can't represent them).
+            const ownsMeso = mesoRow.user_id === user.id;
+            const keepLocalSplit =
+              !!current.splitType &&
+              (isUnrepresentableSplit(current.splitType) ||
+                (ownsMeso && !remoteIsNewer(localKey, remoteTs)));
+            if (keepLocalSplit) {
               delete (mesoFields as Record<string, unknown>).splitType;
             }
-            const merged = { ...current, ...mesoFields };
+            // Drop undefined keys (e.g. an unrecognized / NULL split_type) so
+            // the spread merge can't wipe a local value with `undefined`.
+            const remoteMesoFields: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(mesoFields)) {
+              if (v !== undefined) remoteMesoFields[k] = v;
+            }
+            const merged = { ...current, ...remoteMesoFields };
 
             // If the user is a member of a shared meso, pull the owner's
             // workoutDays so getMeso() uses the right day count/schedule.
@@ -2108,7 +2134,6 @@ export async function pullFromSupabase(): Promise<void> {
               }
             }
 
-            const remoteTs = mesoRow.updated_at ?? new Date().toISOString();
             store.setFromRemote(localKey, JSON.stringify(merged), remoteTs);
           } catch {
             // ignore parse errors
@@ -2643,7 +2668,7 @@ export async function joinMesoByCode(
         ]);
         const profileForGen = JSON.parse(profileRaw);
         // Use the shared meso's split/days, not whatever the friend had
-        profileForGen.splitType = enumToAppSplit(mesoRow.split_type);
+        profileForGen.splitType = enumToAppSplit(mesoRow.split_type) ?? 'ppl';
         profileForGen.daysPerWeek = mesoRow.days_per_week;
         const program = programMod.generateProgram(
           profileForGen,
