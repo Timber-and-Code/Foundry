@@ -787,6 +787,65 @@ describe('loadDayWeekWithCarryover', () => {
     expect(result[0][0].suggested).toBe(true);
     expect(result[0][0].reps).toBe('6'); // rangeMin
   });
+
+  // ── Bug #3 fix (2.10.0): incomplete sets must not progress ─────────────
+  // The old gate (`baselineReps >= rangeMax && completedPrevSets.length > 0`)
+  // looked only at the BEST rep count at the heaviest weight. A lifter who
+  // logged a single top set and abandoned the rest still got a weight bump
+  // next week. The new gate also requires every prescribed working set to
+  // be logged AND every set at baseline weight to have hit ≥ rangeMax.
+
+  it('progression #3: does NOT bump when prescribed sets were abandoned', () => {
+    // Prescription is 3 sets. Lifter only logged 1 — the rest are blank.
+    // Old behavior: bumps to 105 (single top-set was at rangeMax). New
+    // behavior: holds at 100 with rep suggestion since not all sets logged.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '100', reps: '10' },
+        // sets 1 + 2 never logged
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
+    expect(result[0][0].weight).toBe('100');
+    expect(result[0][0].suggested).toBeFalsy();
+    expect(result[0][0].repsSuggested).toBe(true);
+  });
+
+  it('progression #3: does NOT bump when a set at baseline weight came in below rangeMax', () => {
+    // All 3 sets logged at the same weight, but the last one dropped to 8
+    // reps (below rangeMax of 10). The old gate looked at MAX reps (10) and
+    // bumped; the new gate looks at MIN reps at baseline weight (8) and
+    // holds. Lifter who couldn't sustain the load doesn't get heavier next
+    // week — they get a +1 rep suggestion to grind toward the top.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '100', reps: '10' },
+        1: { weight: '100', reps: '10' },
+        2: { weight: '100', reps: '8' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
+    expect(result[0][0].weight).toBe('100');
+    expect(result[0][0].suggested).toBeFalsy();
+    expect(result[0][0].repsSuggested).toBe(true);
+  });
+
+  it('progression #3: warmup-flagged slots in range do not block progression', () => {
+    // Some logs interleave a warmup at slot 0 with working sets at 1+2.
+    // The warmup count is subtracted from the expected-working count, so a
+    // 3-set prescription with 1 warmup + 2 working sets at top still bumps.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '60', reps: '6', warmup: true },
+        1: { weight: '100', reps: '10' },
+        2: { weight: '100', reps: '10' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
+    expect(result[0][0].weight).toBe('105');
+    expect(result[0][0].suggested).toBe(true);
+    expect(result[0][0].reps).toBe('6');
+  });
 });
 
 // ============================================================================

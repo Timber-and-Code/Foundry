@@ -134,9 +134,16 @@ function computeCarryoverForOneExercise(
 
   type PrevSetShape = { weight?: unknown; reps?: unknown; warmup?: unknown };
   const completedPrevSets: { weight: number; reps: number }[] = [];
+  // Count warmup-flagged slots inside the prescribed range so the
+  // "expected working sets" count below isn't punished by warmups that
+  // happen to occupy slots 0..sets-1.
+  let warmupSlotsInRange = 0;
   for (let s = 0; s < sets; s++) {
     const psd = (prevEx[s] || {}) as PrevSetShape;
-    if (psd.warmup) continue;
+    if (psd.warmup) {
+      warmupSlotsInRange++;
+      continue;
+    }
     const wRaw = psd.weight;
     const w = wRaw === undefined || wRaw === null || String(wRaw).trim() === ''
       ? NaN
@@ -155,7 +162,27 @@ function computeCarryoverForOneExercise(
         .reduce((best, s) => Math.max(best, s.reps), 0)
     : 0;
 
-  const allRepsHit = baselineReps >= rangeMax && completedPrevSets.length > 0;
+  // Progression gate — "you hit all reps last week":
+  //  1. Every prescribed working set was logged. Skipping or abandoning a
+  //     set keeps you at the same weight; partial completion shouldn't
+  //     reward you with a heavier prescription. (Old gate used baselineReps
+  //     only — a single top-set + 3 abandoned sets triggered a bump.)
+  //  2. Every set logged AT the baseline weight still hit ≥ rangeMax reps.
+  //     Looking at baseline only (not all completed sets) preserves the
+  //     "fatigued on the last set, dropped weight a notch" case (#12b in
+  //     core.test.js) — sets at a lower weight don't gate progression at
+  //     the higher one. But if a set AT baseline weight came in below the
+  //     rep cap, that's the lifter saying they can't sustain the load yet.
+  const expectedWorkingSets = Math.max(0, sets - warmupSlotsInRange);
+  const allWorkingSetsLogged =
+    expectedWorkingSets > 0 && completedPrevSets.length >= expectedWorkingSets;
+  const baselineSetRepsList = completedPrevSets
+    .filter((s) => s.weight === baselineWeight)
+    .map((s) => s.reps);
+  const minRepsAtBaseline = baselineSetRepsList.length > 0
+    ? Math.min(...baselineSetRepsList)
+    : 0;
+  const allRepsHit = allWorkingSetsLogged && minRepsAtBaseline >= rangeMax;
   let nudge = 0;
   let bwRepBump = false;
   if (allRepsHit) {
