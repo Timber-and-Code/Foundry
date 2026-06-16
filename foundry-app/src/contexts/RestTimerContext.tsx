@@ -88,6 +88,13 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     if (firedRef.current) return;
     firedRef.current = true;
     playTimerCompleteChime();
+    // At zero, always surface the full alarm — never leave the timer hidden
+    // behind the minimized chip on /day/*. The off-day path (App.tsx's
+    // MinimizedTimerBar) already swaps to its own alarm dialog at remaining=0,
+    // but DayView's minimized chip is gated on `remaining > 0` and so vanishes
+    // unless we force the full overlay back. firedRef makes this idempotent
+    // alongside the chime, so the unminimize fires exactly once per period.
+    setRestTimerMinimized(false);
   }, []);
 
   const startRestTimer = useCallback(
