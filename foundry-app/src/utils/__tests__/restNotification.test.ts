@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Capacitor + plugin mocks. Hoisted by vi.mock so they take effect before
 // the SUT imports them.
 const mockIsNativePlatform = vi.fn<[], boolean>();
+const mockGetPlatform = vi.fn<[], string>();
 const mockCheckPermissions = vi.fn();
 const mockRequestPermissions = vi.fn();
 const mockSchedule = vi.fn();
@@ -12,6 +13,9 @@ vi.mock('@capacitor/core', () => ({
   Capacitor: {
     get isNativePlatform() {
       return mockIsNativePlatform;
+    },
+    get getPlatform() {
+      return mockGetPlatform;
     },
   },
 }));
@@ -36,6 +40,8 @@ const PERM_CACHE_KEY = 'foundry:rest_notif_permission';
 
 beforeEach(() => {
   mockIsNativePlatform.mockReset();
+  mockGetPlatform.mockReset();
+  mockGetPlatform.mockReturnValue('ios'); // sensible default; tests override
   mockCheckPermissions.mockReset();
   mockRequestPermissions.mockReset();
   mockSchedule.mockReset();
@@ -142,6 +148,32 @@ describe('scheduleRestComplete', () => {
     await scheduleRestComplete(Date.now() + 60_000, '');
     const body = mockSchedule.mock.calls[0][0].notifications[0].body;
     expect(body).toBe('Next set');
+  });
+
+  it('uses iOS custom chime filename when platform=ios', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    mockGetPlatform.mockReturnValue('ios');
+    localStorage.setItem(PERM_CACHE_KEY, 'granted');
+    await scheduleRestComplete(Date.now() + 60_000, 'Bench');
+    expect(mockSchedule.mock.calls[0][0].notifications[0].sound).toBe('rest-complete.wav');
+  });
+
+  it('uses Android resource name when platform=android', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    mockGetPlatform.mockReturnValue('android');
+    localStorage.setItem(PERM_CACHE_KEY, 'granted');
+    await scheduleRestComplete(Date.now() + 60_000, 'Bench');
+    expect(mockSchedule.mock.calls[0][0].notifications[0].sound).toBe('rest_complete');
+  });
+
+  it('falls back to undefined sound when getPlatform throws', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    mockGetPlatform.mockImplementation(() => {
+      throw new Error('platform unavailable');
+    });
+    localStorage.setItem(PERM_CACHE_KEY, 'granted');
+    await scheduleRestComplete(Date.now() + 60_000, 'Bench');
+    expect(mockSchedule.mock.calls[0][0].notifications[0].sound).toBeUndefined();
   });
 });
 
