@@ -30,6 +30,11 @@ import { formatSplitName } from './utils/splitLabel';
 import { runDayDataV2Migration } from './utils/dayDataV2Migration';
 import { repairDriftedSplitType } from './utils/splitTypeRepair';
 import {
+  detectResumptionGap,
+  isResumptionHandled,
+  type ResumptionGap,
+} from './utils/resumption';
+import {
   store,
   loadProfile,
   saveProfile,
@@ -180,6 +185,7 @@ function MobilityViewRoute({ profile }: { profile: Profile }) {
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 const SaveProgressSheet = React.lazy(() => import('./components/auth/SaveProgressSheet'));
 const MesoCompleteSheet = React.lazy(() => import('./components/setup/MesoCompleteSheet'));
+const ResumptionSheet = React.lazy(() => import('./components/home/ResumptionSheet'));
 
 function App() {
   const navigate = useNavigate();
@@ -206,6 +212,10 @@ function App() {
   const [showMesoComplete, setShowMesoComplete] = useState(
     () => store.get('foundry:meso_complete_shown') === '1',
   );
+  // Return-after-layoff: when 7+ days have passed since the last
+  // completion, ResumptionSheet takes over until the lifter picks how
+  // to re-anchor the calendar grid.
+  const [resumptionGap, setResumptionGap] = useState<ResumptionGap | null>(null);
   const v2 = isOnboardingV2Enabled();
   const syncState = useSyncState();
   const homeTabRef = useRef<((tab: string) => void) | null>(null);
@@ -401,6 +411,23 @@ function App() {
     });
     return unsub;
   }, []);
+
+  // Return-after-layoff detector. Runs after profile + program (activeDays)
+  // are available and meso-complete isn't already showing. The handled
+  // flag is keyed on the gap's lastCompletedDateISO so a new gap fires
+  // the sheet again, but the same gap on refresh stays quiet.
+  useEffect(() => {
+    if (!profile) return;
+    if (showMesoComplete) return;
+    if (!activeDays || activeDays.length === 0) return;
+    const gap = detectResumptionGap(completedDays, profile, activeDays);
+    if (!gap) {
+      setResumptionGap(null);
+      return;
+    }
+    if (isResumptionHandled(gap)) return;
+    setResumptionGap(gap);
+  }, [profile, completedDays, activeDays, showMesoComplete]);
 
   // Three takeover-sheet actions route here:
   //   repeat-meso     → MesoCompleteSheet archived + kept meso_transition; land on Setup
@@ -752,6 +779,25 @@ function App() {
             <SaveProgressSheet
               trigger={saveProgressTrigger}
               onDismiss={() => setShowSaveProgress(false)}
+            />
+          </React.Suspense>
+        )}
+
+        {/* Return-after-layoff. Sits ABOVE MesoCompleteSheet in render order
+            but the detection effect short-circuits when meso-complete is
+            active so they don't fight for the screen. Not dismissable —
+            sheet picks one of 4 strategies and marks the gap handled. */}
+        {resumptionGap && profile && (
+          <React.Suspense fallback={null}>
+            <ResumptionSheet
+              gap={resumptionGap}
+              profile={profile}
+              completedDays={completedDays}
+              currentWeek={currentWeek}
+              setProfile={setProfile}
+              setCompletedDays={setCompletedDays}
+              setCurrentWeek={setCurrentWeek}
+              onDismiss={() => setResumptionGap(null)}
             />
           </React.Suspense>
         )}

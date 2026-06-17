@@ -122,10 +122,20 @@ export function findPrevSlotForExercise(
  *    equipment- and experience-aware delta. Bodyweight → progress reps.
  *  - Otherwise: hold weight, suggest +1 rep up to rangeMax.
  */
+/**
+ * Round to the nearest 2.5 lb. Used by the recalibrate scaler so the
+ * "85% of last week" target lands on a sane plate (e.g. 100 → 85,
+ * 107.5 stays 107.5, 109 → 110).
+ */
+function roundTo25(weight: number): number {
+  return Math.round(weight / 2.5) * 2.5;
+}
+
 function computeCarryoverForOneExercise(
   ex: TrainingDay['exercises'][number],
   prevEx: Record<string, Record<string, unknown>>,
   expKey: string,
+  recalibrateActive: boolean = false,
 ): Record<string, WorkoutSet> {
   const repParts = String(ex.reps).split('-');
   const rangeMin = parseInt(repParts[0]) || 1;
@@ -214,6 +224,24 @@ function computeCarryoverForOneExercise(
     suggestedRepsStr = String(rangeMin);
   }
 
+  // Recalibrate (re-entry deload): the lifter is returning after a layoff.
+  // Replace progression with 85% of baseline weight, rounded to the
+  // nearest 2.5 lb. Holds rep target at rangeMin and clears the
+  // "suggested" flags — they're re-entering, not progressing.
+  if (recalibrateActive && baselineWeight > 0) {
+    const scaledStr = String(roundTo25(baselineWeight * 0.85));
+    const out: Record<string, WorkoutSet> = {};
+    for (let s = 0; s < sets; s++) {
+      out[s] = {
+        weight: scaledStr,
+        reps: String(rangeMin),
+        suggested: false,
+        repsSuggested: false,
+      };
+    }
+    return out;
+  }
+
   const out: Record<string, WorkoutSet> = {};
   for (let s = 0; s < sets; s++) {
     out[s] = {
@@ -224,6 +252,17 @@ function computeCarryoverForOneExercise(
     };
   }
   return out;
+}
+
+/**
+ * Whether a recalibrate (re-entry deload) flag is set for this meso/week.
+ * Set by resumption.applyResumptionChoice('recalibrate', ...). Cleared
+ * when the lifter completes the flagged week (handled in useMesoState).
+ */
+function isRecalibrateActive(weekIdx: number): boolean {
+  const mesoId = store.get('foundry:active_meso_id');
+  if (!mesoId) return false;
+  return store.get(`foundry:reentry_deload:${mesoId}:${weekIdx}`) === '1';
 }
 
 function expKeyFromProfile(profile: Profile | null | undefined): string {
@@ -249,6 +288,7 @@ function loadDayWeekWithCarryoverV1(
   day: TrainingDay,
   profile: Profile | null | undefined,
   current: DayData,
+  recalibrateActive: boolean = false,
 ): DayData {
   const expKey = expKeyFromProfile(profile);
   for (let w = weekIdx - 1; w >= 0; w--) {
@@ -264,7 +304,7 @@ function loadDayWeekWithCarryoverV1(
       // Falls back to position-based lookup for legacy data / brand-new
       // exercises with no prior history.
       const prevEx = findPrevSlotForExercise(prev, ex.id, exIdx);
-      carried[exIdx] = computeCarryoverForOneExercise(ex, prevEx, expKey);
+      carried[exIdx] = computeCarryoverForOneExercise(ex, prevEx, expKey, recalibrateActive);
     });
     return carried;
   }
@@ -289,6 +329,7 @@ function loadDayWeekWithCarryoverV2(
   day: TrainingDay,
   profile: Profile | null | undefined,
   tdeIds: Record<string, string>,
+  recalibrateActive: boolean = false,
 ): DayData | null {
   const expKey = expKeyFromProfile(profile);
   for (let w = weekIdx - 1; w >= 0; w--) {
@@ -307,6 +348,7 @@ function loadDayWeekWithCarryoverV2(
         ex,
         prevSlice as unknown as Record<string, Record<string, unknown>>,
         expKey,
+        recalibrateActive,
       );
     });
     return carried;
@@ -335,14 +377,16 @@ export function loadDayWeekWithCarryover(
   );
   if (hasData || weekIdx === 0) return current;
 
+  const recalibrateActive = isRecalibrateActive(weekIdx);
+
   if (isDayV2ReadsEnabled()) {
     const tdeIds = loadTdeIdsForActiveMeso();
     if (tdeIds) {
-      const v2Result = loadDayWeekWithCarryoverV2(dayIdx, weekIdx, day, profile, tdeIds);
+      const v2Result = loadDayWeekWithCarryoverV2(dayIdx, weekIdx, day, profile, tdeIds, recalibrateActive);
       if (v2Result !== null) return v2Result;
     }
   }
-  return loadDayWeekWithCarryoverV1(dayIdx, weekIdx, day, profile, current);
+  return loadDayWeekWithCarryoverV1(dayIdx, weekIdx, day, profile, current, recalibrateActive);
 }
 
 /** Load + parse the active meso's tde-id positional→uuid map. Null on any miss. */

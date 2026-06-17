@@ -131,6 +131,15 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
         emit('foundry:first-week-done');
       }
 
+      // Resumption recalibrate: clear the re-entry deload flag when the
+      // flagged week wraps. We clear on week-complete (not on
+      // markResumptionHandled) because the flag's whole job is to scale
+      // carryover for THIS week — clearing earlier would defeat it.
+      const mesoId = store.get('foundry:active_meso_id');
+      if (mesoId) {
+        store.remove(`foundry:reentry_deload:${mesoId}:${weekIdx}`);
+      }
+
       let totalSets = 0;
       const _storedProg = store.get('foundry:storedProgram');
       const prof = loadProfile();
