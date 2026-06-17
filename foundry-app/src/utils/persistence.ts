@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import { store } from './storage';
 import { validateDayData } from './validate';
 import {
@@ -17,6 +18,44 @@ import type {
   CardioPreset,
   WorkoutSet,
 } from '../types';
+
+// ─── v1-fallback observability — Big-Big Phase 4 gate ─────────────────────
+// Phase 3 default-flipped reads to v2 a month ago. Before we delete v1
+// entirely (Phase 4) we need signal: how often is the v2 read actually
+// missing in the wild? Every miss falls through to v1 here. This module
+// emits a Sentry breadcrumb on every fallback (cheap) and a captureMessage
+// once per (d,w) per session (the actual signal — Sentry tallies it).
+// Throttle key lives at module level so reload = fresh signal.
+
+type V2FallbackReason = 'flag_off' | 'no_tde_cache' | 'v2_miss';
+const v2FallbackSeen = new Set<string>();
+
+function reportV2Fallback(
+  dayIdx: number,
+  weekIdx: number,
+  reason: V2FallbackReason,
+): void {
+  // Always-on breadcrumb — shows up in any subsequent error's context.
+  // Cheap; Sentry already captures these into a ring buffer.
+  Sentry.addBreadcrumb({
+    category: 'day_v2',
+    type: 'info',
+    level: 'info',
+    message: `v2 read fallback → v1 (${reason})`,
+    data: { dayIdx, weekIdx, reason },
+  });
+  // Throttled captureMessage — one per (d,w) per session. That's our
+  // actual Phase 4 signal: zero captures over a week of normal use means
+  // v2 is authoritative everywhere, safe to drop v1.
+  const key = `${dayIdx}:${weekIdx}`;
+  if (v2FallbackSeen.has(key)) return;
+  v2FallbackSeen.add(key);
+  Sentry.captureMessage('day_v2_read_fallback', {
+    level: 'info',
+    tags: { feature: 'day_v2', reason },
+    extra: { dayIdx, weekIdx, reason },
+  });
+}
 
 // ─── ACTIVE SESSION (top-of-shell bar) ────────────────────────────────────────
 // Persistent marker so the user always sees that a workout/cardio session is
@@ -381,10 +420,15 @@ export function loadDayWeekWithCarryover(
 
   if (isDayV2ReadsEnabled()) {
     const tdeIds = loadTdeIdsForActiveMeso();
-    if (tdeIds) {
+    if (!tdeIds) {
+      reportV2Fallback(dayIdx, weekIdx, 'no_tde_cache');
+    } else {
       const v2Result = loadDayWeekWithCarryoverV2(dayIdx, weekIdx, day, profile, tdeIds, recalibrateActive);
       if (v2Result !== null) return v2Result;
+      reportV2Fallback(dayIdx, weekIdx, 'v2_miss');
     }
+  } else {
+    reportV2Fallback(dayIdx, weekIdx, 'flag_off');
   }
   return loadDayWeekWithCarryoverV1(dayIdx, weekIdx, day, profile, current, recalibrateActive);
 }
