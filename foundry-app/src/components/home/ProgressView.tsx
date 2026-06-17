@@ -18,8 +18,10 @@ import {
 } from '../../utils/store';
 import { loadCardioSession } from '../../utils/persistence';
 import { calcMuscleSetsByTag } from '../../utils/analyticsData';
+import { aggregateLiftsByMuscle } from '../../utils/progressAggregation';
 import type { TrainingDay, Exercise, BodyWeightEntry, WorkoutSet, CardioSession } from '../../types';
 import VolumeLandmarksCard from './VolumeLandmarksCard';
+import MuscleLiftCard from './MuscleLiftCard';
 import EmptyState from '../ui/EmptyState';
 import Skeleton from '../ui/Skeleton';
 // haptic import reserved for future UI feedback
@@ -36,6 +38,27 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [showCardioHistory, setShowCardioHistory] = useState(false);
   const [progressTab, setProgressTab] = useState<'week' | 'history'>('week');
+  const [expandedMuscle, setExpandedMuscle] = useState<string | null>(null);
+
+  // Per-muscle lift aggregate for the Meso History sub-tab. Walks the raw
+  // foundry:day{d}:week{w} payloads (NOT carryover-injected) and groups
+  // each lift by its `muscle` field — Bicep/Tricep merged into 'Arms'.
+  const meso = getMeso();
+  const liftsByMuscle = useMemo(
+    () =>
+      aggregateLiftsByMuscle(activeDays, meso?.totalWeeks || 7, (d, w) =>
+        loadDayWeek(d, w),
+      ),
+    [activeDays, meso?.totalWeeks],
+  );
+
+  // Default-open the first muscle group on first paint so the card content
+  // is visible without a tap. Mirrors the sandbox preview behaviour.
+  useEffect(() => {
+    if (expandedMuscle === null && liftsByMuscle.length > 0) {
+      setExpandedMuscle(liftsByMuscle[0].muscle);
+    }
+  }, [liftsByMuscle, expandedMuscle]);
 
   // Perceived-performance: show skeleton placeholders for chart areas on first
   // render, then flip to actual charts after one React tick. This prevents
@@ -741,6 +764,37 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
           <Skeleton height={90} borderRadius={12} style={{ marginBottom: 12 }} />
         ) : (
           <DurationChart />
+        )}
+
+        {/* Lifts by muscle — per-muscle start → current + PR grid */}
+        {liftsByMuscle.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                color: 'var(--accent)',
+                marginBottom: 8,
+              }}
+            >
+              LIFTS BY MUSCLE
+            </div>
+            {liftsByMuscle.map((group) => (
+              <MuscleLiftCard
+                key={group.muscle}
+                muscle={group.muscle}
+                lifts={group.lifts}
+                open={expandedMuscle === group.muscle}
+                onToggle={() =>
+                  setExpandedMuscle(
+                    expandedMuscle === group.muscle ? null : group.muscle,
+                  )
+                }
+                accent={pc}
+              />
+            ))}
+          </div>
         )}
 
         {/* e1RM card */}

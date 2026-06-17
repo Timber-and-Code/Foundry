@@ -1,9 +1,9 @@
 import React, { useRef, useState, type CSSProperties } from 'react';
-import { loadArchive } from '../../utils/store';
 import { tokens } from '../../styles/tokens';
 import { getMeso, getMesoRows, getProgTargets, PHASE_COLOR } from '../../data/constants';
 import { formatSplitName } from '../../utils/splitLabel';
 import type { Profile, TrainingDay } from '../../types';
+import PreviousMesosPage from './PreviousMesosPage';
 
 interface MesoOverviewProps {
   tab: string;
@@ -431,69 +431,8 @@ function PhaseBar({
 }
 
 // ── Meso History ──────────────────────────────────────────────────────────
-
-function MesoHistory({ goBack }: { goBack: () => void }) {
-  const archive = loadArchive?.() || [];
-  return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '16px',
-        }}
-      >
-        <button
-          onClick={goBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-accent)',
-            fontSize: 18,
-            cursor: 'pointer',
-            minWidth: 44,
-            minHeight: 44,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <span aria-hidden="true">←</span>
-        </button>
-        <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
-          Meso History
-        </span>
-      </div>
-      {archive.length === 0 ? (
-        <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-          No archived mesocycles yet
-        </div>
-      ) : (
-        <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {archive.map((entry, idx) => (
-            <div
-              key={idx}
-              style={{
-                padding: 16,
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: tokens.radius.lg,
-              }}
-            >
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {String(entry.profile?.split || 'Program')} — {String(entry.profile?.weeks || '?')} weeks
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                Archived {String(entry.date || 'unknown date')}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// Legacy MesoHistory placeholder removed; tab === 'history' now routes to
+// PreviousMesosPage (full per-muscle breakdown of every archived meso).
 
 // ── Weekly Summary ────────────────────────────────────────────────────────
 
@@ -542,7 +481,7 @@ function MesoOverview({ tab, goBack, goTo: _goTo, activeDays, completedDays, pro
   }
 
   if (tab === 'history') {
-    return <MesoHistory goBack={goBack} />;
+    return <PreviousMesosPage goBack={goBack} />;
   }
 
   if (tab === 'weekly') {
