@@ -396,6 +396,59 @@ function loadDayWeekWithCarryoverV2(
 }
 
 /**
+ * Reattach saved day-data slices to the slots their `_exId` stamps say they
+ * belong to. An in-session reorder reindexes weekData keys to match the
+ * on-screen order, but the exercise ORDER itself is session state — after a
+ * remount the day renders in program order while the saved keys still carry
+ * the reordered layout, attributing sets (and set counts) to the wrong
+ * exercises. Realigning by identity heals both fresh saves and historically
+ * corrupted weeks.
+ *
+ * Conservative: slices move only when the mapping is a clean permutation —
+ * slot ids unique, each stamped slice matching exactly one slot, no two
+ * slices claiming the same slot, and no stamped move displacing an
+ * unstamped slice. Anything ambiguous returns the data untouched.
+ */
+export function realignDayDataByExId(data: DayData, day: TrainingDay): DayData {
+  const slotIds = (day.exercises || []).map((ex) => (ex.id != null ? String(ex.id) : ''));
+  if (slotIds.length === 0) return data;
+  // Ambiguous when two slots share an id (same exercise twice in a day).
+  const nonEmpty = slotIds.filter(Boolean);
+  if (new Set(nonEmpty).size !== nonEmpty.length) return data;
+
+  const entries = Object.entries(data);
+  if (entries.length === 0) return data;
+
+  const placements = new Map<number, (typeof entries)[number][1]>();
+  const claimed = new Set<number>();
+  let moved = false;
+  for (const [key, slice] of entries) {
+    const fromIdx = parseInt(key, 10);
+    if (!Number.isFinite(fromIdx)) return data;
+    // Identify the slice by the first stamped set.
+    let exId: string | null = null;
+    for (const set of Object.values(slice || {})) {
+      const candidate = (set as unknown as Record<string, unknown>)?._exId;
+      if (typeof candidate === 'string' && candidate.length > 0) {
+        exId = candidate;
+        break;
+      }
+    }
+    const target = exId != null ? slotIds.indexOf(exId) : -1;
+    const toIdx = target >= 0 ? target : fromIdx; // unstamped/unmatched stay put
+    if (claimed.has(toIdx)) return data; // collision — bail, no heal
+    claimed.add(toIdx);
+    placements.set(toIdx, slice);
+    if (toIdx !== fromIdx) moved = true;
+  }
+  if (!moved) return data;
+
+  const healed: DayData = {};
+  for (const [idx, slice] of placements) healed[idx] = slice;
+  return healed;
+}
+
+/**
  * Load current week data with automatic weight/rep progression hints.
  *
  * Reads from v2 (id-keyed) storage when `foundry:flag:day_v2_reads === '1'`
@@ -410,7 +463,7 @@ export function loadDayWeekWithCarryover(
   day: TrainingDay,
   profile: Profile | null | undefined,
 ): DayData {
-  const current = loadDayWeek(dayIdx, weekIdx);
+  const current = realignDayDataByExId(loadDayWeek(dayIdx, weekIdx), day);
   const hasData = Object.values(current).some((exData) =>
     Object.values(exData).some((s) => s && (s.weight || s.reps))
   );

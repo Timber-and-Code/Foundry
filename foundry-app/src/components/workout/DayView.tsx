@@ -1293,12 +1293,20 @@ function DayView({
           }
         }
         reordered[toIdx] = fromData;
+        // Persist the reindex NOW (mirrors handlePairSuperset). Without
+        // this, the reordered layout only reached localStorage via the
+        // next set-write — and since the exercise ORDER itself is session
+        // state, a remount rendered program order against reordered data,
+        // attributing sets and set counts to the wrong exercises. The
+        // realignDayDataByExId heal on load reattaches slices by _exId
+        // either way, but keep storage consistent at the source too.
+        saveDayWeek(dayIdx, weekIdx, reordered);
         return reordered;
       });
       // Follow the moved exercise — keep it expanded at its new position
       setExpandedIdx(toIdx);
     },
-    [],
+    [dayIdx, weekIdx],
   );
 
   /**
