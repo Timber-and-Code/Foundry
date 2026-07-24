@@ -21,6 +21,22 @@ import EditScheduleSheet from './EditScheduleSheet';
 import DayActionSheet from './DayActionSheet';
 import WorkoutSplash from '../workout/WorkoutSplash';
 import MoveWorkoutSheet from './MoveWorkoutSheet';
+import WeekStrip, { type WeekStripDayMeta } from './WeekStrip';
+import DayStack from './DayStack';
+import { isSkipped } from '../../utils/store';
+
+/** Local YYYY-MM-DD (avoids the toISOString UTC shift). */
+function toLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** The Sunday that starts the week containing `d`. */
+function sundayOf(d: Date): string {
+  const c = new Date(d);
+  c.setHours(0, 0, 0, 0);
+  c.setDate(c.getDate() - c.getDay());
+  return toLocalDateStr(c);
+}
 
 // ── Inline icon helpers ────────────────────────────────────────────────────
 
@@ -253,6 +269,12 @@ function ScheduleTab({
   const [moveState, setMoveState] = React.useState<{ sourceDateStr: string; sessionKey: string } | null>(null);
   const [previewState, setPreviewState] = React.useState<{ dayIdx: number; weekIdx: number } | null>(null);
 
+  // Schedule v2: week pager is the primary surface; the month grid is the
+  // zoomed-out secondary view behind the ▦ toggle.
+  const [scheduleView, setScheduleView] = React.useState<'week' | 'month'>('week');
+  const [selectedDate, setSelectedDate] = React.useState<string>(() => toLocalDateStr(new Date()));
+  const [weekAnchor, setWeekAnchor] = React.useState<string>(() => sundayOf(new Date()));
+
   // Move mode — tap MOVE, tap the workout to pick it up, tap a day to place
   // it. Past/present/future sources all work; a banner always names the
   // session in hand so double-booked days are never ambiguous.
@@ -341,6 +363,91 @@ function ScheduleTab({
   const canGoBack = calendarOffset > minOffset;
   const canGoForward = calendarOffset < maxOffset;
 
+  // ── Week view derivations ────────────────────────────────────────────────
+  const weekDates = React.useMemo(() => {
+    const anchor = new Date(weekAnchor + 'T00:00:00');
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(anchor);
+      d.setDate(d.getDate() + i);
+      return toLocalDateStr(d);
+    });
+  }, [weekAnchor]);
+
+  // Per-day signals for the strip. skipVersion is referenced so a skip
+  // toggle recomputes the missed markers.
+  const weekMeta = React.useMemo(() => {
+    void skipVersion;
+    const meta: Record<string, WeekStripDayMeta> = {};
+    for (const ds of weekDates) {
+      const entry = sessionDateMap[ds];
+      const keys: string[] = entry == null ? [] : Array.isArray(entry) ? entry : [entry];
+      const primaryKey = keys.find((k) => !completedDays.has(k)) ?? keys[0] ?? null;
+      const allDone = keys.length > 0 && keys.every((k) => completedDays.has(k));
+      const isPastDay = ds < todayStr;
+      const missed =
+        isPastDay &&
+        keys.some((k) => {
+          if (completedDays.has(k)) return false;
+          const [dIdx, wIdx] = k.split(':').map(Number);
+          return !isSkipped(dIdx, wIdx);
+        });
+      let sessionColor: string | null = null;
+      if (primaryKey) {
+        const wIdx = parseInt(primaryKey.split(':')[1], 10);
+        const phase = getWeekPhase()[wIdx] || 'Accumulation';
+        sessionColor = (PHASE_COLOR as Record<string, string>)[phase] || 'var(--phase-intens)';
+      }
+      meta[ds] = {
+        sessionColor,
+        allDone,
+        missed,
+        double: keys.length > 1,
+        hasCardio: !!loadCardioSession(ds),
+        hasExtra: !!store.get(`foundry:extra:${ds}`),
+      };
+    }
+    return meta;
+  }, [weekDates, sessionDateMap, completedDays, todayStr, skipVersion]);
+
+  // Phase identity for the strip header — from the first meso session in
+  // the visible week, falling back to the lifter's current week.
+  const { weekPhaseLabel, weekPhaseColor } = React.useMemo(() => {
+    let wIdx: number | null = null;
+    for (const ds of weekDates) {
+      const entry = sessionDateMap[ds];
+      const keys: string[] = entry == null ? [] : Array.isArray(entry) ? entry : [entry];
+      if (keys.length > 0) {
+        wIdx = parseInt(keys[0].split(':')[1], 10);
+        break;
+      }
+    }
+    if (wIdx === null) wIdx = currentWeek;
+    const phase = getWeekPhase()[wIdx] || 'Accumulation';
+    return {
+      weekPhaseLabel: `WK ${wIdx + 1} · ${String(phase).toUpperCase()}`,
+      weekPhaseColor: (PHASE_COLOR as Record<string, string>)[phase] || 'var(--phase-intens)',
+    };
+  }, [weekDates, sessionDateMap, currentWeek]);
+
+  // Clamp week paging to the same window as the month nav.
+  const weekCanPrev = !startD || weekAnchor > toLocalDateStr(new Date(startD.getTime() - 7 * 86400000));
+  const weekCanNext = !endD || weekAnchor < toLocalDateStr(endD);
+
+  const shiftWeek = (dir: -1 | 1) => {
+    const anchor = new Date(weekAnchor + 'T00:00:00');
+    anchor.setDate(anchor.getDate() + dir * 7);
+    setWeekAnchor(toLocalDateStr(anchor));
+    // Keep the selection on the same DOW in the new week.
+    const sel = new Date(selectedDate + 'T00:00:00');
+    sel.setDate(sel.getDate() + dir * 7);
+    setSelectedDate(toLocalDateStr(sel));
+  };
+
+  const goToToday = () => {
+    setWeekAnchor(sundayOf(new Date()));
+    setSelectedDate(toLocalDateStr(new Date()));
+  };
+
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
       {/* Calendar */}
@@ -355,6 +462,72 @@ function ScheduleTab({
             boxShadow: 'var(--shadow-sm)',
           }}
         >
+          {scheduleView === 'week' ? (
+            <>
+              <WeekStrip
+                weekDates={weekDates}
+                selectedDate={selectedDate}
+                todayStr={todayStr}
+                meta={weekMeta}
+                phaseLabel={weekPhaseLabel}
+                phaseColor={weekPhaseColor}
+                canPrev={weekCanPrev}
+                canNext={weekCanNext}
+                onShiftWeek={shiftWeek}
+                onSelectDate={setSelectedDate}
+                onToday={goToToday}
+                onShowMonth={() => setScheduleView('month')}
+              />
+              <DayStack
+                dateStr={selectedDate}
+                profile={profile}
+                activeDays={activeDays}
+                sessionEntry={sessionDateMap[selectedDate]}
+                completedDays={completedDays}
+                skipVersion={skipVersion}
+                onSkipChanged={() => setSkipVersion(skipVersion + 1)}
+                onPreviewSession={(dIdx, wIdx) => setPreviewState({ dayIdx: dIdx, weekIdx: wIdx })}
+                onMoveSession={(sk) => setMoveState({ sourceDateStr: selectedDate, sessionKey: sk })}
+                onViewNotes={(arg) => {
+                  if (arg.type === 'meso') {
+                    const d = activeDays[arg.dayIdx];
+                    setNoteViewer({
+                      type: 'meso',
+                      dayIdx: arg.dayIdx,
+                      weekIdx: arg.weekIdx,
+                      label: d ? `${d.label} — W${arg.weekIdx + 1}` : `Day ${arg.dayIdx + 1} W${arg.weekIdx + 1}`,
+                      exercises: d ? d.exercises : [],
+                      sessionNote: loadNotes(arg.dayIdx, arg.weekIdx),
+                      exNotes: loadExNotes(arg.dayIdx, arg.weekIdx),
+                    });
+                  } else {
+                    const extraDateStr = arg.dateStr;
+                    let extra: { label?: string; exercises?: Exercise[] } | null = null;
+                    try {
+                      extra = JSON.parse(store.get(`foundry:extra:${extraDateStr}`) || 'null');
+                    } catch { /* ignore */ }
+                    setNoteViewer({
+                      type: 'extra',
+                      dateStr: extraDateStr,
+                      label: extra?.label ?? 'Extra Session',
+                      exercises: extra?.exercises ?? [],
+                      sessionNote: store.get(`foundry:extra:notes:${extraDateStr}`) || '',
+                      exNotes: loadExtraExNotes(extraDateStr),
+                    });
+                  }
+                }}
+                onOpenExtra={onOpenExtra}
+                onOpenCardio={onOpenCardio}
+                onAddWorkout={(ds) => {
+                  setAddWorkoutModal(ds);
+                  setAddWorkoutStep('type');
+                  setAddWorkoutType(null);
+                  setAddWorkoutDayType(null);
+                }}
+              />
+            </>
+          ) : (
+          <>
           {/* Calendar header */}
           <div
             style={{
@@ -462,6 +635,27 @@ function ScheduleTab({
                 }}
               >
                 MOVE
+              </button>
+              <button
+                aria-label="Show week view"
+                onClick={() => setScheduleView('week')}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: tokens.radius.md,
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-inset)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-secondary)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  marginLeft: 4,
+                }}
+              >
+                ▤
               </button>
             </div>
           </div>
@@ -826,6 +1020,8 @@ function ScheduleTab({
               );
             })}
           </div>
+          </>
+          )}
 
         </div>
       </div>
