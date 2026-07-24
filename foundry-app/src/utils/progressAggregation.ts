@@ -471,6 +471,75 @@ function aggregateArchiveByMuscle(
  * first (newest) is meso #N, the next is #N-1, etc. This is a display
  * convenience — the source of truth remains `id`.
  */
+/** Result of a cross-meso "last weight" lookup. */
+export interface LastMesoWeight {
+  /** Top working-set weight from the most recent week with logged data. */
+  weight: number;
+  /** Best reps at that weight. */
+  reps: number;
+  /** 0-based week index within the archived meso the sets came from. */
+  weekIdx: number;
+  /** How many mesos back the match was found (1 = the meso right before this one). */
+  mesosAgo: number;
+  /** ISO timestamp the source meso was archived at, when recorded. */
+  archivedAt?: string;
+}
+
+/**
+ * Find the weight the lifter last used for `exId` in a previous meso.
+ *
+ * Walks the archive newest-first, and within each meso walks weeks
+ * LATEST-first, returning the top working set from the most recent week
+ * with any logged data for the exercise. An unfinished meso works fine —
+ * whatever week they stopped at is the week that answers "what did I
+ * last lift". Matching is by `_exId` (stamped on every set write); mesos
+ * archived before stamping (pre 2026-04-29) can't be matched and are
+ * skipped rather than guessed at by slot position.
+ *
+ * Returns null when no archived meso has logged sets for the exercise.
+ */
+export function findLastMesoWeight(
+  archive: ArchiveEntry[],
+  exId: string | number | undefined,
+): LastMesoWeight | null {
+  const idStr = exId == null ? null : String(exId);
+  if (!idStr) return null;
+  for (let i = 0; i < archive.length; i++) {
+    const rec = archive[i] as unknown as ArchiveRecordShape;
+    if (!rec?.sessions?.length) continue;
+    // Latest week first; the archive writer walks (d, w) in order, so sort
+    // rather than trust insertion order.
+    const sessions = [...rec.sessions].sort((a, b) => b.w - a.w || b.d - a.d);
+    for (const session of sessions) {
+      if (!session?.data) continue;
+      const slice = findSliceByExId(session.data, idStr);
+      if (!slice) continue;
+      let weight = 0;
+      let reps = 0;
+      for (const s of Object.values(slice)) {
+        if (!s || s.warmup) continue;
+        const w = setWeight(s);
+        const r = setReps(s);
+        if (!isFinite(w) || w <= 0 || !isFinite(r) || r <= 0) continue;
+        if (w > weight || (w === weight && r > reps)) {
+          weight = w;
+          reps = r;
+        }
+      }
+      if (weight > 0) {
+        return {
+          weight,
+          reps,
+          weekIdx: session.w,
+          mesosAgo: i + 1,
+          archivedAt: rec.archivedAt,
+        };
+      }
+    }
+  }
+  return null;
+}
+
 export function aggregatePreviousMesos(
   archive: ArchiveEntry[],
   exerciseDB: ExerciseEntry[],

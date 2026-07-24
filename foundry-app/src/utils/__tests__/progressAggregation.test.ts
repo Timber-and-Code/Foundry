@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   aggregateLiftsByMuscle,
   aggregatePreviousMesos,
+  findLastMesoWeight,
   normaliseMuscle,
   epleyE1RM,
 } from '../progressAggregation';
@@ -361,5 +362,102 @@ describe('aggregatePreviousMesos', () => {
     expect(out[0].sessions).toEqual({ done: 22, total: 24 });
     expect(out[1].sessions).toEqual({ done: 26, total: 28 });
     expect(out[2].sessions).toEqual({ done: 24, total: 28 });
+  });
+});
+
+// ─── findLastMesoWeight ──────────────────────────────────────────────────
+
+describe('findLastMesoWeight', () => {
+  const mkMeso = (id: number, sessions: unknown[], archivedAt?: string) =>
+    ({ id, archivedAt, mesoWeeks: 6, mesoDays: 4, sessions }) as unknown as ArchiveEntry;
+
+  it('returns null for empty archive or missing exId', () => {
+    expect(findLastMesoWeight([], 'bench_bb')).toBeNull();
+    expect(findLastMesoWeight([mkMeso(1, [])], undefined)).toBeNull();
+    expect(findLastMesoWeight([mkMeso(1, [])], 'bench_bb')).toBeNull();
+  });
+
+  it('returns the top working set from the LATEST week with data', () => {
+    const archive = [
+      mkMeso(1, [
+        { d: 0, w: 0, data: { 0: { 0: { weight: '200', reps: '8', _exId: 'bench_bb' } } } },
+        { d: 0, w: 3, data: { 0: { 0: { weight: '215', reps: '6', _exId: 'bench_bb' }, 1: { weight: '215', reps: '8', _exId: 'bench_bb' } } } },
+        { d: 0, w: 1, data: { 0: { 0: { weight: '205', reps: '7', _exId: 'bench_bb' } } } },
+      ], '2026-06-01T00:00:00.000Z'),
+    ];
+    const hit = findLastMesoWeight(archive, 'bench_bb')!;
+    expect(hit.weight).toBe(215);
+    expect(hit.reps).toBe(8); // best reps at the top weight
+    expect(hit.weekIdx).toBe(3);
+    expect(hit.mesosAgo).toBe(1);
+    expect(hit.archivedAt).toBe('2026-06-01T00:00:00.000Z');
+  });
+
+  it('answers from an UNFINISHED meso (only week 1 logged)', () => {
+    const archive = [
+      mkMeso(1, [
+        { d: 0, w: 0, data: { 0: { 0: { weight: '100', reps: '10', _exId: 'ez_curl' } } } },
+        // weeks 1..5 exist as sessions but were never logged
+        { d: 0, w: 1, data: {} },
+        { d: 0, w: 2, data: {} },
+      ]),
+    ];
+    const hit = findLastMesoWeight(archive, 'ez_curl')!;
+    expect(hit.weight).toBe(100);
+    expect(hit.weekIdx).toBe(0);
+  });
+
+  it('walks past mesos without the exercise to an older meso', () => {
+    const archive = [
+      // Newest meso has no curls
+      mkMeso(2, [
+        { d: 0, w: 0, data: { 0: { 0: { weight: '225', reps: '5', _exId: 'bench_bb' } } } },
+      ]),
+      // Older meso has them
+      mkMeso(1, [
+        { d: 1, w: 4, data: { 2: { 0: { weight: '95', reps: '12', _exId: 'ez_curl' } } } },
+      ]),
+    ];
+    const hit = findLastMesoWeight(archive, 'ez_curl')!;
+    expect(hit.weight).toBe(95);
+    expect(hit.mesosAgo).toBe(2);
+  });
+
+  it('matches by _exId regardless of slot position (reorder-proof)', () => {
+    const archive = [
+      mkMeso(1, [
+        // ez_curl sits in slot 3 here; slot 0 is a heavier exercise
+        { d: 0, w: 2, data: {
+          0: { 0: { weight: '315', reps: '5', _exId: 'deadlift_bb' } },
+          3: { 0: { weight: '90', reps: '10', _exId: 'ez_curl' } },
+        } },
+      ]),
+    ];
+    const hit = findLastMesoWeight(archive, 'ez_curl')!;
+    expect(hit.weight).toBe(90);
+  });
+
+  it('skips warmups and unlogged sets', () => {
+    const archive = [
+      mkMeso(1, [
+        { d: 0, w: 1, data: { 0: {
+          0: { weight: '135', reps: '10', warmup: true, _exId: 'bench_bb' },
+          1: { weight: '', reps: '', _exId: 'bench_bb' },
+          2: { weight: '185', reps: '9', _exId: 'bench_bb' },
+        } } },
+      ]),
+    ];
+    const hit = findLastMesoWeight(archive, 'bench_bb')!;
+    expect(hit.weight).toBe(185);
+    expect(hit.reps).toBe(9);
+  });
+
+  it('returns null for legacy archives without _exId stamps', () => {
+    const archive = [
+      mkMeso(1, [
+        { d: 0, w: 5, data: { 0: { 0: { weight: '200', reps: '8' } } } },
+      ]),
+    ];
+    expect(findLastMesoWeight(archive, 'bench_bb')).toBeNull();
   });
 });

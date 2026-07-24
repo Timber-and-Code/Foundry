@@ -16,6 +16,7 @@ import HammerIcon from '../shared/HammerIcon';
 import MesoHistoryView from './MesoHistoryView';
 import SetRow from './SetRow';
 import { haptic } from '../../utils/helpers';
+import { findLastMesoWeight } from '../../utils/progressAggregation';
 import { getMeso } from '../../data/constants';
 import { useExerciseProgression } from '../../hooks/useExerciseProgression';
 import type { Exercise, DayData } from '../../types';
@@ -44,20 +45,6 @@ interface SetData {
   warmup?: boolean;
   confirmed?: boolean;
   repsSuggested?: boolean;
-  [key: string]: unknown;
-}
-
-interface ArchiveSession {
-  w: number;
-  d: number;
-  data: Record<string, Record<string, SetData>>;
-  exOvs?: Record<number, string>;
-  [key: string]: unknown;
-}
-
-interface ArchiveRecord {
-  mesoWeeks: number;
-  sessions: ArchiveSession[];
   [key: string]: unknown;
 }
 
@@ -187,47 +174,24 @@ function ExerciseCard({
   }, [dayIdx, weekIdx]);
 
   // Cross-meso context note — week 0 only
-  // Finds the same exercise in the most recent archived meso's last working week
+  // The weight last used for this exercise in a previous meso (any week —
+  // an unfinished meso answers with whatever week it stopped at). Matched
+  // by `_exId` via findLastMesoWeight; the old slot-position match here
+  // attributed other exercises' sets after reorders and returned nothing
+  // for mesos abandoned before the last working week.
   const crossMesoNote = useMemo(() => {
     if (weekIdx !== 0) return null;
     try {
-      const archive = loadArchive() as unknown as ArchiveRecord[];
-      if (!archive.length) return null;
-      const recent = archive[0];
-      // Last working week = mesoWeeks - 1 (skip deload which is index mesoWeeks)
-      const lastWorkingWeek = recent.mesoWeeks - 1;
-      // Find sessions for this exercise name in the last working week
-      let bestWeight = 0,
-        bestReps = 0;
-      recent.sessions.forEach((sess: ArchiveSession) => {
-        if (sess.w !== lastWorkingWeek) return;
-        const exData = sess.data;
-        // Check all exercise slots in that session
-        Object.values(exData).forEach((exSets: Record<string, SetData>, idx: number) => {
-          // We don't have the exercise name easily — match by finding the best set
-          // with meaningful weight across the session and compare to current exercise
-          // Simple approach: look for data under same exIdx in same day position
-          if (idx === exIdx) {
-            Object.values(exSets || {}).forEach((sd: SetData) => {
-              if (!sd || !sd.weight || !sd.reps || sd.warmup) return;
-              const w = parseFloat(String(sd.weight));
-              const r = parseInt(String(sd.reps));
-              if (w > bestWeight || (w === bestWeight && r > bestReps)) {
-                bestWeight = w;
-                bestReps = r;
-              }
-            });
-          }
-        });
-      });
-      if (bestWeight > 0 && bestReps > 0) {
-        return `Last meso: ${bestWeight} lbs × ${bestReps}`;
-      }
-      return null;
+      const hit = findLastMesoWeight(loadArchive(), exercise.id);
+      if (!hit) return null;
+      const w = Number.isInteger(hit.weight)
+        ? String(hit.weight)
+        : hit.weight.toFixed(1).replace(/\.0$/, '');
+      return `Last meso: ${w} lbs × ${hit.reps}`;
     } catch { /* archive read fallback */
       return null;
     }
-  }, [weekIdx, exIdx, exercise.name]);
+  }, [weekIdx, exercise.id]);
 
   // Compact "last week" header stat — replaces the phase word ("Establish",
   // "+5 lbs", etc) in the card's top-right with the previous week's best
