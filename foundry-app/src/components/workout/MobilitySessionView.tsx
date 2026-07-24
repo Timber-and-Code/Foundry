@@ -15,6 +15,9 @@ interface MobilityExercise {
   cue?: string;
   feel?: string;
   videoUrl?: string;
+  /** Raw dose line from the protocol library ('10 slow reps', '30 sec / side').
+   *  Shown verbatim when present; falls back to '{hold}s hold'. */
+  doseLabel?: string;
 }
 
 interface MobilityProtocol {
@@ -27,6 +30,73 @@ interface MobilityProtocol {
   emoji?: string;
   duration?: number;
   category?: string;
+}
+
+/** Shape of a move in the 2026-04-21 protocol-library redesign. */
+interface MobilityProtocolMove {
+  name: string;
+  reps: string;
+  cue: string;
+  videoUrl?: string;
+}
+
+/** MOBILITY_PROTOCOLS as it exists in constants.ts — the library redesign
+ *  replaced `exercises` (hold-timer shape) with `moves` (reps + cue) and
+ *  made `duration` a display string ('3 min'). This view's runner was built
+ *  on the old shape; adaptProtocol() bridges the two. */
+interface RawMobilityProtocol {
+  id: string;
+  name: string;
+  duration?: string | number;
+  category?: string;
+  description?: string;
+  emoji?: string;
+  moves?: MobilityProtocolMove[];
+  exercises?: MobilityExercise[];
+}
+
+/** Pacing hold for rep-based moves ('10 slow reps') that carry no duration. */
+const DEFAULT_MOVE_HOLD_SECS = 30;
+
+/** Parse a hold duration in seconds out of a reps string. '3 min' → 180,
+ *  '45 sec' / '60 sec / side' → 45 / 60, rep counts ('10 slow reps') → null. */
+function parseHoldSecs(reps: string): number | null {
+  const min = reps.match(/(\d+)\s*min/i);
+  if (min) return parseInt(min[1], 10) * 60;
+  const sec = reps.match(/(\d+)\s*sec/i);
+  if (sec) return parseInt(sec[1], 10);
+  return null;
+}
+
+/** Bridge a library protocol into the runner's exercise shape. Passes
+ *  old-shape protocols through untouched; maps `moves` by parsing timed
+ *  doses into hold seconds ('/ side' markers drive the left/right flow)
+ *  and pacing rep-based moves at DEFAULT_MOVE_HOLD_SECS. */
+function adaptProtocol(raw: RawMobilityProtocol | null | undefined): MobilityProtocol | null {
+  if (!raw) return null;
+  if (raw.exercises?.length) return raw as MobilityProtocol;
+  const exercises: MobilityExercise[] = (raw.moves ?? []).map((m) => {
+    const reps = m.reps || '';
+    const hold = parseHoldSecs(reps) ?? DEFAULT_MOVE_HOLD_SECS;
+    return {
+      name: m.name,
+      duration: hold,
+      hold,
+      sides: /\/\s*side|each side|per side/i.test(reps),
+      cue: m.cue,
+      videoUrl: m.videoUrl,
+      doseLabel: reps || undefined,
+    };
+  });
+  return {
+    id: raw.id,
+    name: raw.name,
+    description: raw.description,
+    emoji: raw.emoji,
+    category: raw.category,
+    duration: parseInt(String(raw.duration ?? ''), 10) || undefined,
+    exercises,
+  };
 }
 
 interface MobilitySessionViewProps {
@@ -84,9 +154,17 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
   const [showComplete, setShowComplete] = React.useState(false);
   const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const proto = session.protocolId
-    ? (MOBILITY_PROTOCOLS as unknown as MobilityProtocol[]).find((p) => p.id === session.protocolId) ?? null
-    : null;
+  const proto = React.useMemo(
+    () =>
+      session.protocolId
+        ? adaptProtocol(
+            (MOBILITY_PROTOCOLS as unknown as RawMobilityProtocol[]).find(
+              (p) => p.id === session.protocolId,
+            ),
+          )
+        : null,
+    [session.protocolId],
+  );
 
   // ── Timer tick ────────────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -118,9 +196,12 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
   };
 
   // ── Navigate to exercise — always lands on intro first ───────────────────
-  const goToExercise = (idx: number) => {
-    if (!proto || idx >= proto.exercises.length) return;
-    const ex = proto.exercises[idx];
+  // Optional `p` override lets callers enter a protocol picked THIS render
+  // (picker tap) before the `proto` memo has caught up with the state write.
+  const goToExercise = (idx: number, p?: MobilityProtocol | null) => {
+    const target = p ?? proto;
+    if (!target || idx >= target.exercises.length) return;
+    const ex = target.exercises[idx];
     if (intervalRef.current !== null) clearInterval(intervalRef.current);
     setTimerActive(false);
     setRemaining(0);
@@ -128,6 +209,21 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
     setSidePhase(ex.sides ? 'left' : 'both');
     setHoldPhase('intro');
   };
+
+  // ── Auto-enter a pre-seeded protocol ─────────────────────────────────────
+  // The post-workout cool-down prompt and MobilityProtocolDetail's "Start
+  // now" both seed the session blob with a protocolId before navigating
+  // here — land straight in exercise 1 instead of the picker. Keyed on the
+  // protocol id so "← Protocols" (which nulls exerciseIdx but keeps the
+  // id) doesn't bounce the user back in.
+  const autoEnteredRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!proto || session.completed || showComplete) return;
+    if (autoEnteredRef.current === proto.id) return;
+    autoEnteredRef.current = proto.id;
+    if (exerciseIdx === null) goToExercise(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proto?.id]);
 
   // ── Advance: next side or next exercise ──────────────────────────────────
   const handleNext = () => {
@@ -401,7 +497,7 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
                   fontWeight: 600,
                 }}
               >
-                {ex.hold}s hold{ex.sides ? ' each side' : ''}
+                {ex.doseLabel ?? `${ex.hold}s hold${ex.sides ? ' each side' : ''}`}
               </div>
             </div>
 
@@ -865,7 +961,9 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
         >
           CHOOSE A PROTOCOL
         </div>
-        {(MOBILITY_PROTOCOLS as unknown as MobilityProtocol[]).map((p) => (
+        {(MOBILITY_PROTOCOLS as unknown as RawMobilityProtocol[]).map((raw) => {
+          const p = adaptProtocol(raw)!;
+          return (
           <button
             key={p.id}
             onClick={() => {
@@ -877,9 +975,12 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
                 label: p.name,
                 route: `/mobility/${dateStr}`,
                 startedAt: Date.now(),
-                durationMin: p.duration,
+                durationMin: p.duration ?? 0,
               });
-              goToExercise(0);
+              // Pass the tapped protocol explicitly — the `proto` memo won't
+              // reflect the save() until the next render, and reading it here
+              // made the first tap a silent no-op.
+              goToExercise(0, p);
             }}
             style={{
               background: 'var(--bg-card)',
@@ -903,7 +1004,13 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
               e.currentTarget.style.transform = 'none';
             }}
           >
-            <div style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>{p.emoji}</div>
+            <div style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>
+              {p.emoji ??
+                ({ warmup: '🔥', recovery: '🧘', targeted: '🎯' } as Record<string, string>)[
+                  p.category ?? ''
+                ] ??
+                '🧘'}
+            </div>
             <div style={{ flex: 1 }}>
               <div
                 style={{
@@ -954,7 +1061,8 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
               </div>
             </div>
           </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
