@@ -128,9 +128,15 @@ export function useCompletionFlow({
       });
     }
 
-    const durationSecs = sessionStartRef.current
+    const rawDurationSecs = sessionStartRef.current
       ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
       : elapsedSecs > 0 ? elapsedSecs : null;
+    // Safety clamp: a duration beyond 24h means the start stamp was stale
+    // (abandoned pre-layoff session). Omit the TIME stat rather than report
+    // "1700 hrs" — useWorkoutTimer re-anchors these on restore, but guard
+    // here too in case a stale ref slips through another path.
+    const durationSecs =
+      rawDurationSecs !== null && rawDurationSecs > 24 * 3600 ? null : rawDurationSecs;
 
     setCompletionWeekIdx(weekIdx);
     setWorkoutStats({

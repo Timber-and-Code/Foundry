@@ -17,6 +17,13 @@ export function useWorkoutTimer(opts: {
 }) {
   const { startKey, strengthEndKey, isDone, isLocked = false } = opts;
 
+  // A single lifting session plausibly spans hours, not days. A persisted
+  // start older than this is a leftover from an abandoned session (e.g. the
+  // user fell off mid-workout for a layoff) — re-anchor to "now" instead of
+  // restoring it and reporting a multi-week elapsed/duration (the "1700 hrs"
+  // bug). Logged sets are untouched; only the clock restarts.
+  const STALE_SESSION_START_MS = 12 * 60 * 60 * 1000;
+
   const sessionStartRef = useRef<number | null>(null);
   const strengthEndRef = useRef<number | null>(null);
   const elapsedIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -31,7 +38,17 @@ export function useWorkoutTimer(opts: {
   useEffect(() => {
     const savedStart = store.get(startKey);
     if (savedStart && !isDone && !isLocked) {
-      sessionStartRef.current = parseInt(savedStart, 10);
+      const parsed = parseInt(savedStart, 10);
+      if (Number.isFinite(parsed) && Date.now() - parsed > STALE_SESSION_START_MS) {
+        // Stale leftover from an abandoned sitting — restart the clock and
+        // drop the (equally stale) strength-end stamp.
+        const now = Date.now();
+        sessionStartRef.current = now;
+        store.set(startKey, String(now));
+        store.set(strengthEndKey, '');
+        return;
+      }
+      sessionStartRef.current = parsed;
       const savedEnd = store.get(strengthEndKey);
       if (savedEnd) strengthEndRef.current = parseInt(savedEnd, 10);
     }
