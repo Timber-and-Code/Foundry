@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { tokens } from '../../styles/tokens';
-import { loadDayWeek } from '../../utils/store';
+import { loadDayWeek, findPrevSlotForExercise, loadArchive } from '../../utils/store';
 import { store } from '../../utils/store';
+import { findLastMesoWeight } from '../../utils/progressAggregation';
 import type { Exercise, WorkoutSet } from '../../types';
 
 export interface MesoHistoryViewProps {
@@ -51,9 +52,10 @@ function fmtNumber(n: number): string {
  * first). Read-only. Tapped from the LAST WK chip on ExerciseCard.
  *
  * Set matching: each week is loaded via `loadDayWeek(dayIdx, weekIdx)`
- * and the exercise's slice is read directly at `data[exIdx]`. The slot
- * is stable across the meso (swaps reuse the slot, reorders rewrite the
- * array in place), so position-based lookup is the source of truth.
+ * and the exercise's slice is found by `_exId` identity via
+ * findPrevSlotForExercise (slot-index fallback for legacy data), so
+ * reorders/swaps between weeks can't attribute another exercise's sets
+ * to this card.
  */
 export default function MesoHistoryView({
   exercise,
@@ -89,13 +91,16 @@ export default function MesoHistoryView({
     const upperBound = Math.min(currentWeekIdx, Math.max(0, mesoWeeks - 1));
     for (let w = upperBound; w >= 0; w--) {
       const data = loadDayWeek(dayIdx, w);
-      // DayData is keyed by exIdx-as-string. Read the slot directly —
-      // walking all slices and picking "the one with the most logged
-      // sets" (the prior approach) attributed another exercise's data to
-      // whichever card was tapped whenever a heavier exercise existed in
-      // the same day.
-      const slice = ((data as unknown as Record<string, Record<string, WorkoutSet>>)[exIdx]
-        || {}) as Record<string, WorkoutSet>;
+      // Match the exercise by identity (`_exId` stamped on every set by
+      // handleUpdateSet), falling back to the slot index for legacy data.
+      // A bare `data[exIdx]` read attributed other exercises' sets to this
+      // card for any week logged before a reorder/superset/swap shifted
+      // the slot order — the same trap ExerciseCard's last-week read and
+      // the carryover walk already guard against via this helper.
+      const slice = findPrevSlotForExercise(data, exercise.id, exIdx) as unknown as Record<
+        string,
+        WorkoutSet
+      >;
 
       const sets: SetRow[] = [];
       const setKeys = Object.keys(slice).sort((a, b) => Number(a) - Number(b));
@@ -154,7 +159,7 @@ export default function MesoHistoryView({
       });
     }
     return out;
-  }, [dayIdx, exIdx, currentWeekIdx, mesoWeeks, startDate]);
+  }, [dayIdx, exIdx, exercise.id, currentWeekIdx, mesoWeeks, startDate]);
 
   // PR row across all weeks except the in-progress current week.
   const prRef = useMemo<{ weight: number; reps: number } | null>(() => {
@@ -173,6 +178,14 @@ export default function MesoHistoryView({
   }, [rows]);
 
   const hasAnySets = rows.some((r) => r.sets.some((s) => s.weight != null || s.reps != null));
+
+  // Cross-meso reference — the weight last used for this exercise in a
+  // previous (possibly unfinished) meso. Matched by `_exId`; pre-stamping
+  // archives simply return null and the row is omitted.
+  const lastMeso = useMemo(
+    () => findLastMesoWeight(loadArchive(), exercise.id),
+    [exercise.id],
+  );
 
   // Focus management + escape close + body scroll lock.
   useEffect(() => {
@@ -433,6 +446,47 @@ export default function MesoHistoryView({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Cross-meso reference — last weight used in a previous meso,
+            including unfinished ones. Omitted when no archived meso has
+            matchable data for this exercise. */}
+        {lastMeso && (
+          <div
+            style={{
+              borderTop: '1px solid var(--border-subtle, var(--border))',
+              paddingTop: 12,
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 8,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: '0.14em',
+                color: 'var(--amber)',
+                textTransform: 'uppercase',
+              }}
+            >
+              Last meso
+            </span>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                fontVariantNumeric: 'tabular-nums',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {fmtNumber(lastMeso.weight)} × {lastMeso.reps}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              &mdash; week {lastMeso.weekIdx + 1}
+              {lastMeso.mesosAgo > 1 ? `, ${lastMeso.mesosAgo} mesos back` : ''}
+            </span>
           </div>
         )}
       </div>
