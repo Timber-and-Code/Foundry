@@ -1,7 +1,7 @@
 {
   "name": "foundry-app",
   "private": true,
-  "version": "2.11.0",
+  "version": "2.12.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,7 @@
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
-    "cap:dev:ios": "npx cap run ios --live-reload --external --port 3001",
+    "cap:dev:ios": "npx cap run ios --live-reload --host 192.168.1.54 --port 3001",
     "build:android": "npm run build && npx cap sync android",
     "build:ios": "npm run build && npx cap sync ios",
     "ios:setup-archive-hook": "bash scripts/setup-ios-archive-hook.sh",
