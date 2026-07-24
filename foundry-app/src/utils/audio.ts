@@ -35,57 +35,103 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
+/** Schedule the two-note rising chime (G5 → C6) on a RUNNING context. */
+function scheduleChimeNotes(ctx: AudioContext): void {
+  // Two-note rising chime, louder and a touch longer than a single tone so
+  // it cuts through with the phone in a pocket. Fired once — the looping
+  // alarm was replaced by this single, stronger cue.
+  const now = ctx.currentTime;
+  const notes = [
+    { freq: 784, start: 0, dur: 0.42 },     // G5
+    { freq: 1047, start: 0.34, dur: 0.6 },  // C6 — overlaps the tail of G5
+  ];
+  for (const n of notes) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = n.freq;
+    osc.type = 'sine';
+    const t0 = now + n.start;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.55, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
+    osc.start(t0);
+    osc.stop(t0 + n.dur);
+  }
+}
+
+/**
+ * Resume a non-running context, then schedule the chime — rebuilding the
+ * context once if the old audio session is dead.
+ *
+ * iOS WKWebView parks the ctx in `'interrupted'` (a WebKit-only state the
+ * spec union doesn't include) after a screen lock, phone call, Siri, a
+ * route change, or backgrounding — and scheduling oscillators against a
+ * non-running context is a silent no-op because its clock is frozen. That
+ * was the "chime sometimes doesn't fire, no rhyme or reason" bug: rests
+ * where the phone locked or an interruption occurred played nothing.
+ */
+async function resumeThenChime(ctx: AudioContext): Promise<void> {
+  try {
+    await Promise.race([
+      ctx.resume(),
+      new Promise((_, reject) => setTimeout(reject, 1000)),
+    ]);
+  } catch { /* fall through — try rebuild below */ }
+  if ((ctx.state as string) === 'running') {
+    scheduleChimeNotes(ctx);
+    return;
+  }
+  // Old session killed by the OS — close it out and rebuild once.
+  try { void ctx.close(); } catch { /* already closed */ }
+  ctxRef = null;
+  const fresh = getAudioContext();
+  if (!fresh) return;
+  try {
+    if ((fresh.state as string) !== 'running') await fresh.resume();
+  } catch { /* still blocked (no gesture yet) — give up quietly */ }
+  if ((fresh.state as string) === 'running') scheduleChimeNotes(fresh);
+}
+
 /**
  * Fire the haptic + chime that signal a timer has hit zero (rest or cardio).
  * Safe to call from any platform — silently no-ops where unsupported.
+ * The haptic always fires immediately; audio may lag a few ms behind a
+ * context resume when iOS interrupted the session mid-workout.
  */
 export function playTimerCompleteChime(): void {
   try { haptic('done'); } catch { /* haptic not available */ }
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
-    // Some browsers suspend the ctx on creation until a user gesture.
-    // resume() is idempotent and safe — if it rejects we still try to play.
-    if (ctx.state === 'suspended') {
-      void ctx.resume();
+    if ((ctx.state as string) === 'running') {
+      scheduleChimeNotes(ctx);
+      return;
     }
-    // Two-note rising chime (G5 → C6), louder and a touch longer than a
-    // single tone so it cuts through with the phone in a pocket. Fired
-    // once — the looping alarm was replaced by this single, stronger cue.
-    const now = ctx.currentTime;
-    const notes = [
-      { freq: 784, start: 0, dur: 0.42 },     // G5
-      { freq: 1047, start: 0.34, dur: 0.6 },  // C6 — overlaps the tail of G5
-    ];
-    for (const n of notes) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = n.freq;
-      osc.type = 'sine';
-      const t0 = now + n.start;
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(0.55, t0 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
-      osc.start(t0);
-      osc.stop(t0 + n.dur);
-    }
+    // 'suspended' (autoplay gate) or 'interrupted' / 'closed' (WebKit
+    // interruptions). Resume FIRST, schedule after — the old code resumed
+    // fire-and-forget and scheduled against the frozen clock.
+    void resumeThenChime(ctx);
   } catch { /* AudioContext blew up — silent fail is fine */ }
 }
 
 /**
- * Pre-warm the AudioContext from inside a user-gesture handler so the chime
- * fired later (possibly while the app is backgrounded) has unlocked audio
- * waiting for it. Safe to call repeatedly — idempotent. iOS Safari/WKWebView
- * suspends the ctx until a gesture; without this prewarm the first chime
- * after a fresh app launch can be silent.
+ * Pre-warm the AudioContext from inside a user-gesture handler (or on
+ * return to foreground) so the chime fired later has unlocked audio
+ * waiting for it. Safe to call repeatedly — idempotent. Handles the
+ * WebKit 'interrupted' and 'closed' states, not just 'suspended'.
  */
 export function unlockAudio(): void {
   try {
-    const ctx = getAudioContext();
+    let ctx = getAudioContext();
     if (!ctx) return;
-    if (ctx.state === 'suspended') {
+    if ((ctx.state as string) === 'closed') {
+      ctxRef = null;
+      ctx = getAudioContext();
+      if (!ctx) return;
+    }
+    if ((ctx.state as string) !== 'running') {
       void ctx.resume();
     }
   } catch {

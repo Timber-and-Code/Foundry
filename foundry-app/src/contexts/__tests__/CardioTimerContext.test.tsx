@@ -62,6 +62,15 @@ describe('CardioTimerContext', () => {
     class MockAudioContext {
       currentTime = 0;
       destination = {} as AudioDestinationNode;
+      // playTimerCompleteChime schedules synchronously only on a RUNNING
+      // context (the iOS-interruption fix resumes non-running ones first).
+      state = 'running';
+      resume() {
+        return Promise.resolve();
+      }
+      close() {
+        return Promise.resolve();
+      }
       createOscillator() {
         return {
           frequency: { value: 0 },

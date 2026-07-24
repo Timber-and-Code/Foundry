@@ -161,6 +161,10 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         // queued on hide. If the timer already expired we fire the chime
         // inline (firedRef makes it a no-op if it already fired via the
         // interval before backgrounding).
+        // Re-arm audio first: backgrounding/screen-lock leaves the
+        // AudioContext 'interrupted' on iOS, which made the at-zero chime
+        // a silent no-op until the next user gesture.
+        unlockAudio();
         void cancelRestComplete();
         const remaining = Math.max(0, Math.ceil((restEndTimeRef.current - Date.now()) / 1000));
         setRestTimer((prev) => {
