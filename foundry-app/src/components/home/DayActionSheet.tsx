@@ -281,26 +281,40 @@ function DayActionSheet(props: DayActionSheetProps) {
             );
           })}
 
-          {/* Move — exactly 1 active (not completed) session.
+          {/* Move — one row PER active (not completed) session, labeled with
+              the workout so double-booked days are never ambiguous (the old
+              `length === 1` gate hid the button entirely on ×2 days).
               Today/future: shift ±7 days from the source.
               Past + missed: forward-only into the next 14 days, anchored on
               today, so the user can recover a missed session by sliding it
               into the upcoming week. MoveWorkoutSheet handles the anchor
               switch via its `max(source, today)` rule. */}
-          {activeKeys.length === 1 && (
-            <ActionButton
-              label={isPast ? 'Reschedule missed workout' : 'Move this workout'}
-              description={
-                isPast
-                  ? 'Pick any upcoming day to slot this missed session into. Progression is preserved.'
-                  : 'Shift ±7 days. The session keeps its progression — only the date changes.'
-              }
-              onClick={() => {
-                onClose();
-                onMoveSession(activeKeys[0]);
-              }}
-            />
-          )}
+          {activeKeys.map((sk) => {
+            const [dStr, wStr] = sk.split(':');
+            const moveDay = activeDays[Number(dStr)];
+            const moveLabel = `${moveDay?.label || `Day ${Number(dStr) + 1}`} — Week ${Number(wStr) + 1}`;
+            return (
+              <ActionButton
+                key={`move-${sk}`}
+                label={
+                  isPast
+                    ? `Reschedule missed: ${moveLabel}`
+                    : activeKeys.length > 1
+                      ? `Move ${moveLabel}`
+                      : 'Move this workout'
+                }
+                description={
+                  isPast
+                    ? 'Pick any upcoming day to slot this missed session into. Progression is preserved.'
+                    : 'Shift ±7 days. The session keeps its progression — only the date changes.'
+                }
+                onClick={() => {
+                  onClose();
+                  onMoveSession(sk);
+                }}
+              />
+            );
+          })}
 
           {/* Skip / Unskip — explicit affordance for marking a session as
               not-going-to-happen (#10a). Skipped sessions are excluded

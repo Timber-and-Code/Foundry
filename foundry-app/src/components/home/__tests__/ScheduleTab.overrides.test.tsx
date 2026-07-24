@@ -72,6 +72,11 @@ vi.mock('../../../styles/tokens', () => ({
   tokens: {
     colors: { gold: '#FFD700', overlay: 'rgba(0,0,0,0.5)' },
     radius: { xs: 2, sm: 4, md: 6, lg: 8, xl: 12, xxl: 16, full: 99 },
+    // ToastContainer (rendered by the real ToastProvider wrapper) reads these.
+    spacing: { xs: 4, sm: 8, md: 12, lg: 16 },
+    zIndex: { toast: 500 },
+    fontSize: { sm: 13, base: 14 },
+    fontWeight: { semibold: 600, bold: 700 },
   },
 }));
 
@@ -80,6 +85,7 @@ vi.mock('../EditScheduleSheet', () => ({ default: () => null }));
 vi.mock('../MoveWorkoutSheet', () => ({ default: () => null }));
 
 import ScheduleTab from '../ScheduleTab';
+import { ToastProvider } from '../../../contexts/ToastContext';
 
 const ACTIVE_DAYS = [
   { label: 'Push Day', tag: 'PUSH', exercises: [] },
@@ -144,7 +150,7 @@ describe('ScheduleTab + scheduleOverrides', () => {
     const { year, month } = todayParts();
     const targetDate = `${year}-${month}-15`;
     mockBuildSessionDateMap.mockReturnValue({ [targetDate]: ['0:0', '1:0'] });
-    render(<ScheduleTab {...makeProps()} />);
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
     expect(screen.getByTestId(`double-badge-${targetDate}`)).toBeDefined();
   });
 
@@ -152,7 +158,7 @@ describe('ScheduleTab + scheduleOverrides', () => {
     const { year, month } = todayParts();
     const targetDate = `${year}-${month}-10`;
     mockBuildSessionDateMap.mockReturnValue({ [targetDate]: '0:0' });
-    render(<ScheduleTab {...makeProps()} />);
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
     expect(screen.queryByTestId(`double-badge-${targetDate}`)).toBeNull();
   });
 
@@ -160,7 +166,7 @@ describe('ScheduleTab + scheduleOverrides', () => {
     const { year, month } = todayParts();
     const dateStr = `${year}-${month}-15`;
     mockBuildSessionDateMap.mockReturnValue({ [dateStr]: '0:0' });
-    render(<ScheduleTab {...makeProps()} />);
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
     const cell = screen.getByRole('button', { name: new RegExp(dateStr) });
     fireEvent.click(cell);
     expect(
@@ -172,9 +178,87 @@ describe('ScheduleTab + scheduleOverrides', () => {
     const { year, month } = todayParts();
     const dateStr = `${year}-${month}-12`;
     mockBuildSessionDateMap.mockReturnValue({ [dateStr]: ['0:0', '1:0'] });
-    render(<ScheduleTab {...makeProps()} />);
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
     const cell = screen.getByRole('button', { name: new RegExp(dateStr) });
     fireEvent.click(cell);
     expect(screen.getByText('2 WORKOUTS SCHEDULED')).toBeDefined();
+  });
+});
+
+describe('ScheduleTab move mode', () => {
+  function dateInThisMonth(day: number): string {
+    const { year, month } = todayParts();
+    return `${year}-${month}-${String(day).padStart(2, '0')}`;
+  }
+  // A guaranteed-future day in the current month, or null near month end.
+  function futureDayThisMonth(): string | null {
+    const t = new Date();
+    const daysInMonth = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    return t.getDate() + 1 <= daysInMonth ? dateInThisMonth(t.getDate() + 1) : null;
+  }
+
+  it('picks up a single-session day and shows the moving banner', () => {
+    const src = dateInThisMonth(10);
+    mockBuildSessionDateMap.mockReturnValue({ [src]: '0:0' });
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
+    expect(screen.getByText('MOVE A WORKOUT')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
+    expect(screen.getByText(/MOVING: PUSH DAY · WK 1/)).toBeDefined();
+  });
+
+  it('places the session on a future day via setScheduleOverride → onProfileUpdate', () => {
+    const target = futureDayThisMonth();
+    if (!target) return; // month-end edge — nothing future left this month
+    const src = dateInThisMonth(10);
+    mockBuildSessionDateMap.mockReturnValue({ [src]: '0:0' });
+    const props = makeProps();
+    render(<ToastProvider><ScheduleTab {...props} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(target) }));
+    expect(props.onProfileUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduleOverrides: expect.anything() }),
+    );
+    // Mode exits after the move — banner gone.
+    expect(screen.queryByText(/MOVING:/)).toBeNull();
+  });
+
+  it('asks WHICH workout on a double-booked source day', () => {
+    const src = dateInThisMonth(10);
+    mockBuildSessionDateMap.mockReturnValue({ [src]: ['0:0', '1:0'] });
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
+    expect(screen.getByText('WHICH WORKOUT?')).toBeDefined();
+    fireEvent.click(screen.getByText('Pull Day · Wk 1'));
+    expect(screen.getByText(/MOVING: PULL DAY · WK 1/)).toBeDefined();
+  });
+
+  it('blocks placing into the past', () => {
+    const t = new Date();
+    if (t.getDate() < 3) return; // needs a past day this month
+    const src = dateInThisMonth(t.getDate() - 1);
+    const pastTarget = dateInThisMonth(t.getDate() - 2);
+    mockBuildSessionDateMap.mockReturnValue({ [src]: '0:0' });
+    const props = makeProps();
+    render(<ToastProvider><ScheduleTab {...props} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(pastTarget) }));
+    expect(props.onProfileUpdate).not.toHaveBeenCalled();
+    // Still in place phase — banner persists.
+    expect(screen.getByText(/MOVING: PUSH DAY · WK 1/)).toBeDefined();
+  });
+
+  it('past-day sources are movable (reschedule missed)', () => {
+    const t = new Date();
+    if (t.getDate() < 2) return;
+    const src = dateInThisMonth(t.getDate() - 1); // yesterday — missed
+    mockBuildSessionDateMap.mockReturnValue({ [src]: '2:1' });
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
+    expect(screen.getByText(/MOVING: LEG DAY · WK 2/)).toBeDefined();
   });
 });

@@ -12,7 +12,10 @@ import {
   hasAnyNotes,
   hasAnyExtraNotes,
   buildSessionDateMap,
+  setScheduleOverride,
 } from '../../utils/store';
+import { haptic } from '../../utils/helpers';
+import { useToast } from '../../contexts/ToastContext';
 import RestDaySheet from './RestDaySheet';
 import EditScheduleSheet from './EditScheduleSheet';
 import DayActionSheet from './DayActionSheet';
@@ -250,6 +253,55 @@ function ScheduleTab({
   const [moveState, setMoveState] = React.useState<{ sourceDateStr: string; sessionKey: string } | null>(null);
   const [previewState, setPreviewState] = React.useState<{ dayIdx: number; weekIdx: number } | null>(null);
 
+  // Move mode — tap MOVE, tap the workout to pick it up, tap a day to place
+  // it. Past/present/future sources all work; a banner always names the
+  // session in hand so double-booked days are never ambiguous.
+  const [moveMode, setMoveMode] = React.useState<
+    | null
+    | { phase: 'pick' }
+    | { phase: 'place'; sessionKey: string; sourceDateStr: string; label: string }
+  >(null);
+  // Double-booked source day — mini chooser for WHICH workout to pick up.
+  const [movePicker, setMovePicker] = React.useState<{ dateStr: string; keys: string[] } | null>(null);
+  const { showToast } = useToast();
+
+  const sessionKeyLabel = React.useCallback(
+    (sk: string): string => {
+      const [dStr, wStr] = sk.split(':');
+      const d = activeDays[Number(dStr)];
+      return `${d?.label || `Day ${Number(dStr) + 1}`} · Wk ${Number(wStr) + 1}`;
+    },
+    [activeDays],
+  );
+
+  const pickUpSession = React.useCallback(
+    (dateStr: string, sk: string) => {
+      haptic('tap');
+      setMovePicker(null);
+      setMoveMode({ phase: 'place', sessionKey: sk, sourceDateStr: dateStr, label: sessionKeyLabel(sk) });
+    },
+    [sessionKeyLabel],
+  );
+
+  const placeSession = React.useCallback(
+    (targetDateStr: string) => {
+      if (!moveMode || moveMode.phase !== 'place') return;
+      const next = setScheduleOverride(
+        profile,
+        moveMode.sourceDateStr,
+        targetDateStr,
+        moveMode.sessionKey,
+      );
+      onProfileUpdate({ scheduleOverrides: next.scheduleOverrides });
+      haptic('done');
+      const dt = new Date(targetDateStr + 'T00:00:00');
+      const dayLabel = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      showToast(`${moveMode.label} → ${dayLabel}`, 'success');
+      setMoveMode(null);
+    },
+    [moveMode, profile, onProfileUpdate, showToast],
+  );
+
   const today = new Date();
   const displayDate = new Date(today.getFullYear(), today.getMonth() + calendarOffset, 1);
   const year = displayDate.getFullYear();
@@ -383,8 +435,92 @@ function ScheduleTab({
               >
                 ›
               </button>
+              <button
+                onClick={() => {
+                  if (moveMode) {
+                    setMoveMode(null);
+                    setMovePicker(null);
+                  } else {
+                    haptic('tap');
+                    setMoveMode({ phase: 'pick' });
+                  }
+                }}
+                aria-pressed={!!moveMode}
+                aria-label={moveMode ? 'Exit move mode' : 'Move a workout'}
+                style={{
+                  padding: '4px 10px',
+                  height: 32,
+                  borderRadius: tokens.radius.md,
+                  border: `1px solid ${moveMode ? 'var(--accent)' : 'var(--border)'}`,
+                  background: moveMode ? 'var(--accent)22' : 'var(--bg-inset)',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  color: moveMode ? 'var(--accent)' : 'var(--text-secondary)',
+                  marginLeft: 4,
+                }}
+              >
+                MOVE
+              </button>
             </div>
           </div>
+
+          {/* Move-mode banner — always names the session in hand */}
+          {moveMode && (
+            <div
+              role="status"
+              aria-live="polite"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                marginBottom: 10,
+                padding: '10px 12px',
+                borderRadius: tokens.radius.md,
+                background: 'var(--accent)14',
+                border: '1px dashed var(--accent)88',
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    letterSpacing: '0.1em',
+                    color: 'var(--accent)',
+                  }}
+                >
+                  {moveMode.phase === 'pick' ? 'MOVE A WORKOUT' : `MOVING: ${moveMode.label.toUpperCase()}`}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                  {moveMode.phase === 'pick'
+                    ? 'Tap the workout you want to move — past days included.'
+                    : 'Tap a day to place it. Progression is preserved.'}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setMoveMode(null);
+                  setMovePicker(null);
+                }}
+                style={{
+                  flexShrink: 0,
+                  padding: '6px 10px',
+                  borderRadius: tokens.radius.md,
+                  border: '1px solid var(--border)',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
 
           {/* DOW headers */}
           <div
@@ -476,26 +612,87 @@ function ScheduleTab({
                 borderColor = sessionPc + '99';
               }
 
+              // ── Move mode overlays ──────────────────────────────────────
+              // pick: highlight days with movable (not-completed) sessions,
+              // dim the rest. place: highlight valid targets, mark the
+              // source, dim past/completed-occupied days.
+              const movableKeys = sessionKeys.filter((k) => !completedDays.has(k));
+              const occupantCompleted = sessionKeys.some((k) => completedDays.has(k));
+              let moveDimmed = false;
+              let moveBorder: string | null = null;
+              if (moveMode?.phase === 'pick') {
+                if (movableKeys.length > 0) moveBorder = '1.5px dashed var(--accent)';
+                else moveDimmed = true;
+              } else if (moveMode?.phase === 'place') {
+                const isSource = dateStr === moveMode.sourceDateStr;
+                const validTarget = !isSource && !isPast && !occupantCompleted;
+                if (isSource) moveBorder = '2px dashed var(--accent)';
+                else if (validTarget) moveBorder = '1.5px solid var(--accent)66';
+                else moveDimmed = true;
+              }
+
+              const handleCellTap = () => {
+                if (!moveMode) {
+                  setActiveDate(dateStr);
+                  return;
+                }
+                if (moveMode.phase === 'pick') {
+                  if (movableKeys.length === 0) {
+                    showToast('No movable workout on this day', 'info');
+                    return;
+                  }
+                  if (movableKeys.length === 1) {
+                    pickUpSession(dateStr, movableKeys[0]);
+                    return;
+                  }
+                  setMovePicker({ dateStr, keys: movableKeys });
+                  return;
+                }
+                // place phase
+                if (dateStr === moveMode.sourceDateStr) {
+                  showToast('Already on this day — tap another date', 'info');
+                  return;
+                }
+                if (isPast) {
+                  showToast("Can't move a workout into the past", 'warning');
+                  return;
+                }
+                if (occupantCompleted) {
+                  showToast('That day already has a completed workout', 'warning');
+                  return;
+                }
+                if (movableKeys.length > 0) {
+                  showToast('Heads up: that day now has 2 workouts', 'info');
+                }
+                placeSession(dateStr);
+              };
+
               return (
                 <div
                   key={day}
                   role="button"
                   tabIndex={0}
-                  aria-label={`${dateStr}${hasDouble ? ' (2 workouts)' : ''}`}
-                  onClick={() => setActiveDate(dateStr)}
+                  aria-label={
+                    moveMode
+                      ? `${dateStr}${movableKeys.length ? ` — ${movableKeys.map(sessionKeyLabel).join(', ')}` : ''}`
+                      : `${dateStr}${hasDouble ? ' (2 workouts)' : ''}`
+                  }
+                  onClick={handleCellTap}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setActiveDate(dateStr);
+                      handleCellTap();
                     }
                   }}
                   style={{
                     aspectRatio: '1',
                     borderRadius: tokens.radius.sm,
                     background: bg,
-                    border: isToday
-                      ? `2px solid ${isDone ? sessionPc : primaryKey ? sessionPc : 'var(--phase-intens)'}`
-                      : `1px solid ${borderColor}`,
+                    border:
+                      moveBorder ??
+                      (isToday
+                        ? `2px solid ${isDone ? sessionPc : primaryKey ? sessionPc : 'var(--phase-intens)'}`
+                        : `1px solid ${borderColor}`),
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -503,6 +700,8 @@ function ScheduleTab({
                     gap: 1,
                     position: 'relative',
                     cursor: 'pointer',
+                    opacity: moveDimmed ? 0.35 : 1,
+                    transition: 'opacity 0.15s, border-color 0.15s',
                   }}
                 >
                   <div
@@ -854,6 +1053,55 @@ function ScheduleTab({
             return day ? `${day.label} — Week ${Number(wIdxStr) + 1}` : undefined;
           })()}
         />
+      )}
+      {/* Move mode: double-booked day — choose WHICH workout to pick up */}
+      {movePicker && (
+        <Sheet open={!!movePicker} onClose={() => setMovePicker(null)} zIndex={360}>
+          <div style={{ padding: '8px 20px 24px' }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: '0.12em',
+                color: 'var(--accent)',
+                marginBottom: 4,
+              }}
+            >
+              WHICH WORKOUT?
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                color: 'var(--text-secondary)',
+                marginBottom: 14,
+              }}
+            >
+              This day has {movePicker.keys.length} workouts — tap the one to move.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {movePicker.keys.map((sk) => (
+                <button
+                  key={sk}
+                  onClick={() => pickUpSession(movePicker.dateStr, sk)}
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: tokens.radius.lg,
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-surface)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontSize: 15,
+                    fontWeight: 800,
+                    color: 'var(--text-primary)',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {sessionKeyLabel(sk)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Sheet>
       )}
       {previewState && activeDays[previewState.dayIdx] && (
         <WorkoutSplash
