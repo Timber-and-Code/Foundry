@@ -101,9 +101,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
+    // Cold-start guard: getSession() normally answers from local storage,
+    // but an EXPIRED access token forces a network refresh first — after a
+    // long layoff (token long dead) on a slow or flaky connection that
+    // refresh can hang for the platform HTTP timeout (~60s) with the whole
+    // app stuck on the "Loading…" gate. Race it against a short deadline;
+    // on timeout, boot in localStorage-only mode immediately. The refresh
+    // keeps running in the background — if it eventually lands, the late
+    // session re-hydrates below and sync proceeds as normal.
+    const AUTH_BOOT_TIMEOUT_MS = 8000;
+    const bootStart = Date.now();
+    const sessionPromise = supabase.auth.getSession();
+    Promise.race([
+      sessionPromise,
+      new Promise<'timeout'>((resolve) =>
+        setTimeout(() => resolve('timeout'), AUTH_BOOT_TIMEOUT_MS),
+      ),
+    ])
+      .then((result) => {
+        Sentry.addBreadcrumb({
+          category: 'auth',
+          message: `getSession settled: ${result === 'timeout' ? 'timeout' : 'ok'} in ${Date.now() - bootStart}ms`,
+          level: result === 'timeout' ? 'warning' : 'info',
+        });
+        if (result === 'timeout') {
+          setAuthUnavailable(true);
+          // Late hydration: when the slow refresh finally resolves with a
+          // real session, lift the offline mode so sync resumes.
+          sessionPromise
+            .then(({ data: { session } }) => {
+              if (session) {
+                setAuthUnavailable(false);
+                setSession(session);
+                setUser(session.user ?? null);
+              }
+            })
+            .catch(() => {});
+          return;
+        }
+        const { data: { session } } = result;
         setSession(session);
         setUser(session?.user ?? null);
       })
