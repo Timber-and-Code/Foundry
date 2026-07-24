@@ -786,8 +786,13 @@ function App() {
         {/* Return-after-layoff. Sits ABOVE MesoCompleteSheet in render order
             but the detection effect short-circuits when meso-complete is
             active so they don't fight for the screen. Not dismissable —
-            sheet picks one of 4 strategies and marks the gap handled. */}
-        {resumptionGap && profile && (
+            sheet picks one of 4 strategies and marks the gap handled.
+            Gated to the Home route: the sheet is a full-screen zIndex-400
+            overlay, so letting it fire on /day/* (or any session route)
+            would trap the user mid-workout with no way to navigate. The
+            gap detection keeps running everywhere; the sheet just waits
+            until the user is back on Home to take over. */}
+        {resumptionGap && profile && location.pathname === '/' && (
           <React.Suspense fallback={null}>
             <ResumptionSheet
               gap={resumptionGap}
