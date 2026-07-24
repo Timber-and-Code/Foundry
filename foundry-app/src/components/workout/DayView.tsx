@@ -1619,18 +1619,22 @@ function DayView({
       }}
     >
       {/* Sticky session timer bar — escapes parent padding via negative
-          margins and sticks just BELOW the FoundryBanner (top: 79px ≈ the
+          margins and sticks just BELOW the FoundryBanner (79px ≈ the
           banner's height with subtitle) so THE FOUNDRY title stays visible
           during a workout instead of being covered. zIndex sits under the
           banner (50) so any sub-pixel overlap resolves in the banner's
-          favour — the notch inset is already absorbed by the banner, so
-          this bar no longer pads for it.
+          favour.
+          iOS: the banner absorbs the notch inset, so its rendered height is
+          79px + safe-area-inset-top — a bare `top: 79` pinned this bar fully
+          UNDER the banner on notched iPhones, hiding Back + the session
+          timer entirely (nav-lockout regression). The env() term keeps the
+          bar flush below the banner on both platforms (0px on web).
           Layout: [← back] [SESSION mm:ss] [REST m:ss] — the rest chip
           replaces the old fixed-bottom MinimizedTimerBar (#5). */}
       <div
         style={{
           position: 'sticky',
-          top: 79,
+          top: 'calc(79px + env(safe-area-inset-top, 0px))',
           zIndex: 40,
           marginTop: -20,
           marginLeft: -20,
