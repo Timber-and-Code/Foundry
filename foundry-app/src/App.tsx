@@ -473,6 +473,38 @@ function App() {
     };
   }, [navigate, setProfile, setCompletedDays, setCurrentWeek]);
 
+  // Publish the header stack's real on-screen bottom edge as a CSS custom
+  // property. DayView's fixed session bar pins to it. Positioning that bar
+  // with assumed geometry (79px banner + env(safe-area-inset-top)) kept
+  // breaking on device — whatever the banner actually renders as, this
+  // measurement is correct by construction. rect.bottom is constant on this
+  // layout (the stack is stuck from scroll 0), so no scroll listener.
+  // Callback ref, NOT an effect: the header renders inside Suspense, and an
+  // effect that fires while the routes are still suspended sees a null ref
+  // and never re-runs — which left the CSS var unset and the session bar on
+  // its (wrong on iOS) fallback. The callback runs at the moment the node
+  // actually attaches, whatever Suspense is doing.
+  // MUST stay above the onboarding-gate early returns (hooks order).
+  const headerStackRO = React.useRef<ResizeObserver | null>(null);
+  const headerStackRef = React.useCallback((el: HTMLDivElement | null) => {
+    headerStackRO.current?.disconnect();
+    headerStackRO.current = null;
+    if (!el) {
+      document.documentElement.style.removeProperty('--app-header-bottom');
+      return;
+    }
+    const publish = () => {
+      const bottom = el.getBoundingClientRect().bottom;
+      document.documentElement.style.setProperty('--app-header-bottom', `${bottom}px`);
+    };
+    publish();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(publish);
+      ro.observe(el);
+      headerStackRO.current = ro;
+    }
+  }, []);
+
   // ── Onboarding gate ──
   // Early returns use React.lazy components — must wrap in Suspense
   const suspenseFallback = (
@@ -616,7 +648,7 @@ function App() {
         {/* Header — banner + the in-progress session bar share one sticky
             stack so the bar sits BELOW "THE FOUNDRY" instead of covering
             it (both used to pin at top:0 and the bar's higher z-index won). */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 50 }}>
+        <div ref={headerStackRef} style={{ position: 'sticky', top: 0, zIndex: 50 }}>
           <FoundryBanner
             // The subtitle is the split the user picked when building the
             // meso — a fixed choice, NOT something to re-derive. Day-tag

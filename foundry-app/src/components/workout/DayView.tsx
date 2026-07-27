@@ -339,6 +339,22 @@ function DayView({
     isLocked,
   });
 
+  // The fixed session bar is out of normal flow — a spacer stands in for it
+  // so content clears its real rendered height (rest chip appearing, font
+  // differences, etc. all change it).
+  const sessionBarRef = React.useRef<HTMLDivElement>(null);
+  const [sessionBarH, setSessionBarH] = React.useState(49);
+  React.useLayoutEffect(() => {
+    const el = sessionBarRef.current;
+    if (!el) return;
+    const measure = () => setSessionBarH(el.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Stop-workout flow — distinct from "Complete Workout." Cancels an
   // accidentally-started session without recording it as done. If any sets
   // are logged, a confirm modal protects the lifter; otherwise it stops
@@ -1626,28 +1642,29 @@ function DayView({
         padding: '20px',
       }}
     >
-      {/* Sticky session timer bar — escapes parent padding via negative
-          margins and sticks just BELOW the FoundryBanner (79px ≈ the
-          banner's height with subtitle) so THE FOUNDRY title stays visible
-          during a workout instead of being covered. zIndex sits under the
-          banner (50) so any sub-pixel overlap resolves in the banner's
-          favour.
-          iOS: the banner absorbs the notch inset, so its rendered height is
-          79px + safe-area-inset-top — a bare `top: 79` pinned this bar fully
-          UNDER the banner on notched iPhones, hiding Back + the session
-          timer entirely (nav-lockout regression). The env() term keeps the
-          bar flush below the banner on both platforms (0px on web).
+      {/* Fixed session timer bar — pinned to the header stack's MEASURED
+          bottom edge (--app-header-bottom, published by App.tsx) instead of
+          sticky + assumed geometry. Two prior attempts positioned it with
+          `top: 79px` and `top: calc(79px + env(safe-area-inset-top))`; both
+          left the bar hidden under the banner on real iPhones because the
+          banner's rendered height never matches the hard-coded math on every
+          device. Measuring sidesteps the whole class of bug. zIndex sits
+          under the banner (50) so any sub-pixel overlap resolves in the
+          banner's favour. The spacer keeps flow content clear of the bar.
           Layout: [← back] [SESSION mm:ss] [REST m:ss] — the rest chip
           replaces the old fixed-bottom MinimizedTimerBar (#5). */}
+      <div aria-hidden="true" style={{ height: sessionBarH }} />
       <div
+        ref={sessionBarRef}
         style={{
-          position: 'sticky',
-          top: 'calc(79px + env(safe-area-inset-top, 0px))',
+          position: 'fixed',
+          top: 'var(--app-header-bottom, 79px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '100%',
+          maxWidth: 480,
+          boxSizing: 'border-box',
           zIndex: 40,
-          marginTop: -20,
-          marginLeft: -20,
-          marginRight: -20,
-          marginBottom: 20,
           paddingTop: 12,
           paddingRight: 16,
           paddingBottom: 12,
