@@ -32,6 +32,7 @@ import { PricingPage } from '../settings/PricingPage';
 import ShareMesoModal from '../social/ShareMesoModal';
 import JoinMesoFlow from '../social/JoinMesoFlow';
 import FriendsSection from '../social/FriendsSection';
+import FriendsTab from '../social/FriendsTab';
 import WorkoutSplash from '../workout/WorkoutSplash';
 import type { Profile, TrainingDay } from '../../types';
 
@@ -559,6 +560,28 @@ function HomeView({
       ),
     },
     {
+      key: 'friends',
+      label: 'Friends',
+      // Two-person silhouette — the standard "people" glyph.
+      icon: (active: boolean) => (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={active ? 'var(--accent)' : '#A89A8A'}
+          strokeWidth={active ? 2.5 : 1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="9" cy="8" r="3.5" />
+          <path d="M2.5 20c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5" />
+          <circle cx="17" cy="9" r="2.6" />
+          <path d="M16.5 14.7c2.9.3 5 2.2 5 4.8" />
+        </svg>
+      ),
+    },
+    {
       key: 'explore',
       label: 'Explore',
       // Folded-map icon — three vertical panels with the side panels offset
@@ -862,8 +885,10 @@ function HomeView({
         />
       )}
 
+      {tab === 'friends' && <FriendsTab />}
+
       {/* ── Bottom tab bar ── */}
-      {['landing', 'progress', 'schedule', 'explore'].includes(tab) && (
+      {['landing', 'progress', 'schedule', 'friends', 'explore'].includes(tab) && (
         <nav
           role="tablist"
           aria-label="Main navigation"

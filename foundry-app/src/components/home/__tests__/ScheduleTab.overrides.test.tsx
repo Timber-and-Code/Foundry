@@ -151,6 +151,7 @@ describe('ScheduleTab + scheduleOverrides', () => {
     const targetDate = `${year}-${month}-15`;
     mockBuildSessionDateMap.mockReturnValue({ [targetDate]: ['0:0', '1:0'] });
     render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
     expect(screen.getByTestId(`double-badge-${targetDate}`)).toBeDefined();
   });
 
@@ -159,6 +160,7 @@ describe('ScheduleTab + scheduleOverrides', () => {
     const targetDate = `${year}-${month}-10`;
     mockBuildSessionDateMap.mockReturnValue({ [targetDate]: '0:0' });
     render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
     expect(screen.queryByTestId(`double-badge-${targetDate}`)).toBeNull();
   });
 
@@ -167,6 +169,7 @@ describe('ScheduleTab + scheduleOverrides', () => {
     const dateStr = `${year}-${month}-15`;
     mockBuildSessionDateMap.mockReturnValue({ [dateStr]: '0:0' });
     render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
     const cell = screen.getByRole('button', { name: new RegExp(dateStr) });
     fireEvent.click(cell);
     expect(
@@ -179,6 +182,7 @@ describe('ScheduleTab + scheduleOverrides', () => {
     const dateStr = `${year}-${month}-12`;
     mockBuildSessionDateMap.mockReturnValue({ [dateStr]: ['0:0', '1:0'] });
     render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
     const cell = screen.getByRole('button', { name: new RegExp(dateStr) });
     fireEvent.click(cell);
     expect(screen.getByText('2 WORKOUTS SCHEDULED')).toBeDefined();
@@ -201,6 +205,7 @@ describe('ScheduleTab move mode', () => {
     const src = dateInThisMonth(10);
     mockBuildSessionDateMap.mockReturnValue({ [src]: '0:0' });
     render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
     expect(screen.getByText('MOVE A WORKOUT')).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
@@ -214,6 +219,7 @@ describe('ScheduleTab move mode', () => {
     mockBuildSessionDateMap.mockReturnValue({ [src]: '0:0' });
     const props = makeProps();
     render(<ToastProvider><ScheduleTab {...props} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(target) }));
@@ -228,6 +234,7 @@ describe('ScheduleTab move mode', () => {
     const src = dateInThisMonth(10);
     mockBuildSessionDateMap.mockReturnValue({ [src]: ['0:0', '1:0'] });
     render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
     expect(screen.getByText('WHICH WORKOUT?')).toBeDefined();
@@ -243,6 +250,7 @@ describe('ScheduleTab move mode', () => {
     mockBuildSessionDateMap.mockReturnValue({ [src]: '0:0' });
     const props = makeProps();
     render(<ToastProvider><ScheduleTab {...props} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(pastTarget) }));
@@ -257,8 +265,67 @@ describe('ScheduleTab move mode', () => {
     const src = dateInThisMonth(t.getDate() - 1); // yesterday — missed
     mockBuildSessionDateMap.mockReturnValue({ [src]: '2:1' });
     render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move a workout' }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(src) }));
     expect(screen.getByText(/MOVING: LEG DAY · WK 2/)).toBeDefined();
+  });
+});
+
+describe('ScheduleTab week view (Schedule v2 default)', () => {
+  function localToday(): string {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  }
+
+  it('renders the week strip with phase header by default', () => {
+    mockBuildSessionDateMap.mockReturnValue({ [localToday()]: '0:2' });
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    // Phase from wIdx 2 → Intensification (mocked getWeekPhase).
+    expect(screen.getByText(/WK 3 · INTENSIFICATION/)).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Show month view' })).toBeDefined();
+  });
+
+  it("shows today's session as a card with VIEW / MOVE / SKIP", () => {
+    mockBuildSessionDateMap.mockReturnValue({ [localToday()]: '1:0' });
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    expect(screen.getByText('Pull Day')).toBeDefined();
+    expect(screen.getByText('VIEW')).toBeDefined();
+    expect(screen.getByText('MOVE')).toBeDefined();
+    expect(screen.getByText('SKIP')).toBeDefined();
+  });
+
+  it('double-booked day renders two separate cards', () => {
+    mockBuildSessionDateMap.mockReturnValue({ [localToday()]: ['0:0', '2:0'] });
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    expect(screen.getByText('Push Day')).toBeDefined();
+    expect(screen.getByText('Leg Day')).toBeDefined();
+    expect(screen.getAllByText('MOVE')).toHaveLength(2);
+  });
+
+  it('completed session shows RECAP instead of MOVE', () => {
+    mockBuildSessionDateMap.mockReturnValue({ [localToday()]: '0:0' });
+    render(
+      <ToastProvider>
+        <ScheduleTab {...makeProps({ completedDays: new Set(['0:0']) })} />
+      </ToastProvider>,
+    );
+    expect(screen.getByText('RECAP')).toBeDefined();
+    expect(screen.queryByText('MOVE')).toBeNull();
+  });
+
+  it('rest day shows the add-workout affordance', () => {
+    mockBuildSessionDateMap.mockReturnValue({});
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    expect(screen.getByText('+ ADD WORKOUT')).toBeDefined();
+  });
+
+  it('month toggle round-trips back to week view', () => {
+    mockBuildSessionDateMap.mockReturnValue({});
+    render(<ToastProvider><ScheduleTab {...makeProps()} /></ToastProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Show month view' }));
+    expect(screen.getByRole('button', { name: 'Move a workout' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Show week view' }));
+    expect(screen.getByRole('button', { name: 'Show month view' })).toBeDefined();
   });
 });
