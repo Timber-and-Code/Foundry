@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../utils/supabase';
@@ -105,10 +106,15 @@ export default function AuthPage() {
       // lands the user on Setup (the auth gate routes signed-in users
       // without a profile straight to onboarding) instead of an
       // update-password screen.
+      // On native, window.location.origin is capacitor://localhost — an
+      // email link can never redirect there, and Supabase silently falls
+      // back to the Site URL root (no password form). Always send the
+      // recovery link to the web origin; it opens in Safari, which is the
+      // right place to type a new password anyway.
       const redirectTo =
-        typeof window !== 'undefined'
+        !Capacitor.isNativePlatform() && typeof window !== 'undefined'
           ? `${window.location.origin}/reset-password`
-          : undefined;
+          : 'https://thefoundry.coach/reset-password';
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email,
         redirectTo ? { redirectTo } : undefined,
