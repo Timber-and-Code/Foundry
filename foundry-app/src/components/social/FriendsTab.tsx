@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import type { Friend } from '../../types';
 import AddFriendModal, { FRIENDS_CHANGED_EVENT } from './AddFriendModal';
 import FriendDashboardModal from './FriendDashboardModal';
+import Button from '../ui/Button';
 
 /**
  * FriendsTab — the dedicated home for the social features (forge-v2).
@@ -13,8 +14,17 @@ import FriendDashboardModal from './FriendDashboardModal';
  * existing FriendDashboardModal in follow-only mode. Add-friend lives
  * here as the primary CTA (invite code + native share via AddFriendModal).
  *
- * The Home strip (FriendsSection) stays — this tab is the full surface.
+ * This tab is the ONLY social surface — the Home strip (FriendsSection)
+ * was removed once this tab shipped (2.13.0), and the Share Program /
+ * Join a Friend meso-sharing actions moved here with it. The share/join
+ * modals still live in HomeView (they outlive tab switches), so the
+ * actions arrive as callbacks.
  */
+
+interface FriendsTabProps {
+  onShareProgram?: () => void;
+  onJoinFriend?: () => void;
+}
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -50,7 +60,7 @@ function trainedToday(iso: string | null): boolean {
   );
 }
 
-export default function FriendsTab() {
+export default function FriendsTab({ onShareProgram, onJoinFriend }: FriendsTabProps) {
   const { user } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -279,6 +289,30 @@ export default function FriendsTab() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Meso sharing — moved from the Home tab's bottom cluster. */}
+      {user && (onShareProgram || onJoinFriend) && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          {onShareProgram && (
+            <Button
+              onClick={onShareProgram}
+              variant="secondary"
+              style={{ flex: 1, fontSize: 13 }}
+            >
+              Share Program
+            </Button>
+          )}
+          {onJoinFriend && (
+            <Button
+              onClick={onJoinFriend}
+              variant="secondary"
+              style={{ flex: 1, fontSize: 13 }}
+            >
+              Join a Friend
+            </Button>
+          )}
         </div>
       )}
 

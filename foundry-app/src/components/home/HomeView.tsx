@@ -15,7 +15,6 @@ import {
 import { syncSkippedToSupabase } from '../../utils/sync';
 import { on } from '../../utils/events';
 import { dayDisplayName } from '../../utils/splitLabel';
-import { useAuth } from '../../contexts/AuthContext';
 
 // Shared UI
 import Modal from '../ui/Modal';
@@ -31,7 +30,6 @@ import ExplorePage from '../explore/ExplorePage';
 import { PricingPage } from '../settings/PricingPage';
 import ShareMesoModal from '../social/ShareMesoModal';
 import JoinMesoFlow from '../social/JoinMesoFlow';
-import FriendsSection from '../social/FriendsSection';
 import FriendsTab from '../social/FriendsTab';
 import WorkoutSplash from '../workout/WorkoutSplash';
 import type { Profile, TrainingDay } from '../../types';
@@ -96,9 +94,6 @@ function HomeView({
       if (onOpenWeeklyHandled) onOpenWeeklyHandled();
     }
   }, [openWeekly]);
-
-  // ── Auth ────────────────────────────────────────────────────────────────
-  const { user } = useAuth();
 
   // ── Overlay / modal state ───────────────────────────────────────────────
   const [showReset, setShowReset] = useState(false);
@@ -777,38 +772,8 @@ function HomeView({
             setShowPricing={setShowPricing}
           />
 
-          {/* Friends — follow-a-friend section. Renders a horizontal
-              row of friend tiles + an Add button. Sits above the
-              Share/Join buttons which are scoped to shared mesos. */}
-          {user && <FriendsSection />}
-
-          {/* Train with Friends — share or join a mesocycle. Distinct
-              from the Friends section: this is program-sharing, not
-              progress-following. */}
-          {user && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 8,
-                padding: '0 20px 16px',
-              }}
-            >
-              <Button
-                onClick={() => setShowShare(true)}
-                variant="secondary"
-                style={{ flex: 1, fontSize: 13 }}
-              >
-                Share Program
-              </Button>
-              <Button
-                onClick={() => setShowJoin(true)}
-                variant="secondary"
-                style={{ flex: 1, fontSize: 13 }}
-              >
-                Join a Friend
-              </Button>
-            </div>
-          )}
+          {/* Social lives in the Friends tab now (2.13.0) — the old
+              FriendsSection strip and Share/Join buttons moved there. */}
         </>
       )}
 
@@ -885,7 +850,12 @@ function HomeView({
         />
       )}
 
-      {tab === 'friends' && <FriendsTab />}
+      {tab === 'friends' && (
+        <FriendsTab
+          onShareProgram={() => setShowShare(true)}
+          onJoinFriend={() => setShowJoin(true)}
+        />
+      )}
 
       {/* ── Bottom tab bar ── */}
       {['landing', 'progress', 'schedule', 'friends', 'explore'].includes(tab) && (
