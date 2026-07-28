@@ -37,13 +37,15 @@ function FoundryBanner({ subtitle, onProfileTap, syncState = 'idle' }: FoundryBa
       role="banner"
       style={{
         background: '#0f0f0f',
-        // Extend the solid background up into the device notch / status bar
-        // area so when the user scrolls, the page content never peeks above
-        // the title bar (#1, 2.8.0). The negative marginTop pulls the bar
-        // up so its background fills the inset; paddingTop pads the visual
-        // content back down to its original position. The sticky wrapper
-        // in App.tsx keeps `top: 0` aligned at the inset edge.
-        marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
+        // The safe-area inset is REAL flow height (padding only), so the
+        // banner's background covers the notch / status bar area and content
+        // below starts clear of it. The old approach paired this padding
+        // with `marginTop: -env(safe-area-inset-top)` — that negative margin
+        // collapsed through the sticky wrapper in App.tsx and dragged the
+        // whole header stack up by the inset in layout, so every view's flow
+        // content started `inset` px hidden underneath the stuck header
+        // (clipped readiness strip in DayView, cards peeking out from behind
+        // the banner on Home).
         paddingTop: 'calc(14px + env(safe-area-inset-top, 0px))',
         paddingRight: 16,
         paddingBottom: 14,
