@@ -1006,6 +1006,11 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
           rpe: decodeRpe(s.rpe),
           confirmed: true, // if the row exists, the user confirmed it
           warmup: s.is_warmup || undefined,
+          // Identity stamp — without it every history reader
+          // (findPrevSlotForExercise, realignDayDataByExId, the archive
+          // aggregators) degrades to raw slot position, and one reorder or
+          // swap misattributes the whole pulled history.
+          _exId: s.exercise_id,
         };
       }
 
@@ -2351,6 +2356,7 @@ export async function flushWorkoutDayWeekKey(
     rpe?: string | number;
     confirmed?: boolean;
     warmup?: boolean;
+    _exId?: string;
   }>>;
   try { data = JSON.parse(raw); } catch { return; }
 
@@ -2373,9 +2379,16 @@ export async function flushWorkoutDayWeekKey(
     const setsMap = data[exIdxStr];
     if (!setsMap) continue;
 
-    const overrideId = store.get(`foundry:exOv:d${dayIdx}:w${weekIdx}:${exIdx}`) || null;
-    const exerciseId = overrideId || exerciseIdFor(dayIdx, exIdx);
-    if (!exerciseId) continue;
+    // Same week-then-meso resolution as persistence.loadExOverride (not
+    // importable here — persistence already imports from this module).
+    // NB the old read used a key shape that is never written
+    // (`foundry:exOv:...` without the `ex` prefix), so every swapped
+    // exercise was pushed under its template id.
+    const overrideId =
+      store.get(`foundry:exov:d${dayIdx}:w${weekIdx}:ex${exIdx}`) ||
+      store.get(`foundry:exov:d${dayIdx}:ex${exIdx}`) ||
+      null;
+    const slotExerciseId = overrideId || exerciseIdFor(dayIdx, exIdx);
 
     for (const setIdxStr of Object.keys(setsMap)) {
       const setIdx = parseInt(setIdxStr, 10);
@@ -2383,6 +2396,12 @@ export async function flushWorkoutDayWeekKey(
       const set = setsMap[setIdxStr];
       if (!set || !set.id) continue;
       if (set.reps == null || set.reps === '') continue;
+
+      // Per-set identity stamp wins over slot resolution — after a reorder
+      // or swap the slot's current occupant is not necessarily the exercise
+      // this set was logged against.
+      const exerciseId = set._exId || slotExerciseId;
+      if (!exerciseId) continue;
 
       const weightNum = set.weight != null && set.weight !== '' ? Number(set.weight) : null;
       const repsNum = set.reps != null && set.reps !== '' ? Number(set.reps) : null;

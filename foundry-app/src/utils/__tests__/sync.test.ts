@@ -49,6 +49,7 @@ import {
   markDirty,
   clearDirty,
   flushDirty,
+  flushWorkoutDayWeekKey,
   syncMesocycleToSupabase,
 } from '../sync';
 import { store } from '../storage';
@@ -353,6 +354,69 @@ describe('flushDirty', () => {
     expect(mockUpsert).not.toHaveBeenCalled();
     const set = JSON.parse(localStorage.getItem('foundry:sync:dirty') ?? '[]');
     expect(set).not.toContain('foundry:profile');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// flushWorkoutDayWeekKey — exercise identity resolution when pushing sets
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('flushWorkoutDayWeekKey exercise identity', () => {
+  // Extract the exercise_id of each workout_sets upsert (the session upsert
+  // targets workout_sessions and has no exercise_id field).
+  const pushedExerciseIds = () =>
+    mockUpsert.mock.calls
+      .map((c) => (c[0] as Record<string, unknown>).exercise_id)
+      .filter(Boolean);
+
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-123' } } });
+    mockUpsert.mockResolvedValue({ error: null });
+  });
+
+  it('honors a weekly swap override at the real exov key shape', () => {
+    // Regression: the old read used `foundry:exOv:d{d}:w{w}:{idx}` — a key
+    // shape nothing writes — so swapped exercises were pushed under their
+    // template id.
+    localStorage.setItem(
+      'foundry:day0:week1',
+      JSON.stringify({ 0: { 0: { id: 'set-1', weight: '100', reps: '8' } } }),
+    );
+    localStorage.setItem('foundry:exov:d0:w1:ex0', 'db-incline');
+    return flushWorkoutDayWeekKey(0, 1, () => 'bench').then(() => {
+      expect(pushedExerciseIds()).toEqual(['db-incline']);
+    });
+  });
+
+  it('falls back to the meso-scope exov key, then the resolver', async () => {
+    localStorage.setItem(
+      'foundry:day0:week1',
+      JSON.stringify({ 0: { 0: { id: 'set-1', weight: '100', reps: '8' } } }),
+    );
+    localStorage.setItem('foundry:exov:d0:ex0', 'cable-fly');
+    await flushWorkoutDayWeekKey(0, 1, () => 'bench');
+    expect(pushedExerciseIds()).toEqual(['cable-fly']);
+
+    mockUpsert.mockClear();
+    localStorage.removeItem('foundry:exov:d0:ex0');
+    await flushWorkoutDayWeekKey(0, 1, () => 'bench');
+    expect(pushedExerciseIds()).toEqual(['bench']);
+  });
+
+  it("prefers each set's _exId stamp over slot resolution", async () => {
+    // After a reorder/swap the slot's current occupant is not necessarily
+    // the exercise a historical set was logged against.
+    localStorage.setItem(
+      'foundry:day0:week1',
+      JSON.stringify({
+        0: {
+          0: { id: 'set-1', weight: '100', reps: '8', _exId: 'ohp' },
+          1: { id: 'set-2', weight: '105', reps: '6' }, // unstamped → slot
+        },
+      }),
+    );
+    await flushWorkoutDayWeekKey(0, 1, () => 'bench');
+    expect(pushedExerciseIds().sort()).toEqual(['bench', 'ohp']);
   });
 });
 
