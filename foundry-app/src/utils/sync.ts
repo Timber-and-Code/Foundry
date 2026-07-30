@@ -1624,6 +1624,82 @@ export async function archiveMesocycleRemote(): Promise<void> {
   }
 }
 
+// ─── SIGN-IN MESO CONFLICT (anon-built meso vs account meso) ────────────────
+
+// The account's current active meso id, resolved the same way the pull
+// does: user_profiles.active_meso_id first, most-recent-active row as the
+// legacy fallback.
+async function findRemoteActiveMesoId(userId: string): Promise<string | null> {
+  const { data: prof, error } = await supabase
+    .from('user_profiles')
+    .select('active_meso_id')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  const pointer = (prof as { active_meso_id?: string | null } | null)?.active_meso_id;
+  if (pointer) return pointer;
+  const { data: recentRows, error: recentErr } = await supabase
+    .from('mesocycles')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('updated_at', { ascending: false })
+    .limit(1);
+  if (recentErr) throw recentErr;
+  return recentRows && recentRows.length > 0
+    ? (recentRows[0] as { id: string }).id
+    : null;
+}
+
+// A meso built while signed out has a profile + storedProgram but no
+// foundry:active_meso_id (only the sync layer ever writes that key). When
+// the account ALSO has an active meso remotely, pulling would silently
+// replace the anon one — the sign-in path prompts instead of pulling.
+export async function detectSignInMesoConflict(): Promise<boolean> {
+  if (!MIGRATED.mesocycles) return false;
+  if (typeof window === 'undefined') return false;
+  const hasAnonMeso =
+    !!localStorage.getItem('foundry:profile') &&
+    !!localStorage.getItem('foundry:storedProgram') &&
+    !localStorage.getItem('foundry:active_meso_id');
+  if (!hasAnonMeso) return false;
+  const user = await getUser();
+  if (!user) return false;
+  return (await findRemoteActiveMesoId(user.id)) != null;
+}
+
+// "Keep the meso I just built": mark the account's remote active meso
+// abandoned and null the pointer, so the subsequent pull has nothing to
+// restore and the local anon meso syncs up as a brand-new mesocycle.
+export async function abandonRemoteActiveMeso(): Promise<void> {
+  if (!MIGRATED.mesocycles) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const mesoId = await findRemoteActiveMesoId(user.id);
+    if (!mesoId) return;
+    const { error } = await supabase
+      .from('mesocycles')
+      .update({
+        status: 'abandoned',
+        completed_at: new Date().toISOString().slice(0, 10),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', mesoId)
+      .eq('user_id', user.id);
+    if (error) throw error;
+    await supabase
+      .from('user_profiles')
+      .update({ active_meso_id: null, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
+  } catch (e) {
+    reportSyncFailure('mesocycle', e);
+  } finally {
+    syncEnd();
+  }
+}
+
 // Clear the active-meso pointer locally and remotely WITHOUT touching the
 // mesocycle row itself — the post-completion counterpart of
 // archiveMesocycleRemote. The row is already status='completed' and must

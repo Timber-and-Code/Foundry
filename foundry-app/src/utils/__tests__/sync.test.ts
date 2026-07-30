@@ -10,13 +10,18 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 const mockGetUser = vi.fn();
 const mockUpsert = vi.fn();
 const mockSelect = vi.fn();
+// Controllable terminals — defaults (re)set in the global beforeEach.
+const mockMaybeSingle = vi.fn();
+const mockLimit = vi.fn();
 
-// Chainable query builder that supports .eq() and terminal methods
+// Chainable query builder that supports .eq()/.order() and terminal methods
 const chainable = (terminal: Record<string, unknown> = { data: null, error: null }) => {
   const chain: Record<string, unknown> = {};
   chain.eq = () => chain;
   chain.neq = () => chain;
-  chain.maybeSingle = () => Promise.resolve(terminal);
+  chain.order = () => chain;
+  chain.limit = () => mockLimit();
+  chain.maybeSingle = () => mockMaybeSingle();
   chain.single = () => Promise.resolve(terminal);
   return chain;
 };
@@ -50,6 +55,7 @@ import {
   clearDirty,
   flushDirty,
   flushWorkoutDayWeekKey,
+  detectSignInMesoConflict,
   syncMesocycleToSupabase,
 } from '../sync';
 import { store } from '../storage';
@@ -60,6 +66,8 @@ beforeEach(() => {
   mockGetUser.mockReset();
   mockUpsert.mockReset();
   mockSelect.mockReset();
+  mockMaybeSingle.mockReset().mockResolvedValue({ data: null, error: null });
+  mockLimit.mockReset().mockResolvedValue({ data: [], error: null });
 });
 
 afterEach(() => {
@@ -417,6 +425,51 @@ describe('flushWorkoutDayWeekKey exercise identity', () => {
     );
     await flushWorkoutDayWeekKey(0, 1, () => 'bench');
     expect(pushedExerciseIds().sort()).toEqual(['bench', 'ohp']);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// detectSignInMesoConflict — anon-built meso vs account meso
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('detectSignInMesoConflict', () => {
+  const seedAnonMeso = () => {
+    localStorage.setItem('foundry:profile', JSON.stringify({ name: 'Atlas' }));
+    localStorage.setItem('foundry:storedProgram', JSON.stringify([{ name: 'Push' }]));
+  };
+
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-123' } } });
+  });
+
+  it('false when there is no local anon meso', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { active_meso_id: 'meso-1' }, error: null });
+    expect(await detectSignInMesoConflict()).toBe(false);
+  });
+
+  it('false when the local meso is already synced (active_meso_id present)', async () => {
+    seedAnonMeso();
+    localStorage.setItem('foundry:active_meso_id', 'meso-local');
+    mockMaybeSingle.mockResolvedValue({ data: { active_meso_id: 'meso-1' }, error: null });
+    expect(await detectSignInMesoConflict()).toBe(false);
+  });
+
+  it('true when an anon meso exists and the account has an active meso pointer', async () => {
+    seedAnonMeso();
+    mockMaybeSingle.mockResolvedValue({ data: { active_meso_id: 'meso-1' }, error: null });
+    expect(await detectSignInMesoConflict()).toBe(true);
+  });
+
+  it('true via the most-recent-active fallback when the pointer is null', async () => {
+    seedAnonMeso();
+    mockMaybeSingle.mockResolvedValue({ data: { active_meso_id: null }, error: null });
+    mockLimit.mockResolvedValue({ data: [{ id: 'meso-2' }], error: null });
+    expect(await detectSignInMesoConflict()).toBe(true);
+  });
+
+  it('false when the account has no active meso at all', async () => {
+    seedAnonMeso();
+    expect(await detectSignInMesoConflict()).toBe(false);
   });
 });
 

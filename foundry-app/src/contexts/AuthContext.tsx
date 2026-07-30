@@ -8,7 +8,9 @@ import {
   pushToSupabase,
   flushDirty,
   migrateLocalWorkoutsToSupabase,
+  detectSignInMesoConflict,
 } from '../utils/sync';
+import { emit } from '../utils/events';
 
 // TODO(perf): Lazy-load sync.ts for anonymous users — deferred (v9 review #8)
 //
@@ -170,9 +172,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // then flush the dirty queue for everything else (readiness,
           // cardio, profile edits). migrateLocalWorkoutsToSupabase is
           // idempotent, so running on every sign-in is safe.
-          pullFromSupabase()
-            .then(() => migrateLocalWorkoutsToSupabase())
-            .then(() => flushDirty());
+          //
+          // Exception: when a meso built while signed out would collide
+          // with the account's active meso, the pull is DEFERRED — App
+          // renders MesoConflictSheet and runs the chain after the user
+          // picks which meso survives. On detection failure (offline,
+          // query error) fall through to the normal pull: that's the
+          // pre-prompt behavior, and blocking sync on a failed check
+          // would be worse.
+          detectSignInMesoConflict()
+            .catch(() => false)
+            .then((conflict) => {
+              if (conflict) {
+                emit('foundry:meso-conflict');
+                return;
+              }
+              return pullFromSupabase()
+                .then(() => migrateLocalWorkoutsToSupabase())
+                .then(() => flushDirty());
+            });
         } else if (event === 'USER_UPDATED') {
           pullFromSupabase();
         } else if (event === 'SIGNED_OUT') {

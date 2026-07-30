@@ -29,6 +29,10 @@ interface FoundryEventMap {
   'foundry:repeat-meso': void;
   'foundry:new-meso': void;
   'foundry:browse-samples': void;
+  // Sign-in found both an anon-built local meso and an account meso —
+  // App renders MesoConflictSheet, which runs the deferred pull chain
+  // after the user chooses.
+  'foundry:meso-conflict': void;
 }
 
 type EventName = keyof FoundryEventMap;

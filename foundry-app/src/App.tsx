@@ -42,7 +42,14 @@ import {
   loadCurrentWeek,
   saveCurrentWeek,
   wipeMesoSessionData,
+  snapshotData,
 } from './utils/store';
+import {
+  pullFromSupabase,
+  abandonRemoteActiveMeso,
+  migrateLocalWorkoutsToSupabase,
+  flushDirty,
+} from './utils/sync';
 
 // Run key migration before any reads (ppl: → foundry:)
 migrateKeys();
@@ -186,6 +193,7 @@ function MobilityViewRoute({ profile }: { profile: Profile }) {
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 const SaveProgressSheet = React.lazy(() => import('./components/auth/SaveProgressSheet'));
 const MesoCompleteSheet = React.lazy(() => import('./components/setup/MesoCompleteSheet'));
+const MesoConflictSheet = React.lazy(() => import('./components/auth/MesoConflictSheet'));
 const ResumptionSheet = React.lazy(() => import('./components/home/ResumptionSheet'));
 
 function App() {
@@ -217,6 +225,9 @@ function App() {
   // completion, ResumptionSheet takes over until the lifter picks how
   // to re-anchor the calendar grid.
   const [resumptionGap, setResumptionGap] = useState<ResumptionGap | null>(null);
+  // Sign-in found both an anon-built meso and an account meso — the sync
+  // pull is deferred until the user picks one (see AuthContext SIGNED_IN).
+  const [showMesoConflict, setShowMesoConflict] = useState(false);
   const v2 = isOnboardingV2Enabled();
   const syncState = useSyncState();
   const homeTabRef = useRef<((tab: string) => void) | null>(null);
@@ -299,6 +310,10 @@ function App() {
   // in-memory profile/meso cache and flip showSetup=true so the early-return
   // gate below routes the user straight to SetupPage with their onboarding
   // fallbacks (name, goal, experience) still intact.
+  // Sign-in meso conflict — AuthContext deferred the pull; the sheet's
+  // handlers below run it after the user chooses.
+  useEffect(() => on('foundry:meso-conflict', () => setShowMesoConflict(true)), []);
+
   useEffect(() => {
     const unsub = on('foundry:resetToSetup', () => {
       resetMesoCache();
@@ -845,6 +860,41 @@ function App() {
               setCompletedDays={setCompletedDays}
               setCurrentWeek={setCurrentWeek}
               onDismiss={() => setResumptionGap(null)}
+            />
+          </React.Suspense>
+        )}
+
+        {/* Sign-in meso conflict. Rendered on any route — the sign-in that
+            triggers it can happen from AuthPage or SaveProgressSheet. Not
+            dismissable: the sync pull stays deferred until a choice is
+            made. Both handlers snapshot all foundry: keys first (rolling
+            3-slot backup) so a mid-chain network failure can't strand the
+            user without either meso. */}
+        {showMesoConflict && (
+          <React.Suspense fallback={null}>
+            <MesoConflictSheet
+              onKeepLocal={async () => {
+                snapshotData();
+                await abandonRemoteActiveMeso();
+                await pullFromSupabase();
+                await migrateLocalWorkoutsToSupabase();
+                await flushDirty();
+                setShowMesoConflict(false);
+              }}
+              onRestoreAccount={async () => {
+                snapshotData();
+                // Discard the anon meso BEFORE pulling: its day blobs are
+                // newer than the remote snapshots, so the pull's
+                // remoteIsNewer guard would keep them and migrate would
+                // then push them into the restored meso's sessions.
+                wipeMesoSessionData();
+                store.remove('foundry:profile');
+                store.remove('foundry:storedProgram');
+                await pullFromSupabase();
+                await migrateLocalWorkoutsToSupabase();
+                await flushDirty();
+                setShowMesoConflict(false);
+              }}
             />
           </React.Suspense>
         )}
