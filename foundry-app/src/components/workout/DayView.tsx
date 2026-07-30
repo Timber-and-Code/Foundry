@@ -361,13 +361,20 @@ function DayView({
   // silently. handleStopWorkout / performStopWorkout are defined after
   // weekData state below so the "any sets logged" check can read it.
   const [showStopConfirm, setShowStopConfirm] = useState(false);
+  // Once the lifter explicitly stops, DayView must never re-arm the session.
+  // setWorkoutStarted(false) commits in the sync lane while onBack()'s
+  // navigation is a React Router transition, so the auto-start effect runs
+  // one more time with DayView still mounted — this ref is its kill switch.
+  const stoppedRef = React.useRef(false);
   const performStopWorkout = useCallback(() => {
+    stoppedRef.current = true;
     clearTimers();
+    dismissRestTimer();
     setWorkoutStarted(false);
     clearActiveSessionBar();
     setShowStopConfirm(false);
     onBack();
-  }, [clearTimers, setWorkoutStarted, clearActiveSessionBar, onBack]);
+  }, [clearTimers, dismissRestTimer, setWorkoutStarted, clearActiveSessionBar, onBack]);
   const handleStopWorkout = useCallback(() => {
     // Any set with a logged weight or reps means there's something to lose —
     // surface the confirm. Empty session stops silently.
@@ -465,6 +472,7 @@ function DayView({
   // week N-1 isn't done) still shows its warning UI; auto-start fires once
   // user taps "Start this session anyway".
   useEffect(() => {
+    if (stoppedRef.current) return;
     if (workoutStarted || isDone || isLocked) return;
     if (isFutureSession && !futureOverride) return;
     commitStartWorkout();
@@ -1062,6 +1070,7 @@ function DayView({
             }
           });
           queueMicrotask(() => {
+            if (stoppedRef.current) return;
             const dayLabel = (day.label || day.tag || day.name || 'WORKOUT') as string;
             setActiveSessionBar({
               kind: 'lifting',
@@ -2486,8 +2495,9 @@ function DayView({
                 marginBottom: 20,
               }}
             >
-              You have logged sets in this session. Stopping discards them
-              and returns to Home. The day is not marked complete.
+              You have logged sets in this session. They stay saved, but the
+              day is not marked complete. You can pick the session back up
+              later from Home.
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button

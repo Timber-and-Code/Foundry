@@ -448,6 +448,31 @@ describe('DayView', () => {
     expect(screen.queryByRole('button', { name: /end workout early/i })).toBeNull();
   });
 
+  it('Stop Workout does not re-arm the session while DayView is still mounted', () => {
+    // Regression: performStopWorkout flips workoutStarted → false, which is
+    // exactly the condition the auto-start effect watches. Navigation away is
+    // a React Router transition, so the effect re-runs before unmount and —
+    // without the stoppedRef guard — re-stamps sessionStart with a fresh
+    // Date.now(), restarting the timer on Home at 0:00.
+    const props = defaultProps();
+    render(<DayView {...props} />);
+    const sessionKey = 'foundry:sessionStart:d0:w0';
+    expect(localStorage.getItem(sessionKey)).toBeTruthy();
+
+    const stopBtn = screen.getByRole('button', {
+      name: /stop workout without completing/i,
+    });
+    // No logged sets → stops silently, no confirm modal.
+    act(() => {
+      fireEvent.click(stopBtn);
+    });
+
+    expect(props.onBack).toHaveBeenCalledTimes(1);
+    // The session key must stay cleared even though DayView is still mounted.
+    expect(localStorage.getItem(sessionKey) || '').toBe('');
+    expect(localStorage.getItem('foundry:active_session')).toBeNull();
+  });
+
   /* ── Rest timer wiring regression (#1) ──────────────────────────────── */
 
   // Confirms `handleSetLogged` still calls startRestTimer when a
