@@ -318,7 +318,10 @@ export function applyResumptionChoice(
   setProfile(nextProfile);
   persistProfile(nextProfile);
   setCompletedDays(new Set());
-  setCurrentWeek(1);
+  // Weeks are 0-indexed: index 0 IS "week 1". Persist too, or a reload
+  // re-hydrates whatever stale week the meso was on.
+  setCurrentWeek(0);
+  store.set('foundry:currentWeek', '0');
 
   return { startDateShifted: 0, completedWiped: wiped, archived: true };
 }

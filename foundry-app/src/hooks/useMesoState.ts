@@ -339,7 +339,9 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
     resetMesoCache();
     setProfile(null);
     setCompletedDays(new Set());
-    setCurrentWeek(1);
+    // Weeks are 0-indexed — resetMeso just persisted '0'; keep memory in
+    // step or the restarted meso opens on WEEK 2.
+    setCurrentWeek(0);
     setView('home');
     setOnboarded(!!store.get('foundry:onboarded'));
   };

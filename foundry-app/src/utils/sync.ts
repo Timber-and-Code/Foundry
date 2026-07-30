@@ -1619,6 +1619,32 @@ export async function archiveMesocycleRemote(): Promise<void> {
   }
 }
 
+// Clear the active-meso pointer locally and remotely WITHOUT touching the
+// mesocycle row itself — the post-completion counterpart of
+// archiveMesocycleRemote. The row is already status='completed' and must
+// stay that way; a new meso just needs a fresh id to sync into.
+export async function detachActiveMesoRemote(): Promise<void> {
+  if (!MIGRATED.mesocycles) return;
+  if (typeof window === 'undefined') return;
+  const mesoId = localStorage.getItem('foundry:active_meso_id');
+  if (!mesoId) return;
+
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    await supabase
+      .from('user_profiles')
+      .update({ active_meso_id: null, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
+  } catch (e) {
+    reportSyncFailure('mesocycle', e);
+  } finally {
+    localStorage.removeItem('foundry:active_meso_id');
+    syncEnd();
+  }
+}
+
 // Mark the active mesocycle as completed (all weeks finished). Called from
 // useMesoState.handleComplete when the final week wraps. Keeps the id
 // around so the user can see it in history; next meso requires explicit

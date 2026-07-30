@@ -8,6 +8,7 @@ import {
   deleteArchiveEntry,
   clearAllSkips,
   resetMeso,
+  wipeMesoSessionData,
   archiveCurrentMeso,
 } from '../archive';
 
@@ -147,6 +148,52 @@ describe('resetMeso', () => {
     localStorage.setItem('foundry:skip:d0:w1', '1');
     resetMeso(4, 2);
     expect(localStorage.getItem('foundry:skip:d0:w1')).toBeNull();
+  });
+});
+
+// ============================================================================
+// wipeMesoSessionData — the sweep behind resetMeso/resetMesoAfterCompletion
+// ============================================================================
+describe('wipeMesoSessionData', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('removes the key families the old dimension-loop reset missed', () => {
+    const doomed = [
+      'foundry:day_v2:0:1',
+      'foundry:ws_id:d0:w1',
+      'foundry:tde_ids:some-meso-uuid',
+      'foundry:exov:d0:w1:ex2',
+      'foundry:ts:foundry:day0:week1',
+      'foundry:reentry_deload:local:3',
+      'foundry:resumption_handled',
+      'foundry:done:d0:w15', // beyond the old 12-week loop bound
+      'foundry:day7:week3', // beyond the old 6-day loop bound
+    ];
+    doomed.forEach((k) => localStorage.setItem(k, 'x'));
+    wipeMesoSessionData();
+    doomed.forEach((k) => expect(localStorage.getItem(k)).toBeNull());
+  });
+
+  it('preserves cross-meso data', () => {
+    const kept = [
+      'foundry:cardio:session:2026-07-30',
+      'foundry:setcount',
+      'foundry:archive',
+      'foundry:meso_transition',
+      'foundry:resumption_archive:repeat:local:2',
+      'foundry:profile',
+      'foundry:storedProgram',
+      'foundry:welcomed',
+    ];
+    kept.forEach((k) => localStorage.setItem(k, 'x'));
+    wipeMesoSessionData();
+    kept.forEach((k) => expect(localStorage.getItem(k)).toBe('x'));
+  });
+
+  it('zeroes the stored current week', () => {
+    localStorage.setItem('foundry:currentWeek', '3');
+    wipeMesoSessionData();
+    expect(localStorage.getItem('foundry:currentWeek')).toBe('0');
   });
 });
 

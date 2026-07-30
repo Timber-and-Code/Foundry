@@ -20,7 +20,10 @@ vi.mock('../../../utils/store', () => ({
 }));
 
 vi.mock('../../../utils/events', () => ({ emit: emitMock }));
-vi.mock('../../../utils/archive', () => ({ archiveCurrentMeso: archiveMock }));
+vi.mock('../../../utils/archive', () => ({
+  archiveCurrentMeso: archiveMock,
+  resetMesoAfterCompletion: vi.fn(),
+}));
 
 import MesoCompleteSheet from '../MesoCompleteSheet';
 

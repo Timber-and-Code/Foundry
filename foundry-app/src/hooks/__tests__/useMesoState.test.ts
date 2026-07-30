@@ -217,7 +217,8 @@ describe('useMesoState', () => {
     expect(mockConstants.resetMesoCache).toHaveBeenCalled();
     expect(result.current.profile).toBeNull();
     expect(result.current.completedDays.size).toBe(0);
-    expect(result.current.currentWeek).toBe(1);
+    // 0-indexed — week index 0 is "WEEK 1", matching the '0' resetMeso persists.
+    expect(result.current.currentWeek).toBe(0);
     expect(setView).toHaveBeenCalledWith('home');
   });
 

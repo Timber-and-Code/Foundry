@@ -1,7 +1,7 @@
 import { store } from './storage';
 import { getReadinessScore } from './analytics';
 import { validateArchive } from './validate';
-import { archiveMesocycleRemote } from './sync';
+import { archiveMesocycleRemote, detachActiveMesoRemote } from './sync';
 import type { Profile, ArchiveEntry, Exercise, TrainingDay } from '../types';
 
 // ─── ARCHIVE HELPERS ─────────────────────────────────────────────────────────
@@ -36,74 +36,60 @@ export function clearAllSkips(mesoWeeks?: number, mesoDays?: number): void {
 
 // ─── RESET MESO ──────────────────────────────────────────────────────────────
 
-export function resetMeso(mesoWeeks?: number, mesoDays?: number): void {
-  const weeks = mesoWeeks || 12;
-  const days = mesoDays || 6;
-  for (let d = 0; d < days; d++) {
-    for (let w = 0; w <= weeks; w++) {
-      try {
-        localStorage.removeItem(`foundry:day${d}:week${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove day/week data during meso reset', e);
-      }
-      try {
-        localStorage.removeItem(`foundry:notes:d${d}:w${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove notes during meso reset', e);
-      }
-      try {
-        localStorage.removeItem(`foundry:exnotes:d${d}:w${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove exercise notes during meso reset', e);
-      }
-      try {
-        localStorage.removeItem(`foundry:done:d${d}:w${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove completion marker during meso reset', e);
-      }
-      try {
-        localStorage.removeItem(`foundry:cardio:d${d}:w${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove cardio log during meso reset', e);
-      }
-      try {
-        localStorage.removeItem(`foundry:skip:d${d}:w${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove skip marker during meso reset', e);
-      }
-      try {
-        localStorage.removeItem(`foundry:sessionStart:d${d}:w${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove session start during meso reset', e);
-      }
-      try {
-        localStorage.removeItem(`foundry:strengthEnd:d${d}:w${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove strength end during meso reset', e);
-      }
-      try {
-        localStorage.removeItem(`foundry:completedDate:d${d}:w${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove completed date during meso reset', e);
-      }
-    }
-    for (let ex = 0; ex < 10; ex++) {
-      try {
-        localStorage.removeItem(`foundry:exov:d${d}:ex${ex}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove exercise override during meso reset', e);
-      }
-    }
+// Every localStorage key scoped to a session (day×week) of the current
+// program, plus per-meso bookkeeping (tde id maps, re-entry deload flags,
+// resumption-handled marker) and the `foundry:ts:` sync mirrors of the day
+// blobs. Deliberately NOT matched: `foundry:cardio:session:*` (dated
+// cross-meso logs), `foundry:setcount` (per-exercise preference),
+// `foundry:archive`, `foundry:meso_transition`,
+// `foundry:resumption_archive:*`.
+const MESO_SESSION_KEY_RE =
+  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$)/;
+
+// Wipe all per-session data of the current meso and zero the stored week.
+// Purely local — remote pointer handling is the callers' concern
+// (resetMeso vs resetMesoAfterCompletion).
+export function wipeMesoSessionData(): void {
+  let keys: string[] = [];
+  try {
+    keys = Object.keys(localStorage);
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to enumerate keys during meso wipe', e);
+    return;
   }
+  keys.forEach((k) => {
+    if (!MESO_SESSION_KEY_RE.test(k)) return;
+    try {
+      localStorage.removeItem(k);
+    } catch (e) {
+      console.warn('[Foundry]', 'Failed to remove key during meso wipe', e);
+    }
+  });
   try {
     localStorage.setItem('foundry:currentWeek', '0');
   } catch (e) {
     console.warn('[Foundry]', 'Failed to reset current week', e);
   }
+}
+
+// Legacy (mesoWeeks, mesoDays) params are accepted but unused — the sweep
+// is dimension-independent, which also catches keys beyond the old
+// hardcoded 12×6 loop bounds.
+export function resetMeso(_mesoWeeks?: number, _mesoDays?: number): void {
+  wipeMesoSessionData();
   // Chunk 2: mark the remote mesocycle as abandoned and clear the local
   // active meso pointer. Fire-and-forget — failures are logged via
   // reportSyncFailure inside archiveMesocycleRemote.
   archiveMesocycleRemote();
+}
+
+// Post-completion variant: same local wipe, but the remote meso row is
+// already status='completed' and must stay that way — only the active-meso
+// pointer is detached so the next meso mints a fresh id instead of syncing
+// into the finished one.
+export function resetMesoAfterCompletion(): void {
+  wipeMesoSessionData();
+  detachActiveMesoRemote();
 }
 
 // ─── ARCHIVE CURRENT MESO ───────────────────────────────────────────────────

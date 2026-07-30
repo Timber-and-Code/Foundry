@@ -283,7 +283,7 @@ describe('applyResumptionChoice', () => {
     expect(archive.days['1']).toBeDefined();
   });
 
-  it('restart_meso: startDate = today, wipes all completedDays, currentWeek = 1, archives', () => {
+  it('restart_meso: startDate = today, wipes all completedDays, currentWeek = 0, archives', () => {
     const profile = makeProfile({ startDate: '2026-05-01' });
     localStorage.setItem('foundry:profile', JSON.stringify(profile));
     const completed = new Set(['0:0', '1:0', '0:1']);
@@ -300,7 +300,10 @@ describe('applyResumptionChoice', () => {
       expect.objectContaining({ startDate: todayISO() }),
     );
     expect(ctx.setCompletedDays).toHaveBeenCalledWith(new Set());
-    expect(ctx.setCurrentWeek).toHaveBeenCalledWith(1);
+    // Weeks are 0-indexed — "start over from week 1" is index 0, persisted
+    // so a reload doesn't re-hydrate the stale week.
+    expect(ctx.setCurrentWeek).toHaveBeenCalledWith(0);
+    expect(localStorage.getItem('foundry:currentWeek')).toBe('0');
     expect(localStorage.getItem('foundry:day0:week0')).toBeNull();
     expect(localStorage.getItem('foundry:done:d0:w0')).toBeNull();
     // archiveCurrentMeso wrote to foundry:archive.

@@ -1,7 +1,7 @@
 import React, { Suspense, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../contexts/AuthContext';
-import { store, resolveAccountTier } from '../../utils/store';
+import { store, resolveAccountTier, resetMeso } from '../../utils/store';
 import { emit } from '../../utils/events';
 import { archiveMesocycleRemote } from '../../utils/sync';
 import { getMeso } from '../../data/constants';
@@ -98,21 +98,17 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     const fixedKeys = [
       'foundry:profile',
       'foundry:completedDays',
-      'foundry:currentWeek',
       'foundry:storedProgram',
       'foundry:ts:foundry:profile',
       'foundry:ts:foundry:completedDays',
       'foundry:ts:foundry:currentWeek',
     ];
     fixedKeys.forEach((k) => store.remove(k));
-    const dynamicKeys = store.keys('foundry:').filter((k) =>
-      k.startsWith('foundry:completedSets:') ||
-      k.startsWith('foundry:setLog:') ||
-      k.startsWith('foundry:skipped:') ||
-      k.startsWith('foundry:sessionNotes:') ||
-      k.startsWith('foundry:exerciseNotes:')
-    );
-    dynamicKeys.forEach((k) => store.remove(k));
+    // Sweep every per-session key of the meso — day blobs, done flags,
+    // day_v2 mirrors, session ids, overrides — and zero the stored week.
+    // active_meso_id is already gone, so the remote archive inside is a
+    // no-op.
+    resetMeso();
     onClose();
     emit('foundry:resetToSetup');
   };

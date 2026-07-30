@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
 import { store } from '../../utils/store';
 import { emit } from '../../utils/events';
-import { archiveCurrentMeso } from '../../utils/archive';
+import { archiveCurrentMeso, resetMesoAfterCompletion } from '../../utils/archive';
 import type { Profile } from '../../types';
 
 interface MesoCompleteSheetProps {
@@ -60,6 +60,11 @@ export default function MesoCompleteSheet({ profile }: MesoCompleteSheetProps) {
     } catch (e) {
       console.warn('[Foundry]', 'archiveCurrentMeso failed', e);
     }
+    // The finished meso's session keys (done flags, day blobs, stored week)
+    // must not carry into the next program — the archive snapshot above is
+    // now the only copy. Remote row keeps status='completed'; only the
+    // active-meso pointer is detached.
+    resetMesoAfterCompletion();
     if (key === 'new' || key === 'sample') {
       store.remove('foundry:meso_transition');
     }

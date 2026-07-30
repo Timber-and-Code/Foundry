@@ -41,6 +41,7 @@ import {
   loadCompleted,
   loadCurrentWeek,
   saveCurrentWeek,
+  wipeMesoSessionData,
 } from './utils/store';
 
 // Run key migration before any reads (ppl: → foundry:)
@@ -545,6 +546,10 @@ function App() {
           onSetup={() => setShowSetup(true)}
           onStartProgram={(newProfile) => {
             saveProfile(newProfile as unknown as Profile);
+            // A brand-new program owns no session data — any surviving
+            // done flags / day blobs / stored week are stale by definition
+            // and would open the fresh meso mid-cycle.
+            wipeMesoSessionData();
             resetMesoCache();
             setProfile(loadProfile());
             setCompletedDays(loadCompleted(getMeso()));
@@ -562,6 +567,11 @@ function App() {
           onComplete={(p: Profile) => {
             saveProfile(p);
             store.remove('foundry:storedProgram');
+            // A brand-new program owns no session data — any surviving
+            // done flags / day blobs / stored week are stale by definition
+            // and would open the fresh meso mid-cycle (the "new meso starts
+            // on week 3" report).
+            wipeMesoSessionData();
             // Clear any latched meso-complete state from a prior meso so the
             // overlay doesn't re-show on top of the fresh program.
             store.remove('foundry:meso_complete_shown');
