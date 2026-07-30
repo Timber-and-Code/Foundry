@@ -1,8 +1,9 @@
 /**
  * ResumptionSheet — full-screen takeover shown when the lifter has been
- * absent from training for 7+ days. The four tiles let them choose how
+ * absent from training for 7+ days. The tiles let them choose how
  * to re-anchor the calendar grid (which is wall-clock-driven and so
- * silently advances past their actual progress over the layoff).
+ * silently advances past their actual progress over the layoff), or to
+ * abandon the meso and build a new one.
  *
  * Modeled on MesoCompleteSheet (same component owns the styling
  * reference). Not dismissable — they must pick. Onboarding parity:
@@ -16,12 +17,20 @@
  */
 import { tokens } from '../../styles/tokens';
 import type { Profile } from '../../types';
+import { store } from '../../utils/store';
+import { emit } from '../../utils/events';
+import { archiveCurrentMeso, resetMeso } from '../../utils/archive';
 import {
   applyResumptionChoice,
   markResumptionHandled,
   type ResumptionGap,
   type ResumptionChoice,
 } from '../../utils/resumption';
+
+// 'new_meso' is sheet-local, NOT part of ResumptionChoice —
+// applyResumptionChoice falls through to restart_meso for any choice it
+// doesn't recognize, so the new-meso path must never reach it.
+type SheetChoice = ResumptionChoice | 'new_meso';
 
 interface ResumptionSheetProps {
   gap: ResumptionGap;
@@ -35,7 +44,7 @@ interface ResumptionSheetProps {
 }
 
 interface TileDef {
-  key: ResumptionChoice;
+  key: SheetChoice;
   title: string;
   body: string;
 }
@@ -60,6 +69,11 @@ const TILES: TileDef[] = [
     key: 'restart_meso',
     title: 'Restart meso',
     body: 'Start over from week 1 with today as day 1. Your old data is archived.',
+  },
+  {
+    key: 'new_meso',
+    title: 'Start a new meso',
+    body: 'Scrap this one and build a fresh program. Your old data is archived.',
   },
 ];
 
@@ -87,7 +101,25 @@ export default function ResumptionSheet({
 }: ResumptionSheetProps) {
   const recommended = smartDefault(gap.gapDays);
 
-  const handlePick = (choice: ResumptionChoice) => {
+  const handlePick = (choice: SheetChoice) => {
+    if (choice === 'new_meso') {
+      // Abandon-the-meso path: local snapshot, then the session-key wipe
+      // (which also marks the remote meso abandoned and clears the
+      // active-meso pointer), then the same new-meso handoff
+      // MesoCompleteSheet uses — App's foundry:new-meso listener resets
+      // state and routes to SetupPage.
+      try {
+        archiveCurrentMeso(profile);
+      } catch (e) {
+        console.warn('[Foundry]', 'archiveCurrentMeso failed', e);
+      }
+      resetMeso();
+      store.remove('foundry:meso_transition');
+      markResumptionHandled(gap);
+      emit('foundry:new-meso');
+      onDismiss();
+      return;
+    }
     try {
       applyResumptionChoice(choice, gap, {
         profile,
@@ -200,6 +232,11 @@ export default function ResumptionSheet({
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 6,
+                  // Odd tile count — the last tile spans the row so the
+                  // grid doesn't end on a hole.
+                  ...(tile.key === 'new_meso'
+                    ? { gridColumn: '1 / -1', minHeight: 0 }
+                    : {}),
                 }}
               >
                 <div
