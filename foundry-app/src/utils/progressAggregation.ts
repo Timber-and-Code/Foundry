@@ -213,10 +213,23 @@ export function aggregateLiftsByMuscle(
       for (let w = 0; w < totalWeeks; w++) {
         const wd = weekData(d, w) || {};
         // Prefer the slice whose sets carry _exId === ex.id (survives
-        // reorder/superset shifts between weeks); fall back to positional.
+        // reorder/superset shifts between weeks); fall back to positional
+        // only when the positional slice is unstamped — a slice stamped as
+        // a different exercise is that exercise's data (post-swap
+        // leftovers) and would poison this lift's start/current/PR.
         let slice: Record<string, WorkoutSet> | undefined;
         if (ex.id != null) slice = findSliceByExId(wd, String(ex.id));
-        if (!slice) slice = (wd[exIdx] as Record<string, WorkoutSet> | undefined) || undefined;
+        if (!slice) {
+          const positional = (wd[exIdx] as Record<string, WorkoutSet> | undefined) || undefined;
+          const stampedAsOther =
+            ex.id != null &&
+            positional &&
+            Object.values(positional).some((s) => {
+              const stamp = (s as unknown as Record<string, unknown>)?._exId;
+              return typeof stamp === 'string' && stamp.length > 0 && stamp !== String(ex.id);
+            });
+          if (!stampedAsOther) slice = positional;
+        }
         const top = topWorkingWeight(slice);
         const e1 = bestE1RMInSlice(slice);
         if (e1 > pr) pr = e1;

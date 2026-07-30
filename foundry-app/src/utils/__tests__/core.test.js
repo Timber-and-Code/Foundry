@@ -725,12 +725,12 @@ describe('loadDayWeekWithCarryover', () => {
       ],
     };
     const result = loadDayWeekWithCarryover(0, 1, day, profile);
-    // Falls back to slot 0 (Bench's data) by position — same behavior
-    // as legacy data without _exId tags. Documents the limitation: a
-    // first-time-this-meso swap will inherit the slot's prior numbers.
-    // This is acceptable as a soft suggestion (Big-Big will use stable
-    // training_day_exercise.id to make this a hard miss).
-    expect(result[0][0].weight).toBe('105');
+    // The slot's prior data is stamped _exId 'bench', so the positional
+    // fallback refuses it — a first-time-this-meso swap gets NO inherited
+    // suggestion instead of Bench's nudged weight. (This was previously a
+    // documented limitation: the slice was returned as a "soft suggestion",
+    // which is exactly the another-lift's-numbers bug.)
+    expect(result[0][0].weight).toBe('');
   });
 
   it('legacy data without _exId still works via position fallback', () => {

@@ -18,6 +18,7 @@ import {
   loadExtraExNotes,
   saveExtraExNotes,
   snapshotData,
+  findPrevSlotForExercise,
 } from '../persistence';
 import {
   loadProfile,
@@ -27,6 +28,37 @@ import {
   loadBwLog,
   saveBwLog,
 } from '../training';
+
+// ============================================================================
+// findPrevSlotForExercise — identity-first slice lookup
+// ============================================================================
+describe('findPrevSlotForExercise', () => {
+  const benchSets = { 0: { weight: '100', reps: '8', _exId: 'bench' } };
+  const ohpSets = { 0: { weight: '65', reps: '10', _exId: 'ohp' } };
+  const legacySets = { 0: { weight: '80', reps: '8' } }; // unstamped
+
+  it('finds the slice by _exId regardless of slot position', () => {
+    const data = { 0: ohpSets, 2: benchSets };
+    expect(findPrevSlotForExercise(data, 'bench', 0)).toBe(benchSets);
+  });
+
+  it('falls back positionally for legacy (unstamped) data', () => {
+    const data = { 1: legacySets };
+    expect(findPrevSlotForExercise(data, 'bench', 1)).toBe(legacySets);
+  });
+
+  it('refuses a fallback slice stamped as a DIFFERENT exercise', () => {
+    // Post-swap leftovers: slot 1 holds ohp's sets, bench has none anywhere.
+    // Returning ohp's numbers as bench history is the misattribution bug.
+    const data = { 1: ohpSets };
+    expect(findPrevSlotForExercise(data, 'bench', 1)).toEqual({});
+  });
+
+  it('still falls back positionally when no exercise id is given', () => {
+    const data = { 1: ohpSets };
+    expect(findPrevSlotForExercise(data, undefined, 1)).toBe(ohpSets);
+  });
+});
 
 // ============================================================================
 // loadDayWeek / saveDayWeek

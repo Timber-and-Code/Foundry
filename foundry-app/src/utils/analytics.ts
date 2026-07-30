@@ -1,5 +1,6 @@
 import { store } from './storage';
 import { validateDayData } from './validate';
+import { findPrevSlotForExercise } from './persistence';
 import type {
   ReadinessEntry,
   Exercise,
@@ -128,7 +129,11 @@ export function detectSessionPRs(
           const raw = store.get(`foundry:day${dayIdx}:week${w}`);
           if (!raw) continue;
           const dd = validateDayData(JSON.parse(raw));
-          const b = getBestWeight((dd[exIdx] || {}) as Record<string, WorkoutSet>);
+          // Id-first: a bare dd[exIdx] compared this exercise against
+          // whatever occupied the slot in past weeks (pre-reorder/swap),
+          // yielding phantom PRs against another lift's weights.
+          const slice = findPrevSlotForExercise(dd, ex.id, exIdx);
+          const b = getBestWeight(slice as Record<string, WorkoutSet>);
           if (b > priorBest) priorBest = b;
         } catch (e) {
           console.warn('[Foundry]', 'Failed to read prior week data for PR detection', e);
@@ -244,7 +249,11 @@ export function detectStallingLifts(
       try {
         const raw = store.get(`foundry:day${dayIdx}:week${w}`);
         if (!raw) continue;
-        const exData = validateDayData(JSON.parse(raw))[exIdx] || {};
+        const exData = findPrevSlotForExercise(
+          validateDayData(JSON.parse(raw)),
+          ex.id,
+          exIdx,
+        );
         let heaviest = 0;
         Object.values(exData).forEach((s) => {
           if (!s || s.warmup || s.repsSuggested) return;
@@ -281,7 +290,11 @@ export function detectStallingLifts(
         try {
           const curRaw = store.get(`foundry:day${dayIdx}:week${currentWeekIdx}`);
           if (curRaw) {
-            const curExData = validateDayData(JSON.parse(curRaw))[exIdx] || {};
+            const curExData = findPrevSlotForExercise(
+              validateDayData(JSON.parse(curRaw)),
+              ex.id,
+              exIdx,
+            );
             let curHeaviest = 0;
             Object.values(curExData).forEach((s) => {
               if (!s || s.warmup) return;

@@ -144,9 +144,21 @@ export function findPrevSlotForExercise(
       }
     }
   }
-  return (
-    (data[fallbackExIdx] as unknown as Record<string, Record<string, unknown>>) || {}
-  );
+  const fallback =
+    (data[fallbackExIdx] as unknown as Record<string, Record<string, unknown>>) || {};
+  // The positional fallback is only trustworthy for legacy (unstamped)
+  // data. A slice stamped as a DIFFERENT exercise belongs to that exercise
+  // — post-swap leftovers or an un-healed reorder — and returning it would
+  // display another lift's numbers. No data beats wrong data.
+  if (idStr) {
+    for (const set of Object.values(fallback)) {
+      const stamp = (set as Record<string, unknown> | null)?._exId;
+      if (typeof stamp === 'string' && stamp.length > 0 && stamp !== idStr) {
+        return {};
+      }
+    }
+  }
+  return fallback;
 }
 
 /**
