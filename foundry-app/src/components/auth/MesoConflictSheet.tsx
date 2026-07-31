@@ -40,14 +40,21 @@ export default function MesoConflictSheet({
   onRestoreAccount,
 }: MesoConflictSheetProps) {
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const handlePick = (key: CardDef['key']) => {
     if (busy) return;
     setBusy(true);
+    setFailed(false);
     const fn = key === 'keep_local' ? onKeepLocal : onRestoreAccount;
     // The parent unmounts the sheet when the chain settles; clearing busy
-    // here only matters on failure, so the user can retry.
-    fn().finally(() => setBusy(false));
+    // here only matters on failure, so the user can retry. A rejection means
+    // the choice did NOT take — surface it rather than leaving the sheet
+    // sitting there looking idle, because the alternative (falling through
+    // to the pull) is the silent clobber this sheet exists to prevent.
+    fn()
+      .catch(() => setFailed(true))
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -173,6 +180,22 @@ export default function MesoConflictSheet({
             }}
           >
             Syncing your choice…
+          </p>
+        )}
+
+        {failed && !busy && (
+          <p
+            role="alert"
+            style={{
+              margin: 0,
+              marginTop: 18,
+              fontSize: 13,
+              color: tokens.colors.danger,
+              lineHeight: 1.45,
+            }}
+          >
+            Couldn&apos;t save that choice — you may be offline. Nothing was
+            changed. Check your connection and pick again.
           </p>
         )}
       </div>

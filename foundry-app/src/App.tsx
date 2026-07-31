@@ -47,6 +47,7 @@ import {
 import {
   pullFromSupabase,
   abandonRemoteActiveMeso,
+  detectSignInMesoConflict,
   migrateLocalWorkoutsToSupabase,
   flushDirty,
 } from './utils/sync';
@@ -875,7 +876,12 @@ function App() {
             <MesoConflictSheet
               onKeepLocal={async () => {
                 snapshotData();
-                await abandonRemoteActiveMeso();
+                // Hard gate: if the account meso is still active remotely,
+                // the pull below would restore it right back over the meso
+                // the user just chose to keep. Bail so the sheet can offer
+                // a retry instead.
+                const abandoned = await abandonRemoteActiveMeso();
+                if (!abandoned) throw new Error('abandon-remote-meso-failed');
                 await pullFromSupabase();
                 await migrateLocalWorkoutsToSupabase();
                 await flushDirty();
@@ -883,6 +889,16 @@ function App() {
               }}
               onRestoreAccount={async () => {
                 snapshotData();
+                // pullFromSupabase swallows every error, so a failed pull
+                // after the wipe below would leave the user with neither
+                // meso and no signal. Re-prove the remote meso is reachable
+                // first — this query throws when it isn't, which aborts
+                // before anything local is destroyed.
+                if (!(await detectSignInMesoConflict())) {
+                  throw new Error('remote-meso-unreachable');
+                }
+                const prevProfile = store.get('foundry:profile');
+                const prevProgram = store.get('foundry:storedProgram');
                 // Discard the anon meso BEFORE pulling: its day blobs are
                 // newer than the remote snapshots, so the pull's
                 // remoteIsNewer guard would keep them and migrate would
@@ -891,6 +907,14 @@ function App() {
                 store.remove('foundry:profile');
                 store.remove('foundry:storedProgram');
                 await pullFromSupabase();
+                // Nothing came back — connectivity died inside the pull.
+                // Put the profile/program back so the user lands in their
+                // app rather than at onboarding with an empty store.
+                if (!store.get('foundry:storedProgram')) {
+                  if (prevProfile) store.set('foundry:profile', prevProfile);
+                  if (prevProgram) store.set('foundry:storedProgram', prevProgram);
+                  throw new Error('pull-restored-nothing');
+                }
                 await migrateLocalWorkoutsToSupabase();
                 await flushDirty();
                 setShowMesoConflict(false);

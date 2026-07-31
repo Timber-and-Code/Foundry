@@ -133,7 +133,7 @@ export function detectSessionPRs(
           // whatever occupied the slot in past weeks (pre-reorder/swap),
           // yielding phantom PRs against another lift's weights.
           const slice = findPrevSlotForExercise(dd, ex.id, exIdx);
-          const b = getBestWeight(slice as Record<string, WorkoutSet>);
+          const b = getBestWeight(slice as unknown as Record<string, WorkoutSet>);
           if (b > priorBest) priorBest = b;
         } catch (e) {
           console.warn('[Foundry]', 'Failed to read prior week data for PR detection', e);

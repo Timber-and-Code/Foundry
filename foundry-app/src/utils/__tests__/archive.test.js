@@ -168,6 +168,9 @@ describe('wipeMesoSessionData', () => {
       'foundry:resumption_handled',
       'foundry:done:d0:w15', // beyond the old 12-week loop bound
       'foundry:day7:week3', // beyond the old 6-day loop bound
+      // Points at a day/week that stops existing once the meso is gone —
+      // leaving it strands a session bar on Home for a dead session.
+      'foundry:active_session',
     ];
     doomed.forEach((k) => localStorage.setItem(k, 'x'));
     wipeMesoSessionData();

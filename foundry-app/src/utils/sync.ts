@@ -1671,14 +1671,19 @@ export async function detectSignInMesoConflict(): Promise<boolean> {
 // "Keep the meso I just built": mark the account's remote active meso
 // abandoned and null the pointer, so the subsequent pull has nothing to
 // restore and the local anon meso syncs up as a brand-new mesocycle.
-export async function abandonRemoteActiveMeso(): Promise<void> {
-  if (!MIGRATED.mesocycles) return;
+//
+// Returns false when the account meso is still active remotely. The caller
+// MUST NOT pull on false — the pull would restore the very meso the user
+// just chose to discard, which is the silent clobber this whole path
+// exists to prevent.
+export async function abandonRemoteActiveMeso(): Promise<boolean> {
+  if (!MIGRATED.mesocycles) return true;
   syncStart();
   try {
     const user = await getUser();
-    if (!user) return;
+    if (!user) return false;
     const mesoId = await findRemoteActiveMesoId(user.id);
-    if (!mesoId) return;
+    if (!mesoId) return true; // nothing to abandon — already clear
     const { error } = await supabase
       .from('mesocycles')
       .update({
@@ -1689,16 +1694,25 @@ export async function abandonRemoteActiveMeso(): Promise<void> {
       .eq('id', mesoId)
       .eq('user_id', user.id);
     if (error) throw error;
-    await supabase
+    // Unchecked before: a failure here left the pointer aimed at the row we
+    // just abandoned, and the pull's fallback would still resolve it.
+    const { error: ptrError } = await supabase
       .from('user_profiles')
       .update({ active_meso_id: null, updated_at: new Date().toISOString() })
       .eq('id', user.id);
+    if (ptrError) throw ptrError;
+    return true;
   } catch (e) {
     reportSyncFailure('mesocycle', e);
+    return false;
   } finally {
     syncEnd();
   }
 }
+
+// A meso whose remote detach didn't land. Held until a pull can retry the
+// null-out; until then the pull must not re-adopt this id.
+const PENDING_DETACH_KEY = 'foundry:pending_meso_detach';
 
 // Clear the active-meso pointer locally and remotely WITHOUT touching the
 // mesocycle row itself — the post-completion counterpart of
@@ -1711,16 +1725,32 @@ export async function detachActiveMesoRemote(): Promise<void> {
   if (!mesoId) return;
 
   syncStart();
+  let remoteDetachFailed = false;
   try {
     const user = await getUser();
     if (!user) return;
-    await supabase
+    const { error } = await supabase
       .from('user_profiles')
       .update({ active_meso_id: null, updated_at: new Date().toISOString() })
       .eq('id', user.id);
+    if (error) throw error;
   } catch (e) {
+    remoteDetachFailed = true;
     reportSyncFailure('mesocycle', e);
   } finally {
+    // The local pointer goes regardless — the next meso syncing INTO the
+    // finished one is the worse failure. But when the remote null didn't
+    // land (offline at meso completion), user_profiles still points here
+    // and the next pull would re-adopt the completed meso, dragging its
+    // done flags back and reopening "new meso starts on week 3". Leave a
+    // breadcrumb so the pull refuses this id.
+    if (remoteDetachFailed) {
+      try {
+        localStorage.setItem(PENDING_DETACH_KEY, mesoId);
+      } catch (e) {
+        console.warn('[Foundry]', 'Failed to record pending meso detach', e);
+      }
+    }
     localStorage.removeItem('foundry:active_meso_id');
     syncEnd();
   }
@@ -2181,6 +2211,23 @@ export async function pullFromSupabase(): Promise<void> {
     // column is null (e.g., legacy user_profiles rows pre-chunk 2).
     if (MIGRATED.mesocycles) {
       let mesoId = remoteActiveMesoId;
+
+      // A completed meso whose remote detach failed offline still points
+      // here. Retry the null-out and refuse the id — re-adopting it would
+      // restore the finished meso's done flags over the new program.
+      const pendingDetach =
+        typeof window !== 'undefined' ? localStorage.getItem(PENDING_DETACH_KEY) : null;
+      if (pendingDetach && mesoId === pendingDetach) {
+        const { error: retryErr } = await supabase
+          .from('user_profiles')
+          .update({ active_meso_id: null, updated_at: new Date().toISOString() })
+          .eq('id', user.id);
+        if (!retryErr) localStorage.removeItem(PENDING_DETACH_KEY);
+        mesoId = null;
+      } else if (pendingDetach && typeof window !== 'undefined') {
+        // Pointer already moved on — the breadcrumb is spent.
+        localStorage.removeItem(PENDING_DETACH_KEY);
+      }
 
       // Fallback: find the most recent active mesocycle for this user.
       if (!mesoId) {

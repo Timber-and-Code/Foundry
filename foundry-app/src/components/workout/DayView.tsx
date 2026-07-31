@@ -467,6 +467,14 @@ function DayView({
     });
   };
 
+  // A stop latches stoppedRef for the rest of this mount. Today onBack()
+  // unmounts DayView so the ref dies with it, but if the route ever becomes
+  // keep-alive the latch would outlive its purpose and the lifter could
+  // never start that session again — clear it whenever the session changes.
+  useEffect(() => {
+    stoppedRef.current = false;
+  }, [dayIdx, weekIdx]);
+
   // Auto-start the workout when DayView mounts on a not-yet-started session.
   // Replaces the old WorkoutSplash gate. Future-session block (week N when
   // week N-1 isn't done) still shows its warning UI; auto-start fires once

@@ -38,13 +38,14 @@ export function clearAllSkips(mesoWeeks?: number, mesoDays?: number): void {
 
 // Every localStorage key scoped to a session (day×week) of the current
 // program, plus per-meso bookkeeping (tde id maps, re-entry deload flags,
-// resumption-handled marker) and the `foundry:ts:` sync mirrors of the day
-// blobs. Deliberately NOT matched: `foundry:cardio:session:*` (dated
+// resumption-handled marker), the active-session bar blob (it points at a
+// day/week that stops existing), and the `foundry:ts:` sync mirrors of the
+// day blobs. Deliberately NOT matched: `foundry:cardio:session:*` (dated
 // cross-meso logs), `foundry:setcount` (per-exercise preference),
 // `foundry:archive`, `foundry:meso_transition`,
 // `foundry:resumption_archive:*`.
 const MESO_SESSION_KEY_RE =
-  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$)/;
+  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$|active_session$)/;
 
 // Wipe all per-session data of the current meso and zero the stored week.
 // Purely local — remote pointer handling is the callers' concern

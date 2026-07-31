@@ -53,4 +53,30 @@ describe('MesoConflictSheet', () => {
       resolveChain();
     });
   });
+
+  it('surfaces a retryable error when the chain rejects', async () => {
+    // A rejection means the choice did NOT take. Falling through silently
+    // would leave the sheet looking idle while sync stays deferred.
+    const onKeepLocal = vi.fn(async () => {
+      throw new Error('abandon-remote-meso-failed');
+    });
+    const onRestoreAccount = vi.fn(async () => {});
+    render(
+      <MesoConflictSheet onKeepLocal={onKeepLocal} onRestoreAccount={onRestoreAccount} />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText(/keep the meso i just built/i));
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/couldn't save that choice/i);
+    expect(screen.queryByText(/syncing your choice/i)).not.toBeInTheDocument();
+
+    // And the cards are live again so the user can retry.
+    await act(async () => {
+      fireEvent.click(screen.getByText(/restore my account's meso/i));
+    });
+    expect(onRestoreAccount).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });
