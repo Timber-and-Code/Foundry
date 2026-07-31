@@ -531,10 +531,14 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
     writeTrainingDayIdCache(mesoId, tdRows as { id: string; day_index: number }[]);
 
     const dayIds = (tdRows as { id: string; day_index: number; label: string }[]).map((r) => r.id);
+    // Live rows only. Superseded rows share a sort_order with their
+    // replacement, so including them would duplicate slots in the rebuilt
+    // program and make the tde_id cache below ambiguous.
     const { data: tdeRows, error: tdeError } = await supabase
       .from('training_day_exercises')
       .select('id, training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier')
       .in('training_day_id', dayIds)
+      .is('replaced_at', null)
       .order('sort_order', { ascending: true });
 
     if (tdeError) throw tdeError;
@@ -965,18 +969,38 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
     // Fetch the exercise_id → sort_order mapping for this meso so we can
     // reconstruct the jsonb's exerciseIndex key (position, not exercise id).
     // Join via training_day_id.
+    // Deliberately NOT filtered to live rows — unlike the program rebuild,
+    // history must still resolve exercises that have since been swapped out
+    // of the slot, or the lifter's logged work disappears from the app.
     const trainingDayIds = Array.from(new Set(sessions.map((s) => s.training_day_id)));
     const { data: tdeRows, error: tdeError } = await supabase
       .from('training_day_exercises')
-      .select('training_day_id, exercise_id, sort_order')
+      .select('training_day_id, exercise_id, sort_order, replaced_at')
       .in('training_day_id', trainingDayIds);
 
     if (tdeError) throw tdeError;
 
     // Map: (training_day_id, exercise_id) → sort_order
     const exerciseIndexMap = new Map<string, number>();
-    ((tdeRows || []) as { training_day_id: string; exercise_id: string; sort_order: number }[]).forEach((r) => {
-      exerciseIndexMap.set(`${r.training_day_id}:${r.exercise_id}`, r.sort_order);
+    // Which of those keys is the slot's current occupant. A swap mid-session
+    // leaves both exercises with sets in one session at one slot, and the
+    // local blob is [exIdx][setNumber] — exactly one can win. Live wins.
+    const liveExerciseKeys = new Set<string>();
+    ((tdeRows || []) as {
+      training_day_id: string;
+      exercise_id: string;
+      sort_order: number;
+      replaced_at: string | null;
+    }[]).forEach((r) => {
+      const key = `${r.training_day_id}:${r.exercise_id}`;
+      // A live row's sort_order is authoritative: the same exercise may
+      // appear on an older superseded row at a different position.
+      if (r.replaced_at == null) {
+        liveExerciseKeys.add(key);
+        exerciseIndexMap.set(key, r.sort_order);
+      } else if (!liveExerciseKeys.has(key)) {
+        exerciseIndexMap.set(key, r.sort_order);
+      }
     });
 
     // Helper: decode numeric rpe back to app's label strings
@@ -992,9 +1016,19 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
     for (const session of sessions) {
       const sessionSets = setsBySession.get(session.id) || [];
 
-      // Rebuild the { [exIdx]: { [setIdx]: {...} } } shape
+      // Rebuild the { [exIdx]: { [setIdx]: {...} } } shape. Sets belonging
+      // to a superseded exercise are written first so that on a same-slot,
+      // same-set-number collision the live exercise overwrites them.
+      const orderedSets = [
+        ...sessionSets.filter(
+          (s) => !liveExerciseKeys.has(`${session.training_day_id}:${s.exercise_id}`),
+        ),
+        ...sessionSets.filter((s) =>
+          liveExerciseKeys.has(`${session.training_day_id}:${s.exercise_id}`),
+        ),
+      ];
       const dayData: Record<string, Record<string, Record<string, unknown>>> = {};
-      for (const s of sessionSets) {
+      for (const s of orderedSets) {
         const exIdx = exerciseIndexMap.get(`${session.training_day_id}:${s.exercise_id}`);
         if (exIdx == null) continue; // orphaned set (exercise no longer in program)
         const exKey = String(exIdx);
@@ -1255,10 +1289,18 @@ async function pullNotes(userId: string): Promise<void> {
   }
 }
 
-// Chunk 3: update a single training_day_exercises row when the user swaps
-// an exercise. Called from DayView.handleSwap after the local override is
-// written. The swap replaces the exercise_id for that (training_day, sort_order)
-// slot; other fields (sets, reps, progression) inherit from the new exercise.
+// Chunk 3: point a (training_day, sort_order) slot at a new exercise when
+// the user swaps. Called from DayView.handleSwap after the local override
+// is written.
+//
+// Supersede, don't overwrite. This used to UPDATE exercise_id in place,
+// which destroyed the only mapping from the outgoing exercise's
+// workout_sets back to a slot — pullWorkoutHistory drops any set whose
+// (training_day_id, exercise_id) has no tde row, so every set the lifter
+// had ever logged against the swapped-out exercise vanished from the app on
+// the next pull. Instead the old row is stamped `replaced_at` and a new row
+// is inserted at the same sort_order: the program build reads live rows
+// only, while the history mapper reads both.
 export async function syncExerciseSwapRemote(
   mesoId: string,
   dayIdx: number,
@@ -1289,13 +1331,44 @@ export async function syncExerciseSwapRemote(
     if (!tdRows || tdRows.length === 0) return;
     const trainingDayId = (tdRows[0] as { id: string }).id;
 
+    const newExerciseId = String(newExercise.id);
+
+    // The live occupant of this slot, if any.
+    const { data: liveRows, error: liveError } = await supabase
+      .from('training_day_exercises')
+      .select('id, exercise_id')
+      .eq('training_day_id', trainingDayId)
+      .eq('user_id', user.id)
+      .eq('sort_order', exIdx)
+      .is('replaced_at', null);
+    if (liveError) throw liveError;
+
+    const live = (liveRows || []) as { id: string; exercise_id: string }[];
+    // Idempotent: DayView can re-fire a swap that already landed (retry,
+    // re-render, pull-then-swap-back). Superseding a row with itself would
+    // manufacture a bogus replaced row and orphan nothing usefully.
+    if (live.length === 1 && live[0].exercise_id === newExerciseId) return;
+
+    if (live.length > 0) {
+      const { error: supersedeError } = await supabase
+        .from('training_day_exercises')
+        .update({ replaced_at: new Date().toISOString() })
+        .in('id', live.map((r) => r.id));
+      if (supersedeError) throw supersedeError;
+    }
+
     const { min, max } = parseRepRange(newExercise.reps);
     const setsNum = Number(newExercise.sets);
+    const newTdeId = crypto.randomUUID();
 
-    const { error: updateError } = await supabase
+    const { error: insertError } = await supabase
       .from('training_day_exercises')
-      .update({
-        exercise_id: String(newExercise.id),
+      .insert({
+        id: newTdeId,
+        training_day_id: trainingDayId,
+        user_id: user.id,
+        exercise_id: newExerciseId,
+        sort_order: exIdx,
         sets: !isNaN(setsNum) && setsNum > 0 ? setsNum : 3,
         rep_min: min,
         rep_max: max,
@@ -1303,13 +1376,29 @@ export async function syncExerciseSwapRemote(
           progression: newExercise.progression,
           anchor: newExercise.anchor,
         }),
+        is_warmup: false,
         is_anchor: !!newExercise.anchor,
-      })
-      .eq('training_day_id', trainingDayId)
-      .eq('user_id', user.id)
-      .eq('sort_order', exIdx);
+      });
 
-    if (updateError) throw updateError;
+    if (insertError) {
+      // Put the slot back rather than leaving the day with no live exercise
+      // at this position — an empty slot reads as "exercise deleted" to
+      // every downstream consumer.
+      if (live.length > 0) {
+        await supabase
+          .from('training_day_exercises')
+          .update({ replaced_at: null })
+          .in('id', live.map((r) => r.id));
+      }
+      throw insertError;
+    }
+
+    // Exercise notes resolve through this cache; leaving it on the
+    // superseded row would attach the new exercise's notes to the old one.
+    const cached = getTdeIdMapLocal(mesoId);
+    if (cached) {
+      writeTdeIdCache(mesoId, { ...cached, [`${dayIdx}:${exIdx}`]: newTdeId });
+    }
   } catch (e) {
     reportSyncFailure('exercise_swap', e);
   } finally {
