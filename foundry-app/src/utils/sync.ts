@@ -1870,9 +1870,11 @@ export async function detachActiveMesoRemote(): Promise<void> {
 }
 
 // Mark the active mesocycle as completed (all weeks finished). Called from
-// useMesoState.handleComplete when the final week wraps. Keeps the id
-// around so the user can see it in history; next meso requires explicit
-// reset + setup.
+// archive.resetMesoAfterCompletion, which runs it BEFORE detaching the
+// pointer this reads. (It previously documented a call from
+// useMesoState.handleComplete that did not exist, so status='completed' was
+// unreachable and finished mesos stayed 'active' — see the note on
+// resetMesoAfterCompletion for why that matters.)
 export async function completeMesocycleRemote(): Promise<void> {
   if (!MIGRATED.mesocycles) return;
   if (typeof window === 'undefined') return;

@@ -1,7 +1,11 @@
 import { store } from './storage';
 import { getReadinessScore } from './analytics';
 import { validateArchive } from './validate';
-import { archiveMesocycleRemote, detachActiveMesoRemote } from './sync';
+import {
+  archiveMesocycleRemote,
+  detachActiveMesoRemote,
+  completeMesocycleRemote,
+} from './sync';
 import type { Profile, ArchiveEntry, Exercise, TrainingDay } from '../types';
 
 // ─── ARCHIVE HELPERS ─────────────────────────────────────────────────────────
@@ -70,13 +74,24 @@ export function resetMeso(): void {
   archiveMesocycleRemote();
 }
 
-// Post-completion variant: same local wipe, but the remote meso row is
-// already status='completed' and must stay that way — only the active-meso
-// pointer is detached so the next meso mints a fresh id instead of syncing
-// into the finished one.
+// Post-completion variant: same local wipe, but the finished meso is marked
+// completed rather than abandoned, then detached so the next meso mints a
+// fresh id instead of syncing into it.
+//
+// The two remote calls MUST run in this order and not concurrently:
+// completeMesocycleRemote reads foundry:active_meso_id, which
+// detachActiveMesoRemote deletes.
+//
+// Marking completed is not cosmetic. The pull falls back to "most recent
+// mesocycle with status='active'" whenever the profile pointer is null —
+// which detaching is precisely what makes it — so a finished meso left
+// active gets re-adopted on the next pull, dragging its done flags back and
+// reopening "new meso starts on week 3" from a different direction.
 export function resetMesoAfterCompletion(): void {
   wipeMesoSessionData();
-  detachActiveMesoRemote();
+  completeMesocycleRemote()
+    .then(() => detachActiveMesoRemote())
+    .catch((e) => console.warn('[Foundry]', 'Meso completion sync failed', e));
 }
 
 // ─── ARCHIVE CURRENT MESO ───────────────────────────────────────────────────
