@@ -534,15 +534,29 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
     // Live rows only. Superseded rows share a sort_order with their
     // replacement, so including them would duplicate slots in the rebuilt
     // program and make the tde_id cache below ambiguous.
-    const { data: tdeRows, error: tdeError } = await supabase
+    const { data: tdeRowsRaw, error: tdeError } = await supabase
       .from('training_day_exercises')
-      .select('id, training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier')
+      .select('id, training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier, created_at')
       .in('training_day_id', dayIds)
       .is('replaced_at', null)
       .order('sort_order', { ascending: true });
 
     if (tdeError) throw tdeError;
-    if (!tdeRows) return;
+    if (!tdeRowsRaw) return;
+
+    // A swap inserts the replacement before retiring the old row, so a
+    // failure in that gap leaves two live rows on one slot. Keep the newest
+    // per (day, slot): the replacement is the one the lifter chose, and
+    // rendering both would duplicate the exercise in their program.
+    const newestBySlot = new Map<string, { created_at?: string; training_day_id: string; sort_order: number }>();
+    (tdeRowsRaw as unknown as { created_at?: string; training_day_id: string; sort_order: number }[]).forEach((row) => {
+      const slotKey = `${row.training_day_id}:${row.sort_order}`;
+      const prev = newestBySlot.get(slotKey);
+      if (!prev || String(row.created_at ?? '') > String(prev.created_at ?? '')) {
+        newestBySlot.set(slotKey, row);
+      }
+    });
+    const tdeRows = Array.from(newestBySlot.values()) as unknown as typeof tdeRowsRaw;
 
     // Populate the tde_id cache for chunk 5d notes sync. Map is
     // "dayIdx:exIdx" → training_day_exercises.id. Uses day_index from the
@@ -1333,34 +1347,47 @@ export async function syncExerciseSwapRemote(
 
     const newExerciseId = String(newExercise.id);
 
-    // The live occupant of this slot, if any.
+    // The live occupant of this slot, if any. modifier/is_warmup are slot
+    // properties, not exercise properties — the in-place UPDATE preserved
+    // them for free by keeping the row, so the replacement has to carry
+    // them across explicitly or a swap silently drops the lifter's
+    // modifier and un-flags a warmup slot.
     const { data: liveRows, error: liveError } = await supabase
       .from('training_day_exercises')
-      .select('id, exercise_id')
+      .select('id, exercise_id, modifier, is_warmup')
       .eq('training_day_id', trainingDayId)
       .eq('user_id', user.id)
       .eq('sort_order', exIdx)
       .is('replaced_at', null);
     if (liveError) throw liveError;
 
-    const live = (liveRows || []) as { id: string; exercise_id: string }[];
+    const live = (liveRows || []) as {
+      id: string;
+      exercise_id: string;
+      modifier: string | null;
+      is_warmup: boolean;
+    }[];
     // Idempotent: DayView can re-fire a swap that already landed (retry,
     // re-render, pull-then-swap-back). Superseding a row with itself would
     // manufacture a bogus replaced row and orphan nothing usefully.
     if (live.length === 1 && live[0].exercise_id === newExerciseId) return;
 
-    if (live.length > 0) {
-      const { error: supersedeError } = await supabase
-        .from('training_day_exercises')
-        .update({ replaced_at: new Date().toISOString() })
-        .in('id', live.map((r) => r.id));
-      if (supersedeError) throw supersedeError;
-    }
+    // Carry the slot's own attributes onto the replacement. When several
+    // rows somehow share the slot, the newest select order is arbitrary —
+    // any of them is a better source than a hardcoded default.
+    const outgoing = live[0] ?? null;
 
     const { min, max } = parseRepRange(newExercise.reps);
     const setsNum = Number(newExercise.sets);
     const newTdeId = crypto.randomUUID();
 
+    // Insert BEFORE retiring. These are two round trips with no transaction
+    // around them, so something has to survive a failure in the gap: this
+    // order leaves two live rows (the program pull dedupes newest-first),
+    // whereas retire-then-insert leaves the slot EMPTY, which every
+    // downstream consumer reads as "exercise deleted". Compensating for
+    // that afterwards needs a third write that can fail for the same
+    // reason the second one did.
     const { error: insertError } = await supabase
       .from('training_day_exercises')
       .insert({
@@ -1376,21 +1403,18 @@ export async function syncExerciseSwapRemote(
           progression: newExercise.progression,
           anchor: newExercise.anchor,
         }),
-        is_warmup: false,
+        is_warmup: outgoing ? !!outgoing.is_warmup : false,
         is_anchor: !!newExercise.anchor,
+        modifier: outgoing ? outgoing.modifier : null,
       });
+    if (insertError) throw insertError;
 
-    if (insertError) {
-      // Put the slot back rather than leaving the day with no live exercise
-      // at this position — an empty slot reads as "exercise deleted" to
-      // every downstream consumer.
-      if (live.length > 0) {
-        await supabase
-          .from('training_day_exercises')
-          .update({ replaced_at: null })
-          .in('id', live.map((r) => r.id));
-      }
-      throw insertError;
+    if (live.length > 0) {
+      const { error: retireError } = await supabase
+        .from('training_day_exercises')
+        .update({ replaced_at: new Date().toISOString() })
+        .in('id', live.map((r) => r.id));
+      if (retireError) throw retireError;
     }
 
     // Exercise notes resolve through this cache; leaving it on the
