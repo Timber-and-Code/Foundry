@@ -2,8 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Capacitor + plugin mocks. Hoisted by vi.mock so they take effect before
 // the SUT imports them.
-const mockIsNativePlatform = vi.fn<[], boolean>();
-const mockGetPlatform = vi.fn<[], string>();
+// Vitest 4 takes a single function type here. The old two-arg form
+// (`vi.fn<[], boolean>()`) still runs, but TS resolves the mock's parameter
+// to `never`, so every .mockReturnValue below became a type error — 24 of
+// them, which is what had CI red while the tests themselves passed.
+const mockIsNativePlatform = vi.fn<() => boolean>();
+const mockGetPlatform = vi.fn<() => string>();
 const mockCheckPermissions = vi.fn();
 const mockRequestPermissions = vi.fn();
 const mockSchedule = vi.fn();
