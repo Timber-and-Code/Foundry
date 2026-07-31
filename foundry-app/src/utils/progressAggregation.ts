@@ -153,17 +153,26 @@ function findSliceByExId(
   id: string | undefined,
 ): Record<string, WorkoutSet> | undefined {
   if (!id) return undefined;
+  const stampOf = (set: unknown): string | null => {
+    if (!set || typeof set !== 'object') return null;
+    const stamp = (set as Record<string, unknown>)._exId;
+    return typeof stamp === 'string' && stamp.length > 0 ? stamp : null;
+  };
   for (const slice of Object.values(data)) {
     if (!slice) continue;
-    for (const set of Object.values(slice)) {
-      if (
-        set &&
-        typeof set === 'object' &&
-        String((set as unknown as Record<string, unknown>)._exId ?? '') === id
-      ) {
-        return slice as Record<string, WorkoutSet>;
-      }
-    }
+    const entries = Object.entries(slice);
+    if (!entries.some(([, s]) => stampOf(s) === id)) continue;
+    // Mixed slice (swap left the old exercise's sets behind and new ones
+    // were logged alongside): keep only this exercise's sets, or its
+    // start/current/PR inherit the other lift's numbers.
+    const hasForeign = entries.some(([, s]) => {
+      const stamp = stampOf(s);
+      return stamp != null && stamp !== id;
+    });
+    if (!hasForeign) return slice as Record<string, WorkoutSet>;
+    return Object.fromEntries(
+      entries.filter(([, s]) => stampOf(s) === id),
+    ) as Record<string, WorkoutSet>;
   }
   return undefined;
 }

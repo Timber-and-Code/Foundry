@@ -124,6 +124,13 @@ export function loadDayWeek(dayIdx: number, weekIdx: number): DayData {
  * empty object when neither path produces a hit so callers can iterate
  * without null checks.
  */
+// The `_exId` stamp on a set, or null when absent/blank (legacy data).
+function stampOf(set: unknown): string | null {
+  if (!set || typeof set !== 'object') return null;
+  const stamp = (set as Record<string, unknown>)._exId;
+  return typeof stamp === 'string' && stamp.length > 0 ? stamp : null;
+}
+
 export function findPrevSlotForExercise(
   data: DayData,
   exId: string | number | undefined,
@@ -133,15 +140,20 @@ export function findPrevSlotForExercise(
   if (idStr) {
     for (const slice of Object.values(data)) {
       if (!slice || typeof slice !== 'object') continue;
-      for (const set of Object.values(slice as unknown as Record<string, unknown>)) {
-        if (
-          set &&
-          typeof set === 'object' &&
-          String((set as Record<string, unknown>)._exId ?? '') === idStr
-        ) {
-          return slice as unknown as Record<string, Record<string, unknown>>;
-        }
-      }
+      const sets = slice as unknown as Record<string, Record<string, unknown>>;
+      const entries = Object.entries(sets);
+      if (!entries.some(([, s]) => stampOf(s) === idStr)) continue;
+      // A swap leaves the outgoing exercise's sets in the slot, and logging
+      // against the new one appends alongside them — so a matching slice is
+      // not necessarily a PURE slice. Returning it whole would hand this
+      // exercise the other one's weights. Filter when that has happened;
+      // return as-is otherwise so legacy unstamped data still reads.
+      const hasForeign = entries.some(([, s]) => {
+        const stamp = stampOf(s);
+        return stamp != null && stamp !== idStr;
+      });
+      if (!hasForeign) return sets;
+      return Object.fromEntries(entries.filter(([, s]) => stampOf(s) === idStr));
     }
   }
   const fallback =

@@ -47,6 +47,32 @@ describe('findPrevSlotForExercise', () => {
     expect(findPrevSlotForExercise(data, 'bench', 1)).toBe(legacySets);
   });
 
+  it('returns only this exercise\'s sets from a mixed slice', () => {
+    // A swap leaves the outgoing exercise's sets in the slot; logging
+    // against the replacement appends alongside them. Returning the slice
+    // whole would credit bench with the OHP weights.
+    const mixed = {
+      0: { weight: '65', reps: '10', _exId: 'ohp' },
+      1: { weight: '100', reps: '8', _exId: 'bench' },
+      2: { weight: '105', reps: '6', _exId: 'bench' },
+    };
+    const result = findPrevSlotForExercise({ 0: mixed }, 'bench', 0);
+    expect(Object.keys(result)).toEqual(['1', '2']);
+    expect(Object.values(result).every((s) => s._exId === 'bench')).toBe(true);
+  });
+
+  it('drops unstamped sets from a mixed slice rather than guessing', () => {
+    // Once a foreign stamp proves the slot was reused, an unstamped set is
+    // far more likely to belong to the exercise that was there first.
+    const mixed = {
+      0: { weight: '65', reps: '10', _exId: 'ohp' },
+      1: { weight: '80', reps: '8' },
+      2: { weight: '100', reps: '8', _exId: 'bench' },
+    };
+    const result = findPrevSlotForExercise({ 0: mixed }, 'bench', 0);
+    expect(Object.keys(result)).toEqual(['2']);
+  });
+
   it('refuses a fallback slice stamped as a DIFFERENT exercise', () => {
     // Post-swap leftovers: slot 1 holds ohp's sets, bench has none anywhere.
     // Returning ohp's numbers as bench history is the misattribution bug.
