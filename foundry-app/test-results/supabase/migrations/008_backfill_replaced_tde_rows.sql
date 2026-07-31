@@ -1,4 +1,4 @@
--- 007_backfill_replaced_tde_rows.sql
+-- 008_backfill_replaced_tde_rows.sql
 --
 -- Repairs history orphaned by the old in-place exercise swap.
 --
@@ -20,10 +20,14 @@
 -- Measured before writing (2026-07-30): 58 of 621 workout_sets orphaned,
 -- across 18 distinct exercises.
 --
+-- Requires 007_tde_replaced_at.sql (the replaced_at column).
+--
 -- Idempotent: the NOT EXISTS guard means re-running inserts nothing.
 -- Reversible: DELETE FROM training_day_exercises WHERE modifier =
 -- 'backfill:007' removes exactly what this added and restores the prior
--- (broken) behaviour.
+-- (broken) behaviour. NB the tag stays 'backfill:007' even though the file
+-- renumbered to 008 — it is already written on 18 production rows, and
+-- renaming it there would only break the documented reversal.
 
 begin;
 
