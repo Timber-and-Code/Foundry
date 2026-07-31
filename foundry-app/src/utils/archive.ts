@@ -1,4 +1,4 @@
-import { store } from './storage';
+import { store, wipeMesoSessionData } from './storage';
 import { getReadinessScore } from './analytics';
 import { validateArchive } from './validate';
 import {
@@ -26,42 +26,10 @@ export function deleteArchiveEntry(id: number | string): void {
 
 // ─── RESET MESO ──────────────────────────────────────────────────────────────
 
-// Every localStorage key scoped to a session (day×week) of the current
-// program, plus per-meso bookkeeping (tde id maps, re-entry deload flags,
-// resumption-handled marker), the active-session bar blob (it points at a
-// day/week that stops existing), and the `foundry:ts:` sync mirrors of the
-// day blobs. Deliberately NOT matched: `foundry:cardio:session:*` (dated
-// cross-meso logs), `foundry:setcount` (per-exercise preference),
-// `foundry:archive`, `foundry:meso_transition`,
-// `foundry:resumption_archive:*`.
-const MESO_SESSION_KEY_RE =
-  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$|active_session$)/;
-
-// Wipe all per-session data of the current meso and zero the stored week.
-// Purely local — remote pointer handling is the callers' concern
-// (resetMeso vs resetMesoAfterCompletion).
-export function wipeMesoSessionData(): void {
-  let keys: string[] = [];
-  try {
-    keys = Object.keys(localStorage);
-  } catch (e) {
-    console.warn('[Foundry]', 'Failed to enumerate keys during meso wipe', e);
-    return;
-  }
-  keys.forEach((k) => {
-    if (!MESO_SESSION_KEY_RE.test(k)) return;
-    try {
-      localStorage.removeItem(k);
-    } catch (e) {
-      console.warn('[Foundry]', 'Failed to remove key during meso wipe', e);
-    }
-  });
-  try {
-    localStorage.setItem('foundry:currentWeek', '0');
-  } catch (e) {
-    console.warn('[Foundry]', 'Failed to reset current week', e);
-  }
-}
+// Re-exported for the existing import sites. The implementation moved to
+// storage.ts so sync.ts can share it without an import cycle (archive.ts
+// already imports sync.ts).
+export { wipeMesoSessionData };
 
 // The sweep is dimension-independent, so this no longer takes the old
 // (mesoWeeks, mesoDays) bounds — and that also catches keys beyond the

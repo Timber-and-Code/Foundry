@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/react';
 import { supabase } from './supabase.js';
-import { store } from './storage.js';
+import { store, wipeMesoSessionData } from './storage.js';
 import { emit } from './events';
 import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData, CardioPreset } from '../types';
 // validateDayData + validateProfile are imported by other modules; sync.ts
@@ -2854,29 +2854,17 @@ export async function joinMesoByCode(
 
     // Clear the old meso's local data so it doesn't bleed through if the
     // pull fails or only partially overwrites. Keep identity profile fields.
+    //
+    // This used its own hand-rolled prefix list, which had the same defect
+    // that produced "new meso starts on week 3" in Settings: it named keys
+    // that have never existed (foundry:completedSets:, foundry:setLog:,
+    // foundry:skipped:, foundry:sessionNotes:, foundry:exerciseNotes:) while
+    // the real ones — cardio, skip, sessionStart, strengthEnd,
+    // completedDate, exnotes, ws_id, tde_ids, active_session and the ts:
+    // mirrors — survived into the joined meso. One shared sweep instead.
     localStorage.removeItem('foundry:storedProgram');
     localStorage.removeItem('foundry:completedDays');
-    localStorage.removeItem('foundry:currentWeek');
-    // Clear old day/week workout data
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (
-        k &&
-        (k.startsWith('foundry:day') ||
-          k.startsWith('foundry:done:') ||
-          k.startsWith('foundry:notes:') ||
-          k.startsWith('foundry:completedSets:') ||
-          k.startsWith('foundry:setLog:') ||
-          k.startsWith('foundry:skipped:') ||
-          k.startsWith('foundry:sessionNotes:') ||
-          k.startsWith('foundry:exerciseNotes:') ||
-          k.startsWith('foundry:exov:'))
-      ) {
-        keysToRemove.push(k);
-      }
-    }
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    wipeMesoSessionData();
 
     // Point active meso to the shared one
     localStorage.setItem('foundry:active_meso_id', mesoId);

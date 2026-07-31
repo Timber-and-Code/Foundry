@@ -94,3 +94,47 @@ export function migrateKeys(): void {
     console.warn('[Foundry] Key migration failed:', e);
   }
 }
+
+// ─── MESO SESSION KEY SWEEP ──────────────────────────────────────────────────
+
+// Every localStorage key scoped to a session (day×week) of the current
+// program, plus per-meso bookkeeping (tde id maps, re-entry deload flags,
+// resumption-handled marker), the active-session bar blob (it points at a
+// day/week that stops existing), and the `foundry:ts:` sync mirrors of the
+// day blobs. Deliberately NOT matched: `foundry:cardio:session:*` (dated
+// cross-meso logs), `foundry:setcount` (per-exercise preference),
+// `foundry:archive`, `foundry:meso_transition`,
+// `foundry:resumption_archive:*`.
+//
+// Lives here, at the bottom of the dependency graph, because BOTH archive.ts
+// and sync.ts need it and they already point at each other. Hand-rolled
+// prefix lists are what caused "new meso starts on week 3": they listed keys
+// that don't exist (foundry:completedSets:, foundry:setLog:, …) while the
+// real ones survived. There should be exactly one of these.
+const MESO_SESSION_KEY_RE =
+  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$|active_session$)/;
+
+// Wipe all per-session data of the current meso and zero the stored week.
+// Purely local — remote pointer handling is the callers' concern.
+export function wipeMesoSessionData(): void {
+  let keys: string[] = [];
+  try {
+    keys = Object.keys(localStorage);
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to enumerate keys during meso wipe', e);
+    return;
+  }
+  keys.forEach((k) => {
+    if (!MESO_SESSION_KEY_RE.test(k)) return;
+    try {
+      localStorage.removeItem(k);
+    } catch (e) {
+      console.warn('[Foundry]', 'Failed to remove key during meso wipe', e);
+    }
+  });
+  try {
+    localStorage.setItem('foundry:currentWeek', '0');
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to reset current week', e);
+  }
+}
