@@ -50,7 +50,6 @@ const mocks = vi.hoisted(() => ({
   loadArchive: vi.fn(() => []),
   detectStallingLifts: vi.fn(() => []),
   getWeekSets: vi.fn((sets: number) => sets),
-  loadExerciseHistory: vi.fn(() => []),
   loadSupersets: vi.fn(() => []),
   saveSupersets: vi.fn(),
   loadSetCounts: vi.fn(() => ({})),
@@ -104,7 +103,6 @@ vi.mock('../../../utils/store', () => ({
   loadArchive: mocks.loadArchive,
   detectStallingLifts: mocks.detectStallingLifts,
   getWeekSets: mocks.getWeekSets,
-  loadExerciseHistory: mocks.loadExerciseHistory,
 }));
 
 vi.mock('../../../data/constants', () => ({
@@ -295,7 +293,6 @@ describe('DayView', () => {
     mocks.loadArchive.mockReturnValue([]);
     mocks.detectStallingLifts.mockReturnValue([]);
     mocks.getWeekSets.mockImplementation((sets: number) => sets);
-    mocks.loadExerciseHistory.mockReturnValue([]);
     mocks.getMeso.mockReturnValue({ weeks: 6, days: ['Push', 'Pull', 'Legs'], phases: ['accumulation'] });
     mocks.getWeekPhase.mockReturnValue(['accumulation', 'accumulation', 'accumulation', 'accumulation', 'accumulation', 'accumulation']);
     mocks.getProgTargets.mockReturnValue({ linear: ['5x5', '5x5'] });

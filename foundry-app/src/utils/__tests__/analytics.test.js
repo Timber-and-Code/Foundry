@@ -1,12 +1,11 @@
 /**
  * Tests for analytics.js:
- * getReadinessScore, getReadinessLabel, loadExerciseHistory, detectSessionPRs
+ * getReadinessScore, getReadinessLabel, detectSessionPRs
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   getReadinessScore,
   getReadinessLabel,
-  loadExerciseHistory,
   detectSessionPRs,
 } from '../analytics';
 
@@ -120,71 +119,6 @@ describe('getReadinessLabel', () => {
   });
 });
 
-// ============================================================================
-// loadExerciseHistory
-// ============================================================================
-describe('loadExerciseHistory', () => {
-  beforeEach(() => localStorage.clear());
-
-  it('returns empty array when no done markers exist', () => {
-    const rows = loadExerciseHistory(0, 0, 4);
-    expect(rows).toEqual([]);
-  });
-
-  it('returns empty array when done but no day data stored', () => {
-    localStorage.setItem('foundry:done:d0:w0', '1');
-    const rows = loadExerciseHistory(0, 0, 4);
-    expect(rows).toEqual([]);
-  });
-
-  it('returns one row for a single completed week with data', () => {
-    localStorage.setItem('foundry:done:d0:w0', '1');
-    localStorage.setItem(
-      'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: '100', reps: '8' } } })
-    );
-    const rows = loadExerciseHistory(0, 0, 4);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].week).toBe(0);
-    expect(rows[0].sets).toHaveLength(1);
-    expect(rows[0].sets[0].weight).toBe('100');
-  });
-
-  it('returns rows in reverse order (most recent week first)', () => {
-    for (let w = 0; w < 3; w++) {
-      localStorage.setItem(`foundry:done:d0:w${w}`, '1');
-      localStorage.setItem(
-        `foundry:day0:week${w}`,
-        JSON.stringify({ 0: { 0: { weight: String(100 + w * 5), reps: '8' } } })
-      );
-    }
-    const rows = loadExerciseHistory(0, 0, 4);
-    expect(rows).toHaveLength(3);
-    // reverse() makes most recent (week 2) come first
-    expect(rows[0].week).toBe(2);
-    expect(rows[2].week).toBe(0);
-  });
-
-  it('skips weeks that are not marked done', () => {
-    // Week 0 done, week 1 not done, week 2 done
-    localStorage.setItem('foundry:done:d0:w0', '1');
-    localStorage.setItem(
-      'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: '100', reps: '8' } } })
-    );
-    localStorage.setItem(
-      'foundry:day0:week1',
-      JSON.stringify({ 0: { 0: { weight: '105', reps: '8' } } })
-    );
-    localStorage.setItem('foundry:done:d0:w2', '1');
-    localStorage.setItem(
-      'foundry:day0:week2',
-      JSON.stringify({ 0: { 0: { weight: '110', reps: '8' } } })
-    );
-    const rows = loadExerciseHistory(0, 0, 4);
-    expect(rows).toHaveLength(2);
-  });
-});
 
 // ============================================================================
 // detectSessionPRs — additional coverage beyond core.test.js

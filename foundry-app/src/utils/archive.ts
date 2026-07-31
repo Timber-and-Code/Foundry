@@ -20,20 +20,6 @@ export function deleteArchiveEntry(id: number | string): void {
   store.set('foundry:archive', JSON.stringify(archive));
 }
 
-// ─── CLEAR ALL SKIPS ─────────────────────────────────────────────────────────
-
-export function clearAllSkips(mesoWeeks?: number, mesoDays?: number): void {
-  const weeks = mesoWeeks || 12;
-  const days = mesoDays || 6;
-  for (let d = 0; d < days; d++)
-    for (let w = 0; w <= weeks; w++)
-      try {
-        localStorage.removeItem(`foundry:skip:d${d}:w${w}`);
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to remove skip key', e);
-      }
-}
-
 // ─── RESET MESO ──────────────────────────────────────────────────────────────
 
 // Every localStorage key scoped to a session (day×week) of the current
@@ -73,10 +59,10 @@ export function wipeMesoSessionData(): void {
   }
 }
 
-// Legacy (mesoWeeks, mesoDays) params are accepted but unused — the sweep
-// is dimension-independent, which also catches keys beyond the old
-// hardcoded 12×6 loop bounds.
-export function resetMeso(_mesoWeeks?: number, _mesoDays?: number): void {
+// The sweep is dimension-independent, so this no longer takes the old
+// (mesoWeeks, mesoDays) bounds — and that also catches keys beyond the
+// hardcoded 12×6 the loop used to walk. No caller passed them.
+export function resetMeso(): void {
   wipeMesoSessionData();
   // Chunk 2: mark the remote mesocycle as abandoned and clear the local
   // active meso pointer. Fire-and-forget — failures are logged via

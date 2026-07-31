@@ -18,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   getWarmupDetail: vi.fn(),
   generateWarmupSteps: vi.fn(),
   loadArchive: vi.fn(),
-  loadExerciseHistory: vi.fn(),
   getProgTargets: vi.fn(() => ({
     linear: ['5x5', '5x5', '3x5', '3x3', '1x5'],
   })),
@@ -33,7 +32,6 @@ vi.mock('../../../utils/store', () => ({
   getWarmupDetail: mocks.getWarmupDetail,
   generateWarmupSteps: mocks.generateWarmupSteps,
   loadArchive: mocks.loadArchive,
-  loadExerciseHistory: mocks.loadExerciseHistory,
   // MesoHistoryView (rendered when the LAST WK chip is tapped) reads
   // prior week data through `loadDayWeek` — pass through real
   // localStorage so tests that seed `foundry:day0:week0` round-trip.

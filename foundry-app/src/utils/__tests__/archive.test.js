@@ -1,12 +1,11 @@
 /**
  * Tests for archive.js:
- * loadArchive, deleteArchiveEntry, clearAllSkips, resetMeso, archiveCurrentMeso
+ * loadArchive, deleteArchiveEntry, resetMeso, archiveCurrentMeso
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   loadArchive,
   deleteArchiveEntry,
-  clearAllSkips,
   resetMeso,
   wipeMesoSessionData,
   archiveCurrentMeso,
@@ -67,38 +66,6 @@ describe('deleteArchiveEntry', () => {
   it('handles deletion from empty archive without error', () => {
     expect(() => deleteArchiveEntry(1)).not.toThrow();
     expect(loadArchive()).toEqual([]);
-  });
-});
-
-// ============================================================================
-// clearAllSkips
-// ============================================================================
-describe('clearAllSkips', () => {
-  beforeEach(() => localStorage.clear());
-
-  it('removes skip keys for all day/week combinations with given bounds', () => {
-    localStorage.setItem('foundry:skip:d0:w0', '1');
-    localStorage.setItem('foundry:skip:d1:w2', '1');
-    localStorage.setItem('foundry:skip:d2:w4', '1');
-
-    clearAllSkips(6, 3); // weeks=6, days=3
-    expect(localStorage.getItem('foundry:skip:d0:w0')).toBeNull();
-    expect(localStorage.getItem('foundry:skip:d1:w2')).toBeNull();
-    expect(localStorage.getItem('foundry:skip:d2:w4')).toBeNull();
-  });
-
-  it('does not remove non-skip foundry keys', () => {
-    localStorage.setItem('foundry:profile', JSON.stringify({ name: 'Test' }));
-    localStorage.setItem('foundry:skip:d0:w0', '1');
-
-    clearAllSkips(6, 3);
-    expect(localStorage.getItem('foundry:profile')).not.toBeNull();
-  });
-
-  it('uses defaults (12 weeks, 6 days) when called with no arguments', () => {
-    localStorage.setItem('foundry:skip:d5:w12', '1');
-    clearAllSkips();
-    expect(localStorage.getItem('foundry:skip:d5:w12')).toBeNull();
   });
 });
 

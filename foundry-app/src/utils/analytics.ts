@@ -53,36 +53,6 @@ export function getReadinessLabel(score: number | null): ReadinessLabel | null {
   };
 }
 
-// ─── EXERCISE HISTORY ────────────────────────────────────────────────────────
-
-interface HistoryRow {
-  week: number;
-  sets: { setNum: number; weight: string; reps: string; rpe: string | number | null }[];
-}
-
-export function loadExerciseHistory(dayIdx: number, exIdx: number, mesoWeeks?: number): HistoryRow[] {
-  const weeks = mesoWeeks || 6;
-  const rows: HistoryRow[] = [];
-  for (let w = 0; w <= weeks; w++) {
-    if (store.get(`foundry:done:d${dayIdx}:w${w}`) !== '1') continue;
-    const raw = store.get(`foundry:day${dayIdx}:week${w}`);
-    if (!raw) continue;
-    const dayData = validateDayData(JSON.parse(raw));
-    const exData = dayData[exIdx];
-    if (!exData) continue;
-    const sets = Object.entries(exData)
-      .map(([si, s]) => ({
-        setNum: parseInt(si) + 1,
-        weight: String(s?.weight || ''),
-        reps: String(s?.reps || ''),
-        rpe: s?.rpe || null,
-      }))
-      .filter((s) => s.weight || s.reps);
-    if (sets.length > 0) rows.push({ week: w, sets });
-  }
-  return rows.reverse();
-}
-
 // ─── SESSION PR DETECTION ────────────────────────────────────────────────────
 
 interface PREntry {
