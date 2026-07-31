@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'fs';
+import { sentryDsnGuard } from './scripts/sentry-dsn-guard.mjs';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
@@ -10,6 +11,7 @@ export default defineConfig({
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
   },
   plugins: [
+    sentryDsnGuard(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
