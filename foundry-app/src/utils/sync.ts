@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react';
 import { supabase } from './supabase.js';
 import { store, wipeMesoSessionData } from './storage.js';
 import { emit } from './events';
-import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData, CardioPreset } from '../types';
+import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData, CardioPreset, ArchiveEntry } from '../types';
 // validateDayData + validateProfile are imported by other modules; sync.ts
 // will use them again once workouts/readiness chunks migrate to the
 // normalized schema. For chunk 1 (profile only), neither is needed here.
@@ -914,6 +914,113 @@ export async function upsertWorkoutSetRemote(
   }
 }
 
+// ─── SHARED SET → SLOT RECONSTRUCTION ───────────────────────────────────────
+//
+// Two readers turn workout_sets rows back into the local
+// { [exIdx]: { [setNumber]: {...} } } blob: the active-meso history pull
+// (chunk 4b) and the past-meso archive rebuild (chunk 5e). They share one
+// implementation on purpose. The last two times this repo hand-rolled the
+// same sweep twice — the session-key wipe and the mixed-slice filter — each
+// copy grew its own distinct bug.
+
+interface TdeSlotRow {
+  training_day_id: string;
+  exercise_id: string;
+  sort_order: number;
+  replaced_at: string | null;
+}
+
+interface SlotMap {
+  /** (training_day_id, exercise_id) → sort_order */
+  exerciseIndexMap: Map<string, number>;
+  /** Subset of those keys that are the slot's current occupant. */
+  liveExerciseKeys: Set<string>;
+}
+
+interface ReconstructableSet {
+  id: string;
+  exercise_id: string;
+  set_number: number;
+  weight_lbs: number | null;
+  reps: number | null;
+  rpe: number | null;
+  is_warmup: boolean;
+}
+
+/**
+ * Build the slot lookup from training_day_exercises rows.
+ *
+ * Callers must pass rows that are NOT filtered to live-only: history has to
+ * resolve exercises since swapped out of a slot, or the lifter's logged work
+ * disappears from the app.
+ */
+function buildSlotMap(rows: TdeSlotRow[]): SlotMap {
+  const exerciseIndexMap = new Map<string, number>();
+  const liveExerciseKeys = new Set<string>();
+  rows.forEach((r) => {
+    const key = `${r.training_day_id}:${r.exercise_id}`;
+    // A live row's sort_order is authoritative: the same exercise may appear
+    // on an older superseded row at a different position.
+    if (r.replaced_at == null) {
+      liveExerciseKeys.add(key);
+      exerciseIndexMap.set(key, r.sort_order);
+    } else if (!liveExerciseKeys.has(key)) {
+      exerciseIndexMap.set(key, r.sort_order);
+    }
+  });
+  return { exerciseIndexMap, liveExerciseKeys };
+}
+
+/** Decode numeric rpe back to the app's label strings. */
+function decodeRpe(n: number | null): string | number | undefined {
+  if (n == null) return undefined;
+  if (n === 7) return 'Easy';
+  if (n === 8) return 'Good';
+  if (n === 9.5) return 'Hard';
+  return n;
+}
+
+/**
+ * Rebuild one session's { [exIdx]: { [setNumber]: {...} } } blob.
+ *
+ * Sets whose (training_day_id, exercise_id) has no slot row are dropped —
+ * they cannot be placed. That is the documented orphan path; see
+ * `008_backfill_replaced_tde_rows.sql` for the repair.
+ */
+function rebuildDayData(
+  trainingDayId: string,
+  sessionSets: ReconstructableSet[],
+  { exerciseIndexMap, liveExerciseKeys }: SlotMap,
+): Record<string, Record<string, Record<string, unknown>>> {
+  // Superseded-exercise sets are written first so that on a same-slot,
+  // same-set-number collision the live exercise overwrites them.
+  const isLive = (s: ReconstructableSet) =>
+    liveExerciseKeys.has(`${trainingDayId}:${s.exercise_id}`);
+  const orderedSets = [...sessionSets.filter((s) => !isLive(s)), ...sessionSets.filter(isLive)];
+
+  const dayData: Record<string, Record<string, Record<string, unknown>>> = {};
+  for (const s of orderedSets) {
+    const exIdx = exerciseIndexMap.get(`${trainingDayId}:${s.exercise_id}`);
+    if (exIdx == null) continue; // orphaned set (exercise no longer in program)
+    const exKey = String(exIdx);
+    if (!dayData[exKey]) dayData[exKey] = {};
+    dayData[exKey][String(s.set_number)] = {
+      id: s.id,
+      weight: s.weight_lbs != null ? String(s.weight_lbs) : '',
+      reps: s.reps != null ? String(s.reps) : '',
+      rpe: decodeRpe(s.rpe),
+      confirmed: true, // if the row exists, the user confirmed it
+      warmup: s.is_warmup || undefined,
+      // Identity stamp — without it every history reader
+      // (findPrevSlotForExercise, realignDayDataByExId, the archive
+      // aggregators) degrades to raw slot position, and one reorder or
+      // swap misattributes the whole pulled history.
+      _exId: s.exercise_id,
+    };
+  }
+  return dayData;
+}
+
 // Chunk 4b: pull all workout_sessions + workout_sets for the active meso
 // and reconstruct the local foundry:day{d}:week{w} jsonb shape (+ done flags
 // and completedDate flags). Called from pullFromSupabase after
@@ -994,73 +1101,15 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
 
     if (tdeError) throw tdeError;
 
-    // Map: (training_day_id, exercise_id) → sort_order
-    const exerciseIndexMap = new Map<string, number>();
-    // Which of those keys is the slot's current occupant. A swap mid-session
-    // leaves both exercises with sets in one session at one slot, and the
-    // local blob is [exIdx][setNumber] — exactly one can win. Live wins.
-    const liveExerciseKeys = new Set<string>();
-    ((tdeRows || []) as {
-      training_day_id: string;
-      exercise_id: string;
-      sort_order: number;
-      replaced_at: string | null;
-    }[]).forEach((r) => {
-      const key = `${r.training_day_id}:${r.exercise_id}`;
-      // A live row's sort_order is authoritative: the same exercise may
-      // appear on an older superseded row at a different position.
-      if (r.replaced_at == null) {
-        liveExerciseKeys.add(key);
-        exerciseIndexMap.set(key, r.sort_order);
-      } else if (!liveExerciseKeys.has(key)) {
-        exerciseIndexMap.set(key, r.sort_order);
-      }
-    });
-
-    // Helper: decode numeric rpe back to app's label strings
-    const decodeRpe = (n: number | null): string | number | undefined => {
-      if (n == null) return undefined;
-      if (n === 7) return 'Easy';
-      if (n === 8) return 'Good';
-      if (n === 9.5) return 'Hard';
-      return n;
-    };
+    // A swap mid-session leaves both exercises with sets in one session at
+    // one slot, and the local blob is [exIdx][setNumber] — exactly one can
+    // win. Live wins; see buildSlotMap.
+    const slotMap = buildSlotMap((tdeRows || []) as TdeSlotRow[]);
 
     // Reconstruct each session's jsonb
     for (const session of sessions) {
       const sessionSets = setsBySession.get(session.id) || [];
-
-      // Rebuild the { [exIdx]: { [setIdx]: {...} } } shape. Sets belonging
-      // to a superseded exercise are written first so that on a same-slot,
-      // same-set-number collision the live exercise overwrites them.
-      const orderedSets = [
-        ...sessionSets.filter(
-          (s) => !liveExerciseKeys.has(`${session.training_day_id}:${s.exercise_id}`),
-        ),
-        ...sessionSets.filter((s) =>
-          liveExerciseKeys.has(`${session.training_day_id}:${s.exercise_id}`),
-        ),
-      ];
-      const dayData: Record<string, Record<string, Record<string, unknown>>> = {};
-      for (const s of orderedSets) {
-        const exIdx = exerciseIndexMap.get(`${session.training_day_id}:${s.exercise_id}`);
-        if (exIdx == null) continue; // orphaned set (exercise no longer in program)
-        const exKey = String(exIdx);
-        if (!dayData[exKey]) dayData[exKey] = {};
-        dayData[exKey][String(s.set_number)] = {
-          id: s.id,
-          weight: s.weight_lbs != null ? String(s.weight_lbs) : '',
-          reps: s.reps != null ? String(s.reps) : '',
-          rpe: decodeRpe(s.rpe),
-          confirmed: true, // if the row exists, the user confirmed it
-          warmup: s.is_warmup || undefined,
-          // Identity stamp — without it every history reader
-          // (findPrevSlotForExercise, realignDayDataByExId, the archive
-          // aggregators) degrades to raw slot position, and one reorder or
-          // swap misattributes the whole pulled history.
-          _exId: s.exercise_id,
-        };
-      }
+      const dayData = rebuildDayData(session.training_day_id, sessionSets, slotMap);
 
       // Persist the reconstructed session state locally. setFromRemote skips
       // the dirty queue (it's a pulled value, not a local edit).
@@ -1100,6 +1149,192 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
     }
   } catch (e) {
     reportSyncFailure('workout_history_pull', e);
+  }
+}
+
+/**
+ * Fold remote-derived archive entries into whatever is already on disk.
+ *
+ * Merge, never replace. Entries written locally before chunk 5e existed carry
+ * a `Date.now()` id and may describe a meso that never reached Supabase —
+ * logged offline, or pre-sync. Dropping them would be exactly the data loss
+ * this chunk exists to stop. Derived entries win an id collision because they
+ * are rebuilt from the normalized source of truth.
+ *
+ * Exported for tests: the ordering contract below is load-bearing and worth
+ * pinning independently of the Supabase plumbing.
+ *
+ * @param derived  entries rebuilt from remote, each keyed by meso uuid
+ * @param localRaw the raw `foundry:archive` string, or null
+ */
+export function mergeArchiveEntries<T extends { id: string; archivedAt?: string | null }>(
+  derived: T[],
+  localRaw: string | null | undefined,
+): T[] {
+  let localOnly: ArchiveEntry[] = [];
+  try {
+    const parsed: unknown = localRaw ? JSON.parse(localRaw) : [];
+    const derivedIds = new Set(derived.map((d) => String(d.id)));
+    if (Array.isArray(parsed)) {
+      localOnly = (parsed as ArchiveEntry[]).filter(
+        (e) => e && e.id != null && !derivedIds.has(String(e.id)),
+      );
+    }
+  } catch (e) {
+    console.warn('[Foundry Sync] Failed to read local archive for merge', e);
+  }
+
+  const tsOf = (e: { archivedAt?: unknown; completedAt?: unknown; date?: unknown }): number => {
+    const raw = e.archivedAt ?? e.completedAt ?? e.date;
+    const t = raw ? Date.parse(String(raw)) : NaN;
+    return isNaN(t) ? 0 : t;
+  };
+  // Newest first — findLastMesoWeight reports `mesosAgo: i + 1` straight off
+  // this index, so order is load-bearing, not cosmetic. An entry with no
+  // usable timestamp sorts to 0 (oldest) rather than poisoning the compare.
+  return [...derived, ...(localOnly as unknown as T[])].sort((a, b) => tsOf(b) - tsOf(a));
+}
+
+// Chunk 5e: rebuild foundry:archive — the past-meso history behind
+// "last meso" suggestions (findLastMesoWeight), Previous Meso Cycles, and
+// Lifts by Muscle.
+//
+// The archive was the ONLY local store with no sync coverage at all. It is
+// written by archiveCurrentMeso() from foundry:day{d}:week{w} keys that
+// wipeMesoSessionData() clears moments later, so a fresh install, a new
+// device, or a sign-out/in lost every past cycle permanently — the lifter
+// sees no history for a lift they have trained for months.
+//
+// Derived, not stored. Every field already exists in normalized tables:
+// mesocycles carries weeks_count/days_per_week/completed_at, and the
+// per-session blob is the same reconstruction chunk 4b performs for the
+// active meso. So this adds no table, no migration, and no duplicated
+// truth — and it sidesteps the write-side `archive.slice(0, 10)` cap, which
+// silently drops everything past the tenth meso.
+//
+// Four queries total regardless of meso count; the per-meso work is grouping
+// in memory, not round trips.
+async function pullMesoArchive(userId: string, activeMesoId: string | null): Promise<void> {
+  try {
+    const { data: mesoRows, error: mesoError } = await supabase
+      .from('mesocycles')
+      .select('id, name, status, weeks_count, days_per_week, split_type, started_at, completed_at, created_at, updated_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (mesoError) throw mesoError;
+
+    type MesoRow = {
+      id: string;
+      name: string;
+      status: string;
+      weeks_count: number;
+      days_per_week: number;
+      split_type: string;
+      started_at: string | null;
+      completed_at: string | null;
+      created_at: string;
+      updated_at: string | null;
+    };
+    // Past mesos only. The active one is live state, not history — it is
+    // already served by chunk 4b into the day/week keys.
+    const pastMesos = ((mesoRows || []) as MesoRow[]).filter((m) => m.id !== activeMesoId);
+    if (pastMesos.length === 0) return;
+
+    const mesoIds = pastMesos.map((m) => m.id);
+
+    const { data: sessionRows, error: sessionError } = await supabase
+      .from('workout_sessions')
+      .select('id, meso_id, training_day_id, week_number, day_number, completed_at, is_complete')
+      .eq('user_id', userId)
+      .in('meso_id', mesoIds);
+    if (sessionError) throw sessionError;
+
+    type SessionRow = {
+      id: string;
+      meso_id: string;
+      training_day_id: string;
+      week_number: number;
+      day_number: number;
+      completed_at: string | null;
+      is_complete: boolean;
+    };
+    const sessions = (sessionRows || []) as SessionRow[];
+    if (sessions.length === 0) return;
+
+    const { data: setRows, error: setsError } = await supabase
+      .from('workout_sets')
+      .select('id, workout_session_id, exercise_id, set_number, weight_lbs, reps, rpe, is_warmup')
+      .in('workout_session_id', sessions.map((s) => s.id))
+      .order('set_number', { ascending: true });
+    if (setsError) throw setsError;
+
+    const setsBySession = new Map<string, ReconstructableSet[]>();
+    ((setRows || []) as (ReconstructableSet & { workout_session_id: string })[]).forEach((s) => {
+      const existing = setsBySession.get(s.workout_session_id) || [];
+      existing.push(s);
+      setsBySession.set(s.workout_session_id, existing);
+    });
+
+    // Unfiltered by replaced_at on purpose — see buildSlotMap.
+    const trainingDayIds = Array.from(new Set(sessions.map((s) => s.training_day_id)));
+    const { data: tdeRows, error: tdeError } = await supabase
+      .from('training_day_exercises')
+      .select('training_day_id, exercise_id, sort_order, replaced_at')
+      .in('training_day_id', trainingDayIds);
+    if (tdeError) throw tdeError;
+
+    const slotMap = buildSlotMap((tdeRows || []) as TdeSlotRow[]);
+
+    const sessionsByMeso = new Map<string, SessionRow[]>();
+    sessions.forEach((s) => {
+      const existing = sessionsByMeso.get(s.meso_id) || [];
+      existing.push(s);
+      sessionsByMeso.set(s.meso_id, existing);
+    });
+
+    const derived = pastMesos
+      .map((m) => {
+        const mesoSessions = sessionsByMeso.get(m.id) || [];
+        if (mesoSessions.length === 0) return null; // nothing logged; not history
+
+        const archiveSessions = mesoSessions.map((s) => ({
+          d: s.day_number,
+          w: s.week_number,
+          data: rebuildDayData(s.training_day_id, setsBySession.get(s.id) || [], slotMap),
+          // exOvs and cardioLog sync on their own keys and are not needed by
+          // any archive reader; the local writer's copies are display-only.
+          exOvs: {} as Record<number, string>,
+          done: s.is_complete,
+          cardioLog: null,
+        }));
+
+        return {
+          // The meso uuid, not Date.now() — makes the rebuild idempotent and
+          // lets a derived entry replace its locally-written twin by identity.
+          id: m.id,
+          archivedAt: m.completed_at || m.updated_at || m.created_at,
+          mesoWeeks: m.weeks_count,
+          mesoDays: m.days_per_week,
+          totalSessions: m.weeks_count * m.days_per_week,
+          completedSessions: mesoSessions.filter((s) => s.is_complete).length,
+          name: m.name,
+          status: m.status,
+          profile: { splitType: m.split_type, mesoLength: m.weeks_count },
+          sessions: archiveSessions,
+        };
+      })
+      .filter((e): e is NonNullable<typeof e> => e !== null);
+
+    if (derived.length === 0) return;
+
+    // Read the key directly rather than importing loadArchive: archive.ts
+    // already imports this module, so the reverse import would be a cycle.
+    const merged = mergeArchiveEntries(derived, store.get('foundry:archive'));
+
+    store.setFromRemote('foundry:archive', JSON.stringify(merged), new Date().toISOString());
+  } catch (e) {
+    reportSyncFailure('meso_archive_pull', e);
   }
 }
 
@@ -2441,6 +2676,16 @@ export async function pullFromSupabase(): Promise<void> {
           await pullWorkoutHistory(mesoId, user.id);
         }
       }
+    }
+
+    // Chunk 5e: rebuild the past-meso archive. Per-user, so it runs outside
+    // the mesocycle block. Must run AFTER chunk 4b — both write history, and
+    // this one reads the same slot mapping — but it targets foundry:archive
+    // rather than the day/week keys, so they never contend for a key.
+    if (MIGRATED.workouts) {
+      // `mesoId` is block-scoped to the mesocycle section above; read the
+      // canonical pointer, which that block has just written.
+      await pullMesoArchive(user.id, localStorage.getItem('foundry:active_meso_id'));
     }
 
     // Chunk 5a/5b/5c: pull body weight log, readiness check-ins, cardio
