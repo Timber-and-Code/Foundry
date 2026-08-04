@@ -661,6 +661,19 @@ export function generateProgram(
 
   // FULL BODY SPLITS
   if (splitType === 'full_body') {
+    // Ordered so the muscles a full-body split habitually starves — arms and
+    // calves — land inside the first week rather than waiting on a pool that
+    // never gets dealt. Interleaved by region so consecutive days don't stack
+    // two pushes or two pulls.
+    // Values match the DB's `muscle` field, not `muscles[]`. Calf exercises
+    // carry muscle:'Calves' with muscles:['Gastrocnemius'|'Soleus'], so the
+    // anatomical name only ever matched via the weaker secondary path — which
+    // is part of why calves lost every tie they were in.
+    const ACCESSORY_ROTATION = [
+      'Chest', 'Lats', 'Quads',
+      'Triceps', 'Biceps', 'Calves',
+      'Shoulders', 'Hamstrings', 'Back', 'Glutes',
+    ];
     const pushPool = available.filter((e) => e.tag === 'PUSH');
     const pullPool = available.filter((e) => e.tag === 'PULL');
     const legsPool = available.filter((e) => e.tag === 'LEGS');
@@ -696,16 +709,49 @@ export function generateProgram(
       const pullEx = rDay.anchor ? [toEx(rDay.anchor, true)] : [];
       const legsEx = lDay.anchor ? [toEx(lDay.anchor, true)] : [];
 
-      const pAcc = pDay.accessories.slice(0, Math.ceil((exCount - 3) / 3));
-      const rAcc = rDay.accessories.slice(0, Math.ceil((exCount - 3) / 3));
-      const lAcc = lDay.accessories.slice(0, Math.ceil((exCount - 3) / 3));
-      const allAccessories: Exercise[] = [];
+      // ── Weekly accessory rotation ──
+      // A full-body day spends 3 of its slots on the push/pull/legs anchors,
+      // so at a 55-minute session (exCount 5) only TWO accessory slots remain.
+      //
+      // The old code sliced one accessory off each of the three sub-pools and
+      // dealt them round-robin starting at push. With two slots that took
+      // push and pull and never reached legs — and because each sub-pool's
+      // accessories come back in muscle-priority order, the one it did take
+      // was always the FIRST muscle in that list. Chest and Lats, every
+      // single day. Triceps sat 3rd in the push list, Biceps 3rd in pull,
+      // Gastrocnemius 4th in legs, so arms and calves were structurally
+      // unreachable — not unlucky, impossible. That is exactly the reported
+      // "no accessory movements like arms or calves" on a full-body program.
+      //
+      // Instead of dealing per-pool per-day, walk one rotation across the
+      // whole week. Each day takes the next `maxAcc` targets, so over a
+      // 4-day week the arms and calves slots actually come up.
       const maxAcc = exCount - 3;
-      for (let i = 0; i < maxAcc; i++) {
-        const pool = [pAcc, rAcc, lAcc];
-        const src = pool[i % 3];
-        const ex = src.shift();
-        if (ex) allAccessories.push(toEx(ex, false));
+      const allAccessories: Exercise[] = [];
+      const anchorIds = new Set<string | number | undefined>(
+        [pDay.anchor?.id, rDay.anchor?.id, lDay.anchor?.id].filter((id) => id != null),
+      );
+      const accessoryPool = [...pushPool, ...pullPool, ...legsPool].filter(
+        (e) => !e.anchor && !anchorIds.has(e.id),
+      );
+      const usedAcc = new Set<string | number | undefined>(anchorIds);
+
+      for (let k = 0; k < maxAcc; k++) {
+        const target =
+          ACCESSORY_ROTATION[((dayNum - 1) * maxAcc + k) % ACCESSORY_ROTATION.length];
+        const free = accessoryPool.filter((e) => !usedAcc.has(e.id));
+        // Same primary-muscle preference buildDay uses: a curl for the
+        // Biceps slot, not a row that lists Biceps as secondary.
+        const primary = free.filter((e) => e.muscle === target);
+        const secondary = free.filter((e) =>
+          e.muscles.some((m) => m === target || m.includes(target)),
+        );
+        const pick =
+          shuffle(primary)[0] || shuffle(secondary)[0] || shuffle(free)[0];
+        if (pick) {
+          allAccessories.push(toEx(pick, false));
+          usedAcc.add(pick.id);
+        }
       }
 
       const exercises = [...pushEx, ...pullEx, ...legsEx, ...allAccessories];
