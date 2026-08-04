@@ -11,9 +11,9 @@
  * being handed weight-based progression they can never satisfy: hit your
  * reps on a plank and the app would try to add 5 lbs to it.
  *
- * The five deliberate exceptions carry EXTERNAL load. A weighted sit-up
+ * The three deliberate exceptions carry EXTERNAL load. A weighted sit-up
  * exists precisely so you can add a plate, and its progression should be
- * weight. Their `equipment: 'bodyweight'` is a separate mistag.
+ * weight.
  */
 import { describe, it, expect } from 'vitest';
 import { EXERCISE_DB } from '../../data/exercises';
@@ -21,10 +21,20 @@ import { EXERCISE_DB } from '../../data/exercises';
 interface Entry { id: string; equipment?: string; bw?: boolean; anchor?: boolean; name: string }
 const DB = EXERCISE_DB as unknown as Entry[];
 
-/** Externally loaded despite equipment:'bodyweight'. */
+/**
+ * Bodyweight movements you ADD load to. The "weighted" variants exist
+ * precisely so you can hold a plate, so more load means harder and weight
+ * progression is correct — flagging them would switch them to rep-bumping
+ * and stop counting the plate entirely.
+ *
+ * svend_press and plate_front_raise used to be here too. They are not
+ * bodyweight movements at all — both require a plate — so they moved to
+ * equipment:'barbell', matching the landmine exercises which are also
+ * barbell-plus-plates. That also stops a minimal- or home-equipment lifter
+ * from being programmed a movement needing gear they don't own.
+ */
 const EXTERNALLY_LOADED = [
   'weighted_crunch', 'weighted_sit_up', 'weighted_hanging_leg_raise',
-  'svend_press', 'plate_front_raise',
 ];
 
 describe('bodyweight flag', () => {
@@ -70,6 +80,23 @@ describe('bodyweight flag', () => {
       .filter((e) => e.anchor && e.equipment === 'bodyweight' && !e.bw)
       .map((e) => e.id);
     expect(unloadable).toEqual([]);
+  });
+
+  it('keeps plate movements out of the bodyweight pool', () => {
+    // equipment drives generateProgram's pool filter, so 'bodyweight' here
+    // meant a minimal-equipment lifter could be handed a plate exercise.
+    for (const id of ['svend_press', 'plate_front_raise']) {
+      const e = DB.find((x) => x.id === id);
+      expect(e!.equipment, `${id} needs a plate, not bodyweight`).toBe('barbell');
+    }
+  });
+
+  it('uses only known equipment values', () => {
+    // The pool filter matches against a closed set; an unrecognised value
+    // silently removes the exercise from every program.
+    const KNOWN = ['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight', 'band', 'kettlebell'];
+    const unknown = DB.filter((e) => !KNOWN.includes(e.equipment || '')).map((e) => e.id);
+    expect(unknown).toEqual([]);
   });
 
   it('did not disturb the rest of the library', () => {
