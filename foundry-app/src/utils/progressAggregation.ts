@@ -626,19 +626,17 @@ export interface LifetimeSummary {
 export function summarizeLifetime(archive: ArchiveEntry[]): LifetimeSummary {
   let sessions = 0;
   let sets = 0;
+  let cycles = 0;
   let since: string | null = null;
 
   for (const entry of archive || []) {
     const rec = entry as unknown as ArchiveRecordShape;
     if (!rec) continue;
 
-    // Prefer the recorded start date; fall back to when it was archived so a
-    // cycle without one still anchors the "since" line.
-    const start = (rec.profile?.startDate as string | undefined) || rec.archivedAt;
-    if (start && (!since || start < since)) since = start;
-
+    let cycleSessions = 0;
+    let cycleSets = 0;
     for (const session of rec.sessions || []) {
-      if (session?.done) sessions++;
+      if (session?.done) cycleSessions++;
       if (!session?.data) continue;
       for (const slice of Object.values(session.data as DayData)) {
         if (!slice) continue;
@@ -646,13 +644,30 @@ export function summarizeLifetime(archive: ArchiveEntry[]): LifetimeSummary {
           if (!set || set.warmup) continue;
           const w = setWeight(set);
           const r = setReps(set);
-          if ((isFinite(w) && w > 0) || (isFinite(r) && r > 0)) sets++;
+          if ((isFinite(w) && w > 0) || (isFinite(r) && r > 0)) cycleSets++;
         }
       }
     }
+
+    // A cycle only counts if it was actually trained. Abandoned shells are
+    // real in the data — prod has three mesocycles with zero sessions, from
+    // builds started and dropped — and the remote rebuild already refuses
+    // them. But a locally-written archive entry for one survives the merge,
+    // and counting it would inflate the headline number this whole summary
+    // exists to state honestly.
+    if (cycleSessions === 0 && cycleSets === 0) continue;
+
+    cycles++;
+    sessions += cycleSessions;
+    sets += cycleSets;
+
+    // Prefer the recorded start date; fall back to when it was archived so a
+    // cycle without one still anchors the "since" line.
+    const start = (rec.profile?.startDate as string | undefined) || rec.archivedAt;
+    if (start && (!since || start < since)) since = start;
   }
 
-  return { cycles: (archive || []).length, sessions, sets, since };
+  return { cycles, sessions, sets, since };
 }
 
 export function aggregatePreviousMesos(
