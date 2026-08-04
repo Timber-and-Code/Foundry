@@ -4008,3 +4008,131 @@ export async function updateFriendShareLevel(
     return false;
   }
 }
+
+// ─── ACCOUNT DELETION ───────────────────────────────────────────────────────
+//
+// App Store Review Guideline 5.1.1(v): an app that supports account creation
+// must let the user initiate account deletion from inside the app. Signing
+// out is not deletion, and a "email us to delete" link does not satisfy it.
+//
+// Two halves, because they need different privileges:
+//
+//   1. The user's ROWS. Deletable from the client — every table's RLS policy
+//      is `ALL USING (user_id = auth.uid())`, so the user already has the
+//      right to remove their own data. Done here.
+//   2. The auth.users ROW. Requires the service_role key, which must never
+//      ship in a client bundle. Done by the `delete-account` Edge Function
+//      (supabase/functions/delete-account/), which re-derives the caller's id
+//      from their JWT rather than trusting a body parameter.
+//
+// Row deletion runs first and on its own. If step 2 is unavailable the user's
+// DATA is still gone — the strictly more important half — and the orphaned
+// auth row holds nothing but an email. Reversing that order could leave a
+// deleted login with live workout rows nobody can reach.
+
+/** Ordered so a child is always removed before the parent it references. */
+const ACCOUNT_TABLES_IN_FK_ORDER = [
+  'session_prs',            // → workout_sessions
+  'workout_sets',           // → workout_sessions
+  'workout_sessions',       // → mesocycles, training_days
+  'training_day_exercises', // → training_days
+  'training_days',          // → mesocycles
+  'mesocycle_members',      // → mesocycles
+  'mesocycles',
+  // Leaf tables — no outbound FKs, order among themselves is irrelevant.
+  'body_weight_log',
+  'cardio_sessions',
+  'readiness_checkins',
+  'notes',
+  'user_cardio_presets',
+  'friend_invites',
+] as const;
+
+export interface AccountDeletionResult {
+  rowsDeleted: boolean;
+  authUserDeleted: boolean;
+  /** Table or step names that failed, for the UI to surface honestly. */
+  failures: string[];
+}
+
+/**
+ * Erase every row this user owns, then their auth identity.
+ *
+ * Never throws: a half-finished deletion the user is told about beats an
+ * exception that leaves them believing nothing happened. Inspect the returned
+ * `failures` and tell the truth in the UI.
+ */
+export async function deleteAccountRemote(): Promise<AccountDeletionResult> {
+  const failures: string[] = [];
+  let authUserDeleted = false;
+
+  const user = await getUser();
+  if (!user) return { rowsDeleted: false, authUserDeleted: false, failures: ['not signed in'] };
+
+  syncStart();
+  try {
+    // user_profiles.active_meso_id FKs to mesocycles, so the pointer has to
+    // clear before the mesocycle rows go, or the delete trips the constraint.
+    const { error: detachErr } = await supabase
+      .from('user_profiles')
+      .update({ active_meso_id: null })
+      .eq('id', user.id);
+    if (detachErr) failures.push('user_profiles.active_meso_id');
+
+    for (const table of ACCOUNT_TABLES_IN_FK_ORDER) {
+      const { error } = await supabase.from(table).delete().eq('user_id', user.id);
+      if (error) failures.push(table);
+    }
+
+    // Friendships are two-sided: rows where this user is the FRIEND are owned
+    // by the other party, so a `user_id` sweep leaves them pointing at a
+    // deleted account. RLS permitting, clear both directions.
+    const { error: friendOwnErr } = await supabase
+      .from('user_friendships')
+      .delete()
+      .eq('user_id', user.id);
+    if (friendOwnErr) failures.push('user_friendships (owned)');
+    const { error: friendRefErr } = await supabase
+      .from('user_friendships')
+      .delete()
+      .eq('friend_id', user.id);
+    if (friendRefErr) failures.push('user_friendships (referencing)');
+
+    // Deleted last: while it exists, a partial failure above is still
+    // recoverable by signing in again and retrying.
+    const { error: profileErr } = await supabase
+      .from('user_profiles')
+      .delete()
+      .eq('id', user.id);
+    if (profileErr) failures.push('user_profiles');
+
+    // Snapshot BEFORE the auth step. `rowsDeleted` answers exactly one
+    // question — did the user's data come off the server — and the auth
+    // function's availability must not change that answer. Reading
+    // failures.length at the end instead would report "nothing was deleted"
+    // in the one case where everything was.
+    const rowsDeleted = failures.length === 0;
+
+    // Step 2 — the auth identity. Absence of the function is expected in any
+    // environment where it has not been deployed; the rows are already gone.
+    try {
+      const { error: fnError } = await supabase.functions.invoke('delete-account');
+      if (fnError) {
+        failures.push('auth identity (delete-account function)');
+      } else {
+        authUserDeleted = true;
+      }
+    } catch (e) {
+      failures.push('auth identity (delete-account function)');
+      console.warn('[Foundry Sync] delete-account function unavailable', e);
+    }
+
+    return { rowsDeleted, authUserDeleted, failures };
+  } catch (e) {
+    reportSyncFailure('account_deletion', e);
+    failures.push('unexpected error');
+    return { rowsDeleted: false, authUserDeleted, failures };
+  } finally {
+    syncEnd();
+  }
+}

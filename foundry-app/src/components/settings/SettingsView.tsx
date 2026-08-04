@@ -3,7 +3,8 @@ import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../contexts/AuthContext';
 import { store, resolveAccountTier, resetMeso } from '../../utils/store';
 import { emit } from '../../utils/events';
-import { archiveMesocycleRemote } from '../../utils/sync';
+import { archiveMesocycleRemote, deleteAccountRemote } from '../../utils/sync';
+import { archiveCurrentMeso } from '../../utils/archive';
 import { getMeso } from '../../data/constants';
 import { formatSplitName } from '../../utils/splitLabel';
 import type { Profile, WorkoutSet } from '../../types';
@@ -33,6 +34,11 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const [feedbackMsg, setFeedbackMsg] = useState('');
   const [feedbackStatus, setFeedbackStatus] = useState('');
   const [showAbout, setShowAbout] = useState(false);
+  // Account deletion is two-step on purpose: reveal the panel, then type
+  // DELETE. See handleDeleteAccount.
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // ── Meso context ──────────────────────────────────────────────────────────
   const meso = (() => {
@@ -90,7 +96,24 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   })();
 
   // ── Reset helpers ─────────────────────────────────────────────────────────
-  const deleteCurrentMeso = async () => {
+  // Ending a cycle is a forward move ("Start New Meso"), not a delete. The
+  // finished cycle is KEPT: archiveCurrentMeso writes it to foundry:archive,
+  // which is what feeds Previous Meso Cycles, Lifts by Muscle, and the
+  // "Last meso: N lbs" note on week 1 of the next cycle.
+  const startNewMeso = async () => {
+    // MUST run before anything wipes localStorage — archiveCurrentMeso reads
+    // the foundry:day{d}:week{w} keys that resetMeso() is about to clear.
+    //
+    // This call used to be missing here while useMesoState.handleReset had
+    // it, so whether your finished cycle survived depended on which button
+    // ended it. Cycles ended from this drawer left no archive entry at all,
+    // and the next meso opened with no history for lifts trained for months.
+    try {
+      archiveCurrentMeso(saved);
+    } catch (e) {
+      console.warn('[Foundry]', 'archiveCurrentMeso failed on new-meso start', e);
+    }
+
     // Mark the meso as abandoned in Supabase and clear active_meso_id
     // BEFORE wiping localStorage, so the remote pointer is gone first.
     await archiveMesocycleRemote();
@@ -122,10 +145,20 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     window.location.reload();
   };
 
-  const handleDeleteCurrentMeso = () => {
-    if (!window.confirm('Delete your current meso? Your profile, workout history from prior cycles, and past cycle carryover will be preserved. You\'ll be taken to the meso builder to rebuild.')) return;
-    if (!window.confirm('Are you sure? All progress in your current meso — sets, completions, notes — will be permanently deleted.')) return;
-    deleteCurrentMeso();
+  // One confirm, not two. The old copy led with "Delete your current meso?"
+  // and then asked whether you were sure you wanted it "permanently deleted"
+  // — which described the wrong thing twice: the cycle is archived, and its
+  // logged sets stay in Supabase either way. Stacked scary prompts for a
+  // routine action train people to click through the ones that matter.
+  const handleStartNewMeso = () => {
+    const done = stats.sessions;
+    if (
+      !window.confirm(
+        `Start a new mesocycle?\n\nThis cycle${done ? ` — ${done} session${done === 1 ? '' : 's'} logged —` : ''} moves to your history, where it keeps feeding "last meso" weights and Lifts by Muscle. Nothing you logged is deleted.\n\nYou'll go to the builder to set up the new cycle.`,
+      )
+    )
+      return;
+    startNewMeso();
   };
 
   const handleDeleteAllFoundryData = () => {
@@ -133,6 +166,48 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     if (!window.confirm('Are you REALLY sure? You\'ll also be signed out. Your Supabase account and its data are preserved — signing in again will restore everything.')) return;
     if (!window.confirm('Last chance. This cannot be undone without signing back in. Continue?')) return;
     deleteAllFoundryData();
+  };
+
+  // Account deletion — App Store Guideline 5.1.1(v). Distinct from "Delete
+  // All Foundry Data", which is device-local and reversible by signing back
+  // in. This erases the server copy and the login itself.
+  //
+  // Gated on typing DELETE rather than a chain of window.confirm()s: three
+  // stacked confirms are three reflexive OKs, and this is the one action in
+  // the app with nothing behind it.
+  const handleDeleteAccount = async () => {
+    if (deletingAccount) return;
+    if (confirmText.trim().toUpperCase() !== 'DELETE') return;
+
+    setDeletingAccount(true);
+    try {
+      const result = await deleteAccountRemote();
+
+      if (result.failures.length > 0 && !result.rowsDeleted) {
+        // Say what actually happened. Wiping the device now would hide the
+        // fact that server data survived and leave no way back to retry.
+        window.alert(
+          `Your account was not fully deleted.\n\nCouldn't remove: ${result.failures.join(', ')}.\n\nNothing has been erased from this device, so you can try again. If it keeps failing, send feedback from this drawer.`,
+        );
+        setDeletingAccount(false);
+        return;
+      }
+
+      if (!result.authUserDeleted) {
+        // Rows are gone but the login remains — the deploy-state of the edge
+        // function is not something the user should have to reason about, so
+        // tell them plainly what is and isn't done.
+        window.alert(
+          'Your workout data has been deleted from the server.\n\nYour login could not be removed automatically — send feedback from this drawer and it will be finished manually. No training data remains.',
+        );
+      }
+
+      await deleteAllFoundryData();
+    } catch (e) {
+      console.warn('[Foundry]', 'account deletion failed', e);
+      window.alert('Account deletion failed. Nothing was erased from this device — please try again.');
+      setDeletingAccount(false);
+    }
   };
 
   const handleExport = () => {
@@ -440,6 +515,41 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             ))}
           </div>
 
+          {/* Start a new cycle. Deliberately NOT inside the collapsed DATA
+              section next to the destructive actions — finishing a block and
+              starting the next one is the most routine thing a lifter does
+              here, and burying it under "DATA ▸ Delete Current Meso" framed a
+              normal training milestone as data loss. */}
+          <button
+            onClick={handleStartNewMeso}
+            style={{
+              width: '100%',
+              marginTop: 4,
+              padding: '12px 14px',
+              borderRadius: tokens.radius.lg,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-inset)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Start new mesocycle
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Keeps this cycle in your history
+              </span>
+            </span>
+            <span aria-hidden="true" style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 700 }}>
+              →
+            </span>
+          </button>
+
           {/* Account */}
           {divider}
           {sectionLabel('ACCOUNT')}
@@ -641,20 +751,101 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Export Backup</span>
                 <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500 }}>Download</span>
               </button>
-              <button
-                onClick={handleDeleteCurrentMeso}
-                style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
-              >
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Delete Current Meso</span>
-                <span style={{ fontSize: 13, color: 'var(--warning, #ff9800)', fontWeight: 500 }}>Delete</span>
-              </button>
+              {/* Device-local wipe. Named for what it actually does — the
+                  server copy survives and signing in restores it. */}
               <button
                 onClick={handleDeleteAllFoundryData}
                 style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
               >
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Delete All Foundry Data</span>
-                <span style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 500 }}>Delete</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Sign out &amp; clear this device</span>
+                <span style={{ fontSize: 13, color: 'var(--warning, #ff9800)', fontWeight: 500 }}>Clear</span>
               </button>
+
+              {/* Account deletion — required by App Store Guideline 5.1.1(v).
+                  Only meaningful with an account; anonymous users have no
+                  server-side anything to erase. */}
+              {user && (
+                <>
+                  <button
+                    onClick={() => { setShowDeleteAccount((v) => !v); setConfirmText(''); }}
+                    aria-expanded={showDeleteAccount}
+                    style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
+                  >
+                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Delete account</span>
+                    <span style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 500 }}>
+                      {showDeleteAccount ? 'Cancel' : 'Permanent'}
+                    </span>
+                  </button>
+
+                  {showDeleteAccount && (
+                    <div
+                      style={{
+                        border: '1px solid var(--danger)',
+                        borderRadius: tokens.radius.lg,
+                        background: 'rgba(220,38,38,0.06)',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10,
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                        This erases your account and every workout you have logged, on
+                        all devices. <strong>It cannot be undone.</strong>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                        Want a copy first? Close this and tap <strong>Export Backup</strong> above.
+                      </div>
+                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        Type DELETE to confirm
+                        <input
+                          value={confirmText}
+                          onChange={(e) => setConfirmText(e.target.value)}
+                          autoCapitalize="characters"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          aria-label="Type DELETE to confirm account deletion"
+                          style={{
+                            width: '100%',
+                            marginTop: 6,
+                            padding: '10px 12px',
+                            fontSize: 16, // <16 makes iOS Safari zoom the drawer on focus
+                            borderRadius: tokens.radius.md,
+                            border: '1px solid var(--border)',
+                            background: 'var(--bg-card)',
+                            color: 'var(--text-primary)',
+                          }}
+                        />
+                      </label>
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={confirmText.trim().toUpperCase() !== 'DELETE' || deletingAccount}
+                        style={{
+                          padding: '12px 16px',
+                          borderRadius: tokens.radius.lg,
+                          border: 'none',
+                          background:
+                            confirmText.trim().toUpperCase() === 'DELETE' && !deletingAccount
+                              ? 'var(--danger)'
+                              : 'var(--bg-inset)',
+                          color:
+                            confirmText.trim().toUpperCase() === 'DELETE' && !deletingAccount
+                              ? '#fff'
+                              : 'var(--text-dim)',
+                          fontSize: 14,
+                          fontWeight: 700,
+                          cursor:
+                            confirmText.trim().toUpperCase() === 'DELETE' && !deletingAccount
+                              ? 'pointer'
+                              : 'not-allowed',
+                        }}
+                      >
+                        {deletingAccount ? 'Deleting…' : 'Delete my account permanently'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
