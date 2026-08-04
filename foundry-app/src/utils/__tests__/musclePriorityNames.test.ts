@@ -53,3 +53,39 @@ describe('PRIMARY_MUSCLES', () => {
     }
   });
 });
+
+/**
+ * Anchors must be loadable.
+ *
+ * The anchor slot exists so there is one lift per day carrying week-over-week
+ * progression, and every progression reader in the app keys on weight —
+ * getUpcomingWeight, the "last week" reference, PR detection,
+ * findLastMesoWeight, the cross-meso note. An anchor with no load source
+ * feeds all of them nothing.
+ *
+ * `box_jump` was exactly that: a plyometric, pattern 'squat', anchor true,
+ * bodyweight with no `bw` flag. It competed with back squat for the leg
+ * anchor slot on every leg and full-body day and could never progress.
+ */
+describe('anchor pool', () => {
+  it('has no anchor that cannot be loaded', () => {
+    const unloadable = (EXERCISE_DB as { id: string; anchor?: boolean; equipment?: string; bw?: boolean }[])
+      .filter((e) => e.anchor && e.equipment === 'bodyweight' && !e.bw)
+      .map((e) => e.id);
+    // Bodyweight anchors are fine when flagged bw:true — the app then treats
+    // bodyweight as the load and progresses with added plates.
+    expect(unloadable).toEqual([]);
+  });
+
+  it('still offers at least two anchor options per movement pattern', () => {
+    // Demoting an anchor must not strand a pattern with a single option,
+    // which would defeat both the no-repeat rule and continuity.
+    const byPattern: Record<string, number> = {};
+    for (const e of EXERCISE_DB as { anchor?: boolean; pattern?: string }[]) {
+      if (e.anchor && e.pattern) byPattern[e.pattern] = (byPattern[e.pattern] || 0) + 1;
+    }
+    for (const [pattern, count] of Object.entries(byPattern)) {
+      expect(count, `pattern "${pattern}" has too few anchors`).toBeGreaterThan(1);
+    }
+  });
+});

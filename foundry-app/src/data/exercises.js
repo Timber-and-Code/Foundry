@@ -2447,7 +2447,13 @@ export const EXERCISE_DB = [
     equipment: 'bodyweight',
     pattern: 'squat',
     fatigue: 'medium',
-    anchor: true,
+    // NOT an anchor: a box jump carries no external load, so there is
+    // nothing for week-over-week progression to act on. It was the only
+    // anchor in the DB without a load source (every other bodyweight
+    // anchor sets bw:true, so bodyweight + added plates progresses), and
+    // it competed with back squat for the leg anchor slot on every leg
+    // and full-body day. Still available as an accessory.
+    anchor: false,
     diff: 2,
     sets: 4,
     reps: '5',
