@@ -409,4 +409,94 @@ describe('ExerciseCard', () => {
     expect(screen.queryByText(/Pair with/i)).toBeNull();
     expect(screen.queryByText(/Pair as superset/i)).toBeNull();
   });
+
+  /* ---------------------------------------------------------------- */
+  /*  Cross-meso history note                                          */
+  /* ---------------------------------------------------------------- */
+  //
+  // This used to be gated on weekIdx === 0, which made it a one-week
+  // feature. Past week 1, an exercise with no same-meso history showed
+  // nothing at all — which is the COMMON case: swap a lift in at week 3,
+  // add one mid-cycle, or skip the day last week and there is no prior
+  // slice to read, even with months of numbers in the archive.
+
+  const archiveWith = (exId: string, weight: number, reps: number) => [
+    {
+      id: 'meso-1',
+      archivedAt: '2026-05-20T00:00:00Z',
+      sessions: [
+        { d: 0, w: 2, data: { 0: { 1: { _exId: exId, weight, reps } } } },
+      ],
+    },
+  ];
+
+  it('shows archived history on a mid-meso week, not just week 1', () => {
+    mocks.loadArchive.mockReturnValue(archiveWith('bench_id', 185, 8));
+    render(
+      <ExerciseCard
+        {...defaultProps({
+          weekIdx: 3,
+          exercise: makeExercise({ id: 'bench_id' }),
+        })}
+      />,
+    );
+    expect(screen.getByText(/Last meso: 185 lbs × 8/)).toBeInTheDocument();
+  });
+
+  it('still shows it on week 1', () => {
+    mocks.loadArchive.mockReturnValue(archiveWith('bench_id', 185, 8));
+    render(
+      <ExerciseCard
+        {...defaultProps({ weekIdx: 0, exercise: makeExercise({ id: 'bench_id' }) })}
+      />,
+    );
+    expect(screen.getByText(/Last meso: 185 lbs × 8/)).toBeInTheDocument();
+  });
+
+  it('names how many mesos back the reference is', () => {
+    // "Last meso" is a lie once it is three cycles old, and staleness
+    // changes how much the number should be trusted as a target.
+    mocks.loadArchive.mockReturnValue([
+      { id: 'm3', archivedAt: '2026-07-01T00:00:00Z', sessions: [] },
+      { id: 'm2', archivedAt: '2026-06-01T00:00:00Z', sessions: [] },
+      {
+        id: 'm1',
+        archivedAt: '2026-05-01T00:00:00Z',
+        sessions: [{ d: 0, w: 1, data: { 0: { 1: { _exId: 'bench_id', weight: 155, reps: 10 } } } }],
+      },
+    ]);
+    render(
+      <ExerciseCard
+        {...defaultProps({ weekIdx: 2, exercise: makeExercise({ id: 'bench_id' }) })}
+      />,
+    );
+    expect(screen.getByText(/3 mesos ago: 155 lbs × 10/)).toBeInTheDocument();
+  });
+
+  it('yields to same-meso history rather than competing with it', () => {
+    // Two reference numbers on one card makes last week — the one that
+    // actually matters — compete with a months-old figure.
+    localStorage.setItem(
+      'foundry:day0:week2',
+      JSON.stringify({ 0: { 1: { _exId: 'bench_id', weight: 200, reps: 6 } } }),
+    );
+    mocks.loadArchive.mockReturnValue(archiveWith('bench_id', 185, 8));
+    render(
+      <ExerciseCard
+        {...defaultProps({ weekIdx: 3, exercise: makeExercise({ id: 'bench_id' }) })}
+      />,
+    );
+    expect(screen.queryByText(/Last meso:/)).toBeNull();
+  });
+
+  it('shows nothing when the archive has no match for this exercise', () => {
+    mocks.loadArchive.mockReturnValue(archiveWith('some_other_lift', 185, 8));
+    render(
+      <ExerciseCard
+        {...defaultProps({ weekIdx: 3, exercise: makeExercise({ id: 'bench_id' }) })}
+      />,
+    );
+    expect(screen.queryByText(/Last meso:/)).toBeNull();
+    expect(screen.queryByText(/mesos ago:/)).toBeNull();
+  });
 });

@@ -173,25 +173,33 @@ function ExerciseCard({
     }
   }, [dayIdx, weekIdx]);
 
-  // Cross-meso context note — week 0 only
-  // The weight last used for this exercise in a previous meso (any week —
-  // an unfinished meso answers with whatever week it stopped at). Matched
-  // by `_exId` via findLastMesoWeight; the old slot-position match here
-  // attributed other exercises' sets after reorders and returned nothing
-  // for mesos abandoned before the last working week.
+  // Cross-meso context — EVERY week, not just week 1.
+  //
+  // This used to be gated on `weekIdx === 0`, which made it a one-week
+  // feature: the moment you were past the first week, an exercise with no
+  // same-meso history showed nothing at all. That is the common case, not the
+  // edge case — swap a lift in at week 3, add one mid-cycle, or skip the day
+  // last week, and there is no prior-week slice to read even though you may
+  // have months of numbers for it.
+  //
+  // Matched by `_exId` via findLastMesoWeight; the old slot-position match
+  // attributed other exercises' sets after reorders and returned nothing for
+  // mesos abandoned before their last working week.
   const crossMesoNote = useMemo(() => {
-    if (weekIdx !== 0) return null;
     try {
       const hit = findLastMesoWeight(loadArchive(), exercise.id);
       if (!hit) return null;
       const w = Number.isInteger(hit.weight)
         ? String(hit.weight)
         : hit.weight.toFixed(1).replace(/\.0$/, '');
-      return `Last meso: ${w} lbs × ${hit.reps}`;
+      // "Last meso" is a lie once it's three cycles back, and how stale the
+      // reference is changes how much you should trust it as a target.
+      const when = hit.mesosAgo <= 1 ? 'Last meso' : `${hit.mesosAgo} mesos ago`;
+      return `${when}: ${w} lbs × ${hit.reps}`;
     } catch { /* archive read fallback */
       return null;
     }
-  }, [weekIdx, exercise.id]);
+  }, [exercise.id]);
 
   // Compact "last week" header stat — replaces the phase word ("Establish",
   // "+5 lbs", etc) in the card's top-right with the previous week's best
@@ -224,15 +232,26 @@ function ExerciseCard({
       }
     });
     if (setsCount > 0 && bestW > 0 && bestR > 0) return fmt(setsCount, bestW, bestR);
-    // Week 0 fallback — pull last meso's best for this slot if available.
-    // Sets count isn't meaningfully recoverable from the archive note, so
-    // we report 1 — better to show the reference than to drop it entirely.
+    // Nothing in the same meso — fall back to the archive. Sets count isn't
+    // meaningfully recoverable from the note, so report 1: showing the
+    // reference beats dropping it.
     if (crossMesoNote) {
       const m = crossMesoNote.match(/(\d+(?:\.\d+)?)\s*lbs\s*×\s*(\d+)/i);
       if (m) return fmt(1, parseFloat(m[1]), parseInt(m[2], 10));
     }
     return '';
-  }, [prevWeekRaw, exIdx, crossMesoNote]);
+  }, [prevWeekRaw, exIdx, exercise.id, crossMesoNote]);
+
+  // The note is a *fallback*, so it only earns screen space when there is
+  // nothing more recent. Rendering it alongside same-meso data would put two
+  // competing reference numbers on the card and make last week's — the one
+  // that actually matters — compete with a months-old figure.
+  const hasSameMesoHistory = useMemo(() => {
+    const prev = findPrevSlotForExercise(prevWeekRaw, exercise.id, exIdx);
+    return Object.values(prev as Record<string, SetData>).some(
+      (sd) => sd && !sd.warmup && parseFloat(String(sd.weight ?? 0)) > 0,
+    );
+  }, [prevWeekRaw, exercise.id, exIdx]);
 
   // History modal — opened by tapping the LAST WK stat in the card header.
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -980,8 +999,8 @@ function ExerciseCard({
             );
           })()}
 
-          {/* Cross-meso note */}
-          {crossMesoNote && (
+          {/* Cross-meso note — only when nothing more recent exists */}
+          {crossMesoNote && !hasSameMesoHistory && (
             <div
               style={{
                 fontSize: 12,
