@@ -238,11 +238,27 @@ function supabaseRowToAppProfileFields(row: SupabaseProfileRow): Record<string, 
 
 // ─── MESOCYCLE MAPPERS (chunk 2) ────────────────────────────────────────────
 
-function generateMesoName(weeksCount: number, splitType: SupabaseSplitType, startedAt: string | null): string {
-  const date = startedAt ? new Date(startedAt) : new Date();
-  const month = date.toLocaleString('en-US', { month: 'long' });
-  const year = date.getFullYear();
-  return `${weeksCount} Week ${splitType} — ${month} ${year}`;
+/**
+ * Human-readable mesocycle name.
+ *
+ * Includes the start DAY, not just the month. Two cycles begun in the same
+ * month produced byte-identical names — prod has two distinct mesos both
+ * called "6 Week FB — July 2026", one holding 231 sets and one empty. That
+ * is confusing in Previous Meso Cycles, and it is actively misleading
+ * anywhere the name stands in for the cycle: it is how I misdiagnosed a pair
+ * of ordinary rows as duplicate training_day_exercises.
+ *
+ * The date is parsed as LOCAL midnight for date-only strings. `new Date()`
+ * on a bare 'YYYY-MM-DD' parses as UTC, which renders the previous day for
+ * anyone west of Greenwich — a cycle started Aug 3 would be named Aug 2.
+ */
+export function generateMesoName(weeksCount: number, splitType: SupabaseSplitType, startedAt: string | null): string {
+  const date = startedAt
+    ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(startedAt) ? `${startedAt}T00:00:00` : startedAt)
+    : new Date();
+  const when = Number.isNaN(date.getTime()) ? new Date() : date;
+  const month = when.toLocaleString('en-US', { month: 'long' });
+  return `${weeksCount} Week ${splitType} — ${month} ${when.getDate()}, ${when.getFullYear()}`;
 }
 
 function appProfileToMesocycleRow(
