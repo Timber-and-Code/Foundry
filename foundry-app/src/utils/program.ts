@@ -24,6 +24,31 @@ interface DayMuscleConfigEntry {
  * Supports PPL, Upper/Lower, Full Body, and Push/Pull splits.
  * Returns array of day objects with exercises, sets, reps, and progressions.
  */
+/**
+ * The exercise DB's `muscle` field — its complete, closed set of values.
+ *
+ * Muscle-priority lists MUST draw from this. `buildDay` prefers an exercise
+ * whose PRIMARY muscle equals the target (a curl for the Biceps slot, not a
+ * row that lists Biceps as secondary), and that preference silently does
+ * nothing for a name that is never a primary value.
+ *
+ * Four such names were in use — 'Gastrocnemius', 'Soleus', 'Upper Traps' and
+ * 'Teres Major'. They exist only inside `muscles[]`, so those slots always
+ * fell through to the secondary match and lost every tie to a compound that
+ * happened to list the muscle in passing. Calf exercises are
+ * muscle:'Calves' with muscles:['Gastrocnemius'|'Soleus'], which is exactly
+ * how calves went missing from full-body weeks.
+ *
+ * Typing the priority lists against this makes the next such typo a compile
+ * error instead of a muscle group quietly vanishing from programs.
+ */
+export const PRIMARY_MUSCLES = [
+  'Adductors', 'Back', 'Biceps', 'Calves', 'Chest', 'Core',
+  'Glutes', 'Hamstrings', 'Lats', 'Quads', 'Shoulders', 'Traps', 'Triceps',
+] as const;
+
+export type MusclePriority = (typeof PRIMARY_MUSCLES)[number];
+
 const ALL_EQUIPMENT = ['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight', 'band', 'kettlebell'];
 // Shortcut tokens — onboarding v2 Beat1Essentials + Supabase default column —
 // get expanded to the atomic equipment types generateProgram filters on.
@@ -157,7 +182,7 @@ export function generateProgram(
   function buildDay(
     pool: DbExercise[],
     anchorPriority: string[],
-    musclePriority: string[],
+    musclePriority: readonly MusclePriority[],
     usedAnchorIds: Set<string | number | undefined>
   ): DayBuild {
     const compoundPatterns = ['push', 'pull', 'squat', 'hinge'];
@@ -291,10 +316,18 @@ export function generateProgram(
     );
   }
 
-  function dayMusclePriority(dayIdx: number, defaultPrimary: string[]): string[] {
+  function dayMusclePriority(
+    dayIdx: number,
+    defaultPrimary: readonly MusclePriority[],
+  ): readonly MusclePriority[] {
     const dm = dayMuscleConfig[dayIdx];
     if (!dm || (dm.primary.length === 0 && dm.accessory.length === 0)) return defaultPrimary;
-    return [...dm.primary, ...dm.accessory];
+    // User-configured day muscles are free text from an older surface, so
+    // they can't be typed — keep only names the DB actually uses as primary.
+    const configured = [...dm.primary, ...dm.accessory].filter(
+      (m): m is MusclePriority => (PRIMARY_MUSCLES as readonly string[]).includes(m),
+    );
+    return configured.length > 0 ? configured : defaultPrimary;
   }
 
   // Manual builder short-circuit
@@ -409,14 +442,14 @@ export function generateProgram(
     const r1 = buildDay(
       pullPool,
       ['pull'],
-      dayMusclePriority(1, ['Lats', 'Back', 'Shoulders', 'Biceps', 'Upper Traps']),
+      dayMusclePriority(1, ['Lats', 'Back', 'Shoulders', 'Biceps', 'Traps']),
       usedRA
     );
     if (r1.anchor) usedRA.add(r1.anchor.id);
     const l1 = buildDay(
       legsPool,
       ['squat'],
-      dayMusclePriority(2, ['Hamstrings', 'Quads', 'Glutes', 'Gastrocnemius']),
+      dayMusclePriority(2, ['Hamstrings', 'Quads', 'Glutes', 'Calves']),
       usedLA
     );
     if (l1.anchor) usedLA.add(l1.anchor.id);
@@ -457,10 +490,10 @@ export function generateProgram(
     const r2 = buildDay(
       pullPool,
       ['pull'],
-      ['Lats', 'Back', 'Shoulders', 'Biceps', 'Teres Major'],
+      ['Lats', 'Back', 'Shoulders', 'Biceps', 'Traps'],
       usedRA
     );
-    const l2 = buildDay(legsPool, ['hinge'], ['Quads', 'Glutes', 'Hamstrings', 'Soleus'], usedLA);
+    const l2 = buildDay(legsPool, ['hinge'], ['Quads', 'Glutes', 'Hamstrings', 'Calves'], usedLA);
 
     if (numDays === 5) {
       return [
@@ -591,10 +624,10 @@ export function generateProgram(
     const upperBuilds: DayBuild[] = [];
     for (let i = 0; i < upperCount; i++) {
       const priority = i % 2 === 0 ? ['push'] : ['pull'];
-      const muscles =
+      const muscles: MusclePriority[] =
         i % 2 === 0
           ? ['Chest', 'Lats', 'Shoulders', 'Biceps', 'Triceps']
-          : ['Chest', 'Back', 'Shoulders', 'Biceps', 'Long Head Tri'];
+          : ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'];
       const b = buildDay(upperPool, priority, muscles, usedUA);
       if (b.anchor) usedUA.add(b.anchor.id);
       upperBuilds.push(b);
@@ -602,10 +635,10 @@ export function generateProgram(
     const lowerBuilds: DayBuild[] = [];
     for (let i = 0; i < lowerCount; i++) {
       const priority = i % 2 === 0 ? ['squat'] : ['hinge'];
-      const muscles =
+      const muscles: MusclePriority[] =
         i % 2 === 0
-          ? ['Hamstrings', 'Quads', 'Glutes', 'Gastrocnemius']
-          : ['Quads', 'Glutes', 'Hamstrings', 'Soleus'];
+          ? ['Hamstrings', 'Quads', 'Glutes', 'Calves']
+          : ['Quads', 'Glutes', 'Hamstrings', 'Calves'];
       const b = buildDay(lowerPool, priority, muscles, usedLA);
       if (b.anchor) usedLA.add(b.anchor.id);
       lowerBuilds.push(b);
@@ -669,7 +702,7 @@ export function generateProgram(
     // carry muscle:'Calves' with muscles:['Gastrocnemius'|'Soleus'], so the
     // anatomical name only ever matched via the weaker secondary path — which
     // is part of why calves lost every tie they were in.
-    const ACCESSORY_ROTATION = [
+    const ACCESSORY_ROTATION: MusclePriority[] = [
       'Chest', 'Lats', 'Quads',
       'Triceps', 'Biceps', 'Calves',
       'Shoulders', 'Hamstrings', 'Back', 'Glutes',
@@ -700,7 +733,7 @@ export function generateProgram(
       const lDay = buildDay(
         legsPool,
         legsPriority,
-        ['Quads', 'Hamstrings', 'Glutes', 'Gastrocnemius'],
+        ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
         usedLA
       );
       if (lDay.anchor) usedLA.add(lDay.anchor.id);
@@ -801,17 +834,17 @@ export function generateProgram(
 
     const pushBuilds: DayBuild[] = [];
     for (let i = 0; i < pushCount; i++) {
-      const muscles =
+      const muscles: MusclePriority[] =
         i % 2 === 0
           ? ['Chest', 'Shoulders', 'Quads', 'Triceps']
-          : ['Chest', 'Shoulders', 'Quads', 'Long Head Tri'];
+          : ['Chest', 'Shoulders', 'Quads', 'Triceps'];
       const b = buildDay(pushPlusLegs, ['push'], muscles, usedPA);
       if (b.anchor) usedPA.add(b.anchor.id);
       pushBuilds.push(b);
     }
     const pullBuilds: DayBuild[] = [];
     for (let i = 0; i < pullCount; i++) {
-      const muscles =
+      const muscles: MusclePriority[] =
         i % 2 === 0
           ? ['Lats', 'Back', 'Hamstrings', 'Biceps', 'Shoulders']
           : ['Lats', 'Back', 'Hamstrings', 'Glutes', 'Biceps'];
@@ -908,13 +941,13 @@ export function generateProgram(
       const back = buildDay(
         backPool,
         ['pull'],
-        dayMusclePriority(1, ['Lats', 'Back', 'Biceps', 'Upper Traps']),
+        dayMusclePriority(1, ['Lats', 'Back', 'Biceps', 'Traps']),
         usedBA
       );
       const legs = buildDay(
         legsPool,
         ['squat'],
-        dayMusclePriority(2, ['Hamstrings', 'Quads', 'Glutes', 'Gastrocnemius']),
+        dayMusclePriority(2, ['Hamstrings', 'Quads', 'Glutes', 'Calves']),
         usedLA
       );
       const shoulArms = buildDay(
@@ -988,7 +1021,7 @@ export function generateProgram(
       const back6 = buildDay(
         backPool,
         ['pull'],
-        dayMusclePriority(1, ['Lats', 'Back', 'Biceps', 'Upper Traps']),
+        dayMusclePriority(1, ['Lats', 'Back', 'Biceps', 'Traps']),
         usedBA
       );
       const shoulders6 = buildDay(
@@ -1006,13 +1039,13 @@ export function generateProgram(
       const quads6 = buildDay(
         quadsPool.length > 0 ? quadsPool : legsPool,
         ['squat'],
-        dayMusclePriority(4, ['Quads', 'Glutes', 'Gastrocnemius']),
+        dayMusclePriority(4, ['Quads', 'Glutes', 'Calves']),
         usedQA
       );
       const hams6 = buildDay(
         hamsGlutesPool.length > 0 ? hamsGlutesPool : legsPool,
         ['hinge'],
-        dayMusclePriority(5, ['Hamstrings', 'Glutes', 'Soleus']),
+        dayMusclePriority(5, ['Hamstrings', 'Glutes', 'Calves']),
         usedHA
       );
 
@@ -1044,7 +1077,7 @@ export function generateProgram(
     const back = buildDay(
       backPool,
       ['pull'],
-      dayMusclePriority(2, ['Lats', 'Back', 'Biceps', 'Upper Traps']),
+      dayMusclePriority(2, ['Lats', 'Back', 'Biceps', 'Traps']),
       usedBA
     );
     const chest = buildDay(
@@ -1056,7 +1089,7 @@ export function generateProgram(
     const legs = buildDay(
       legsPool,
       ['squat'],
-      dayMusclePriority(4, ['Hamstrings', 'Quads', 'Glutes', 'Gastrocnemius']),
+      dayMusclePriority(4, ['Hamstrings', 'Quads', 'Glutes', 'Calves']),
       usedLA
     );
 
