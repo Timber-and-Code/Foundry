@@ -8,6 +8,8 @@ import { archiveCurrentMeso } from '../../utils/archive';
 import { getMeso } from '../../data/constants';
 import { formatSplitName } from '../../utils/splitLabel';
 import type { Profile, WorkoutSet } from '../../types';
+// Type-only — erased at build, so regenerateDays stays lazily imported.
+import type { RegenerateOptions } from '../../utils/regenerateDays';
 
 const AccountSection = React.lazy(() => import('../auth/UserMenu'));
 const AboutModal = React.lazy(() => import('./AboutModal'));
@@ -36,6 +38,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const [showAbout, setShowAbout] = useState(false);
   // Account deletion is two-step on purpose: reveal the panel, then type
   // DELETE. See handleDeleteAccount.
+  const [refreshingDays, setRefreshingDays] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -166,6 +169,51 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     if (!window.confirm('Are you REALLY sure? You\'ll also be signed out. Your Supabase account and its data are preserved — signing in again will restore everything.')) return;
     if (!window.confirm('Last chance. This cannot be undone without signing back in. Continue?')) return;
     deleteAllFoundryData();
+  };
+
+  // Rebuild the days you haven't started yet, leaving logged ones alone.
+  //
+  // Always previews first. This is destructive for the days it replaces, and
+  // on a shared mesocycle it changes what your training partner sees too —
+  // so the confirm names the exact days rather than asking in the abstract.
+  const handleRefreshUpcoming = async () => {
+    if (refreshingDays) return;
+    setRefreshingDays(true);
+    try {
+      const { regenerateUntouchedDays } = await import('../../utils/regenerateDays');
+      const { getExerciseDB } = await import('../../data/exerciseDB');
+      const exerciseDB = getExerciseDB() as unknown as NonNullable<
+        RegenerateOptions['exerciseDB']
+      >;
+
+      const preview = regenerateUntouchedDays(saved, { exerciseDB });
+      if (!preview.program || preview.regenerated.length === 0) {
+        window.alert(
+          'Nothing to rebuild — every day in this cycle already has logged work, so none can be changed without losing it.',
+        );
+        return;
+      }
+
+      const names = preview.regenerated
+        .map((i) => preview.program?.[i]?.label || `Day ${i + 1}`)
+        .join(', ');
+      const kept = preview.preserved.length;
+      if (
+        !window.confirm(
+          `Rebuild ${names}?\n\nThese days have no logged sets, so nothing you've done is lost. ${kept} day${kept === 1 ? '' : 's'} you've already trained will be left exactly as ${kept === 1 ? 'it is' : 'they are'}.\n\nThe new days use your training history to keep your main lifts consistent, and fix the missing arm and calf work.`,
+        )
+      )
+        return;
+
+      regenerateUntouchedDays(saved, { exerciseDB, commit: true });
+      emit('foundry:pull-complete'); // re-read the stored program
+      window.alert(`Rebuilt ${names}. Open the Schedule tab to see the new sessions.`);
+    } catch (e) {
+      console.warn('[Foundry]', 'refresh upcoming days failed', e);
+      window.alert('Could not rebuild those days. Nothing was changed.');
+    } finally {
+      setRefreshingDays(false);
+    }
   };
 
   // Account deletion — App Store Guideline 5.1.1(v). Distinct from "Delete
@@ -547,6 +595,39 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             </span>
             <span aria-hidden="true" style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 700 }}>
               →
+            </span>
+          </button>
+
+          {/* Sits directly under "Start new mesocycle" because it is the
+              cheaper version of the same intent — "this program isn't right"
+              — and most people reaching for a reset only need this. */}
+          <button
+            onClick={handleRefreshUpcoming}
+            disabled={refreshingDays}
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              borderRadius: tokens.radius.lg,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-inset)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              cursor: refreshingDays ? 'wait' : 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Rebuild upcoming days
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Only days you haven&rsquo;t trained yet
+              </span>
+            </span>
+            <span aria-hidden="true" style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 700 }}>
+              {refreshingDays ? '…' : '↻'}
             </span>
           </button>
 
