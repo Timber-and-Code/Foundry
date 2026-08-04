@@ -604,6 +604,57 @@ export function collectTrainedExerciseIds(archive: ArchiveEntry[]): Set<string> 
   return out;
 }
 
+export interface LifetimeSummary {
+  cycles: number;
+  sessions: number;
+  sets: number;
+  /** ISO date of the earliest cycle we can date, or null. */
+  since: string | null;
+}
+
+/**
+ * Totals across every archived mesocycle.
+ *
+ * Everything else in the profile drawer is scoped to the current cycle, so
+ * there is nowhere in the app that answers "how much have I actually done".
+ * This is that number.
+ *
+ * Counts only real working sets — non-warmup, carrying weight or reps —
+ * because an inflated lifetime total is worse than no total. The CURRENT
+ * cycle is not included; callers add it, since only they know what it is.
+ */
+export function summarizeLifetime(archive: ArchiveEntry[]): LifetimeSummary {
+  let sessions = 0;
+  let sets = 0;
+  let since: string | null = null;
+
+  for (const entry of archive || []) {
+    const rec = entry as unknown as ArchiveRecordShape;
+    if (!rec) continue;
+
+    // Prefer the recorded start date; fall back to when it was archived so a
+    // cycle without one still anchors the "since" line.
+    const start = (rec.profile?.startDate as string | undefined) || rec.archivedAt;
+    if (start && (!since || start < since)) since = start;
+
+    for (const session of rec.sessions || []) {
+      if (session?.done) sessions++;
+      if (!session?.data) continue;
+      for (const slice of Object.values(session.data as DayData)) {
+        if (!slice) continue;
+        for (const set of Object.values(slice)) {
+          if (!set || set.warmup) continue;
+          const w = setWeight(set);
+          const r = setReps(set);
+          if ((isFinite(w) && w > 0) || (isFinite(r) && r > 0)) sets++;
+        }
+      }
+    }
+  }
+
+  return { cycles: (archive || []).length, sessions, sets, since };
+}
+
 export function aggregatePreviousMesos(
   archive: ArchiveEntry[],
   exerciseDB: ExerciseEntry[],

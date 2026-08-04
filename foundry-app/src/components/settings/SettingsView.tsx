@@ -4,7 +4,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { store, resolveAccountTier, resetMeso } from '../../utils/store';
 import { emit } from '../../utils/events';
 import { archiveMesocycleRemote, deleteAccountRemote } from '../../utils/sync';
-import { archiveCurrentMeso } from '../../utils/archive';
+import { archiveCurrentMeso, loadArchive } from '../../utils/archive';
+import { summarizeLifetime } from '../../utils/progressAggregation';
+import { useSyncState, useSyncDirtyCount } from '../../hooks/useSyncState';
 import { getMeso } from '../../data/constants';
 import { formatSplitName } from '../../utils/splitLabel';
 import type { Profile, WorkoutSet } from '../../types';
@@ -26,8 +28,24 @@ interface ProfileDrawerProps {
   onSave: (data: Partial<Profile>) => void;
 }
 
+// Sync state, expressed as a dot beside your name rather than a labelled row.
+const SYNC_DOT: Record<string, string> = {
+  idle: 'var(--text-dim)',
+  syncing: '#60a5fa',
+  synced: '#4ade80',
+  offline: 'var(--warning, #ff9800)',
+};
+const SYNC_WORD: Record<string, string> = {
+  idle: 'Synced',
+  syncing: 'Syncing…',
+  synced: 'Synced',
+  offline: 'Offline',
+};
+
 export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   const { logout, user } = useAuth();
+  const syncState = useSyncState();
+  const dirtyCount = useSyncDirtyCount();
   const [weight, setWeight] = useState(saved.weight || '');
   const [editingWeight, setEditingWeight] = useState(false);
   const [showData, setShowData] = useState(false);
@@ -96,6 +114,59 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     }
 
     return { sessions, totalSets, streak, totalPossible: days * weeks };
+  })();
+
+  // Tier, reduced to a chip. resolveAccountTier was being called twice in the
+  // render below; once is enough.
+  const tierResult = resolveAccountTier(saved);
+  const tierChip = tierResult.qualifiesForFree
+    ? tierResult.reason === 'student' ? 'FREE · STUDENT'
+      : tierResult.reason === 'under_18' ? 'FREE · UNDER 18'
+      : tierResult.reason === 'senior' ? 'FREE · 62+' : 'FREE'
+    : null;
+
+  // How far into THIS week you are — the half the meso card never showed.
+  // "Week 2 of 6" tells you nothing about whether today is your first
+  // session or your last.
+  const weekProgress = (() => {
+    const days = meso?.days || saved.workoutDays?.length || 0;
+    if (!days) return null;
+    let done = 0;
+    for (let d = 0; d < days; d++) {
+      if (store.get(`foundry:done:d${d}:w${currentWeek}`) === '1') done++;
+    }
+    return { done, days };
+  })();
+
+  // ── Lifetime totals ───────────────────────────────────────────────────────
+  // Archive + the cycle in progress. Sets are counted the same way in both
+  // halves (non-warmup, real numbers) so the total means one thing.
+  const lifetime = (() => {
+    try {
+      const past = summarizeLifetime(loadArchive());
+      const cycles = past.cycles + 1; // the one you're in
+      const sessions = past.sessions + stats.sessions;
+      const setCount = past.sets + stats.totalSets;
+      if (past.cycles === 0) return null;
+
+      const n = (v: number) => v.toLocaleString();
+      const headline =
+        `${cycles} cycle${cycles === 1 ? '' : 's'} · ` +
+        `${n(sessions)} session${sessions === 1 ? '' : 's'} · ` +
+        `${n(setCount)} set${setCount === 1 ? '' : 's'}`;
+
+      let since: string | null = null;
+      if (past.since) {
+        const d = new Date(past.since.slice(0, 10) + 'T00:00:00');
+        if (!Number.isNaN(d.getTime())) {
+          since = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        }
+      }
+      return { headline, since };
+    } catch (e) {
+      console.warn('[Foundry]', 'Failed to summarise lifetime totals', e);
+      return null;
+    }
   })();
 
   // ── Reset helpers ─────────────────────────────────────────────────────────
@@ -431,8 +502,64 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 {saved.experience && splitLabel ? ' · ' : ''}
                 {splitLabel}
               </div>
+              {/* Sync state and tier belong next to your identity, not filed
+                  under settings. Sync is TRUST — "is my training safe" is an
+                  identity question, and it was buried in a lazily-loaded
+                  sub-component four sections down. Tier is a receipt for a
+                  decision made once at signup; it used to occupy a full
+                  bordered card, permanently. Both are chips now. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
+                {user && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        background: SYNC_DOT[syncState] || 'var(--text-dim)',
+                        flexShrink: 0,
+                      }}
+                    />
+                    {dirtyCount > 0 && syncState !== 'syncing'
+                      ? `${dirtyCount} pending`
+                      : SYNC_WORD[syncState] || 'Sync'}
+                  </span>
+                )}
+                {tierChip && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
+                    color: 'var(--phase-accum)', background: 'var(--phase-accum)22',
+                    border: '1px solid var(--phase-accum)44', borderRadius: tokens.radius.sm,
+                    padding: '1px 6px',
+                  }}>
+                    {tierChip}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Everything else in this drawer is scoped to the current cycle,
+              so nothing in the app answered "how much have I actually done".
+              Only rendered once there is an archive to total — a brand-new
+              lifter gets a zeroed brag line otherwise. */}
+          {lifetime && (
+            <div style={{
+              background: 'var(--bg-inset)',
+              border: '1px solid var(--border)',
+              borderRadius: tokens.radius.lg,
+              padding: '10px 14px',
+              marginBottom: 10,
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {lifetime.headline}
+              </div>
+              {lifetime.since && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  since {lifetime.since}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Meso context */}
           {totalWeeks && (
@@ -449,8 +576,18 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 alignItems: 'center',
                 marginBottom: 6,
               }}>
+                {/* The "(5 + Deload)" suffix was here. It restated the number
+                    you had just read in a second decomposition, next to a
+                    phase chip that already says which kind of week this is.
+                    Replaced with the half that was actually missing: where
+                    you are INSIDE the week. */}
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Week {currentWeek + 1} of {totalWeeks}{totalWeeks && ` (${totalWeeks - 1} + Deload)`}
+                  Week {currentWeek + 1} of {totalWeeks}
+                  {weekProgress && (
+                    <span style={{ fontWeight: 500, color: 'var(--text-muted)' }}>
+                      {' · '}{weekProgress.done} of {weekProgress.days} done
+                    </span>
+                  )}
                 </span>
                 {phase && (
                   <span style={{
@@ -485,21 +622,20 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             </div>
           )}
 
-          {/* Body weight — tap to edit */}
-          <div
-            style={{
-              ...fieldRowStyle,
-              cursor: 'pointer',
-            }}
-            onClick={() => !editingWeight && setEditingWeight(true)}
-          >
-            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Body Weight</span>
-            {editingWeight ? (
+          {/* Body weight — tap to edit.
+              Was a <div onClick>, which CLAUDE.md's own accessibility
+              convention forbids: unreachable by keyboard, invisible to
+              VoiceOver as a control. While editing it renders as a plain
+              container so the button doesn't wrap the input. */}
+          {editingWeight ? (
+            <div style={fieldRowStyle}>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Body Weight</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input
                   type="number"
                   inputMode="decimal"
                   autoFocus
+                  aria-label="Body weight in pounds"
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleWeightSave(); }}
@@ -510,7 +646,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                     border: '1px solid var(--accent)',
                     borderRadius: tokens.radius.sm,
                     color: 'var(--text-primary)',
-                    fontSize: 12,
+                    fontSize: 16, // <16 makes iOS Safari zoom the drawer on focus
                     fontWeight: 600,
                     padding: '4px 6px',
                     textAlign: 'right',
@@ -519,12 +655,18 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                 />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>lbs</span>
               </div>
-            ) : (
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditingWeight(true)}
+              style={{ ...fieldRowStyle, cursor: 'pointer', width: '100%', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
+            >
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Body Weight</span>
               <span style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
                 {saved.weight ? `${saved.weight} lbs` : 'Tap to set'}
               </span>
-            )}
-          </div>
+            </button>
+          )}
         </div>
 
         {/* ── Content sections ── */}
@@ -539,9 +681,14 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             gap: 8,
           }}>
             {[
-              { label: 'Sessions', value: String(stats.sessions) },
+              // `stats.totalPossible` was computed on every render and never
+              // read — it is exactly the denominator this tile was missing.
+              // "Sessions 14" doesn't say whether you're ahead or behind.
+              { label: 'Sessions', value: `${stats.sessions}/${stats.totalPossible}` },
               { label: 'Working Sets', value: String(stats.totalSets) },
-              { label: 'Streak', value: String(stats.streak) },
+              // Renamed from "Streak", which named nothing: streak of days?
+              // weeks? sessions? It counts consecutive completed sessions.
+              { label: 'In a row', value: String(stats.streak) },
             ].map(({ label, value }) => (
               <div
                 key={label}
@@ -553,7 +700,13 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
+                <div style={{
+                  fontSize: value.length > 4 ? 17 : 22,
+                  fontWeight: 800,
+                  color: 'var(--text-primary)',
+                  lineHeight: 1.2,
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
                   {value}
                 </div>
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginTop: 5, letterSpacing: '0.06em' }}>
@@ -680,48 +833,15 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             </button>
           )}
 
-          {/* Foundry Pro / Tier Status */}
+          {/* Foundry Pro.
+              The Free Tier card that used to sit here was a permanent
+              bordered receipt for a decision made once at signup; it is a
+              chip on the avatar row now. Pro stays exactly as it was — it is
+              revenue, and it belongs on the seam between the personal half of
+              this drawer and the plumbing half, where it reads as an offer
+              rather than a setting. */}
           {divider}
-          {(() => {
-            const tierResult = resolveAccountTier(saved);
-            if (tierResult.qualifiesForFree) {
-              const reasonLabel = tierResult.reason === 'student' ? 'Student'
-                : tierResult.reason === 'under_18' ? 'Under 18'
-                : tierResult.reason === 'senior' ? '62+' : '';
-              return (
-                <div
-                  style={{
-                    padding: '16px',
-                    borderRadius: tokens.radius.xl,
-                    border: '1px solid var(--phase-accum)44',
-                    background: 'var(--phase-accum)08',
-                    marginBottom: 2,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--phase-accum)', letterSpacing: '0.04em' }}>
-                      Free Tier
-                    </span>
-                    <span style={{
-                      fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
-                      color: 'var(--phase-accum)', background: 'var(--phase-accum)22',
-                      border: '1px solid var(--phase-accum)44', borderRadius: tokens.radius.sm,
-                      padding: '1px 6px',
-                    }}>
-                      {reasonLabel.toUpperCase()}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500, marginTop: 3, display: 'block' }}>
-                    {tierResult.reason === 'student'
-                      ? `Verified via ${saved.studentEmail || '.edu email'}`
-                      : `The Foundry is permanently free for ${reasonLabel.toLowerCase()} users`}
-                  </span>
-                </div>
-              );
-            }
-            return null;
-          })()}
-          {!resolveAccountTier(saved).qualifiesForFree && (
+          {!tierResult.qualifiesForFree && (
           <button
             onClick={() => { onClose(); emit('foundry:showPricing'); }}
             style={{
@@ -768,29 +888,52 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             <HealthSection />
           </Suspense>
 
-          {/* Support */}
+          {/* ── The app half ──
+              SUPPORT and ABOUT were a divider plus an all-caps header each,
+              for one button each: three rows of chrome to deliver one row of
+              content, twice. One unlabelled list instead.
+
+              About leads it. It is not a legal page — it's the thesis that
+              makes the rest of the app legible ("You don't pick sets and
+              reps. You don't guess when to deload."), and it was the very
+              last row above the version footer, so the only people who ever
+              saw it were people already digging through settings. */}
           {divider}
-          {sectionLabel('SUPPORT')}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={() => setShowAbout(true)}
+              style={{
+                padding: '12px 14px',
+                borderRadius: tokens.radius.lg,
+                border: '1px solid var(--border)',
+                background: 'var(--bg-inset)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                cursor: 'pointer',
+                textAlign: 'left',
+                width: '100%',
+              }}
+            >
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  How The Foundry trains you
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Why the program looks the way it does
+                </span>
+              </span>
+              <span aria-hidden="true" style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 700 }}>
+                →
+              </span>
+            </button>
             <button
               onClick={() => setShowFeedback(true)}
               style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
             >
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Send Feedback</span>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Send feedback</span>
               <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>Write</span>
-            </button>
-          </div>
-
-          {/* About */}
-          {divider}
-          {sectionLabel('ABOUT')}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button
-              onClick={() => setShowAbout(true)}
-              style={{ ...fieldRowStyle, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-inset)' }}
-            >
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>The Foundry</span>
-              <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>Read</span>
             </button>
           </div>
 
