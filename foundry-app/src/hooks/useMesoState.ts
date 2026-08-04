@@ -29,6 +29,7 @@ import {
   archiveCurrentMeso,
 } from '../utils/store';
 import { generateProgram } from '../utils/program';
+import { getTrainedExerciseIds } from '../utils/trainingHistory';
 
 export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
   const [profile, setProfile] = useState(loadProfile);
@@ -71,7 +72,12 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       // Don't generate (or cache) until the DB is actually loaded, otherwise
       // we'd just re-poison the storedProgram key.
       if (exerciseDB.length === 0) return [];
-      base = generateProgram(profile, exerciseDB as any);
+      // Anchor continuity: keep progressing the compounds this lifter
+      // already has numbers for instead of rolling fresh variants every
+      // cycle. Accessories still rotate — see generateProgram.
+      base = generateProgram(profile, exerciseDB as any, {
+        trainedIds: getTrainedExerciseIds(),
+      });
       store.set('foundry:storedProgram', JSON.stringify(base));
     }
     const days = base.slice(0, getMeso().days);

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import PhaseBar from '../shared/PhaseBar';
 import { generateProgram } from '../../utils/program';
+import { getTrainedExerciseIds } from '../../utils/trainingHistory';
 import { getExerciseDB } from '../../data/exerciseDB';
 import { store } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
@@ -127,9 +128,12 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
       // share the hot-path fields (id/name/muscle/tag/anchor). The cast
       // keeps the call site clean while generator logic inspects only
       // the fields both shapes agree on.
+      // Same continuity the real generation uses, so the preview shows the
+      // program you'll actually get rather than a different roll of anchors.
       const td = generateProgram(
         profileDraft as Profile,
         getExerciseDB() as unknown as Parameters<typeof generateProgram>[1],
+        { trainedIds: getTrainedExerciseIds() },
       );
       setDays(toDayBuilds(td));
     } catch {

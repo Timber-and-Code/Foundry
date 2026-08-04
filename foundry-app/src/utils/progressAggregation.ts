@@ -562,6 +562,48 @@ export function findLastMesoWeight(
   return null;
 }
 
+/**
+ * Every exercise id the lifter has actually *worked* on, across the archive.
+ *
+ * Powers anchor continuity in `generateProgram`: a new mesocycle should keep
+ * progressing the compounds you already have numbers for rather than rolling
+ * a fresh squat variant every cycle. Before this existed the generator
+ * reshuffled anchors freely, so a lifter with 29 exercises of history could
+ * open a new meso sharing only 3 of them — and every history reader matches
+ * on exact `_exId`, so the other 26 had nothing to show by construction.
+ *
+ * "Worked" means a confirmed, non-warmup set carrying real numbers. A slice
+ * that exists but holds only warmups or blank rows is a slot the lifter
+ * opened and abandoned; treating that as history would pin the next meso to
+ * a lift they never actually performed.
+ *
+ * Matching is by `_exId` stamp only. Slot position is deliberately not used
+ * as a fallback — an unstamped slice cannot be attributed to an exercise
+ * without guessing, and guessing here silently biases every future program.
+ */
+export function collectTrainedExerciseIds(archive: ArchiveEntry[]): Set<string> {
+  const out = new Set<string>();
+  for (const entry of archive || []) {
+    const rec = entry as unknown as ArchiveRecordShape;
+    for (const session of rec?.sessions || []) {
+      if (!session?.data) continue;
+      for (const slice of Object.values(session.data as DayData)) {
+        if (!slice) continue;
+        for (const set of Object.values(slice)) {
+          if (!set || set.warmup) continue;
+          const stamp = (set as unknown as Record<string, unknown>)._exId;
+          if (typeof stamp !== 'string' || stamp.length === 0) continue;
+          const w = setWeight(set);
+          const r = setReps(set);
+          // Bodyweight work logs reps with no weight, so either alone counts.
+          if ((isFinite(w) && w > 0) || (isFinite(r) && r > 0)) out.add(stamp);
+        }
+      }
+    }
+  }
+  return out;
+}
+
 export function aggregatePreviousMesos(
   archive: ArchiveEntry[],
   exerciseDB: ExerciseEntry[],

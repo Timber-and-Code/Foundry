@@ -53,9 +53,29 @@ export function expandEquipment(profEq: unknown): string[] {
   ));
 }
 
-export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []): TrainingDay[] {
+export interface GenerateProgramOptions {
+  /**
+   * Exercise ids the lifter already has logged work for — see
+   * `collectTrainedExerciseIds`. Anchors prefer these so compounds stay
+   * continuous across mesocycles; accessories ignore it and keep rotating.
+   *
+   * Injected rather than read from storage so this stays a pure function of
+   * its inputs, the same way EXERCISE_DB is. Omitting it reproduces the
+   * previous behaviour exactly.
+   */
+  trainedIds?: Iterable<string>;
+}
+
+export function generateProgram(
+  profile: Profile,
+  EXERCISE_DB: DbExercise[] = [],
+  options: GenerateProgramOptions = {},
+): TrainingDay[] {
   // AI-built or custom days take priority
   if (profile?.aiDays && profile.aiDays.length > 0) return profile.aiDays;
+
+  const trainedIds = new Set<string>(options.trainedIds || []);
+  const isTrained = (e: DbExercise): boolean => e.id != null && trainedIds.has(String(e.id));
 
   const equipment = expandEquipment(profile?.equipment);
   const duration = profile?.sessionDuration || 60;
@@ -152,8 +172,20 @@ export function generateProgram(profile: Profile, EXERCISE_DB: DbExercise[] = []
           );
 
     const anchorPool = shuffle(anchorCandidates.filter((e) => !usedAnchorIds.has(e.id)));
+
+    // ── Anchor continuity ──
+    // The day's movement pattern still wins: a push day gets a press even if
+    // the only lift with history is a squat. Continuity only breaks ties
+    // *within* the eligible set, which is where the shuffle used to decide.
+    //
+    // Accessories deliberately do NOT consult history — rotating them is the
+    // variation stimulus, and pinning them too would make every cycle a copy
+    // of the last one.
+    const byPriority = anchorPool.filter((e) => anchorPriority.includes(e.pattern ?? ''));
     const anchor =
-      anchorPool.find((e) => anchorPriority.includes(e.pattern ?? '')) ||
+      byPriority.find(isTrained) ||
+      byPriority[0] ||
+      anchorPool.find(isTrained) ||
       anchorPool[0] ||
       shuffle(anchorCandidates)[0];
 

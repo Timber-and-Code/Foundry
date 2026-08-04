@@ -234,9 +234,14 @@ describe('useMesoState', () => {
     expect(result.current.activeDays[0].label).toBe('Push');
     expect(result.current.activeDays[1].label).toBe('Pull');
     expect(result.current.activeDays[2].label).toBe('Legs');
+    // Third argument carries anchor continuity — the set of exercise ids the
+    // lifter already has logged work for. Empty here because this fixture
+    // seeds no archive; the selection behaviour itself is covered in
+    // utils/__tests__/anchorContinuity.test.ts.
     expect(mockProgram.generateProgram).toHaveBeenCalledWith(
       defaultProfile,
       mockExercises.EXERCISE_DB,
+      { trainedIds: new Set() },
     );
   });
 });
