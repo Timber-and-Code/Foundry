@@ -2653,6 +2653,8 @@ export async function pullFromSupabase(): Promise<void> {
               }
             }
 
+            reconcileWorkoutDaysHistory(merged);
+
             store.setFromRemote(localKey, JSON.stringify(merged), remoteTs);
           } catch {
             // ignore parse errors
@@ -4007,6 +4009,75 @@ export async function updateFriendShareLevel(
     reportSyncFailure('update_friend_share_level', e);
     return false;
   }
+}
+
+// ─── WORKOUT-DAYS HISTORY RECONCILIATION ────────────────────────────────────
+
+interface WorkoutDaysHistoryEntryShape {
+  fromWeek: number;
+  days: number[];
+}
+
+/**
+ * Keep a device's local `workoutDaysHistory` consistent with the synced
+ * `workoutDays`.
+ *
+ * The history is deliberately NOT stored remotely. Its entries are
+ * `{ fromWeek, days }` keyed to a week index inside the current mesocycle,
+ * which makes it meso-scoped state living on a user-scoped object — the
+ * wrong shape to replicate, and the reason a stale entry could reapply in a
+ * later cycle (now cleared by `wipeMesoSessionData`).
+ *
+ * What it must not do is override the value that DID sync. If you change
+ * your training days on one device, another device pulls the new
+ * `workoutDays` but has a history whose newest entry still names the old
+ * ones — and `getWorkoutDaysForWeek` prefers history, so the stale local
+ * entry wins and that device schedules you on the wrong weekdays.
+ *
+ * So: seed an empty history, and when the synced days disagree with the
+ * newest entry, record the change from the current week forward. Weeks
+ * before the change keep their real days, which is the whole point of
+ * having a history at all.
+ *
+ * Mutates `profile` in place — it is the freshly merged object the caller is
+ * about to persist.
+ */
+export function reconcileWorkoutDaysHistory(profile: Record<string, unknown>): void {
+  const days = profile.workoutDays;
+  if (!Array.isArray(days) || days.length === 0) return;
+
+  const raw = profile.workoutDaysHistory;
+  const history: WorkoutDaysHistoryEntryShape[] = Array.isArray(raw)
+    ? (raw as WorkoutDaysHistoryEntryShape[]).filter(
+        (e) => e && typeof e.fromWeek === 'number' && Array.isArray(e.days),
+      )
+    : [];
+
+  if (history.length === 0) {
+    profile.workoutDaysHistory = [{ fromWeek: 0, days: [...(days as number[])] }];
+    return;
+  }
+
+  const sorted = [...history].sort((a, b) => a.fromWeek - b.fromWeek);
+  const newest = sorted[sorted.length - 1];
+  const same =
+    newest.days.length === days.length &&
+    newest.days.every((d, i) => d === (days as number[])[i]);
+  if (same) {
+    profile.workoutDaysHistory = sorted;
+    return;
+  }
+
+  let currentWeek = 0;
+  try {
+    currentWeek = parseInt(localStorage.getItem('foundry:currentWeek') || '0', 10) || 0;
+  } catch { /* default 0 */ }
+
+  // Replace rather than append when a change already exists at this week, so
+  // repeated pulls can't stack duplicate entries on the same index.
+  const kept = sorted.filter((e) => e.fromWeek < currentWeek);
+  kept.push({ fromWeek: currentWeek, days: [...(days as number[])] });
+  profile.workoutDaysHistory = kept;
 }
 
 // ─── ACCOUNT DELETION ───────────────────────────────────────────────────────

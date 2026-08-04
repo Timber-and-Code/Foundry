@@ -137,4 +137,36 @@ export function wipeMesoSessionData(): void {
   } catch (e) {
     console.warn('[Foundry]', 'Failed to reset current week', e);
   }
+  clearWorkoutDaysHistory();
+}
+
+/**
+ * Drop `profile.workoutDaysHistory` when a mesocycle ends.
+ *
+ * The entries are `{ fromWeek, days }` where `fromWeek` is a week index
+ * WITHIN the current meso — but they live on the profile, which deliberately
+ * survives a meso reset. So an entry written at week 3 of one cycle silently
+ * reapplied at week 3 of the next, handing that week (and every week after
+ * it) a training-day set the lifter never chose for this block.
+ *
+ * `getWorkoutDaysForWeek` prefers history over `profile.workoutDays`, so the
+ * stale entry beat the correct, synced value. `buildSessionDateMap` then
+ * dealt that week's sessions onto the wrong weekdays — which is how a
+ * 4-day week ends up spread across two calendar weeks and Home reports the
+ * next workout as "next week".
+ *
+ * Only the history is cleared. `workoutDays` itself is user-level
+ * preference, syncs, and must survive.
+ */
+function clearWorkoutDaysHistory(): void {
+  try {
+    const raw = localStorage.getItem('foundry:profile');
+    if (!raw) return;
+    const profile = JSON.parse(raw);
+    if (!profile || !('workoutDaysHistory' in profile)) return;
+    delete profile.workoutDaysHistory;
+    localStorage.setItem('foundry:profile', JSON.stringify(profile));
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to clear workout-days history on meso wipe', e);
+  }
 }
