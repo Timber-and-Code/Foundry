@@ -550,16 +550,43 @@ export function clearScheduleOverride(
   return { ...profile, scheduleOverrides: next };
 }
 
+export interface SessionDateMapOptions {
+  /**
+   * Whether a sessionKey (`"{dayIdx}:{weekIdx}"`) is already done or skipped.
+   * Supplying it turns on re-anchoring; omitting it reproduces the original
+   * fixed-calendar behaviour exactly.
+   */
+  isResolved?: (sessionKey: string) => boolean;
+  /** `YYYY-MM-DD`. Injected so the re-anchor stays testable. */
+  todayStr?: string;
+}
+
 /**
  * Build the date → sessionKey map for the Schedule calendar and the Home
  * "today" card. Values are `string | string[]` — a string for single-booked
  * days, an array for double-booked days (after an override lands on an
  * existing workout day).
+ *
+ * ── Re-anchoring ──
+ * The original map was a pure function of `startDate` + `workoutDays`: session
+ * N landed on the Nth matching weekday after the start, forever, regardless of
+ * when the lifter actually trained. Home only surfaces dates ≥ today and
+ * deliberately hides missed sessions, so any drift silently ate the rest of
+ * the week — train Mon and Tue on a Mon/Tue/Thu/Fri split and the next card
+ * could read *next Monday*, because Thu and Fri had already slipped into the
+ * past and were being treated as missed.
+ *
+ * With `isResolved` supplied, sessions already done or skipped keep their
+ * historical dates and everything still outstanding is re-stamped forward from
+ * today. Anchoring on today rather than on the last completed session is
+ * deliberate: if you have not trained in three weeks, sliding from that last
+ * session would just deal the whole remaining block into the past again.
  */
 export function buildSessionDateMap(
   profile: Profile | null | undefined,
   totalDays: number,
   weeksCount: number,
+  options: SessionDateMapOptions = {},
 ): Record<string, string | string[]> {
   const out: Record<string, string | string[]> = {};
   if (!profile?.startDate || totalDays <= 0) return out;
@@ -584,6 +611,52 @@ export function buildSessionDateMap(
       sessionCount++;
     }
     cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // ── Re-anchor outstanding sessions to today ──
+  // Runs BEFORE the override overlay so an explicitly moved session still
+  // wins: the lifter dragging a workout to a date is a stronger signal than
+  // anything inferred here.
+  const { isResolved, todayStr } = options;
+  if (isResolved) {
+    const today = todayStr || new Date().toISOString().slice(0, 10);
+    const basePairs = Object.entries(out)
+      .map(([date, key]) => ({ date, key: key as string }))
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+    const outstanding = basePairs.filter((p) => !isResolved(p.key));
+    // Nothing to move, or nothing has slipped — leave the calendar alone
+    // rather than churn dates for no reason.
+    if (outstanding.length > 0 && outstanding[0].date < today) {
+      const rebuilt: Record<string, string | string[]> = {};
+      // Completed and skipped sessions are history; they stay where they
+      // happened, and their dates stay occupied so nothing lands on top.
+      for (const p of basePairs) if (isResolved(p.key)) rebuilt[p.date] = p.key;
+
+      const queue = outstanding.map((p) => p.key);
+      const walker = new Date(today + 'T00:00:00');
+      let placed = 0;
+      // 400 mirrors the base walk's guard — enough for a full meso at any
+      // realistic frequency, bounded so a pathological workoutDays value
+      // (e.g. an empty array) can't spin.
+      for (let guard = 0; guard < 400 && placed < queue.length; guard++) {
+        const key = queue[placed];
+        const wkIdx = Number(key.split(':')[1]) || 0;
+        const ds = walker.toISOString().slice(0, 10);
+        if (getWorkoutDaysForWeek(profile, wkIdx).includes(walker.getDay()) && !rebuilt[ds]) {
+          rebuilt[ds] = key;
+          placed++;
+        }
+        walker.setDate(walker.getDate() + 1);
+      }
+      // Only adopt the rebuild if every outstanding session found a home.
+      // A partial re-anchor would drop sessions off the calendar entirely,
+      // which is far worse than the drift it set out to fix.
+      if (placed === queue.length) {
+        for (const k of Object.keys(out)) delete out[k];
+        Object.assign(out, rebuilt);
+      }
+    }
   }
 
   // Apply overrides as an overlay. For each override: remove the sessionKey
