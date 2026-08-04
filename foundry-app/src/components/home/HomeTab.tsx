@@ -539,21 +539,29 @@ function HomeTab({
   const MOBILITY_COLOR = TAG_ACCENT['MOBILITY'];
   const mobilityStreak = computeMobilityStreak();
 
-  // Build sessionDateMap via the shared helper so HomeTab and ScheduleTab
-  // agree on which date hosts which session — including per-date overrides
-  // that may stack 2 sessions on one day.
-  const sessionDateMap = buildSessionDateMap(profile, activeDays.length, getMeso().totalWeeks);
-
   // Skip-aware resolver helper (#10b). A session key is "resolved" (not
   // surface-able as "next") when it's either completed OR explicitly
   // skipped. Skipped days are dead to the next-session card the same way
   // completed days are — they live in the Schedule/History surfaces, not
   // on Home.
+  //
+  // Declared before sessionDateMap because the map now consumes it to
+  // re-anchor outstanding sessions.
   const isResolved = (key: string): boolean => {
     if (completedDays.has(key)) return true;
     const [dStr, wStr] = key.split(':');
     return isSkipped(Number(dStr), Number(wStr));
   };
+
+  // Build sessionDateMap via the shared helper so HomeTab and ScheduleTab
+  // agree on which date hosts which session — including per-date overrides
+  // that may stack 2 sessions on one day.
+  const sessionDateMap = buildSessionDateMap(
+    profile,
+    activeDays.length,
+    getMeso().totalWeeks,
+    { isResolved, todayStr: todayCardioStr },
+  );
 
   // Find the calendar date the next not-yet-resolved session lands on.
   // Walks sessionDateMap chronologically from today forward; missed days

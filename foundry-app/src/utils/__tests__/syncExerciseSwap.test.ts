@@ -161,7 +161,7 @@ describe('syncExerciseSwapRemote', () => {
     });
   });
 
-  it('un-supersedes the old row when the insert fails', async () => {
+  it('leaves the old row live when the insert fails', async () => {
     selectResults['training_day_exercises'] = [
       { data: [{ id: 'tde-old', exercise_id: 'barbell_bench' }], error: null },
     ];
@@ -169,12 +169,48 @@ describe('syncExerciseSwapRemote', () => {
 
     await syncExerciseSwapRemote('meso-1', 0, 2, NEW_EX);
 
-    // Leaving the slot with no live row reads as "exercise deleted" to
-    // every downstream consumer — the stamp has to come back off.
-    const updates = tdeCalls().filter((c) => c.op === 'update');
-    expect(updates).toHaveLength(2);
-    expect(updates[1].payload).toEqual({ replaced_at: null });
-    expect(updates[1].filters.id).toEqual(['tde-old']);
+    // Insert-before-retire is what makes this safe: the failure leaves the
+    // slot still occupied by the outgoing exercise. Retiring first would
+    // need a compensating write that can fail for the same reason the
+    // insert just did, and an empty slot reads as "exercise deleted".
+    expect(tdeCalls().some((c) => c.op === 'update')).toBe(false);
+  });
+
+  it('inserts before it retires', async () => {
+    selectResults['training_day_exercises'] = [
+      { data: [{ id: 'tde-old', exercise_id: 'barbell_bench' }], error: null },
+    ];
+
+    await syncExerciseSwapRemote('meso-1', 0, 2, NEW_EX);
+
+    const ops = tdeCalls().filter((c) => c.op !== 'select').map((c) => c.op);
+    expect(ops).toEqual(['insert', 'update']);
+  });
+
+  it('carries the slot\'s modifier and warmup flag onto the replacement', async () => {
+    // These are properties of the SLOT, not the exercise. The old in-place
+    // UPDATE preserved them for free by keeping the row; an append-only
+    // swap drops them unless they're copied across.
+    selectResults['training_day_exercises'] = [
+      {
+        data: [
+          {
+            id: 'tde-old',
+            exercise_id: 'barbell_bench',
+            modifier: 'paused',
+            is_warmup: true,
+          },
+        ],
+        error: null,
+      },
+    ];
+
+    await syncExerciseSwapRemote('meso-1', 0, 2, NEW_EX);
+
+    expect(tdeCalls().find((c) => c.op === 'insert')?.payload).toMatchObject({
+      modifier: 'paused',
+      is_warmup: true,
+    });
   });
 
   it('repoints the tde id cache at the new row so notes follow the swap', async () => {

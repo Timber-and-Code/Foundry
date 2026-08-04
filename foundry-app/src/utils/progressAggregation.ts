@@ -153,17 +153,26 @@ function findSliceByExId(
   id: string | undefined,
 ): Record<string, WorkoutSet> | undefined {
   if (!id) return undefined;
+  const stampOf = (set: unknown): string | null => {
+    if (!set || typeof set !== 'object') return null;
+    const stamp = (set as Record<string, unknown>)._exId;
+    return typeof stamp === 'string' && stamp.length > 0 ? stamp : null;
+  };
   for (const slice of Object.values(data)) {
     if (!slice) continue;
-    for (const set of Object.values(slice)) {
-      if (
-        set &&
-        typeof set === 'object' &&
-        String((set as unknown as Record<string, unknown>)._exId ?? '') === id
-      ) {
-        return slice as Record<string, WorkoutSet>;
-      }
-    }
+    const entries = Object.entries(slice);
+    if (!entries.some(([, s]) => stampOf(s) === id)) continue;
+    // Mixed slice (swap left the old exercise's sets behind and new ones
+    // were logged alongside): keep only this exercise's sets, or its
+    // start/current/PR inherit the other lift's numbers.
+    const hasForeign = entries.some(([, s]) => {
+      const stamp = stampOf(s);
+      return stamp != null && stamp !== id;
+    });
+    if (!hasForeign) return slice as Record<string, WorkoutSet>;
+    return Object.fromEntries(
+      entries.filter(([, s]) => stampOf(s) === id),
+    ) as Record<string, WorkoutSet>;
   }
   return undefined;
 }
@@ -551,6 +560,114 @@ export function findLastMesoWeight(
     }
   }
   return null;
+}
+
+/**
+ * Every exercise id the lifter has actually *worked* on, across the archive.
+ *
+ * Powers anchor continuity in `generateProgram`: a new mesocycle should keep
+ * progressing the compounds you already have numbers for rather than rolling
+ * a fresh squat variant every cycle. Before this existed the generator
+ * reshuffled anchors freely, so a lifter with 29 exercises of history could
+ * open a new meso sharing only 3 of them — and every history reader matches
+ * on exact `_exId`, so the other 26 had nothing to show by construction.
+ *
+ * "Worked" means a confirmed, non-warmup set carrying real numbers. A slice
+ * that exists but holds only warmups or blank rows is a slot the lifter
+ * opened and abandoned; treating that as history would pin the next meso to
+ * a lift they never actually performed.
+ *
+ * Matching is by `_exId` stamp only. Slot position is deliberately not used
+ * as a fallback — an unstamped slice cannot be attributed to an exercise
+ * without guessing, and guessing here silently biases every future program.
+ */
+export function collectTrainedExerciseIds(archive: ArchiveEntry[]): Set<string> {
+  const out = new Set<string>();
+  for (const entry of archive || []) {
+    const rec = entry as unknown as ArchiveRecordShape;
+    for (const session of rec?.sessions || []) {
+      if (!session?.data) continue;
+      for (const slice of Object.values(session.data as DayData)) {
+        if (!slice) continue;
+        for (const set of Object.values(slice)) {
+          if (!set || set.warmup) continue;
+          const stamp = (set as unknown as Record<string, unknown>)._exId;
+          if (typeof stamp !== 'string' || stamp.length === 0) continue;
+          const w = setWeight(set);
+          const r = setReps(set);
+          // Bodyweight work logs reps with no weight, so either alone counts.
+          if ((isFinite(w) && w > 0) || (isFinite(r) && r > 0)) out.add(stamp);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+export interface LifetimeSummary {
+  cycles: number;
+  sessions: number;
+  sets: number;
+  /** ISO date of the earliest cycle we can date, or null. */
+  since: string | null;
+}
+
+/**
+ * Totals across every archived mesocycle.
+ *
+ * Everything else in the profile drawer is scoped to the current cycle, so
+ * there is nowhere in the app that answers "how much have I actually done".
+ * This is that number.
+ *
+ * Counts only real working sets — non-warmup, carrying weight or reps —
+ * because an inflated lifetime total is worse than no total. The CURRENT
+ * cycle is not included; callers add it, since only they know what it is.
+ */
+export function summarizeLifetime(archive: ArchiveEntry[]): LifetimeSummary {
+  let sessions = 0;
+  let sets = 0;
+  let cycles = 0;
+  let since: string | null = null;
+
+  for (const entry of archive || []) {
+    const rec = entry as unknown as ArchiveRecordShape;
+    if (!rec) continue;
+
+    let cycleSessions = 0;
+    let cycleSets = 0;
+    for (const session of rec.sessions || []) {
+      if (session?.done) cycleSessions++;
+      if (!session?.data) continue;
+      for (const slice of Object.values(session.data as DayData)) {
+        if (!slice) continue;
+        for (const set of Object.values(slice)) {
+          if (!set || set.warmup) continue;
+          const w = setWeight(set);
+          const r = setReps(set);
+          if ((isFinite(w) && w > 0) || (isFinite(r) && r > 0)) cycleSets++;
+        }
+      }
+    }
+
+    // A cycle only counts if it was actually trained. Abandoned shells are
+    // real in the data — prod has three mesocycles with zero sessions, from
+    // builds started and dropped — and the remote rebuild already refuses
+    // them. But a locally-written archive entry for one survives the merge,
+    // and counting it would inflate the headline number this whole summary
+    // exists to state honestly.
+    if (cycleSessions === 0 && cycleSets === 0) continue;
+
+    cycles++;
+    sessions += cycleSessions;
+    sets += cycleSets;
+
+    // Prefer the recorded start date; fall back to when it was archived so a
+    // cycle without one still anchors the "since" line.
+    const start = (rec.profile?.startDate as string | undefined) || rec.archivedAt;
+    if (start && (!since || start < since)) since = start;
+  }
+
+  return { cycles, sessions, sets, since };
 }
 
 export function aggregatePreviousMesos(

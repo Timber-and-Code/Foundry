@@ -1,9 +1,5 @@
 // ─── SCHEMA VALIDATORS FOR LOCALSTORAGE READS ────────────────────────────────
-
-import type { Profile, DayData, WorkoutSet, MesoConfig, SplitType, ArchiveEntry } from '../types';
-
-const VALID_SPLITS: SplitType[] = ['ppl', 'upper_lower', 'full_body', 'push_pull'];
-
+import type { Profile, DayData, WorkoutSet, ArchiveEntry } from '../types';
 export function validateProfile(data: unknown): Profile | null {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     console.warn('[Foundry] validateProfile: invalid data shape', data);
@@ -16,7 +12,6 @@ export function validateProfile(data: unknown): Profile | null {
   }
   return d as unknown as Profile;
 }
-
 export function validateDayData(data: unknown): DayData {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     return {};
@@ -41,40 +36,6 @@ export function validateDayData(data: unknown): DayData {
   }
   return cleaned;
 }
-
-export function validateMesoConfig(data: unknown): MesoConfig {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    console.warn('[Foundry] validateMesoConfig: invalid data shape', data);
-    return { days: 4, weeks: 6, split: 'ppl' };
-  }
-  const d = data as Record<string, unknown>;
-  const days = Number(d.days);
-  const weeks = Number(d.weeks);
-  const split = d.split as string;
-  return {
-    ...d,
-    days: days >= 2 && days <= 6 ? days : 4,
-    weeks: weeks >= 4 && weeks <= 8 ? weeks : 6,
-    split: VALID_SPLITS.includes(split as SplitType) ? (split as SplitType) : 'ppl',
-  } as MesoConfig;
-}
-
-export function validateAiDays(data: unknown): unknown[] | null {
-  if (!Array.isArray(data) || data.length === 0) return null;
-  const clean = data.filter((day) => {
-    if (!day || typeof day !== 'object' || Array.isArray(day)) return false;
-    const d = day as Record<string, unknown>;
-    if (typeof d.label !== 'string' || d.label.length > 200) return false;
-    if (!Array.isArray(d.exercises)) return false;
-    return d.exercises.every((ex) => {
-      if (!ex || typeof ex !== 'object' || Array.isArray(ex)) return false;
-      const e = ex as Record<string, unknown>;
-      return typeof e.name === 'string' && e.name.length <= 200;
-    });
-  });
-  return clean.length === data.length ? clean : null;
-}
-
 export function validateArchive(data: unknown): ArchiveEntry[] {
   if (!Array.isArray(data)) {
     console.warn('[Foundry] validateArchive: expected array', data);

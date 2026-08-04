@@ -338,13 +338,26 @@ function ScheduleTab({
   // Build sessionDateMap via the shared helper so the Home tab and this tab
   // agree on which date hosts which session — including per-date overrides
   // that may double-book a day. Values are `string | string[]`.
-  const sessionDateMap: Record<string, string | string[]> = React.useMemo(
-    () => buildSessionDateMap(profile, activeDays.length, getMeso().totalWeeks),
-    [profile, activeDays.length],
-  );
-
+  //
+  // Re-anchoring is passed the same resolver Home uses, so both surfaces
+  // agree about which sessions have slipped. `skipVersion` is in the deps
+  // because skipping a day changes what counts as outstanding.
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const todayStr = today.toISOString().slice(0, 10);
+
+  const sessionDateMap: Record<string, string | string[]> = React.useMemo(
+    () =>
+      buildSessionDateMap(profile, activeDays.length, getMeso().totalWeeks, {
+        isResolved: (key: string) => {
+          if (completedDays.has(key)) return true;
+          const [dStr, wStr] = key.split(':');
+          return isSkipped(Number(dStr), Number(wStr));
+        },
+        todayStr,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profile, activeDays.length, completedDays, todayStr, skipVersion],
+  );
 
   const cells: (number | null)[] = [];
   for (let b = 0; b < firstDay; b++) cells.push(null);
