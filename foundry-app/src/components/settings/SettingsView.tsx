@@ -1,7 +1,7 @@
 import React, { Suspense, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../contexts/AuthContext';
-import { store, resolveAccountTier, resetMeso, buildSessionDateMap } from '../../utils/store';
+import { store, resolveAccountTier, resetMeso } from '../../utils/store';
 import { emit } from '../../utils/events';
 import { archiveMesocycleRemote, deleteAccountRemote } from '../../utils/sync';
 import { archiveCurrentMeso, loadArchive } from '../../utils/archive';
@@ -242,70 +242,30 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     deleteAllFoundryData();
   };
 
-  /**
-   * Which day index is scheduled for today, or null if today is a rest day.
-   *
-   * buildSessionDateMap is the same source the Home and Schedule tabs read,
-   * so "today" here means exactly the session the lifter is looking at —
-   * including after a re-anchor, which is the whole reason that map exists.
-   */
-  const todaysDayIdx = (): number | null => {
-    if (!saved) return null;
-    const stored = store.get('foundry:storedProgram');
-    if (!stored) return null;
-    let totalDays = 0;
-    try {
-      totalDays = (JSON.parse(stored) as unknown[]).length;
-    } catch {
-      return null;
-    }
-    if (totalDays <= 0) return null;
-    const map = buildSessionDateMap(saved, totalDays, getMeso().totalWeeks);
-    const now = new Date();
-    const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const entry = map[key];
-    const sessionKey = Array.isArray(entry) ? entry[0] : entry;
-    if (!sessionKey) return null;
-    const dayIdx = Number(String(sessionKey).split(':')[0]);
-    return Number.isFinite(dayIdx) ? dayIdx : null;
-  };
-
-  // Rebuild days that have no logged work, leaving logged ones alone.
+  // Rebuild every day with no logged work.
   //
-  // Two scopes. 'today' is the common case — you look at what's programmed
-  // for this session, don't like it, and want another draw. 'all' reshapes
-  // every day of the cycle you haven't started yet.
+  // The per-session rebuild lives on the day card on Home, where you're
+  // actually looking at the workout you don't want. This one stays here as
+  // the whole-cycle escape hatch — and as the only route on a rest day, when
+  // there's no day card to press.
   //
-  // Always previews first. This is destructive for the days it replaces, and
-  // on a shared mesocycle it changes what your training partner sees too —
-  // so the confirm names the exact days rather than asking in the abstract.
-  const handleRefreshUpcoming = async (scope: 'today' | 'all' = 'all') => {
+  // Previews first, then commits THAT result. regenerateUntouchedDays wraps
+  // generateProgram, which shuffles: computing a second time to commit would
+  // write a different program than the one just described.
+  const handleRefreshUpcoming = async () => {
     if (refreshingDays) return;
-
-    let onlyDays: number[] | undefined;
-    if (scope === 'today') {
-      const dayIdx = todaysDayIdx();
-      if (dayIdx == null) {
-        window.alert("Nothing scheduled today — there's no session to rebuild.");
-        return;
-      }
-      onlyDays = [dayIdx];
-    }
-
     setRefreshingDays(true);
     try {
-      const { regenerateUntouchedDays } = await import('../../utils/regenerateDays');
+      const { previewRebuildAll, applyRebuild } = await import('../../utils/rebuildSession');
       const { getExerciseDB } = await import('../../data/exerciseDB');
       const exerciseDB = getExerciseDB() as unknown as NonNullable<
         RegenerateOptions['exerciseDB']
       >;
 
-      const preview = regenerateUntouchedDays(saved, { exerciseDB, onlyDays });
-      if (!preview.program || preview.regenerated.length === 0) {
+      const preview = previewRebuildAll(saved, exerciseDB);
+      if (!preview?.program) {
         window.alert(
-          scope === 'today'
-            ? "Today's session already has logged sets, so it can't be rebuilt without losing them."
-            : 'Nothing to rebuild — every day in this cycle already has logged work, so none can be changed without losing it.',
+          'Nothing to rebuild — every day in this cycle already has logged work, so none can be changed without losing it.',
         );
         return;
       }
@@ -314,36 +274,19 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
         .map((i) => preview.program?.[i]?.label || `Day ${i + 1}`)
         .join(', ');
       const kept = preview.preserved.length;
-      const confirmMsg =
-        scope === 'today'
-          ? `Rebuild ${names}?\n\nYou haven't logged any sets for it, so nothing is lost. Every other day in the cycle stays exactly as it is.\n\nThe new session draws on your training history to keep your main lifts consistent.`
-          : `Rebuild ${names}?\n\nThese days have no logged sets, so nothing you've done is lost. ${kept} day${kept === 1 ? '' : 's'} you've already trained will be left exactly as ${kept === 1 ? 'it is' : 'they are'}.\n\nThe new days use your training history to keep your main lifts consistent, and fix the missing arm and calf work.`;
-      if (!window.confirm(confirmMsg)) return;
+      if (
+        !window.confirm(
+          `Rebuild ${names}?\n\nThese days have no logged sets, so nothing you've done is lost. ${kept} day${kept === 1 ? '' : 's'} you've already trained will be left exactly as ${kept === 1 ? 'it is' : 'they are'}.\n\nThe new days use your training history to keep your main lifts consistent.`,
+        )
+      )
+        return;
 
-      const result = regenerateUntouchedDays(saved, { exerciseDB, onlyDays, commit: true });
+      const { pushed } = await applyRebuild(preview);
       emit('foundry:pull-complete'); // re-read the stored program
 
-      // Push the new days, or the next pull rebuilds foundry:storedProgram
-      // from the untouched remote rows and quietly undoes all of this.
-      // Awaited: the alert must not claim success before the write lands, and
-      // a rebuild that stays local is exactly the bug this fixes.
-      const mesoId = store.get('foundry:active_meso_id');
-      let pushed = true;
-      if (mesoId) {
-        const { syncDayExercisesRemote } = await import('../../utils/sync');
-        for (const dayIdx of result.regenerated) {
-          const day = result.program?.[dayIdx];
-          if (day?.exercises?.length) {
-            const ok = await syncDayExercisesRemote(mesoId, dayIdx, day.exercises);
-            if (!ok) pushed = false;
-          }
-        }
-      }
-
-      const where = scope === 'today' ? 'Open it from Home to see the new session.' : 'Open the Schedule tab to see the new sessions.';
       window.alert(
         pushed
-          ? `Rebuilt ${names}. ${where}`
+          ? `Rebuilt ${names}. Open the Schedule tab to see the new sessions.`
           : `Rebuilt ${names} on this device, but the change couldn't be saved to your account — it may revert next time you sync. Check your connection and rebuild again.`,
       );
     } catch (e) {
@@ -821,52 +764,39 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           {/* Sits directly under "Start new mesocycle" because it is the
               cheaper version of the same intent — "this program isn't right"
               — and most people reaching for a reset only need this. */}
-          {/* Two scopes, because they answer different questions. "Today" is
-              the one people actually reach for — you look at what's programmed
-              for this session, don't like it, and want another draw. Rebuilding
-              the whole cycle to fix one Wednesday is a bad trade. */}
-          <div
-            role="group"
-            aria-labelledby="rebuild-group-label"
-            style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+          {/* Whole-cycle only. Rebuilding a single session belongs on the day
+              card on Home, at the moment you're looking at the workout you
+              don't want — not three taps into Settings. This stays for the
+              cycle-wide case and for rest days, when there's no card to press. */}
+          <button
+            onClick={() => handleRefreshUpcoming()}
+            disabled={refreshingDays}
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              borderRadius: tokens.radius.lg,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-inset)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              cursor: refreshingDays ? 'wait' : 'pointer',
+              textAlign: 'left',
+            }}
           >
-            <span id="rebuild-group-label" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
-              Rebuild programmed sessions
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Rebuild the rest of the cycle
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Every day you haven&rsquo;t trained yet
+              </span>
             </span>
-            {([
-              { scope: 'today' as const, title: "Rebuild today's workout", sub: 'Redraw just this session' },
-              { scope: 'all' as const, title: 'Rebuild the rest of the cycle', sub: 'Every day you haven’t trained yet' },
-            ]).map(({ scope, title, sub }) => (
-              <button
-                key={scope}
-                onClick={() => handleRefreshUpcoming(scope)}
-                disabled={refreshingDays}
-                style={{
-                  width: '100%',
-                  padding: '12px 14px',
-                  borderRadius: tokens.radius.lg,
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-inset)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  cursor: refreshingDays ? 'wait' : 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {title}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sub}</span>
-                </span>
-                <span aria-hidden="true" style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 700 }}>
-                  {refreshingDays ? '…' : '↻'}
-                </span>
-              </button>
-            ))}
-          </div>
+            <span aria-hidden="true" style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 700 }}>
+              {refreshingDays ? '…' : '↻'}
+            </span>
+          </button>
 
           {/* Account */}
           {divider}

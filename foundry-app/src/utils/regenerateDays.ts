@@ -104,10 +104,29 @@ export interface RegenerateOptions {
 }
 
 /**
+ * Persist a result produced by an earlier `regenerateUntouchedDays` call.
+ *
+ * Exists because `generateProgram` SHUFFLES. Previewing with one call and
+ * committing with a second produces two different programs — the lifter
+ * approves one set of exercises and gets another. Any preview-then-confirm
+ * flow must compute once and commit that exact object.
+ *
+ * Idempotent and safe to call on a dry-run result; returns the same shape
+ * with `committed: true`.
+ */
+export function commitRegenerated(result: RegenerateResult): RegenerateResult {
+  if (!result.program || result.regenerated.length === 0) return result;
+  store.set('foundry:storedProgram', JSON.stringify(result.program));
+  clearOverridesForDays(result.regenerated);
+  return { ...result, committed: true };
+}
+
+/**
  * Regenerate every day that has no logged work, preserving the rest.
  *
- * Defaults to a DRY RUN — call with `{ commit: true }` to persist. The
- * preview matters: this is destructive for the days it touches, and on a
+ * Defaults to a DRY RUN — pass the result to `commitRegenerated` to persist.
+ * Do NOT call this a second time to commit: see the note there. The preview
+ * matters because this is destructive for the days it touches, and on a
  * shared mesocycle it changes what a training partner sees too.
  */
 export function regenerateUntouchedDays(
