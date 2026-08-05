@@ -14,7 +14,7 @@ vi.mock('../supabase', () => ({
 }));
 vi.mock('@sentry/react', () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
 
-import { previewRebuild, previewRebuildAll, applyRebuild } from '../rebuildSession';
+import { previewRebuild, previewRebuildAll, applyRebuild, rebuildWithLocks } from '../rebuildSession';
 import { regenerateUntouchedDays } from '../regenerateDays';
 import type { RegenerateOptions } from '../regenerateDays';
 import { generateProgram } from '../program';
@@ -226,5 +226,91 @@ describe('otherLabels', () => {
 
     expect(preview.otherDays).toEqual([]);
     expect(preview.otherLabels).toEqual([]);
+  });
+});
+
+/**
+ * Lock-and-keep.
+ *
+ * The dedupe is the reason this exists: generateProgram has no concept of a
+ * pinned slot, so a redraw can hand back an exercise the lifter has locked
+ * elsewhere. Prescribing the same lift twice in one session is the exact
+ * defect (two decline benches) that started this work.
+ */
+describe('rebuildWithLocks', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('keeps every locked exercise exactly where it was', () => {
+    seedProgram();
+    const first = previewRebuild(profile, 2, DB)!;
+    const keepIds = [first.after[0].id, first.after[2].id];
+
+    const next = rebuildWithLocks(profile, first, [0, 2], DB)!;
+
+    expect(next.after[0].id).toBe(keepIds[0]);
+    expect(next.after[2].id).toBe(keepIds[1]);
+  });
+
+  it('never repeats an exercise inside the session', () => {
+    seedProgram();
+    let preview = previewRebuild(profile, 2, DB)!;
+    // Redraw repeatedly with the first slot pinned — every result must stay
+    // internally unique.
+    for (let i = 0; i < 8; i++) {
+      preview = rebuildWithLocks(profile, preview, [0], DB)!;
+      const ids = preview.after.map((s) => s.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it('carries `before` through so the diff still shows the original', () => {
+    seedProgram();
+    const first = previewRebuild(profile, 2, DB)!;
+    const originalBefore = first.before.map((s) => s.id);
+
+    const second = rebuildWithLocks(profile, first, [], DB)!;
+    const third = rebuildWithLocks(profile, second, [], DB)!;
+
+    expect(third.before.map((s) => s.id)).toEqual(originalBefore);
+    expect(originalBefore).toEqual(['orig_2_a', 'orig_2_b']);
+  });
+
+  it('returns a result that applies verbatim', async () => {
+    seedProgram();
+    const first = previewRebuild(profile, 2, DB)!;
+    const next = rebuildWithLocks(profile, first, [0], DB)!;
+    const promised = next.after.map((s) => s.id);
+
+    await applyRebuild(next.result);
+
+    const written = JSON.parse(localStorage.getItem('foundry:storedProgram')!);
+    expect(idsOf(written, 2)).toEqual(promised);
+  });
+
+  it('declines when everything is locked', () => {
+    seedProgram();
+    const first = previewRebuild(profile, 2, DB)!;
+    const all = first.after.map((_, i) => i);
+    expect(rebuildWithLocks(profile, first, all, DB)).toBeNull();
+  });
+
+  it('leaves other days alone', () => {
+    seedProgram();
+    const first = previewRebuild(profile, 2, DB)!;
+    const next = rebuildWithLocks(profile, first, [0], DB)!;
+
+    expect(idsOf(next.result.program, 0)).toEqual(['orig_0_a', 'orig_0_b']);
+    expect(idsOf(next.result.program, 3)).toEqual(['orig_3_a', 'orig_3_b']);
+  });
+
+  it('reports slots it could not fill rather than duplicating', () => {
+    seedProgram();
+    const first = previewRebuild(profile, 2, DB)!;
+    const next = rebuildWithLocks(profile, first, [0], DB)!;
+    // Whatever it could not resolve, the result is still internally unique —
+    // an unresolved slot keeps its occupant, it never duplicates a locked one.
+    const ids = next.after.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(Array.isArray(next.unresolved)).toBe(true);
   });
 });
