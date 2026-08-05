@@ -552,7 +552,7 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
     // program and make the tde_id cache below ambiguous.
     const { data: tdeRowsRaw, error: tdeError } = await supabase
       .from('training_day_exercises')
-      .select('id, training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier, created_at')
+      .select('id, training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier, created_at, user_id')
       .in('training_day_id', dayIds)
       .is('replaced_at', null)
       .order('sort_order', { ascending: true });
@@ -560,19 +560,49 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
     if (tdeError) throw tdeError;
     if (!tdeRowsRaw) return;
 
-    // A swap inserts the replacement before retiring the old row, so a
-    // failure in that gap leaves two live rows on one slot. Keep the newest
-    // per (day, slot): the replacement is the one the lifter chose, and
-    // rendering both would duplicate the exercise in their program.
-    const newestBySlot = new Map<string, { created_at?: string; training_day_id: string; sort_order: number }>();
-    (tdeRowsRaw as unknown as { created_at?: string; training_day_id: string; sort_order: number }[]).forEach((row) => {
+    // ── Overlay resolution ────────────────────────────────────────────────
+    //
+    // A shared meso can hold TWO live rows for one slot: the owner's, and a
+    // member's personal override. They are layered, not superseded — a member
+    // swapping their pull-up variation must not rewrite the owner's program,
+    // and the owner must never see the member's pick.
+    //
+    // So: my own row always wins for a slot; otherwise the owner's stands.
+    // Without this the pull is unfiltered by user_id and a member's override
+    // would render in the OWNER's program as a duplicate slot.
+    //
+    // Within one user's rows, newest wins: a swap inserts the replacement
+    // before retiring the old row, so a failure in that gap leaves two live
+    // rows and rendering both would duplicate the exercise.
+    const me = (await getUser())?.id ?? null;
+    type SlotCandidate = {
+      created_at?: string;
+      training_day_id: string;
+      sort_order: number;
+      user_id?: string | null;
+    };
+    const bestBySlot = new Map<string, SlotCandidate>();
+    (tdeRowsRaw as unknown as SlotCandidate[]).forEach((row) => {
       const slotKey = `${row.training_day_id}:${row.sort_order}`;
-      const prev = newestBySlot.get(slotKey);
-      if (!prev || String(row.created_at ?? '') > String(prev.created_at ?? '')) {
-        newestBySlot.set(slotKey, row);
+      const prev = bestBySlot.get(slotKey);
+      if (!prev) {
+        bestBySlot.set(slotKey, row);
+        return;
+      }
+      const rowIsMine = me != null && row.user_id === me;
+      const prevIsMine = me != null && prev.user_id === me;
+      if (rowIsMine !== prevIsMine) {
+        // Ownership decides before recency — a member's older override still
+        // beats the owner's newer default, or their swap would silently
+        // revert whenever the owner touched that slot.
+        if (rowIsMine) bestBySlot.set(slotKey, row);
+        return;
+      }
+      if (String(row.created_at ?? '') > String(prev.created_at ?? '')) {
+        bestBySlot.set(slotKey, row);
       }
     });
-    const tdeRows = Array.from(newestBySlot.values()) as unknown as typeof tdeRowsRaw;
+    const tdeRows = Array.from(bestBySlot.values()) as unknown as typeof tdeRowsRaw;
 
     // Populate the tde_id cache for chunk 5d notes sync. Map is
     // "dayIdx:exIdx" → training_day_exercises.id. Uses day_index from the
@@ -759,16 +789,65 @@ interface WorkoutSessionPayload {
   skipped?: boolean;
 }
 
+/**
+ * The localStorage key holding a session's uuid, scoped to the mesocycle.
+ *
+ * The meso id is in the key because it wasn't, and that lost people's
+ * history. The old key was `foundry:ws_id:d{day}:w{week}` — no meso — so
+ * (day 0, week 0) resolved to the SAME workout_sessions row forever.
+ * `wipeMesoSessionData` clears it when you start a new cycle, which covered
+ * the owner; a shared-meso MEMBER never runs that wipe, because the owner
+ * starting a new cycle isn't an event on the member's device.
+ *
+ * So a member's April sets and their August sets piled into one session row,
+ * FK'd to whichever training_day existed last. Every exercise from the older
+ * program then had no matching tde row, and pullWorkoutHistory drops sets it
+ * can't place. Observed in prod: two session rows holding four months of
+ * work across four distinct dates, 64 sets unplaceable.
+ *
+ * Falls back to the legacy key when no scoped one exists, so a cycle already
+ * in progress keeps writing to its existing row instead of silently starting
+ * a second one mid-session.
+ */
+function workoutSessionIdKey(dayIdx: number, weekIdx: number): string {
+  const mesoId = localStorage.getItem('foundry:active_meso_id');
+  return mesoId
+    ? `foundry:ws_id:${mesoId}:d${dayIdx}:w${weekIdx}`
+    : `foundry:ws_id:d${dayIdx}:w${weekIdx}`;
+}
+
 // Generates or retrieves the stable uuid for a (dayIdx, weekIdx) session.
 // Cached in localStorage so set upserts all reference the same session row.
 export function getOrCreateWorkoutSessionId(dayIdx: number, weekIdx: number): string {
   if (typeof window === 'undefined') return crypto.randomUUID();
-  const key = `foundry:ws_id:d${dayIdx}:w${weekIdx}`;
+  const key = workoutSessionIdKey(dayIdx, weekIdx);
   const existing = localStorage.getItem(key);
   if (existing) return existing;
+
+  // Legacy unscoped key — adopt it ONCE into the scoped key so an in-flight
+  // session doesn't fork into a second row, then leave the old key alone.
+  const legacyKey = `foundry:ws_id:d${dayIdx}:w${weekIdx}`;
+  if (key !== legacyKey) {
+    const legacy = localStorage.getItem(legacyKey);
+    if (legacy) {
+      localStorage.setItem(key, legacy);
+      localStorage.removeItem(legacyKey);
+      return legacy;
+    }
+  }
+
   const fresh = crypto.randomUUID();
   localStorage.setItem(key, fresh);
   return fresh;
+}
+
+/** Read-only lookup — returns null rather than minting an id. */
+export function peekWorkoutSessionId(dayIdx: number, weekIdx: number): string | null {
+  if (typeof window === 'undefined') return null;
+  return (
+    localStorage.getItem(workoutSessionIdKey(dayIdx, weekIdx)) ||
+    localStorage.getItem(`foundry:ws_id:d${dayIdx}:w${weekIdx}`)
+  );
 }
 
 export async function upsertWorkoutSessionRemote(
@@ -944,6 +1023,9 @@ interface TdeSlotRow {
   exercise_id: string;
   sort_order: number;
   replaced_at: string | null;
+  /** Present on shared mesos, where a member's overlay row coexists with the
+   *  owner's. Absent on solo mesos — buildSlotMap treats that as "all mine". */
+  user_id?: string | null;
 }
 
 interface SlotMap {
@@ -970,11 +1052,26 @@ interface ReconstructableSet {
  * resolve exercises since swapped out of a slot, or the lifter's logged work
  * disappears from the app.
  */
-function buildSlotMap(rows: TdeSlotRow[]): SlotMap {
+function buildSlotMap(rows: TdeSlotRow[], viewerId?: string): SlotMap {
   const exerciseIndexMap = new Map<string, number>();
   const liveExerciseKeys = new Set<string>();
-  rows.forEach((r) => {
+  const mineKeys = new Set<string>();
+
+  // On a shared meso the same exercise can sit at different slots for the
+  // owner and for a member who swapped. The sets being placed belong to ONE
+  // user, so their own row decides the slot — otherwise a member's history
+  // lands at whatever position the owner happens to use.
+  const ordered = viewerId
+    ? [...rows.filter((r) => r.user_id !== viewerId), ...rows.filter((r) => r.user_id === viewerId)]
+    : rows;
+
+  ordered.forEach((r) => {
     const key = `${r.training_day_id}:${r.exercise_id}`;
+    const isMine = viewerId != null && r.user_id === viewerId;
+    // Never let a row belonging to someone else overwrite the viewer's own
+    // placement, live or not.
+    if (!isMine && mineKeys.has(key)) return;
+    if (isMine) mineKeys.add(key);
     // A live row's sort_order is authoritative: the same exercise may appear
     // on an older superseded row at a different position.
     if (r.replaced_at == null) {
@@ -1112,7 +1209,7 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
     const trainingDayIds = Array.from(new Set(sessions.map((s) => s.training_day_id)));
     const { data: tdeRows, error: tdeError } = await supabase
       .from('training_day_exercises')
-      .select('training_day_id, exercise_id, sort_order, replaced_at')
+      .select('training_day_id, exercise_id, sort_order, replaced_at, user_id')
       .in('training_day_id', trainingDayIds);
 
     if (tdeError) throw tdeError;
@@ -1120,7 +1217,7 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
     // A swap mid-session leaves both exercises with sets in one session at
     // one slot, and the local blob is [exIdx][setNumber] — exactly one can
     // win. Live wins; see buildSlotMap.
-    const slotMap = buildSlotMap((tdeRows || []) as TdeSlotRow[]);
+    const slotMap = buildSlotMap((tdeRows || []) as TdeSlotRow[], userId);
 
     // Reconstruct each session's jsonb
     for (const session of sessions) {
@@ -1160,7 +1257,9 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
       // Cache the session id so future writes (unchecks, re-completes) target
       // the same workout_sessions row.
       try {
-        localStorage.setItem(`foundry:ws_id:d${session.day_number}:w${session.week_number}`, session.id);
+        // Scoped by meso — see workoutSessionIdKey. mesoId is the meso being
+        // pulled, not necessarily the active one, so key it explicitly.
+        localStorage.setItem(`foundry:ws_id:${mesoId}:d${session.day_number}:w${session.week_number}`, session.id);
       } catch { /* non-critical cache write */ }
     }
   } catch (e) {
@@ -1296,11 +1395,11 @@ async function pullMesoArchive(userId: string, activeMesoId: string | null): Pro
     const trainingDayIds = Array.from(new Set(sessions.map((s) => s.training_day_id)));
     const { data: tdeRows, error: tdeError } = await supabase
       .from('training_day_exercises')
-      .select('training_day_id, exercise_id, sort_order, replaced_at')
+      .select('training_day_id, exercise_id, sort_order, replaced_at, user_id')
       .in('training_day_id', trainingDayIds);
     if (tdeError) throw tdeError;
 
-    const slotMap = buildSlotMap((tdeRows || []) as TdeSlotRow[]);
+    const slotMap = buildSlotMap((tdeRows || []) as TdeSlotRow[], userId);
 
     const sessionsByMeso = new Map<string, SessionRow[]>();
     sessions.forEach((s) => {
@@ -1492,7 +1591,9 @@ async function pullNotes(userId: string): Promise<void> {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (!k) continue;
-        const m = k.match(/^foundry:ws_id:d(\d+):w(\d+)$/);
+        // Both key shapes: legacy `ws_id:d0:w0` and meso-scoped
+        // `ws_id:{uuid}:d0:w0`.
+        const m = k.match(/^foundry:ws_id:(?:[0-9a-f-]{36}:)?d(\d+):w(\d+)$/);
         if (m) {
           const id = localStorage.getItem(k);
           if (id) sessionIdToDayWeek.set(id, { d: parseInt(m[1], 10), w: parseInt(m[2], 10) });
@@ -1584,12 +1685,17 @@ export async function syncExerciseSwapRemote(
     const user = await getUser();
     if (!user) return;
 
-    // Find the training_day row for this (meso, dayIdx)
+    // Find the training_day row for this (meso, dayIdx).
+    //
+    // NOT filtered by user_id. training_days belong to the meso owner and are
+    // readable by members through RLS; filtering by user_id here meant a
+    // member's swap found no row and silently did nothing remotely. Their
+    // sets then logged against an exercise with no slot row, and
+    // pullWorkoutHistory dropped every one of them on the next pull.
     const { data: tdRows, error: tdError } = await supabase
       .from('training_days')
       .select('id')
       .eq('meso_id', mesoId)
-      .eq('user_id', user.id)
       .eq('day_index', dayIdx)
       .limit(1);
     if (tdError) throw tdError;
@@ -1598,11 +1704,10 @@ export async function syncExerciseSwapRemote(
 
     const newExerciseId = String(newExercise.id);
 
-    // The live occupant of this slot, if any. modifier/is_warmup are slot
-    // properties, not exercise properties — the in-place UPDATE preserved
-    // them for free by keeping the row, so the replacement has to carry
-    // them across explicitly or a swap silently drops the lifter's
-    // modifier and un-flags a warmup slot.
+    // MY live rows for this slot. Scoped to user_id deliberately: a member's
+    // swap is a personal overlay on the owner's program, so it must read and
+    // retire only its own rows. Touching the owner's row here would rewrite
+    // a program the member doesn't own — the pull resolves the layering.
     const { data: liveRows, error: liveError } = await supabase
       .from('training_day_exercises')
       .select('id, exercise_id, modifier, is_warmup')
@@ -1626,7 +1731,22 @@ export async function syncExerciseSwapRemote(
     // Carry the slot's own attributes onto the replacement. When several
     // rows somehow share the slot, the newest select order is arbitrary —
     // any of them is a better source than a hardcoded default.
-    const outgoing = live[0] ?? null;
+    //
+    // A member's FIRST swap on a slot has no row of their own to inherit
+    // from, so fall back to whoever else holds the slot (the owner). Without
+    // this, their overlay silently drops a modifier or un-flags a warmup
+    // slot that the owner had set.
+    let outgoing = live[0] ?? null;
+    if (!outgoing) {
+      const { data: anyRows } = await supabase
+        .from('training_day_exercises')
+        .select('id, exercise_id, modifier, is_warmup')
+        .eq('training_day_id', trainingDayId)
+        .eq('sort_order', exIdx)
+        .is('replaced_at', null)
+        .limit(1);
+      outgoing = ((anyRows || [])[0] as typeof outgoing) ?? null;
+    }
 
     const { min, max } = parseRepRange(newExercise.reps);
     const setsNum = Number(newExercise.sets);
@@ -1720,14 +1840,15 @@ export async function syncDayExercisesRemote(
     const user = await getUser();
     if (!user) return true;
 
-    // user_id on training_days scopes this to the meso OWNER. A shared-meso
-    // member rebuilding their own copy must not rewrite the owner's program —
-    // this select simply returns nothing for them and the push no-ops.
+    // NOT filtered by user_id — training_days belong to the owner and are
+    // readable by members via RLS. A member rebuilding writes their own
+    // overlay rows (user_id = them) and retires only their own, so the
+    // owner's program is untouched while the member's rebuild still reaches
+    // the server. Filtering here made a member's rebuild a silent no-op.
     const { data: tdRows, error: tdError } = await supabase
       .from('training_days')
       .select('id')
       .eq('meso_id', mesoId)
-      .eq('user_id', user.id)
       .eq('day_index', dayIdx)
       .limit(1);
     if (tdError) throw tdError;
@@ -2548,7 +2669,7 @@ export async function syncNotesToSupabase(
     if (!user) return;
 
     // ── Session note ────────────────────────────────────────────────────
-    const sessionId = localStorage.getItem(`foundry:ws_id:d${dayIdx}:w${weekIdx}`);
+    const sessionId = peekWorkoutSessionId(dayIdx, weekIdx);
     if (sessionId) {
       // Delete any existing session note for this workout_session (idempotent)
       const { error: delErr } = await supabase
