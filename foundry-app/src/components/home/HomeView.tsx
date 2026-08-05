@@ -117,6 +117,27 @@ function HomeView({
   // back a different workout than the one just approved.
   const [rebuildPreview, setRebuildPreview] = useState<RebuildPreview | null>(null);
   const [rebuildBusy, setRebuildBusy] = useState(false);
+  const [rebuildUnresolved, setRebuildUnresolved] = useState<number[]>([]);
+
+  // Redraw only the slots the lifter didn't lock. Replaces the preview in
+  // place, so `before` keeps pointing at the original day and the was→now
+  // diff stays meaningful across repeated redraws.
+  const rebuildUnlocked = async (lockedSlots: number[]) => {
+    if (!rebuildPreview || rebuildBusy) return;
+    setRebuildBusy(true);
+    try {
+      const { rebuildWithLocks } = await import('../../utils/rebuildSession');
+      const { getExerciseDB } = await import('../../data/exerciseDB');
+      const next = rebuildWithLocks(profile, rebuildPreview, lockedSlots, getExerciseDB() as never);
+      if (!next) return;
+      setRebuildUnresolved(next.unresolved);
+      setRebuildPreview(next);
+    } catch (e) {
+      console.warn('[Foundry]', 'rebuild unlocked failed', e);
+    } finally {
+      setRebuildBusy(false);
+    }
+  };
 
   const openRebuild = async (dayIdx: number) => {
     const { previewRebuild } = await import('../../utils/rebuildSession');
@@ -126,6 +147,7 @@ function HomeView({
       window.alert("This session can't be rebuilt — it already has logged sets.");
       return;
     }
+    setRebuildUnresolved([]);
     setRebuildPreview(preview);
   };
 
@@ -667,9 +689,11 @@ function HomeView({
         <RebuildDayModal
           preview={rebuildPreview}
           busy={rebuildBusy}
-          onCancel={() => setRebuildPreview(null)}
+          onCancel={() => { setRebuildPreview(null); setRebuildUnresolved([]); }}
           onApplyDay={() => applyRebuild('day')}
           onApplyAll={() => applyRebuild('all')}
+          onRebuildUnlocked={rebuildUnlocked}
+          unresolved={rebuildUnresolved}
         />
       )}
       <ShareMesoModal open={showShare} onClose={() => setShowShare(false)} />
