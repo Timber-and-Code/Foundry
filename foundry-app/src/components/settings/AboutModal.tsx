@@ -31,9 +31,11 @@ const STANZAS: { h: string; b: string }[] = [
 interface AboutModalProps {
   open: boolean;
   onClose: () => void;
+  /** Opens the founder's letter. Omitted, the reference block is hidden. */
+  onReadLetter?: () => void;
 }
 
-export default function AboutModal({ open, onClose }: AboutModalProps) {
+export default function AboutModal({ open, onClose, onReadLetter }: AboutModalProps) {
   return (
     <Modal open={open} onClose={onClose} maxWidth={460}>
       <div
@@ -121,6 +123,53 @@ export default function AboutModal({ open, onClose }: AboutModalProps) {
             </div>
           ))}
         </div>
+
+        {/* The stanzas above are all mechanism — what the app does and why the
+            program looks the way it does. They're the right content for a
+            reference someone opens mid-cycle, but they never say why any of
+            this exists. The letter does, and it only lived on the pricing
+            page, which most people see once or never. Two lines and a door,
+            rather than moving the letter in here: a person asking "why four
+            sets?" isn't asking for a manifesto. */}
+        {onReadLetter && (
+          <div
+            style={{
+              marginTop: 20,
+              paddingTop: 14,
+              borderTop: '1px solid var(--border-subtle)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.7,
+              }}
+            >
+              Most systems fail people — and that failure is what keeps so many from becoming
+              who they want to be. The Foundry is my answer to that.
+            </div>
+            <button
+              onClick={onReadLetter}
+              style={{
+                marginTop: 10,
+                padding: 0,
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--accent)',
+                fontSize: 13,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              Read the letter from the founder
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        )}
 
         <div
           style={{

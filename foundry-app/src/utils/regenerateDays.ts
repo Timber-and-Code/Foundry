@@ -92,6 +92,15 @@ export interface RegenerateOptions {
   exerciseDB?: Parameters<typeof generateProgram>[1];
   /** Injected for tests. Defaults to the archive-derived set. */
   trainedIds?: Iterable<string>;
+  /**
+   * Restrict the rebuild to these day indices. Anything outside the list is
+   * preserved even if it has no logged work — this is how "rebuild today"
+   * differs from "rebuild the rest of the cycle".
+   *
+   * Narrowing only. A day in this list that HAS logged work is still
+   * preserved; the no-touching-logged-work rule is not overridable.
+   */
+  onlyDays?: number[];
 }
 
 /**
@@ -127,8 +136,11 @@ export function regenerateUntouchedDays(
   if (!fresh || fresh.length === 0) return empty;
 
   // No stored program to preserve — the fresh one IS the answer, and nothing
-  // is being destroyed.
+  // is being destroyed. A scoped rebuild has nothing to scope to here, so it
+  // declines rather than quietly writing a whole program the caller didn't
+  // ask for; useMesoState generates one on its own in this state anyway.
   if (current.length === 0) {
+    if (options.onlyDays) return empty;
     if (options.commit) {
       store.set('foundry:storedProgram', JSON.stringify(fresh));
       clearOverridesForDays(fresh.map((_, i) => i));
@@ -141,9 +153,15 @@ export function regenerateUntouchedDays(
     };
   }
 
+  const scope = options.onlyDays ? new Set(options.onlyDays) : null;
+
   const regenerated: number[] = [];
   const preserved: number[] = [];
   const merged = current.map((day, i) => {
+    if (scope && !scope.has(i)) {
+      preserved.push(i);
+      return day;
+    }
     if (dayHasLoggedWork(i)) {
       preserved.push(i);
       return day;
@@ -159,9 +177,13 @@ export function regenerateUntouchedDays(
   });
 
   // Days the fresh program adds beyond the stored one (day count went up).
-  for (let i = current.length; i < fresh.length; i++) {
-    regenerated.push(i);
-    merged.push(fresh[i]);
+  // A scoped rebuild is about one existing day and must not also change the
+  // shape of the week, so it never appends.
+  if (!scope) {
+    for (let i = current.length; i < fresh.length; i++) {
+      regenerated.push(i);
+      merged.push(fresh[i]);
+    }
   }
 
   if (options.commit) {
