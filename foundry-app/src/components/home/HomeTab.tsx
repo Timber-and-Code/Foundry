@@ -134,6 +134,8 @@ function RestStateCard({
   goBack,
   onSelectDayWeek,
   profile,
+  setShowSkipConfirm,
+  onRebuildDay,
 }: {
   displayWeekAllDone: boolean;
   calendarSessionDone: boolean;
@@ -156,6 +158,8 @@ function RestStateCard({
   goBack: () => void;
   onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
   profile: Profile | null | undefined;
+  setShowSkipConfirm: (v: { dayIdx: number; weekIdx: number } | null) => void;
+  onRebuildDay?: (dayIdx: number) => void;
 }) {
   // Find last completed day's tag for mobility
   let homeMobilityTag = null;
@@ -450,6 +454,53 @@ function RestStateCard({
                 >
                   Start {nextDayForCollapse.label} <span aria-hidden="true">→</span>
                 </button>
+
+                {/* The same actions the TODAY card carries. Without these the
+                    whole rebuild feature is invisible on a rest day — which is
+                    most days, and exactly when someone has time to look ahead
+                    and decide they don't want what's programmed.
+
+                    No Preview button here: this card IS the preview, already
+                    expanded. */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  {onRebuildDay && !dayHasLoggedWork(nextDayIdxForCollapse) && (
+                    <button
+                      onClick={() => onRebuildDay(nextDayIdxForCollapse)}
+                      aria-label={`Rebuild ${nextDayForCollapse.label}`}
+                      style={{
+                        flex: 1,
+                        background: 'transparent',
+                        border: '1px solid var(--border)',
+                        borderRadius: tokens.radius.md,
+                        color: 'var(--text-primary)',
+                        fontSize: 14,
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                        padding: '8px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Rebuild
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowSkipConfirm({ dayIdx: nextDayIdxForCollapse, weekIdx: activeWeek })}
+                    style={{
+                      flex: 1,
+                      background: 'transparent',
+                      border: '1px solid var(--border)',
+                      borderRadius: tokens.radius.md,
+                      color: 'var(--text-muted)',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      padding: '8px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Skip
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1157,6 +1208,8 @@ function HomeTab({
           goBack={goBack}
           onSelectDayWeek={onSelectDayWeek}
           profile={profile}
+          setShowSkipConfirm={setShowSkipConfirm}
+          onRebuildDay={onRebuildDay}
         />
       ) : (
         <>

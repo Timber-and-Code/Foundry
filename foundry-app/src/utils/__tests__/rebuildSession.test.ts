@@ -60,7 +60,7 @@ describe('generateProgram is not deterministic', () => {
       Array.from({ length: 6 }, () =>
         JSON.stringify(
           generateProgram(profile, DB, { trainedIds: ['bb_back_squat'] }).map((d) =>
-            d.exercises.map((e: { id: string }) => e.id),
+            d.exercises.map((e) => String(e.id)),
           ),
         ),
       ),
