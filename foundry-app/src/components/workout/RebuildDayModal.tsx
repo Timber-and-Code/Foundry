@@ -74,6 +74,22 @@ export default function RebuildDayModal({
           {preview.label}
         </div>
 
+        {/* A day's exercise list is meso-wide by construction — only the set
+            count varies week to week. So rebuilding this day rebuilds it for
+            every week, and saying so up front stops people reading this as
+            "just today's session". */}
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            lineHeight: 1.6,
+            marginBottom: 14,
+          }}
+        >
+          Applies to {preview.label} in every week of this meso — it&rsquo;s the same
+          session each time, only the set count changes.
+        </div>
+
         {!preview.changed && (
           <div
             style={{
@@ -83,8 +99,8 @@ export default function RebuildDayModal({
               marginBottom: 14,
             }}
           >
-            The redraw landed on the same exercises. Applying it changes nothing —
-            close and try again for a different draw.
+            This came back with the same exercises. Applying it changes nothing —
+            close and rebuild again for a different set.
           </div>
         )}
 
@@ -162,7 +178,7 @@ export default function RebuildDayModal({
               cursor: busy ? 'wait' : 'pointer',
             }}
           >
-            {busy ? 'Applying…' : 'Use this session'}
+            {busy ? 'Applying…' : `Keep this ${preview.label}`}
           </button>
 
           {others > 0 &&
@@ -185,7 +201,7 @@ export default function RebuildDayModal({
               >
                 {busy
                   ? 'Applying…'
-                  : `Yes — redraw this and ${others} other day${others === 1 ? '' : 's'}`}
+                  : `Yes — rebuild all ${others + 1} days`}
               </button>
             ) : (
               <button
@@ -208,9 +224,13 @@ export default function RebuildDayModal({
                   alignItems: 'center',
                 }}
               >
-                <span>Rebuild the rest of the cycle too</span>
+                {/* Names the days rather than counting them. "Rebuild the rest
+                    of the meso" reads as "copy this session onto the other
+                    days", which is the opposite of what happens — each one
+                    gets its own independent draw. */}
+                <span>Rebuild my other days too</span>
                 <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>
-                  Also redraws {others} day{others === 1 ? '' : 's'} you haven&rsquo;t trained
+                  {preview.otherLabels.join(', ')} — each gets its own new session
                 </span>
               </button>
             ))}

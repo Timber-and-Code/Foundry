@@ -276,7 +276,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
       const kept = preview.preserved.length;
       if (
         !window.confirm(
-          `Rebuild ${names}?\n\nThese days have no logged sets, so nothing you've done is lost. ${kept} day${kept === 1 ? '' : 's'} you've already trained will be left exactly as ${kept === 1 ? 'it is' : 'they are'}.\n\nThe new days use your training history to keep your main lifts consistent.`,
+          `Rebuild ${names}?\n\nEach one gets its own new session — this doesn't copy a single day onto the others. Each applies to every week of the meso.\n\nThese days have no logged sets, so nothing you've done is lost. ${kept} day${kept === 1 ? '' : 's'} you've already trained will be left exactly as ${kept === 1 ? 'it is' : 'they are'}.`,
         )
       )
         return;
@@ -787,10 +787,10 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           >
             <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Rebuild the rest of the cycle
+                Rebuild all untrained days
               </span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                Every day you haven&rsquo;t trained yet
+                Each gets its own new session
               </span>
             </span>
             <span aria-hidden="true" style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 700 }}>

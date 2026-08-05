@@ -31,10 +31,13 @@ export interface RebuildPreview {
   before: RebuildSlot[];
   after: RebuildSlot[];
   /**
-   * Other untouched days that a whole-cycle rebuild would ALSO redraw.
-   * Drives the "and N other days" copy — never guess this number in the UI.
+   * Other untouched days that a whole-meso rebuild would ALSO rebuild —
+   * each with its own independent draw, NOT a copy of this one. Drives the
+   * "and N other days" copy; never guess this number in the UI.
    */
   otherDays: number[];
+  /** Labels for `otherDays`, so the UI can name them instead of counting. */
+  otherLabels: string[];
   /** False when the redraw happened to land on the same exercises. */
   changed: boolean;
 }
@@ -90,6 +93,7 @@ export function previewRebuild(
     before,
     after,
     otherDays,
+    otherLabels: otherDays.map((i) => current[i]?.label || `Day ${i + 1}`),
     changed:
       before.length !== after.length ||
       before.some((b, i) => b.id !== after[i]?.id),

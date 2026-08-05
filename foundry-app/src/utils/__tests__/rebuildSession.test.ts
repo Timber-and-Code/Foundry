@@ -204,3 +204,27 @@ describe('regenerateUntouchedDays commit option', () => {
     expect(written).toEqual(result.program);
   });
 });
+
+describe('otherLabels', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('names the other rebuildable days so the UI never has to guess', () => {
+    seedProgram();
+    logWork(0);
+
+    const preview = previewRebuild(profile, 2, DB)!;
+
+    expect(preview.otherDays).toEqual([1, 3]);
+    expect(preview.otherLabels).toEqual(['ORIGINAL 1', 'ORIGINAL 3']);
+  });
+
+  it('is empty when this is the only rebuildable day', () => {
+    seedProgram();
+    [0, 1, 3].forEach((d) => logWork(d));
+
+    const preview = previewRebuild(profile, 2, DB)!;
+
+    expect(preview.otherDays).toEqual([]);
+    expect(preview.otherLabels).toEqual([]);
+  });
+});
