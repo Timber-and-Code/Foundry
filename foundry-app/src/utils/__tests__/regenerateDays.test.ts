@@ -187,3 +187,121 @@ describe('regenerateUntouchedDays', () => {
     expect(localStorage.getItem('foundry:done:d0:w0')).toBe('1');
   });
 });
+
+// "Rebuild today" narrows the blast radius to one day. It must never widen
+// it: a scoped rebuild that quietly reshaped the rest of the cycle would be
+// the same class of surprise as the whole-meso regenerate it replaces.
+describe('regenerateUntouchedDays — onlyDays scope', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('rebuilds only the named day', () => {
+    seedProgram();
+    const result = regenerateUntouchedDays(profile, { exerciseDB: DB, onlyDays: [2] });
+
+    expect(result.regenerated).toEqual([2]);
+    expect(result.preserved).toEqual([0, 1, 3]);
+    expect(result.program?.[0]?.label).toBe('ORIGINAL 0');
+    expect(result.program?.[3]?.label).toBe('ORIGINAL 3');
+    expect(result.program?.[2]?.label).not.toBe('ORIGINAL 2');
+  });
+
+  it('still refuses a day that has logged work', () => {
+    // Narrowing selects a candidate; it does not override the one rule that
+    // protects training data.
+    seedProgram();
+    logWork(2);
+
+    const result = regenerateUntouchedDays(profile, { exerciseDB: DB, onlyDays: [2] });
+
+    expect(result.regenerated).toEqual([]);
+    expect(result.preserved).toContain(2);
+    expect(result.program?.[2]?.label).toBe('ORIGINAL 2');
+  });
+
+  it('does not lengthen the week', () => {
+    // A 2-day stored program with a 4-day fresh one: the unscoped path
+    // appends the extra days, which is right for "rebuild the cycle" and
+    // wrong for "rebuild today".
+    seedProgram();
+    localStorage.setItem(
+      'foundry:storedProgram',
+      JSON.stringify(JSON.parse(localStorage.getItem('foundry:storedProgram')!).slice(0, 2)),
+    );
+
+    const result = regenerateUntouchedDays(profile, { exerciseDB: DB, onlyDays: [1] });
+
+    expect(result.program).toHaveLength(2);
+    expect(result.regenerated).toEqual([1]);
+  });
+
+  it('only clears overrides for the scoped day', () => {
+    seedProgram();
+    localStorage.setItem('foundry:exov:d1:ex0', 'keep_me');
+    localStorage.setItem('foundry:exov:d2:ex0', 'drop_me');
+
+    regenerateUntouchedDays(profile, { exerciseDB: DB, onlyDays: [2], commit: true });
+
+    expect(localStorage.getItem('foundry:exov:d1:ex0')).toBe('keep_me');
+    expect(localStorage.getItem('foundry:exov:d2:ex0')).toBeNull();
+  });
+
+  it('declines when there is no stored program to scope against', () => {
+    const result = regenerateUntouchedDays(profile, { exerciseDB: DB, onlyDays: [0] });
+
+    expect(result.program).toBeNull();
+    expect(result.committed).toBe(false);
+    expect(localStorage.getItem('foundry:storedProgram')).toBeNull();
+  });
+});
+
+// A swap override pins an exercise id to a SLOT INDEX and is applied on top
+// of the stored program by Home, WorkoutSplash, NextUpCard, the overview
+// accordion and DayView. Left in place across a rebuild it re-pins the old
+// exercise to the new day — the program changes and the lifter sees nothing
+// move, which is indistinguishable from the rebuild not running at all.
+describe('regenerateUntouchedDays — swap overrides', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('clears overrides on the days it rebuilds', () => {
+    seedProgram();
+    logWork(0); // day 0 preserved, days 1-3 rebuilt
+    localStorage.setItem('foundry:exov:d1:ex0', 'stale_pick');
+    localStorage.setItem('foundry:exov:d2:w3:ex1', 'stale_pick_weekly');
+
+    regenerateUntouchedDays(profile, { exerciseDB: DB, commit: true });
+
+    expect(localStorage.getItem('foundry:exov:d1:ex0')).toBeNull();
+    expect(localStorage.getItem('foundry:exov:d2:w3:ex1')).toBeNull();
+  });
+
+  it('keeps overrides on preserved days — those are current choices', () => {
+    seedProgram();
+    logWork(0);
+    localStorage.setItem('foundry:exov:d0:ex0', 'my_swap');
+
+    regenerateUntouchedDays(profile, { exerciseDB: DB, commit: true });
+
+    expect(localStorage.getItem('foundry:exov:d0:ex0')).toBe('my_swap');
+  });
+
+  it('does not match a day index by prefix', () => {
+    // d1 must not take d11's overrides with it.
+    seedProgram();
+    logWork(0);
+    localStorage.setItem('foundry:exov:d11:ex0', 'other_day');
+
+    regenerateUntouchedDays(profile, { exerciseDB: DB, commit: true });
+
+    expect(localStorage.getItem('foundry:exov:d11:ex0')).toBe('other_day');
+  });
+
+  it('leaves overrides alone on a dry run', () => {
+    seedProgram();
+    logWork(0);
+    localStorage.setItem('foundry:exov:d1:ex0', 'stale_pick');
+
+    regenerateUntouchedDays(profile, { exerciseDB: DB });
+
+    expect(localStorage.getItem('foundry:exov:d1:ex0')).toBe('stale_pick');
+  });
+});

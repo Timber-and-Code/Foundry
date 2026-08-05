@@ -21,6 +21,7 @@ import {
   loadDayWeek,
   loadDayWeekWithCarryover,
 } from '../../utils/store';
+import { dayHasLoggedWork } from '../../utils/regenerateDays';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
 import HomeCardioCard from './HomeCardioCard';
@@ -133,6 +134,8 @@ function RestStateCard({
   goBack,
   onSelectDayWeek,
   profile,
+  setShowSkipConfirm,
+  onRebuildDay,
 }: {
   displayWeekAllDone: boolean;
   calendarSessionDone: boolean;
@@ -155,6 +158,8 @@ function RestStateCard({
   goBack: () => void;
   onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
   profile: Profile | null | undefined;
+  setShowSkipConfirm: (v: { dayIdx: number; weekIdx: number } | null) => void;
+  onRebuildDay?: (dayIdx: number) => void;
 }) {
   // Find last completed day's tag for mobility
   let homeMobilityTag = null;
@@ -449,6 +454,53 @@ function RestStateCard({
                 >
                   Start {nextDayForCollapse.label} <span aria-hidden="true">→</span>
                 </button>
+
+                {/* The same actions the TODAY card carries. Without these the
+                    whole rebuild feature is invisible on a rest day — which is
+                    most days, and exactly when someone has time to look ahead
+                    and decide they don't want what's programmed.
+
+                    No Preview button here: this card IS the preview, already
+                    expanded. */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  {onRebuildDay && !dayHasLoggedWork(nextDayIdxForCollapse) && (
+                    <button
+                      onClick={() => onRebuildDay(nextDayIdxForCollapse)}
+                      aria-label={`Rebuild ${nextDayForCollapse.label}`}
+                      style={{
+                        flex: 1,
+                        background: 'transparent',
+                        border: '1px solid var(--border)',
+                        borderRadius: tokens.radius.md,
+                        color: 'var(--text-primary)',
+                        fontSize: 14,
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                        padding: '8px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Rebuild
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowSkipConfirm({ dayIdx: nextDayIdxForCollapse, weekIdx: activeWeek })}
+                    style={{
+                      flex: 1,
+                      background: 'transparent',
+                      border: '1px solid var(--border)',
+                      borderRadius: tokens.radius.md,
+                      color: 'var(--text-muted)',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      padding: '8px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Skip
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -488,6 +540,8 @@ interface HomeTabProps {
   onSelectDayWeek: (dayIdx: number, weekIdx: number) => void;
   setShowSkipConfirm: (v: { dayIdx: number; weekIdx: number } | null) => void;
   setPreviewSession?: (v: { dayIdx: number; weekIdx: number } | null) => void;
+  /** Opens the rebuild preview for a day. Omitted, the button is hidden. */
+  onRebuildDay?: (dayIdx: number) => void;
   onOpenCardio: (dateStr: string, protocol: string | null) => void;
   onOpenMobility: (v: string) => void;
   setShowPricing: (v: boolean) => void;
@@ -521,6 +575,7 @@ function HomeTab({
   onSelectDayWeek,
   setShowSkipConfirm,
   setPreviewSession,
+  onRebuildDay,
   onOpenCardio,
   onOpenMobility: _onOpenMobility,
   setShowPricing: _setShowPricing,
@@ -1153,6 +1208,8 @@ function HomeTab({
           goBack={goBack}
           onSelectDayWeek={onSelectDayWeek}
           profile={profile}
+          setShowSkipConfirm={setShowSkipConfirm}
+          onRebuildDay={onRebuildDay}
         />
       ) : (
         <>
@@ -1328,6 +1385,35 @@ function HomeTab({
               >
                 Preview
               </button>
+              {/* Rebuild sits here rather than under Start deliberately.
+                  Start is the primary CTA and this is its alternative — the
+                  thing you reach for INSTEAD of starting, same as Preview and
+                  Skip. It also lands directly under the exercise list, which
+                  is where the eye already is at the moment of "I don't want
+                  this today".
+
+                  Hidden once the session has logged sets: rebuilding then
+                  would discard the exercise ids those sets are matched on. */}
+              {onRebuildDay && !dayHasLoggedWork(showDayIdx) && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRebuildDay(showDayIdx); }}
+                  aria-label="Rebuild today's workout"
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: tokens.radius.md,
+                    color: 'var(--text-primary)',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    padding: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Rebuild
+                </button>
+              )}
               <button
                 onClick={(e) => { e.stopPropagation(); setShowSkipConfirm({ dayIdx: showDayIdx, weekIdx: showDayWeek }); }}
                 style={{
@@ -1343,7 +1429,10 @@ function HomeTab({
                   cursor: 'pointer',
                 }}
               >
-                Skip Today
+                {/* "Skip Today" when it's one of two, "Skip" when three share
+                    the row — at 14px bold the long label wraps on a 320px
+                    screen. */}
+                {onRebuildDay && !dayHasLoggedWork(showDayIdx) ? 'Skip' : 'Skip Today'}
               </button>
             </div>
           )}

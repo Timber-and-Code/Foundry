@@ -242,23 +242,28 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     deleteAllFoundryData();
   };
 
-  // Rebuild the days you haven't started yet, leaving logged ones alone.
+  // Rebuild every day with no logged work.
   //
-  // Always previews first. This is destructive for the days it replaces, and
-  // on a shared mesocycle it changes what your training partner sees too —
-  // so the confirm names the exact days rather than asking in the abstract.
+  // The per-session rebuild lives on the day card on Home, where you're
+  // actually looking at the workout you don't want. This one stays here as
+  // the whole-cycle escape hatch — and as the only route on a rest day, when
+  // there's no day card to press.
+  //
+  // Previews first, then commits THAT result. regenerateUntouchedDays wraps
+  // generateProgram, which shuffles: computing a second time to commit would
+  // write a different program than the one just described.
   const handleRefreshUpcoming = async () => {
     if (refreshingDays) return;
     setRefreshingDays(true);
     try {
-      const { regenerateUntouchedDays } = await import('../../utils/regenerateDays');
+      const { previewRebuildAll, applyRebuild } = await import('../../utils/rebuildSession');
       const { getExerciseDB } = await import('../../data/exerciseDB');
       const exerciseDB = getExerciseDB() as unknown as NonNullable<
         RegenerateOptions['exerciseDB']
       >;
 
-      const preview = regenerateUntouchedDays(saved, { exerciseDB });
-      if (!preview.program || preview.regenerated.length === 0) {
+      const preview = previewRebuildAll(saved, exerciseDB);
+      if (!preview?.program) {
         window.alert(
           'Nothing to rebuild — every day in this cycle already has logged work, so none can be changed without losing it.',
         );
@@ -271,14 +276,19 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
       const kept = preview.preserved.length;
       if (
         !window.confirm(
-          `Rebuild ${names}?\n\nThese days have no logged sets, so nothing you've done is lost. ${kept} day${kept === 1 ? '' : 's'} you've already trained will be left exactly as ${kept === 1 ? 'it is' : 'they are'}.\n\nThe new days use your training history to keep your main lifts consistent, and fix the missing arm and calf work.`,
+          `Rebuild ${names}?\n\nEach one gets its own new session — this doesn't copy a single day onto the others. Each applies to every week of the meso.\n\nThese days have no logged sets, so nothing you've done is lost. ${kept} day${kept === 1 ? '' : 's'} you've already trained will be left exactly as ${kept === 1 ? 'it is' : 'they are'}.`,
         )
       )
         return;
 
-      regenerateUntouchedDays(saved, { exerciseDB, commit: true });
+      const { pushed } = await applyRebuild(preview);
       emit('foundry:pull-complete'); // re-read the stored program
-      window.alert(`Rebuilt ${names}. Open the Schedule tab to see the new sessions.`);
+
+      window.alert(
+        pushed
+          ? `Rebuilt ${names}. Open the Schedule tab to see the new sessions.`
+          : `Rebuilt ${names} on this device, but the change couldn't be saved to your account — it may revert next time you sync. Check your connection and rebuild again.`,
+      );
     } catch (e) {
       console.warn('[Foundry]', 'refresh upcoming days failed', e);
       window.alert('Could not rebuild those days. Nothing was changed.');
@@ -754,8 +764,12 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           {/* Sits directly under "Start new mesocycle" because it is the
               cheaper version of the same intent — "this program isn't right"
               — and most people reaching for a reset only need this. */}
+          {/* Whole-cycle only. Rebuilding a single session belongs on the day
+              card on Home, at the moment you're looking at the workout you
+              don't want — not three taps into Settings. This stays for the
+              cycle-wide case and for rest days, when there's no card to press. */}
           <button
-            onClick={handleRefreshUpcoming}
+            onClick={() => handleRefreshUpcoming()}
             disabled={refreshingDays}
             style={{
               width: '100%',
@@ -773,10 +787,10 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           >
             <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Rebuild upcoming days
+                Rebuild all untrained days
               </span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                Only days you haven&rsquo;t trained yet
+                Each gets its own new session
               </span>
             </span>
             <span aria-hidden="true" style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 700 }}>
@@ -1202,7 +1216,18 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
       {/* About The Foundry modal */}
       {showAbout && (
         <Suspense fallback={null}>
-          <AboutModal open={showAbout} onClose={() => setShowAbout(false)} />
+          <AboutModal
+            open={showAbout}
+            onClose={() => setShowAbout(false)}
+            // The letter lives on the pricing page, which is a sibling of
+            // Settings rather than a child — so close both and let HomeView
+            // open it, the same route the "See plans" row already takes.
+            onReadLetter={() => {
+              setShowAbout(false);
+              onClose();
+              emit('foundry:showPricing');
+            }}
+          />
         </Suspense>
       )}
     </div>

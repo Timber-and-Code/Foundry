@@ -13,7 +13,8 @@ import {
   saveProfile,
 } from '../../utils/store';
 import { syncSkippedToSupabase } from '../../utils/sync';
-import { on } from '../../utils/events';
+import { on, emit } from '../../utils/events';
+import type { RebuildPreview } from '../../utils/rebuildSession';
 import { dayDisplayName } from '../../utils/splitLabel';
 
 // Shared UI
@@ -32,6 +33,7 @@ import ShareMesoModal from '../social/ShareMesoModal';
 import JoinMesoFlow from '../social/JoinMesoFlow';
 import FriendsTab from '../social/FriendsTab';
 import WorkoutSplash from '../workout/WorkoutSplash';
+import RebuildDayModal from '../workout/RebuildDayModal';
 import type { Profile, TrainingDay } from '../../types';
 
 interface HomeViewProps {
@@ -108,6 +110,57 @@ function HomeView({
   }, []);
   const [showSkipConfirm, setShowSkipConfirm] = useState<{ dayIdx: number; weekIdx: number } | null>(null);
   const [previewSession, setPreviewSession] = useState<{ dayIdx: number; weekIdx: number } | null>(null);
+
+  // ── Rebuild a programmed session ────────────────────────────────────────
+  // The preview holds the ACTUAL regenerated program, not a description of
+  // one: generateProgram shuffles, so re-running it at apply time would hand
+  // back a different workout than the one just approved.
+  const [rebuildPreview, setRebuildPreview] = useState<RebuildPreview | null>(null);
+  const [rebuildBusy, setRebuildBusy] = useState(false);
+
+  const openRebuild = async (dayIdx: number) => {
+    const { previewRebuild } = await import('../../utils/rebuildSession');
+    const { getExerciseDB } = await import('../../data/exerciseDB');
+    const preview = previewRebuild(profile, dayIdx, getExerciseDB() as never);
+    if (!preview) {
+      window.alert("This session can't be rebuilt — it already has logged sets.");
+      return;
+    }
+    setRebuildPreview(preview);
+  };
+
+  // scope 'day' applies the previewed result verbatim. scope 'all' needs a
+  // fresh draw because the other days were never generated for the preview.
+  const applyRebuild = async (scope: 'day' | 'all') => {
+    if (!rebuildPreview || rebuildBusy) return;
+    setRebuildBusy(true);
+    try {
+      const mod = await import('../../utils/rebuildSession');
+      let result = rebuildPreview.result;
+      if (scope === 'all') {
+        const { getExerciseDB } = await import('../../data/exerciseDB');
+        const all = mod.previewRebuildAll(profile, getExerciseDB() as never);
+        if (!all) {
+          window.alert('Could not rebuild the rest of the cycle. Nothing was changed.');
+          return;
+        }
+        result = all;
+      }
+      const { pushed, names } = await mod.applyRebuild(result);
+      setRebuildPreview(null);
+      emit('foundry:pull-complete'); // re-read the stored program
+      if (!pushed) {
+        window.alert(
+          `Rebuilt ${names.join(', ')} on this device, but the change couldn't be saved to your account — it may revert next time you sync.`,
+        );
+      }
+    } catch (e) {
+      console.warn('[Foundry]', 'rebuild failed', e);
+      window.alert('Could not rebuild that session. Nothing was changed.');
+    } finally {
+      setRebuildBusy(false);
+    }
+  };
   const [skipVersion, setSkipVersion] = useState(0);
   const [addWorkoutModal, setAddWorkoutModal] = useState<string | null>(null);
   const [addWorkoutStep, setAddWorkoutStep] = useState('type');
@@ -609,6 +662,16 @@ function HomeView({
       {showReset && <ResetDialog />}
       <AddWorkoutModal />
       {showPricing && <PricingPage onClose={() => setShowPricing(false)} />}
+
+      {rebuildPreview && (
+        <RebuildDayModal
+          preview={rebuildPreview}
+          busy={rebuildBusy}
+          onCancel={() => setRebuildPreview(null)}
+          onApplyDay={() => applyRebuild('day')}
+          onApplyAll={() => applyRebuild('all')}
+        />
+      )}
       <ShareMesoModal open={showShare} onClose={() => setShowShare(false)} />
       <JoinMesoFlow open={showJoin} onClose={() => setShowJoin(false)} onJoined={() => window.location.reload()} />
 
@@ -767,6 +830,7 @@ function HomeView({
             onSelectDayWeek={onSelectDayWeek}
             setShowSkipConfirm={setShowSkipConfirm}
             setPreviewSession={setPreviewSession}
+            onRebuildDay={openRebuild}
             onOpenCardio={onOpenCardio}
             onOpenMobility={onOpenMobility}
             setShowPricing={setShowPricing}

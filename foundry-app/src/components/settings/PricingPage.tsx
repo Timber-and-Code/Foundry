@@ -685,7 +685,12 @@ export function PricingPage({ onClose }: PricingPageProps) {
               paddingTop: 16,
             }}
           >
+            {/* Was an empty circle — a styled 40px gradient div with a
+                fontSize and no child, rendering as a blank blob beside the
+                signature. The initial is the smallest thing that reads as
+                deliberate. */}
             <div
+              aria-hidden="true"
               style={{
                 width: 40,
                 height: 40,
@@ -697,8 +702,13 @@ export function PricingPage({ onClose }: PricingPageProps) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 16,
+                fontWeight: 800,
+                color: 'var(--accent)',
+                letterSpacing: '0.02em',
               }}
-            ></div>
+            >
+              J
+            </div>
             <div>
               <div
                 style={{
