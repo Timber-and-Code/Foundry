@@ -187,3 +187,55 @@ describe('regenerateUntouchedDays', () => {
     expect(localStorage.getItem('foundry:done:d0:w0')).toBe('1');
   });
 });
+
+// A swap override pins an exercise id to a SLOT INDEX and is applied on top
+// of the stored program by Home, WorkoutSplash, NextUpCard, the overview
+// accordion and DayView. Left in place across a rebuild it re-pins the old
+// exercise to the new day — the program changes and the lifter sees nothing
+// move, which is indistinguishable from the rebuild not running at all.
+describe('regenerateUntouchedDays — swap overrides', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('clears overrides on the days it rebuilds', () => {
+    seedProgram();
+    logWork(0); // day 0 preserved, days 1-3 rebuilt
+    localStorage.setItem('foundry:exov:d1:ex0', 'stale_pick');
+    localStorage.setItem('foundry:exov:d2:w3:ex1', 'stale_pick_weekly');
+
+    regenerateUntouchedDays(profile, { exerciseDB: DB, commit: true });
+
+    expect(localStorage.getItem('foundry:exov:d1:ex0')).toBeNull();
+    expect(localStorage.getItem('foundry:exov:d2:w3:ex1')).toBeNull();
+  });
+
+  it('keeps overrides on preserved days — those are current choices', () => {
+    seedProgram();
+    logWork(0);
+    localStorage.setItem('foundry:exov:d0:ex0', 'my_swap');
+
+    regenerateUntouchedDays(profile, { exerciseDB: DB, commit: true });
+
+    expect(localStorage.getItem('foundry:exov:d0:ex0')).toBe('my_swap');
+  });
+
+  it('does not match a day index by prefix', () => {
+    // d1 must not take d11's overrides with it.
+    seedProgram();
+    logWork(0);
+    localStorage.setItem('foundry:exov:d11:ex0', 'other_day');
+
+    regenerateUntouchedDays(profile, { exerciseDB: DB, commit: true });
+
+    expect(localStorage.getItem('foundry:exov:d11:ex0')).toBe('other_day');
+  });
+
+  it('leaves overrides alone on a dry run', () => {
+    seedProgram();
+    logWork(0);
+    localStorage.setItem('foundry:exov:d1:ex0', 'stale_pick');
+
+    regenerateUntouchedDays(profile, { exerciseDB: DB });
+
+    expect(localStorage.getItem('foundry:exov:d1:ex0')).toBe('stale_pick');
+  });
+});

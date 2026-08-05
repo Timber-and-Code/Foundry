@@ -276,9 +276,31 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
       )
         return;
 
-      regenerateUntouchedDays(saved, { exerciseDB, commit: true });
+      const result = regenerateUntouchedDays(saved, { exerciseDB, commit: true });
       emit('foundry:pull-complete'); // re-read the stored program
-      window.alert(`Rebuilt ${names}. Open the Schedule tab to see the new sessions.`);
+
+      // Push the new days, or the next pull rebuilds foundry:storedProgram
+      // from the untouched remote rows and quietly undoes all of this.
+      // Awaited: the alert must not claim success before the write lands, and
+      // a rebuild that stays local is exactly the bug this fixes.
+      const mesoId = store.get('foundry:active_meso_id');
+      let pushed = true;
+      if (mesoId) {
+        const { syncDayExercisesRemote } = await import('../../utils/sync');
+        for (const dayIdx of result.regenerated) {
+          const day = result.program?.[dayIdx];
+          if (day?.exercises?.length) {
+            const ok = await syncDayExercisesRemote(mesoId, dayIdx, day.exercises);
+            if (!ok) pushed = false;
+          }
+        }
+      }
+
+      window.alert(
+        pushed
+          ? `Rebuilt ${names}. Open the Schedule tab to see the new sessions.`
+          : `Rebuilt ${names} on this device, but they couldn't be saved to your account — they may revert next time you sync. Check your connection and rebuild again.`,
+      );
     } catch (e) {
       console.warn('[Foundry]', 'refresh upcoming days failed', e);
       window.alert('Could not rebuild those days. Nothing was changed.');

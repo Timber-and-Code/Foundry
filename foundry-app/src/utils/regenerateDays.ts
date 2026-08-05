@@ -50,6 +50,30 @@ export function dayHasLoggedWork(dayIdx: number, maxWeeks: number = MAX_WEEKS): 
   return false;
 }
 
+/**
+ * Drop swap overrides belonging to days we just replaced.
+ *
+ * `foundry:exov:d{day}[:w{week}]:ex{slot}` pins an exercise id to a SLOT
+ * INDEX, and Home, WorkoutSplash, NextUpCard, WorkoutOverviewAccordion and
+ * DayView all apply it on top of the stored program. So a day the lifter had
+ * ever swapped on would keep rendering the old exercise in every one of those
+ * surfaces after a rebuild — the program changed underneath and nothing
+ * visibly moved. The override describes a choice about a program that no
+ * longer exists; it has to go with it.
+ *
+ * Only the regenerated days are touched. Overrides on preserved days are
+ * real, current choices.
+ */
+function clearOverridesForDays(dayIndices: number[]): void {
+  if (dayIndices.length === 0) return;
+  const targets = new Set(dayIndices);
+  const exovRe = /^foundry:exov:d(\d+):(?:w\d+:)?ex\d+$/;
+  for (const key of store.keys('foundry:exov:')) {
+    const m = exovRe.exec(key);
+    if (m && targets.has(Number(m[1]))) store.remove(key);
+  }
+}
+
 export interface RegenerateResult {
   /** Day indices that were (or would be) replaced. */
   regenerated: number[];
@@ -105,7 +129,10 @@ export function regenerateUntouchedDays(
   // No stored program to preserve — the fresh one IS the answer, and nothing
   // is being destroyed.
   if (current.length === 0) {
-    if (options.commit) store.set('foundry:storedProgram', JSON.stringify(fresh));
+    if (options.commit) {
+      store.set('foundry:storedProgram', JSON.stringify(fresh));
+      clearOverridesForDays(fresh.map((_, i) => i));
+    }
     return {
       regenerated: fresh.map((_, i) => i),
       preserved: [],
@@ -137,6 +164,9 @@ export function regenerateUntouchedDays(
     merged.push(fresh[i]);
   }
 
-  if (options.commit) store.set('foundry:storedProgram', JSON.stringify(merged));
+  if (options.commit) {
+    store.set('foundry:storedProgram', JSON.stringify(merged));
+    clearOverridesForDays(regenerated);
+  }
   return { regenerated, preserved, program: merged, committed: !!options.commit };
 }

@@ -1681,6 +1681,156 @@ export async function syncExerciseSwapRemote(
   }
 }
 
+// Replace every slot of one training day, append-only.
+//
+// `ensureTrainingStructureRemote` populates a meso's training_day_exercises
+// exactly once and then early-returns forever ("already populated"), and
+// `syncExerciseSwapRemote` only ever touches a single slot. So a locally
+// regenerated day had NO path to the server at all: the rebuild wrote
+// `foundry:storedProgram`, the next `pullTrainingStructure` rebuilt that same
+// key from the untouched remote rows, and the new day silently reverted.
+// That is why "Rebuild upcoming days" reported success and changed nothing.
+//
+// Supersede rather than delete, for the reason spelled out on
+// `syncExerciseSwapRemote`: a workout_set maps back to its slot through
+// (training_day_id, exercise_id), and pullWorkoutHistory drops any set whose
+// pair has no tde row. Callers only pass days with no logged work, so there
+// should be nothing to orphan — but a day that turns out to hold history must
+// degrade to "history still resolves", not "history disappears".
+// Returns false only when the push was ATTEMPTED and failed, so a caller can
+// tell the lifter their rebuild is device-local and will revert. "Nothing to
+// do" — sync disabled, signed out, not the meso owner, already identical — is
+// a success: the remote is in the state the caller wanted.
+export async function syncDayExercisesRemote(
+  mesoId: string,
+  dayIdx: number,
+  exercises: {
+    id?: unknown;
+    sets?: unknown;
+    reps?: unknown;
+    progression?: unknown;
+    anchor?: unknown;
+    modifier?: unknown;
+  }[],
+): Promise<boolean> {
+  if (!MIGRATED.training_structure) return true;
+  if (!exercises || exercises.length === 0) return true;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return true;
+
+    // user_id on training_days scopes this to the meso OWNER. A shared-meso
+    // member rebuilding their own copy must not rewrite the owner's program —
+    // this select simply returns nothing for them and the push no-ops.
+    const { data: tdRows, error: tdError } = await supabase
+      .from('training_days')
+      .select('id')
+      .eq('meso_id', mesoId)
+      .eq('user_id', user.id)
+      .eq('day_index', dayIdx)
+      .limit(1);
+    if (tdError) throw tdError;
+    if (!tdRows || tdRows.length === 0) return true;
+    const trainingDayId = (tdRows[0] as { id: string }).id;
+
+    const { data: liveRows, error: liveError } = await supabase
+      .from('training_day_exercises')
+      .select('id, exercise_id, sort_order, modifier, is_warmup')
+      .eq('training_day_id', trainingDayId)
+      .eq('user_id', user.id)
+      .is('replaced_at', null)
+      .order('sort_order', { ascending: true });
+    if (liveError) throw liveError;
+
+    const live = (liveRows || []) as {
+      id: string;
+      exercise_id: string;
+      sort_order: number;
+      modifier: string | null;
+      is_warmup: boolean;
+    }[];
+
+    // Resolved once so the comparison below and the insert below agree on
+    // what a missing id becomes — otherwise an id-less slot never matches
+    // itself and every rebuild re-pushes the whole day.
+    const exerciseIds = exercises.map((ex, i) => String(ex.id ?? `unknown_${i}`));
+
+    // Idempotent. A rebuild that lands on the same picks (or a retry of one
+    // that already succeeded) must not manufacture a generation of superseded
+    // rows — the pull dedupes them, but every extra generation is one more
+    // ambiguous (training_day_id, exercise_id) pair for the history mapper.
+    const unchanged =
+      live.length === exercises.length &&
+      live.every((r, i) => r.exercise_id === exerciseIds[i]);
+    if (unchanged) return true;
+
+    // Slot attributes belong to the slot, not the exercise, so carry them
+    // across by sort_order the way a swap does.
+    const bySlot = new Map(live.map((r) => [r.sort_order, r]));
+
+    const tdeIdMap: Record<string, string> = {};
+    const newRows = exercises.map((ex, exIdx) => {
+      const { min, max } = parseRepRange(ex.reps);
+      const setsNum = Number(ex.sets);
+      const tdeId = crypto.randomUUID();
+      tdeIdMap[`${dayIdx}:${exIdx}`] = tdeId;
+      const outgoing = bySlot.get(exIdx);
+      return {
+        id: tdeId,
+        training_day_id: trainingDayId,
+        user_id: user.id,
+        exercise_id: exerciseIds[exIdx],
+        sort_order: exIdx,
+        sets: !isNaN(setsNum) && setsNum > 0 ? setsNum : 3,
+        rep_min: min,
+        rep_max: max,
+        progression: mapProgressionType({
+          progression: ex.progression,
+          anchor: ex.anchor,
+        }),
+        is_warmup: outgoing ? !!outgoing.is_warmup : false,
+        is_anchor: !!ex.anchor,
+        modifier: typeof ex.modifier === 'string' ? ex.modifier : (outgoing?.modifier ?? null),
+      };
+    });
+
+    // Insert before retire, deliberately — see syncExerciseSwapRemote. A
+    // failure in the gap leaves duplicate live rows (recoverable, the pull
+    // dedupes) instead of an empty day (read everywhere as "deleted").
+    const { error: insertError } = await supabase
+      .from('training_day_exercises')
+      .insert(newRows);
+    if (insertError) throw insertError;
+
+    // Retire ALL previous live rows for the day, not just the slots the new
+    // program happens to fill: a rebuild that shortens the day would otherwise
+    // leave the trailing old slots live and the day would come back longer
+    // than it is.
+    if (live.length > 0) {
+      const { error: retireError } = await supabase
+        .from('training_day_exercises')
+        .update({ replaced_at: new Date().toISOString() })
+        .in('id', live.map((r) => r.id));
+      if (retireError) throw retireError;
+    }
+
+    // Drop this day's stale entries before merging, so a shortened day
+    // doesn't leave notes pointing at slots that no longer exist.
+    const cached = getTdeIdMapLocal(mesoId) || {};
+    const pruned = Object.fromEntries(
+      Object.entries(cached).filter(([k]) => !k.startsWith(`${dayIdx}:`)),
+    );
+    writeTdeIdCache(mesoId, { ...pruned, ...tdeIdMap });
+    return true;
+  } catch (e) {
+    reportSyncFailure('day_exercises_rebuild', e);
+    return false;
+  } finally {
+    syncEnd();
+  }
+}
+
 async function getUser() {
   const { data: { user } } = await supabase.auth.getUser();
   return user;
