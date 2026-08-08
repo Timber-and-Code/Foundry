@@ -435,42 +435,14 @@ function PhaseBar({
 // PreviousMesosPage (full per-muscle breakdown of every archived meso).
 
 // ── Weekly Summary ────────────────────────────────────────────────────────
-
-function WeeklySummary({ goBack }: { activeDays: TrainingDay[]; completedDays: Set<string>; goBack: () => void; profile: Profile }) {
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px' }}>
-        <button
-          onClick={goBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-accent)',
-            fontSize: 18,
-            cursor: 'pointer',
-            minWidth: 44,
-            minHeight: 44,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <span aria-hidden="true">←</span>
-        </button>
-        <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
-          Weekly Summary
-        </span>
-      </div>
-      <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-        Weekly summary view coming soon
-      </div>
-    </div>
-  );
-}
+// Removed. It was a "coming soon" placeholder reachable from the PRIMARY
+// button of WeekCompleteModal, so every lifter who finished a week landed on
+// it. That button now goes to the meso overview. Don't reintroduce a `weekly`
+// tab until there is a real screen behind it.
 
 // ── Main export ───────────────────────────────────────────────────────────
 
-function MesoOverview({ tab, goBack, goTo: _goTo, activeDays, completedDays, profile, currentWeek }: MesoOverviewProps) {
+function MesoOverview({ tab, goBack, goTo: _goTo, activeDays, completedDays: _completedDays, profile: _profile, currentWeek }: MesoOverviewProps) {
   if (tab === 'overview') {
     return (
       <div style={{ animation: 'tabFadeIn 0.15s ease-out' }}>
@@ -482,17 +454,6 @@ function MesoOverview({ tab, goBack, goTo: _goTo, activeDays, completedDays, pro
 
   if (tab === 'history') {
     return <PreviousMesosPage goBack={goBack} />;
-  }
-
-  if (tab === 'weekly') {
-    return (
-      <WeeklySummary
-        activeDays={activeDays}
-        completedDays={completedDays}
-        goBack={goBack}
-        profile={profile}
-      />
-    );
   }
 
   return null;
