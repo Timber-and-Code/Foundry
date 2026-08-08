@@ -62,6 +62,7 @@ import { useSyncState } from './hooks/useSyncState';
 import ErrorBoundary from './components/ErrorBoundary';
 import MinimizedTimerBar from './components/MinimizedTimerBar';
 import WeekCompleteModal from './components/WeekCompleteModal';
+import type { WeekCompleteModalData } from './components/WeekCompleteModal';
 import type { Profile, TrainingDay } from './types';
 
 // Hooks
@@ -273,6 +274,31 @@ function App() {
     return unsub;
   }, [navigate]);
 
+  // A cool-down launched from the workout-complete modal fires onComplete
+  // first, so finishing the LAST session of a week queues the week-complete
+  // celebration a beat before we navigate to /mobility. That modal renders
+  // outside <Routes>, so it lands on top of the cool-down and the lifter
+  // never sees the session they explicitly asked for — the primary button on
+  // it ("View Week Summary →") then takes them somewhere else entirely.
+  // Hold the celebration until they come back from the cool-down.
+  const deferredWeekComplete = useRef<WeekCompleteModalData | null>(null);
+  const enteredMobility = useRef(false);
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/mobility/')) {
+      enteredMobility.current = true;
+      return;
+    }
+    // Only restore once we've actually been into the cool-down — otherwise a
+    // render that lands before navigate() commits would re-open the modal
+    // immediately and re-create the covering we're trying to avoid.
+    if (!enteredMobility.current || !deferredWeekComplete.current) return;
+    const held = deferredWeekComplete.current;
+    deferredWeekComplete.current = null;
+    enteredMobility.current = false;
+    setWeekCompleteModal(held);
+  }, [location.pathname, setWeekCompleteModal]);
+
   // Listen for mobility open requests (e.g. post-workout cool-down prompt).
   // Pre-selects the protocol by seeding the mobility session blob, then
   // routes into MobilitySessionView which reads it via loadMobilitySession.
@@ -280,6 +306,10 @@ function App() {
     const unsub = on('foundry:openMobility', (detail) => {
       const { dateStr, protocolId } = detail;
       if (!dateStr) return;
+      setWeekCompleteModal((cur) => {
+        if (cur) deferredWeekComplete.current = cur;
+        return null;
+      });
       if (protocolId) {
         // Mirror MobilityProtocolDetail "Start now": seed the session so the
         // view lands directly in the first exercise instead of the picker.
