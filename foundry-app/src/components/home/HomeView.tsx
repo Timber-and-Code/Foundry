@@ -91,7 +91,9 @@ function HomeView({
 
   useEffect(() => {
     if (openWeekly) {
-      setTab('weekly');
+      // Was 'weekly' — a placeholder screen. Until a real week summary
+      // exists, the meso overview is the honest destination.
+      setTab('overview');
       window.scrollTo(0, 0);
       if (onOpenWeeklyHandled) onOpenWeeklyHandled();
     }
@@ -915,7 +917,7 @@ function HomeView({
         />
       )}
 
-      {['overview', 'history', 'weekly'].includes(tab) && (
+      {['overview', 'history'].includes(tab) && (
         <MesoOverview
           tab={tab}
           goBack={goBack}

@@ -440,7 +440,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
               color: 'var(--btn-primary-text)',
             }}
           >
-            View Week Summary →
+            View Meso Overview →
           </button>
           <button
             onClick={onDismiss}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { tokens } from '../../styles/tokens';
 
 // Data
@@ -44,7 +44,14 @@ import {
   deleteWorkoutSetRemote,
   getOrCreateWorkoutSessionId,
   debouncedSync,
+  readProgramRole,
 } from '../../utils/sync';
+import {
+  permutationFromIds,
+  isIdentity,
+  commitReorderLocal,
+  pushReorderRemote,
+} from '../../utils/reorderPersistence';
 import { useRestTimer } from '../../contexts/RestTimerContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useActiveSession } from '../../contexts/ActiveSessionContext';
@@ -62,6 +69,7 @@ import WorkoutOverviewAccordion from './WorkoutOverviewAccordion';
 import NextUpCard from './NextUpCard';
 import SwapMenu from './SwapMenu';
 import ReorderSheet from './ReorderSheet';
+import ReorderScopeSheet from './ReorderScopeSheet';
 import SupersetGroup from './SupersetGroup';
 import SupersetRoundView from './SupersetRoundView';
 import SupersetPickerSheet from './SupersetPickerSheet';
@@ -111,7 +119,13 @@ function DayView({
     clearActiveSession: clearActiveSessionBar,
   } = useActiveSession();
   const notStartedWarnRef = React.useRef(0);
-  const day = activeDays[dayIdx];
+  // A committed reorder rewrites foundry:storedProgram, but `activeDays`
+  // upstream is a useMemo that won't re-read it mid-session. Hold the
+  // reordered day locally so anything rebuilding from the program (a swap
+  // confirm calls setExercises(resolveExercises())) sees the new order
+  // instead of snapping back to the stale prop.
+  const [reorderedDay, setReorderedDay] = useState<TrainingDay | null>(null);
+  const day = reorderedDay ?? activeDays[dayIdx];
 
   // Onboarding v2: emit the establish-week event the first time the user
   // opens ANY workout in week 0 — week 0 IS the Establish phase, regardless
@@ -650,6 +664,16 @@ function DayView({
   // append-mode via `addingExercise`; on select, we push instead of swap.
   const [reorderOpen, setReorderOpen] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
+  // Resolved exercise ids as they stood when the reorder sheet opened. Only
+  // moves made INSIDE the sheet should raise the scope question — superset
+  // pairing also splices the list, and asking "keep this order?" after
+  // pairing two lifts would be a non-sequitur.
+  const reorderBaselineRef = useRef<string[] | null>(null);
+  const [reorderScopePrompt, setReorderScopePrompt] = useState<{ perm: number[] } | null>(null);
+  const [reorderSaving, setReorderSaving] = useState(false);
+  // Read once: the sheet must open instantly and work in a gym basement, so
+  // this comes off a cache the last sync wrote rather than the network.
+  const programRole = useMemo(() => readProgramRole(), []);
 
   /* ── Swap: build exercise groups for picker ─────────────────────────────── */
   // The swap picker lists the ENTIRE exercise database, grouped by muscle.
@@ -1299,6 +1323,47 @@ function DayView({
       });
     },
     [dayIdx, weekIdx, exercises],
+  );
+
+  /**
+   * Persist the order the lifter just built, or let it lapse.
+   *
+   * The local write and the remote push are separate failures with separate
+   * consequences: a local-only success looks fine until the next pull rebuilds
+   * foundry:storedProgram from training_day_exercises and the order quietly
+   * reverts. Say so rather than reporting a clean save.
+   */
+  const resolveReorderScope = useCallback(
+    async (persist: boolean) => {
+      const prompt = reorderScopePrompt;
+      if (!prompt) return;
+      if (!persist) {
+        setReorderScopePrompt(null);
+        return;
+      }
+      setReorderSaving(true);
+      const commit = commitReorderLocal(dayIdx, prompt.perm);
+      if (!commit) {
+        setReorderSaving(false);
+        setReorderScopePrompt(null);
+        showToast("Couldn't save that order — it'll hold for this session.", 'warning');
+        return;
+      }
+      setReorderedDay((prev) => ({
+        ...((prev ?? activeDays[dayIdx]) as TrainingDay),
+        exercises: commit.exercises,
+      }));
+      const pushed = await pushReorderRemote(dayIdx, commit.exercises);
+      setReorderSaving(false);
+      setReorderScopePrompt(null);
+      showToast(
+        pushed
+          ? 'Order saved.'
+          : "Saved on this device — it hasn't reached the server yet.",
+        pushed ? 'success' : 'warning',
+      );
+    },
+    [reorderScopePrompt, dayIdx, activeDays, showToast],
   );
 
   const handleMoveExercise = useCallback(
@@ -2035,7 +2100,10 @@ function DayView({
               canNext={clampedFocus < exercises.length - 1}
               onPrev={() => setFocusedIdx(Math.max(0, clampedFocus - 1))}
               onNext={() => setFocusedIdx(Math.min(exercises.length - 1, clampedFocus + 1))}
-              onSession={() => setReorderOpen(true)}
+              onSession={() => {
+                reorderBaselineRef.current = exercises.map((e) => String(e.id ?? ''));
+                setReorderOpen(true);
+              }}
               sessionLabel={day?.label || day?.tag || "Today's Session"}
               position={clampedFocus + 1}
               total={exercises.length}
@@ -2054,7 +2122,19 @@ function DayView({
           exercises={exercises}
           currentIdx={Math.max(0, Math.min(focusedIdx, exercises.length - 1))}
           doneIndices={doneExercises}
-          onClose={() => setReorderOpen(false)}
+          onClose={() => {
+            setReorderOpen(false);
+            const before = reorderBaselineRef.current;
+            reorderBaselineRef.current = null;
+            if (!before) return;
+            const after = exercises.map((e) => String(e.id ?? ''));
+            const perm = permutationFromIds(before, after);
+            // permutationFromIds returns null for anything ambiguous — an
+            // exercise added mid-sheet, or the same lift in two slots. Those
+            // stay session-only rather than guessing which slot moved where.
+            if (!perm || isIdentity(perm)) return;
+            setReorderScopePrompt({ perm });
+          }}
           onMove={(fromIdx, toIdx) => {
             handleMoveExercise(fromIdx, toIdx);
             // Keep the focused card pointed at the same exercise after move.
@@ -2068,6 +2148,16 @@ function DayView({
           }}
           dayLabel={day?.label || day?.tag}
           onCompleteWorkout={!isDone && !isLocked ? handleComplete : undefined}
+        />
+      )}
+
+      {reorderScopePrompt && (
+        <ReorderScopeSheet
+          role={programRole}
+          dayLabel={day?.label || day?.tag || `Day ${dayIdx + 1}`}
+          busy={reorderSaving}
+          onSessionOnly={() => resolveReorderScope(false)}
+          onPersist={() => resolveReorderScope(true)}
         />
       )}
 
