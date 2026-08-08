@@ -1890,6 +1890,32 @@ export async function syncDayExercisesRemote(
     // across by sort_order the way a swap does.
     const bySlot = new Map(live.map((r) => [r.sort_order, r]));
 
+    // A member writing to this day for the FIRST time owns no rows yet, so
+    // `live` is empty and every slot would come back with modifier dropped
+    // and is_warmup cleared. Fall back to whoever does hold the day (the
+    // owner) purely to read those slot attributes — we still write our own
+    // rows. Reordering makes this the common case, not the rare one: it is
+    // usually a member's first write of any kind.
+    if (live.length === 0) {
+      const { data: anyRows } = await supabase
+        .from('training_day_exercises')
+        .select('sort_order, modifier, is_warmup')
+        .eq('training_day_id', trainingDayId)
+        .is('replaced_at', null);
+      ((anyRows || []) as { sort_order: number; modifier: string | null; is_warmup: boolean }[])
+        .forEach((r) => {
+          if (!bySlot.has(r.sort_order)) {
+            bySlot.set(r.sort_order, {
+              id: '',
+              exercise_id: '',
+              sort_order: r.sort_order,
+              modifier: r.modifier,
+              is_warmup: r.is_warmup,
+            });
+          }
+        });
+    }
+
     const tdeIdMap: Record<string, string> = {};
     const newRows = exercises.map((ex, exIdx) => {
       const { min, max } = parseRepRange(ex.reps);
@@ -2956,6 +2982,12 @@ export async function pullFromSupabase(): Promise<void> {
           await pullTrainingStructure(mesoId, user.id);
         }
 
+        // Cache how this user relates to the program. The reorder scope
+        // sheet has to know whether a change reaches anyone else, and it is
+        // raised mid-workout — a network round-trip there would either stall
+        // the sheet or fail outright on a gym connection.
+        await refreshProgramRoleCache(mesoId);
+
         // Chunk 4b: pull workout_sessions + workout_sets for this meso and
         // reconstruct foundry:day{d}:week{w} jsonb + done flags. MUST run
         // AFTER pullTrainingStructure so the training_day_exercises
@@ -3508,6 +3540,46 @@ export async function joinMesoByCode(
   } finally {
     syncEnd();
   }
+}
+
+/**
+ * Cache whether the active program is shared, and which side of it we're on.
+ *
+ * `solo`   — nobody else is on this meso.
+ * `owner`  — we created it and others joined; our training_day_exercises rows
+ *            ARE the program they read, so a push changes it for them too.
+ * `member` — we joined someone else's; our rows are an overlay only we see.
+ *
+ * Written to localStorage so `readProgramRole` can answer synchronously
+ * offline. Falls back to 'solo' when unknown, which is the conservative
+ * answer: the sheet then promises nothing about other people.
+ */
+export async function refreshProgramRoleCache(mesoId: string): Promise<void> {
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('mesocycle_members')
+      .select('user_id, role')
+      .eq('mesocycle_id', mesoId);
+    if (error) return;
+    const rows = (data || []) as { user_id: string; role: string }[];
+    const mine = rows.find((r) => r.user_id === user.id);
+    const others = rows.filter((r) => r.user_id !== user.id);
+    const role: 'solo' | 'owner' | 'member' =
+      mine && mine.role === 'member' ? 'member' : others.length > 0 ? 'owner' : 'solo';
+    store.set(`foundry:meso_role:${mesoId}`, role);
+  } catch {
+    /* best effort — readProgramRole defaults to solo */
+  }
+}
+
+/** Synchronous read of the cache written by `refreshProgramRoleCache`. */
+export function readProgramRole(): 'solo' | 'owner' | 'member' {
+  const mesoId = store.get('foundry:active_meso_id');
+  if (!mesoId) return 'solo';
+  const cached = store.get(`foundry:meso_role:${mesoId}`);
+  return cached === 'owner' || cached === 'member' ? cached : 'solo';
 }
 
 export async function fetchMesoMembers(mesoId: string): Promise<MesoMember[]> {
