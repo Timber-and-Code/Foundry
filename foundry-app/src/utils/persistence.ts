@@ -7,6 +7,7 @@ import {
   syncNotesToSupabase,
   syncCardioPresetToSupabase,
   deleteCardioPresetRemote,
+  syncSetCountToSupabase,
 } from './sync';
 import type {
   DayData,
@@ -804,6 +805,9 @@ export function saveSetCount(
   const current = loadSetCounts(dayIdx, weekIdx);
   current[exId] = count;
   store.set(`foundry:setcount:d${dayIdx}:w${weekIdx}`, JSON.stringify(current));
+  // Fire-and-forget, matching every other write in this module: the local
+  // save is authoritative and a failed push must never block adding a set.
+  void syncSetCountToSupabase(dayIdx, weekIdx, exId, count);
 }
 
 export function loadCardioLog(dayIdx: number, weekIdx: number): unknown {
