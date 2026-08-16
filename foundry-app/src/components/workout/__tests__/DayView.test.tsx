@@ -53,6 +53,9 @@ const mocks = vi.hoisted(() => ({
   loadSupersets: vi.fn(() => []),
   saveSupersets: vi.fn(),
   loadSetCounts: vi.fn(() => ({})),
+  loadSetCountWeeks: vi.fn(() => []),
+  // No stored adjustments in these fixtures, so the program's base wins.
+  pickSetCount: vi.fn((_weeks, _exId, weekIdx, baseFor) => baseFor(weekIdx)),
   saveSetCount: vi.fn(),
 
   getMeso: vi.fn(() => ({
@@ -94,6 +97,8 @@ vi.mock('../../../utils/store', () => ({
   loadSupersets: mocks.loadSupersets,
   saveSupersets: mocks.saveSupersets,
   loadSetCounts: mocks.loadSetCounts,
+  loadSetCountWeeks: mocks.loadSetCountWeeks,
+  pickSetCount: mocks.pickSetCount,
   saveSetCount: mocks.saveSetCount,
   saveProfile: mocks.saveProfile,
   loadBwLog: mocks.loadBwLog,

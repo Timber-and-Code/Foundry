@@ -744,6 +744,56 @@ export function loadSetCounts(dayIdx: number, weekIdx: number): Record<string, n
   }
 }
 
+/**
+ * Every week's set-count map from week 0 up to and including `weekIdx`,
+ * indexed by week. Loaded in one pass so a day's worth of exercises can be
+ * resolved without re-parsing the same localStorage keys per exercise.
+ */
+export function loadSetCountWeeks(dayIdx: number, weekIdx: number): Record<string, number>[] {
+  const weeks: Record<string, number>[] = [];
+  for (let w = 0; w <= weekIdx; w++) weeks.push(loadSetCounts(dayIdx, w));
+  return weeks;
+}
+
+/**
+ * Effective set count for one exercise in one week.
+ *
+ * The program stays in charge of volume: `getWeekSets` walks MEV→MAV→MRV
+ * and drops to a deload, and that progression is what moves week to week.
+ * A lifter's add/remove rides on top of it as a DELTA, not as a frozen
+ * absolute — so "I want one more set than prescribed" keeps meaning that
+ * after the program itself adds a set, and the lifter stays free to adjust
+ * again in either direction whenever they like.
+ *
+ * Previously the override was keyed per week and nothing carried, so an
+ * added third set silently reverted to the prescribed two the next week.
+ *
+ * Resolution order: this week's explicit choice → the most recent earlier
+ * week's choice re-expressed as a delta over that week's base → the base.
+ *
+ * `baseFor` is injected rather than importing getWeekSets, which lives in
+ * training.ts — and training.ts already imports this module, so pulling it
+ * in the other direction would close an import cycle.
+ */
+export function pickSetCount(
+  weeks: Record<string, number>[],
+  exId: string | number | null | undefined,
+  weekIdx: number,
+  baseFor: (week: number) => number,
+): number {
+  const base = baseFor(weekIdx);
+  const key = exId == null ? '' : String(exId);
+  if (!key) return base;
+  const own = weeks[weekIdx]?.[key];
+  if (own != null) return own;
+  for (let w = Math.min(weekIdx, weeks.length) - 1; w >= 0; w--) {
+    const chosen = weeks[w]?.[key];
+    if (chosen == null) continue;
+    return Math.max(1, base + (chosen - baseFor(w)));
+  }
+  return base;
+}
+
 export function saveSetCount(
   dayIdx: number,
   weekIdx: number,

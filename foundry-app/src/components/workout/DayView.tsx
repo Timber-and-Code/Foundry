@@ -32,7 +32,8 @@ import {
   getWeekSets,
   loadSupersets,
   saveSupersets,
-  loadSetCounts,
+  loadSetCountWeeks,
+  pickSetCount,
   saveSetCount,
 } from '../../utils/store';
 import { applyPersistedSupersets, newSupersetId } from '../../utils/supersets';
@@ -296,12 +297,14 @@ function DayView({
     const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile);
     // Honor any persisted add/remove-set overrides so an exercise the
     // lifter shortened to 3 sets isn't judged against the program's 4.
-    const setCounts = loadSetCounts(dayIdx, weekIdx);
+    const setWeeks = loadSetCountWeeks(dayIdx, weekIdx);
     const restored = new Set<number>();
     weekDay.exercises.forEach((ex: Exercise, i: number) => {
       const exData = (saved as unknown as Record<string, Record<string, Record<string, unknown>>>)[i] || {};
-      const expectedSets =
-        (ex.id != null ? setCounts[ex.id] : undefined) ?? Number(ex.sets ?? 0);
+      const programSets = Number(day.exercises[i]?.sets ?? 0);
+      const expectedSets = pickSetCount(setWeeks, ex.id, weekIdx, (w) =>
+        getWeekSets(programSets, w, getMeso().totalWeeks),
+      );
       let allFilled = true;
       for (let s = 0; s < expectedSets; s++) {
         const sd = exData[s] || {};
@@ -527,12 +530,19 @@ function DayView({
     // Persisted add/remove-set overrides — applied to whichever exercise
     // ends up in the slot (program default or swap override) so a
     // shortened/extended exercise keeps its set count across re-entry.
-    const setCounts = loadSetCounts(dayIdx, weekIdx);
+    const setWeeks = loadSetCountWeeks(dayIdx, weekIdx);
+    const totalWeeks = getMeso().totalWeeks;
     return (weekDay.exercises || []).map((ex: Exercise, i: number) => {
       const ovId = loadExOverride(dayIdx, weekIdx, i);
       if (!ovId) {
-        const c = ex.id != null ? setCounts[ex.id] : undefined;
-        return c ? ({ ...ex, sets: c } as Exercise) : ex;
+        // `weekDay` is already week-adjusted, so the raw program value has
+        // to come from `day` — feeding the adjusted number back through
+        // getWeekSets would adjust it twice.
+        const programSets = Number(day.exercises[i]?.sets ?? 0);
+        const c = pickSetCount(setWeeks, ex.id, weekIdx, (w) =>
+          getWeekSets(programSets, w, totalWeeks),
+        );
+        return c !== Number(ex.sets) ? ({ ...ex, sets: c } as Exercise) : ex;
       }
       const dbEx = findExercise(ovId);
       // Check custom exercises if not in DB
@@ -551,9 +561,9 @@ function DayView({
         equipment: resolved.equipment || 'other',
         tag: resolved.tag || ex.tag,
         anchor: ex.anchor,
-        sets:
-          (resolved.id != null ? setCounts[resolved.id] : undefined) ??
-          getWeekSets(Number((resolved.sets || ex.sets) ?? 0), weekIdx, getMeso().totalWeeks),
+        sets: pickSetCount(setWeeks, resolved.id, weekIdx, (w) =>
+          getWeekSets(Number(resolved.sets ?? day.exercises[i]?.sets ?? 0), w, totalWeeks),
+        ),
         reps: resolved.reps || ex.reps,
         rest: resolved.rest || ex.rest,
         warmup: wu,
