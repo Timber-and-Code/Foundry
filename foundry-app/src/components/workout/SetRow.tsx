@@ -30,6 +30,11 @@ export interface SetRowProps {
    *  its own row above the inputs (full container width, no truncation
    *  regardless of name length). Solo cards keep the leading badge column. */
   noLeadingColumn?: boolean;
+  /** Bodyweight movement. Swaps the weight placeholder from "—" (reads as
+   *  missing data) to "BW" (reads as intentional), so an unloaded set looks
+   *  logged rather than half-filled. The input stays editable — `bw` also
+   *  covers weighted/assisted pull-ups and dips, which do carry load. */
+  isBodyweight?: boolean;
   onUpdateWeight: (value: string) => void;
   onUpdateReps: (value: string) => void;
   onWeightBlur: (value: string) => void;
@@ -69,6 +74,7 @@ export default function SetRow({
   rowLabel,
   hideBadgeFallback = false,
   noLeadingColumn = false,
+  isBodyweight = false,
   onUpdateWeight,
   onUpdateReps,
   onWeightBlur,
@@ -212,9 +218,13 @@ export default function SetRow({
       <input
         type="number"
         inputMode="decimal"
-        placeholder="—"
+        placeholder={isBodyweight ? 'BW' : '—'}
         value={weight || ''}
-        aria-label={`Set ${setIdx + 1} weight in pounds`}
+        aria-label={
+          isBodyweight
+            ? `Set ${setIdx + 1} added weight in pounds, blank for bodyweight`
+            : `Set ${setIdx + 1} weight in pounds`
+        }
         onChange={(e) => onUpdateWeight(e.target.value)}
         onBlur={(e) => onWeightBlur(e.target.value)}
         onFocus={(e) => {

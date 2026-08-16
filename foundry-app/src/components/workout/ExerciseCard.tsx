@@ -217,21 +217,27 @@ function ExerciseCard({
     // than by slot position, so reorder/superset/this-session-swap
     // doesn't attribute another exercise's history to this card.
     const prev = findPrevSlotForExercise(prevWeekRaw, exercise.id, exIdx);
+    // Unloaded bodyweight sets have no weight to rank on, so reps alone
+    // decide the best set and the chip reads `3-BW×12`. Without this the
+    // chip stayed blank on every bodyweight movement.
+    const isBw = !!exercise.bw;
     let bestW = 0,
       bestR = 0,
       setsCount = 0;
     Object.values(prev as Record<string, SetData>).forEach((sd) => {
       if (!sd || sd.warmup) return;
-      const w = parseFloat(String(sd.weight ?? 0));
+      const w = parseFloat(String(sd.weight ?? 0)) || 0;
       const r = parseInt(String(sd.reps ?? 0), 10);
-      if (!w || !r) return;
+      if (!r || (!w && !isBw)) return;
       setsCount += 1;
       if (w > bestW || (w === bestW && r > bestR)) {
         bestW = w;
         bestR = r;
       }
     });
-    if (setsCount > 0 && bestW > 0 && bestR > 0) return fmt(setsCount, bestW, bestR);
+    if (setsCount > 0 && bestR > 0 && (bestW > 0 || isBw)) {
+      return bestW > 0 ? fmt(setsCount, bestW, bestR) : `${setsCount}-BW×${bestR}`;
+    }
     // Nothing in the same meso — fall back to the archive. Sets count isn't
     // meaningfully recoverable from the note, so report 1: showing the
     // reference beats dropping it.
@@ -240,7 +246,7 @@ function ExerciseCard({
       if (m) return fmt(1, parseFloat(m[1]), parseInt(m[2], 10));
     }
     return '';
-  }, [prevWeekRaw, exIdx, exercise.id, crossMesoNote]);
+  }, [prevWeekRaw, exIdx, exercise.id, exercise.bw, crossMesoNote]);
 
   // The note is a *fallback*, so it only earns screen space when there is
   // nothing more recent. Rendering it alongside same-meso data would put two
@@ -248,10 +254,18 @@ function ExerciseCard({
   // that actually matters — compete with a months-old figure.
   const hasSameMesoHistory = useMemo(() => {
     const prev = findPrevSlotForExercise(prevWeekRaw, exercise.id, exIdx);
+    const isBw = !!exercise.bw;
     return Object.values(prev as Record<string, SetData>).some(
-      (sd) => sd && !sd.warmup && parseFloat(String(sd.weight ?? 0)) > 0,
+      (sd) =>
+        sd &&
+        !sd.warmup &&
+        (parseFloat(String(sd.weight ?? 0)) > 0 ||
+          // Bodyweight work IS same-meso history; without this the card fell
+          // back to a months-old archive note despite last week being right
+          // there.
+          (isBw && parseInt(String(sd.reps ?? 0), 10) > 0)),
     );
-  }, [prevWeekRaw, exercise.id, exIdx]);
+  }, [prevWeekRaw, exercise.id, exIdx, exercise.bw]);
 
   // History modal — opened by tapping the LAST WK stat in the card header.
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -979,10 +993,16 @@ function ExerciseCard({
           {(() => {
             const prevSlice = findPrevSlotForExercise(prevWeekRaw, exercise.id, exIdx);
             const sets = Object.values(prevSlice) as unknown as SetData[];
-            if (!sets.some((sd) => sd && sd.weight && sd.reps && !sd.warmup)) {
+            // Bodyweight sets carry reps and no weight, so requiring both
+            // hid last session entirely on exactly the movements where reps
+            // are the only progress signal there is.
+            const isBw = !!exercise.bw;
+            const logged = (sd: SetData) =>
+              sd && !sd.warmup && sd.reps && (isBw || sd.weight);
+            if (!sets.some(logged)) {
               return null;
             }
-            const first = sets.find((sd) => sd && sd.weight && sd.reps && !sd.warmup);
+            const first = sets.find(logged);
             return (
               <div
                 style={{
@@ -994,7 +1014,7 @@ function ExerciseCard({
                   borderRadius: tokens.radius.sm,
                 }}
               >
-                Last session: {first ? `${first.weight} × ${first.reps}` : '—'}
+                Last session: {first ? `${first.weight || 'BW'} × ${first.reps}` : '—'}
               </div>
             );
           })()}
@@ -1092,6 +1112,7 @@ function ExerciseCard({
                     canRemove={canRemove}
                     readOnly={readOnly}
                     exerciseName={exercise.name}
+                    isBodyweight={!!exercise.bw}
                     onUpdateWeight={(value) => onUpdateSet(exIdx, s, 'weight', value)}
                     onUpdateReps={(value) => handleRepsChange(s, value)}
                     onWeightBlur={(value) => handleWeightBlur(s, value)}

@@ -205,6 +205,13 @@ function computeCarryoverForOneExercise(
   const rangeMax = parseInt(repParts[repParts.length - 1]) || rangeMin;
   const sets = typeof ex.sets === 'number' ? ex.sets : parseInt(String(ex.sets)) || 0;
 
+  // Bodyweight movements carry no load, so reps ARE the progression axis.
+  // Gating them on `weight > 0` (as loaded lifts are) meant nothing ever
+  // landed in completedPrevSets, baselineReps stayed 0, and every week fell
+  // through to rangeMin — telling a lifter who did 8 to do 6. It also left
+  // the bwRepBump branch below unreachable.
+  const isBw = !!ex.bw;
+
   type PrevSetShape = { weight?: unknown; reps?: unknown; warmup?: unknown };
   const completedPrevSets: { weight: number; reps: number }[] = [];
   // Count warmup-flagged slots inside the prescribed range so the
@@ -222,14 +229,25 @@ function computeCarryoverForOneExercise(
       ? NaN
       : parseFloat(String(wRaw));
     const r = parseInt(String(psd.reps ?? '0')) || 0;
-    if (Number.isFinite(w) && w > 0) {
+    if (isBw) {
+      // Reps alone mark the set done — unloaded rows arrive as '', null, or
+      // a literal 0 depending on how they were written. But `bw` also spans
+      // LOADABLE movements (weighted/assisted pull-ups and dips), so keep
+      // any real load: zeroing it would wipe out their weight progression.
+      if (r > 0) {
+        completedPrevSets.push({ weight: Number.isFinite(w) && w > 0 ? w : 0, reps: r });
+      }
+    } else if (Number.isFinite(w) && w > 0) {
       completedPrevSets.push({ weight: w, reps: r });
     }
   }
   const baselineWeight = completedPrevSets.length > 0
     ? Math.max(...completedPrevSets.map((s) => s.weight))
     : 0;
-  const baselineReps = baselineWeight > 0
+  // Keyed off "did we collect anything" rather than "is there load", so
+  // bodyweight sets (baselineWeight === 0) still establish a rep baseline.
+  // Equivalent for loaded lifts: every entry there has weight > 0.
+  const baselineReps = completedPrevSets.length > 0
     ? completedPrevSets
         .filter((s) => s.weight === baselineWeight)
         .reduce((best, s) => Math.max(best, s.reps), 0)
@@ -354,12 +372,17 @@ function loadDayWeekWithCarryoverV1(
   recalibrateActive: boolean = false,
 ): DayData {
   const expKey = expKeyFromProfile(profile);
+  const dayHasBw = (day.exercises || []).some((ex) => !!ex.bw);
   for (let w = weekIdx - 1; w >= 0; w--) {
     const prev = loadDayWeek(dayIdx, w);
-    const prevHasWeights = Object.values(prev).some((exData) =>
-      Object.values(exData).some((s) => s && s.weight)
+    // On a day carrying bodyweight work, reps count as evidence — those
+    // sets have no weight at all, so gating purely on weight disqualified
+    // the week as a carryover source. Loaded-only days keep the stricter
+    // weight test: reps with no load there means an abandoned set.
+    const prevHasData = Object.values(prev).some((exData) =>
+      Object.values(exData).some((s) => s && (s.weight || (dayHasBw && s.reps)))
     );
-    if (!prevHasWeights) continue;
+    if (!prevHasData) continue;
 
     const carried: DayData = {};
     day.exercises.forEach((ex, exIdx) => {
@@ -395,13 +418,15 @@ function loadDayWeekWithCarryoverV2(
   recalibrateActive: boolean = false,
 ): DayData | null {
   const expKey = expKeyFromProfile(profile);
+  const dayHasBw = (day.exercises || []).some((ex) => !!ex.bw);
   for (let w = weekIdx - 1; w >= 0; w--) {
     const prevV2 = loadDayWeekV2(dayIdx, w);
     if (Object.keys(prevV2).length === 0) continue;
-    const prevHasWeights = Object.values(prevV2).some((slice) =>
-      Object.values(slice?.sets || {}).some((s) => s && s.weight),
+    // Reps count as evidence on bodyweight days — see the v1 walk for why.
+    const prevHasData = Object.values(prevV2).some((slice) =>
+      Object.values(slice?.sets || {}).some((s) => s && (s.weight || (dayHasBw && s.reps))),
     );
-    if (!prevHasWeights) continue;
+    if (!prevHasData) continue;
 
     const carried: DayData = {};
     day.exercises.forEach((ex, exIdx) => {

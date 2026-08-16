@@ -667,6 +667,108 @@ describe('loadDayWeekWithCarryover', () => {
     expect(result).toEqual({});
   });
 
+  // ── Bodyweight movements progress on reps, not load ────────────────────
+  // These carry no weight, so the `weight > 0` gate used to drop every set
+  // on the floor: baselineReps stayed 0 and each week fell through to
+  // rangeMin. A lifter who did 8 was told to do 6.
+  const makeBwDay = (reps = '6-10') => ({
+    exercises: [
+      {
+        id: 'inverted_row',
+        name: 'Inverted Row',
+        equipment: 'bodyweight',
+        reps,
+        sets: 3,
+        bw: true,
+      },
+    ],
+  });
+
+  it('carries bodyweight reps forward instead of resetting to rangeMin', () => {
+    // Three sets of 8 with no weight — the real shape of a logged BW set.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '', reps: '8' },
+        1: { weight: '', reps: '8' },
+        2: { weight: '', reps: '8' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, makeBwDay('6-10'), profile);
+    // Did 8, short of the 10 cap → hold and add a rep. Never 6.
+    expect(result[0][0].reps).toBe('9');
+    expect(result[0][0].weight).toBe('');
+    expect(result[0][0].repsSuggested).toBe(true);
+  });
+
+  it('bumps past rangeMax on bodyweight once the cap is hit', () => {
+    // No load to add, so the rep target has to keep climbing.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '', reps: '10' },
+        1: { weight: '', reps: '10' },
+        2: { weight: '', reps: '10' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, makeBwDay('6-10'), profile);
+    expect(result[0][0].reps).toBe('11');
+    expect(result[0][0].weight).toBe('');
+  });
+
+  it('treats a literal 0 weight the same as a blank on bodyweight sets', () => {
+    // Rows land as '', null, or '0' depending on how they were written.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '0', reps: '8' },
+        1: { weight: '0', reps: '8' },
+        2: { weight: '', reps: '8' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, makeBwDay('6-10'), profile);
+    expect(result[0][0].reps).toBe('9');
+  });
+
+  it('keeps added load on loadable bodyweight movements', () => {
+    // `bw: true` also covers weighted/assisted pull-ups and dips. Treating
+    // every bw set as unloaded would erase their weight progression.
+    const weightedPullups = {
+      exercises: [
+        {
+          id: 'pullups_weighted',
+          name: 'Weighted Pull-ups',
+          equipment: 'bodyweight',
+          reps: '4-6',
+          sets: 3,
+          bw: true,
+        },
+      ],
+    };
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '15', reps: '4' },
+        1: { weight: '15', reps: '4' },
+        2: { weight: '15', reps: '4' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 1, weightedPullups, profile);
+    expect(result[0][0].weight).toBe('15');
+    expect(result[0][0].reps).toBe('5');
+  });
+
+  it('accepts an all-bodyweight week as a carryover source', () => {
+    // Nothing on the day has weight, so the week-level "has data?" scan has
+    // to count reps or the whole week is skipped and nothing carries.
+    setLSJson('foundry:day0:week0', {
+      0: {
+        0: { weight: '', reps: '7' },
+        1: { weight: '', reps: '7' },
+        2: { weight: '', reps: '7' },
+      },
+    });
+    const result = loadDayWeekWithCarryover(0, 2, makeBwDay('6-10'), profile);
+    expect(result).not.toEqual({});
+    expect(result[0][0].reps).toBe('8');
+  });
+
   // ── Med (2.8.3): id-based prior-slot lookup ────────────────────────────
   // Reorder, superset pairing, and this-session swap all shift the slot
   // index between weeks, which used to cause carryover to attribute one

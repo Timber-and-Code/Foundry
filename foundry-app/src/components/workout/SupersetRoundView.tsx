@@ -441,6 +441,7 @@ export default function SupersetRoundView({
                 canRemove={canRemove}
                 readOnly={readOnly}
                 exerciseName={ex.name}
+                isBodyweight={!!ex.bw}
                 noLeadingColumn
                 onUpdateWeight={(value) => {
                   onUpdateSet(exIdx, r, 'weight', value);
