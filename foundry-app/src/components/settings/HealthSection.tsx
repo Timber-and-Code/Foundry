@@ -122,9 +122,9 @@ export default function HealthSection() {
   }
 
   const subtitle = !enabled
-    ? 'Read your latest bodyweight from Health and auto-fill it in your profile.'
+    ? 'Keep bodyweight in sync with Apple Health — read the latest reading in, and save the ones you log back out.'
     : hasReadPerm
-      ? 'Active. Bodyweight auto-updates in the background.'
+      ? 'Active. Bodyweight syncs both ways in the background.'
       : 'Enabled, but we lost read access. Toggle off and back on, or check iOS Settings → Health.';
 
   const statusColor = enabled && hasReadPerm ? '#4ade80' : enabled ? 'var(--stalling)' : 'var(--text-muted)';

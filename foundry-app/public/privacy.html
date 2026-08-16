@@ -86,7 +86,7 @@
     <ul>
       <li><strong>Account info:</strong> email and password (if you create an account). Passwords are hashed by our auth provider — we never see or store plaintext passwords.</li>
       <li><strong>Training data:</strong> your workouts, sets, reps, weights, exercise history, program configuration, and workout notes. Tied to your account.</li>
-      <li><strong>Body metrics:</strong> bodyweight, only if you grant access to Apple Health.</li>
+      <li><strong>Body metrics:</strong> body weight — the readings you enter in the app, plus readings from Apple Health if you turn that on. See <em>Apple Health (iOS)</em> below.</li>
       <li><strong>Error reports:</strong> anonymous crash and error data via Sentry, used to fix bugs. No personal identifiers beyond a randomly-generated session ID.</li>
     </ul>
 
@@ -101,7 +101,7 @@
     <h2>Where it's stored</h2>
     <ul>
       <li><strong>Account + training data:</strong> Supabase (PostgreSQL, US region).</li>
-      <li><strong>Static site hosting:</strong> Cloudflare Pages and GitHub Pages.</li>
+      <li><strong>Static site hosting:</strong> Cloudflare Pages.</li>
       <li><strong>AI training-plan generation:</strong> The app sends your setup inputs (name, goal, experience, days per week, equipment) to a Cloudflare Worker, which calls Anthropic's Claude API to generate your program. No identifying information beyond what you enter in the setup form is sent.</li>
       <li><strong>Error logs:</strong> Sentry (anonymized).</li>
     </ul>
@@ -114,7 +114,13 @@
     </ul>
 
     <h2>Apple Health (iOS)</h2>
-    <p>If you grant access, The Foundry reads your bodyweight from Apple Health to display trends in the app. We do not yet write workouts to Apple Health — that's planned for a future release, and this policy will be updated before that change ships. You can revoke access at any time in <strong>iOS Settings → Privacy &amp; Security → Health → The Foundry</strong>.</p>
+    <p>Apple Health integration is off until you turn it on in <strong>Settings → Apple Health</strong> inside the app. It covers <strong>body weight only</strong>:</p>
+    <ul>
+      <li><strong>Reading:</strong> we read your most recent body weight so the figure shown in your profile and workout logs stays current without you re-entering it.</li>
+      <li><strong>Writing:</strong> when you log a body weight in The Foundry, we save that reading back to Apple Health so it stays in sync with your other health and fitness apps.</li>
+    </ul>
+    <p>We do not read your workouts, heart rate, steps, or any other health data, and we do not write your Foundry workouts to Apple Health. Writing workouts — so sessions appear in Apple Fitness and count toward your Activity rings — is planned for a future release, and this policy will be updated before that ships.</p>
+    <p>Health data read from Apple Health is stored the same way as the rest of your training data (see <em>Where it's stored</em>) and is never sold, shared with advertisers, or used to train AI models. You can revoke access at any time in <strong>iOS Settings → Privacy &amp; Security → Health → The Foundry</strong>.</p>
 
     <h2>Your rights</h2>
     <ul>
