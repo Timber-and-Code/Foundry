@@ -1563,6 +1563,7 @@ function DayView({
     weekIdx,
     sessionStartRef,
     elapsedSecs,
+    dayLabel: weekDay.label || day.label,
   });
 
   // Auto-prompt: when every set across every exercise is confirmed, wait

@@ -14,6 +14,7 @@ export default function HealthSection() {
   const [enabled, setEnabled] = useState(() => store.get(TOGGLE_KEY) === '1');
   const [availability, setAvailability] = useState<Availability>('unknown');
   const [auth, setAuth] = useState<AuthorizationStatus | null>(null);
+  const [workoutPerm, setWorkoutPerm] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -26,6 +27,10 @@ export default function HealthSection() {
       if (!avail) return;
       const current = await health.checkPermissions({ read: ['weight'], write: ['weight'] });
       if (!cancelled) setAuth(current);
+      // Separate grant from the weight permissions, and revocable on its
+      // own in iOS Settings — so it needs its own read on mount.
+      const workouts = await health.checkWorkoutPermission();
+      if (!cancelled) setWorkoutPerm(workouts);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -64,9 +69,28 @@ export default function HealthSection() {
       }
     }
 
+    // Workout sharing is a second, independent iOS sheet — HKWorkoutType
+    // isn't covered by the weight grant above. Asked here so the lifter
+    // handles both prompts in one deliberate action instead of being
+    // surprised by a permission dialog the moment they finish a session.
+    // Declining is fine: weight sync still works, we just never write
+    // workouts, and `checkWorkoutPermission` gates every attempt.
+    let workoutsGranted = false;
+    try {
+      workoutsGranted = await health.requestWorkoutPermission();
+    } catch {
+      workoutsGranted = false;
+    }
+    setWorkoutPerm(workoutsGranted);
+
     store.set(TOGGLE_KEY, '1');
     setEnabled(true);
-    showToast('Apple Health sync on — bodyweight will auto-fill', 'success');
+    showToast(
+      workoutsGranted
+        ? 'Apple Health on — bodyweight syncs, workouts post to Apple Fitness'
+        : 'Apple Health on for bodyweight. Allow Workouts in iOS Settings to post sessions to Apple Fitness.',
+      'success',
+    );
     setBusy(false);
   };
 
@@ -122,9 +146,11 @@ export default function HealthSection() {
   }
 
   const subtitle = !enabled
-    ? 'Keep bodyweight in sync with Apple Health — read the latest reading in, and save the ones you log back out.'
+    ? 'Sync bodyweight with Apple Health, and post finished workouts to Apple Fitness so they count toward your rings.'
     : hasReadPerm
-      ? 'Active. Bodyweight syncs both ways in the background.'
+      ? workoutPerm
+        ? 'Active. Bodyweight syncs both ways; finished workouts post to Apple Fitness.'
+        : 'Active for bodyweight. Allow Workouts in iOS Settings → Health to post sessions to Apple Fitness.'
       : 'Enabled, but we lost read access. Toggle off and back on, or check iOS Settings → Health.';
 
   const statusColor = enabled && hasReadPerm ? '#4ade80' : enabled ? 'var(--stalling)' : 'var(--text-muted)';
