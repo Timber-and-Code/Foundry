@@ -21,8 +21,21 @@ applies to it, so ordinary `git add`/`commit` picks up later edits.
 | `App/App/Info.plist` | Hand-edited: HealthKit usage strings, orientations, `ITSAppUsesNonExemptEncryption`. |
 | `App/App/App.entitlements` | HealthKit + `applinks:thefoundry.coach`. |
 | `App/App/AppDelegate.swift` | Hand-edited over time. |
-| `App/App.xcodeproj/project.pbxproj` | Target membership for the two Swift files. Without it a fresh clone compiles neither, and the plugin silently doesn't exist at runtime. |
+| `App/App.xcodeproj/project.pbxproj` | Target membership for the two Swift files and the privacy manifest. Without it a fresh clone compiles neither, and the plugin silently doesn't exist at runtime. |
+| `App/App/PrivacyInfo.xcprivacy` | Apple's privacy manifest. In the **Resources** build phase, not Compile Sources. |
 | `App/Podfile` | Pod list including `CapgoCapacitorHealth`. |
+
+## Committing changes to these files
+
+`git add <path>` **fails** on them — git refuses the pathspec because the
+parent directory is ignored, even though the file is tracked. Use `-f`:
+
+```bash
+git add -f foundry-app/ios/App/App/Info.plist
+```
+
+Easy to mistake for "nothing changed" and ship a build whose native edits
+never made it into the commit.
 
 ## Still ignored, on purpose
 
