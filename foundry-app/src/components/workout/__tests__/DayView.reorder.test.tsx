@@ -50,6 +50,9 @@ vi.mock('../../../utils/store', () => ({
   loadSupersets: vi.fn(() => []),
   saveSupersets: vi.fn(),
   loadSetCounts: vi.fn(() => ({})),
+  loadSetCountWeeks: vi.fn(() => []),
+  // No stored adjustments in these fixtures, so the program's base wins.
+  pickSetCount: vi.fn((_weeks, _exId, weekIdx, baseFor) => baseFor(weekIdx)),
   saveSetCount: vi.fn(),
   saveProfile: vi.fn(),
   loadBwLog: vi.fn(() => []),

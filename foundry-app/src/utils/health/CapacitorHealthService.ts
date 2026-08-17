@@ -1,7 +1,13 @@
 import { Health } from '@capgo/capacitor-health';
 import type { AuthorizationStatus } from '@capgo/capacitor-health';
-import type { HealthPermissions, HealthService, WeightReading } from './types';
+import type {
+  HealthPermissions,
+  HealthService,
+  StrengthWorkoutWrite,
+  WeightReading,
+} from './types';
 import { KG_TO_LBS } from './types';
+import { FoundryHealth } from './foundryWorkoutPlugin';
 
 /**
  * Native HealthService implementation. Wraps @capgo/capacitor-health.
@@ -62,6 +68,40 @@ export class CapacitorHealthService implements HealthService {
         endDate: stamp,
       });
       return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // ── Workouts (our own Swift plugin — see foundryWorkoutPlugin.ts) ──────
+  // These are separate from the weight calls above because HKWorkout has no
+  // representation in @capgo/capacitor-health, and because iOS treats
+  // workout sharing as its own authorization the lifter can refuse on its
+  // own. Every one of these swallows failure: Health is a nice-to-have
+  // side effect of finishing a workout, never a precondition for it.
+
+  async requestWorkoutPermission(): Promise<boolean> {
+    try {
+      const { granted } = await FoundryHealth.requestWorkoutPermission();
+      return !!granted;
+    } catch {
+      return false;
+    }
+  }
+
+  async checkWorkoutPermission(): Promise<boolean> {
+    try {
+      const { granted } = await FoundryHealth.checkWorkoutPermission();
+      return !!granted;
+    } catch {
+      return false;
+    }
+  }
+
+  async writeStrengthWorkout(workout: StrengthWorkoutWrite): Promise<boolean> {
+    try {
+      const { saved } = await FoundryHealth.saveStrengthWorkout(workout);
+      return !!saved;
     } catch {
       return false;
     }

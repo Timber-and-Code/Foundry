@@ -7,6 +7,7 @@ import {
   upsertWorkoutSessionRemote,
   getOrCreateWorkoutSessionId,
 } from '../utils/sync';
+import { logWorkoutToHealth } from '../utils/health/logWorkoutToHealth';
 import type {
   WorkoutCompleteStats,
   WorkoutCompleteExerciseBreakdown,
@@ -22,6 +23,8 @@ interface UseCompletionFlowArgs {
   weekIdx: number;
   sessionStartRef: React.RefObject<number | null>;
   elapsedSecs: number;
+  /** Day label, forwarded to Apple Health as the workout's metadata. */
+  dayLabel?: string;
 }
 
 export function useCompletionFlow({
@@ -33,6 +36,7 @@ export function useCompletionFlow({
   weekIdx,
   sessionStartRef,
   elapsedSecs,
+  dayLabel,
 }: UseCompletionFlowArgs) {
   const compileSessionNote = () => {
     const parts: string[] = [];
@@ -172,6 +176,21 @@ export function useCompletionFlow({
       sessionId,
       completedAt: now.toISOString(),
       isComplete: true,
+    });
+
+    // Apple Health — writes an HKWorkout so the session shows in Apple
+    // Fitness and its energy reaches the Move ring. Deliberately not
+    // awaited: a slow or refused Health write must not hold up the
+    // completion modal, and it self-guards against writing twice.
+    void logWorkoutToHealth({
+      startMs: sessionStartRef.current ?? null,
+      endMs: now.getTime(),
+      elapsedSecs,
+      dayIdx,
+      weekIdx,
+      dayLabel,
+      totalSets,
+      totalVolumeLbs: totalVolume,
     });
 
     // Onboarding v2: emit first-all-reps-hit once per user when every

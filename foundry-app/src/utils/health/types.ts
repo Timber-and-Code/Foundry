@@ -16,6 +16,23 @@ export interface HealthPermissions {
   write: HealthDataType[];
 }
 
+/**
+ * One completed strength session, as HealthKit wants it. Times are epoch
+ * ms. Everything past `endMs` is optional metadata — a workout with only
+ * a start and end is still a valid Apple Fitness entry.
+ */
+export interface StrengthWorkoutWrite {
+  startMs: number;
+  endMs: number;
+  /** Active energy in kcal. Omitted or 0 → no Move-ring contribution. */
+  kcal?: number;
+  mesoId?: string;
+  dayLabel?: string;
+  weekIndex?: number;
+  totalSets?: number;
+  totalVolumeLbs?: number;
+}
+
 export interface HealthService {
   /** True when the underlying platform supports HealthKit / Health Connect. */
   isAvailable(): Promise<boolean>;
@@ -43,6 +60,24 @@ export interface HealthService {
    * @returns true if the write succeeded, false otherwise.
    */
   writeBodyWeight(pounds: number, takenAt?: Date): Promise<boolean>;
+
+  /**
+   * Prompt for permission to write workouts. This is a SEPARATE grant from
+   * the weight permissions above — iOS shows its own sheet for
+   * HKWorkoutType, and a lifter can allow one and deny the other.
+   */
+  requestWorkoutPermission(): Promise<boolean>;
+
+  /** Workout-write authorization as it stands, without prompting. */
+  checkWorkoutPermission(): Promise<boolean>;
+
+  /**
+   * Save a completed session as a real HKWorkout so it appears in Apple
+   * Fitness → Workouts and contributes to the Activity rings.
+   * Resolves false when unsupported, unauthorized, or on any native error
+   * — a failed Health write must never fail a finished workout.
+   */
+  writeStrengthWorkout(workout: StrengthWorkoutWrite): Promise<boolean>;
 }
 
 export const KG_TO_LBS = 2.20462;

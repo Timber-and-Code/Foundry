@@ -25,4 +25,16 @@ export class NoOpHealthService implements HealthService {
   async writeBodyWeight(): Promise<boolean> {
     return false;
   }
+
+  async requestWorkoutPermission(): Promise<boolean> {
+    return false;
+  }
+
+  async checkWorkoutPermission(): Promise<boolean> {
+    return false;
+  }
+
+  async writeStrengthWorkout(): Promise<boolean> {
+    return false;
+  }
 }

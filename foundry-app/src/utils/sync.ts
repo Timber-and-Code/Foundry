@@ -23,6 +23,7 @@ const MIGRATED = {
   cardio: true,             // Chunk 5c
   notes: true,              // Chunk 5d
   cardio_presets: true,     // Migration 006 — user_cardio_presets
+  set_counts: true,         // Migration 009 — set_count_overrides
 };
 
 // ─── PROFILE FIELD MAPPERS (app <-> normalized user_profiles) ───────────────
@@ -2668,6 +2669,104 @@ export async function deleteCardioPresetRemote(id: string): Promise<void> {
   }
 }
 
+// ─── SET-COUNT OVERRIDES (migration 009) ────────────────────────────────────
+// A lifter adding or removing a set was localStorage-only, so the choice died
+// with a reinstall or never reached a second device. Stored as the ABSOLUTE
+// count chosen for that (day, week); the delta against the week's prescribed
+// volume is derived on read by pickSetCount, which keeps periodization the
+// source of truth.
+//
+// Per-user by design. On a shared mesocycle the training_day_exercises row
+// belongs to the owner, so recording the override there would rewrite a
+// training partner's prescription — one lifter adding a set must never change
+// the other's program.
+
+export async function syncSetCountToSupabase(
+  dayIdx: number,
+  weekIdx: number,
+  exId: string,
+  count: number,
+): Promise<void> {
+  if (!MIGRATED.set_counts) return;
+  if (typeof window === 'undefined') return;
+  const mesoId = store.get('foundry:active_meso_id');
+  if (!mesoId || !exId) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase.from('set_count_overrides').upsert(
+      {
+        user_id: user.id,
+        meso_id: mesoId,
+        day_index: dayIdx,
+        week_number: weekIdx,
+        exercise_id: exId,
+        sets: count,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,meso_id,day_index,week_number,exercise_id' },
+    );
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('set_count_save', e);
+  } finally {
+    syncEnd();
+  }
+}
+
+export async function pullSetCountOverrides(
+  userId: string,
+  mesoId: string | null,
+): Promise<void> {
+  if (!MIGRATED.set_counts) return;
+  if (!mesoId) return;
+  try {
+    const { data, error } = await supabase
+      .from('set_count_overrides')
+      .select('day_index, week_number, exercise_id, sets')
+      .eq('user_id', userId)
+      .eq('meso_id', mesoId);
+    if (error) throw error;
+    if (!data?.length) return;
+
+    // Group into the localStorage shape: one {exId: count} map per session.
+    const byKey = new Map<string, Record<string, number>>();
+    for (const row of data as Array<{
+      day_index: number;
+      week_number: number;
+      exercise_id: string;
+      sets: number;
+    }>) {
+      const key = `foundry:setcount:d${row.day_index}:w${row.week_number}`;
+      const map = byKey.get(key) ?? {};
+      map[row.exercise_id] = row.sets;
+      byKey.set(key, map);
+    }
+
+    // Merge rather than replace. A local choice made offline hasn't pushed
+    // yet, and overwriting the whole map would silently discard it; remote
+    // wins only on the exact (session, exercise) it actually knows about.
+    for (const [key, remote] of byKey) {
+      let merged = remote;
+      const existing = store.get(key);
+      if (existing) {
+        try {
+          const local = JSON.parse(existing);
+          if (local && typeof local === 'object' && !Array.isArray(local)) {
+            merged = { ...local, ...remote };
+          }
+        } catch {
+          // Unparseable local map — the remote copy is strictly better.
+        }
+      }
+      store.set(key, JSON.stringify(merged));
+    }
+  } catch (e) {
+    reportSyncFailure('set_count_pull', e);
+  }
+}
+
 // Chunk 5d: notes sync. Two kinds of notes in the app:
 //   1. Session notes (foundry:notes:d{d}:w{w}) — one string per session →
 //      stored with note_target_type='workout_session', target_id=session.id
@@ -3024,6 +3123,11 @@ export async function pullFromSupabase(): Promise<void> {
     if (MIGRATED.notes) {
       await pullNotes(user.id);
     }
+    // Migration 009 — per-session set-count choices. Meso-scoped, so it
+    // reads the canonical pointer the mesocycle block above just wrote.
+    if (MIGRATED.set_counts) {
+      await pullSetCountOverrides(user.id, localStorage.getItem('foundry:active_meso_id'));
+    }
 
     // Workouts, readiness, body weight, cardio sessions, notes — all pending
     // normalized-schema migration (chunks 4-5). Skipping the pull for these
@@ -3329,33 +3433,25 @@ export async function previewInviteCode(code: string): Promise<{
   ownerName: string;
 } | null> {
   try {
-    const { data, error } = await supabase
-      .from('mesocycle_members')
-      .select('mesocycle_id')
-      .eq('invite_code', code.toUpperCase())
-      .maybeSingle();
-    if (error || !data) return null;
+    // preview_meso_invite (migration 010) — same reasoning as
+    // previewFriendInvite: three client-side selects across
+    // mesocycle_members, mesocycles, and user_profiles previously forced
+    // those tables open to every signed-in account. One RPC, keyed on the
+    // exact code, replaces all three.
+    const { data, error } = await supabase.rpc('preview_meso_invite', {
+      p_code: code.toUpperCase(),
+    });
+    if (error) return null;
+    const row = (data as
+      | Array<{ meso_id: string; meso_name: string; owner_name: string }>
+      | null)?.[0];
+    if (!row) return null;
 
-    const mesoId = (data as { mesocycle_id: string }).mesocycle_id;
-
-    const { data: meso } = await supabase
-      .from('mesocycles')
-      .select('name, user_id')
-      .eq('id', mesoId)
-      .maybeSingle();
-    if (!meso) return null;
-
-    const { name: mesoName, user_id: ownerId } = meso as { name: string; user_id: string };
-
-    const { data: ownerProfile } = await supabase
-      .from('user_profiles')
-      .select('name')
-      .eq('id', ownerId)
-      .maybeSingle();
-
-    const ownerName = (ownerProfile as { name: string } | null)?.name || 'Someone';
-
-    return { mesoId, mesoName, ownerName };
+    return {
+      mesoId: row.meso_id,
+      mesoName: row.meso_name,
+      ownerName: row.owner_name || 'Someone',
+    };
   } catch {
     return null;
   }
@@ -4114,29 +4210,29 @@ export async function previewFriendInvite(
     const normalized = code.trim().toUpperCase();
     if (normalized.length < 4) return null;
 
-    const { data: inviteRow } = await supabase
-      .from('friend_invites')
-      .select('code, user_id, expires_at')
-      .eq('code', normalized)
-      .maybeSingle();
-    const invite = inviteRow as
-      | { code: string; user_id: string; expires_at: string }
-      | null;
+    // Goes through preview_friend_invite (migration 010) rather than
+    // selecting the tables directly. The old path needed RLS policies that
+    // granted a read whenever the TARGET had an invite — never checking
+    // that the caller knew the code — which let any signed-in account
+    // enumerate every profile and every live code. The RPC inverts it:
+    // present the exact code, learn only what the join screen shows.
+    const { data: previewRows } = await supabase.rpc('preview_friend_invite', {
+      p_code: normalized,
+    });
+    const invite = (previewRows as
+      | Array<{
+          code: string;
+          inviter_id: string;
+          inviter_name: string;
+          expires_at: string;
+        }>
+      | null)?.[0];
     if (!invite) return null;
-    if (new Date(invite.expires_at) <= new Date()) return null;
-
-    const { data: profileRow } = await supabase
-      .from('user_profiles')
-      .select('name')
-      .eq('id', invite.user_id)
-      .maybeSingle();
-    const inviterName =
-      (profileRow as { name: string } | null)?.name || 'Friend';
 
     return {
       code: invite.code,
-      inviterUserId: invite.user_id,
-      inviterName,
+      inviterUserId: invite.inviter_id,
+      inviterName: invite.inviter_name || 'Friend',
       expiresAt: invite.expires_at,
     };
   } catch {
