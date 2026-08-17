@@ -64,6 +64,26 @@ Verified working against the live Supabase project: created through the normal
 signup endpoint, email auto-confirmed, password grant returns a session. There
 is no email-confirmation wall for the reviewer.
 
+### What's in the account
+
+Seeded so a reviewer lands in a working app rather than onboarding. Verified
+readable through RLS as the account itself:
+
+- Profile "Alex" — intermediate, build muscle, 4 days/week, full-body split
+- An active 6-week full-body mesocycle started 2026-08-03, 4 training days,
+  20 exercises
+- **Two complete weeks** — 8 finished sessions, 120 logged sets, with real
+  week-over-week progression, and readiness scores attached
+- Volume ramps MEV → MAV across the two weeks (50 sets then 70), so the
+  periodization is visible rather than flat
+- A five-point body weight trend
+- Day 4 includes **Inverted Row**, a bodyweight movement logged with reps and
+  no load — useful for seeing that progression works on movements that carry
+  no weight
+
+Re-seeding is idempotent: the seed deletes this user's sets, sessions, and
+mesocycles first, so it can be re-run to refresh dates before a submission.
+
 ### Notes for the reviewer
 
 Paste something like this into the Notes field:
