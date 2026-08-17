@@ -109,12 +109,15 @@ Paste something like this into the Notes field:
 
 | Field | Value |
 |---|---|
-| Privacy Policy URL | `https://thefoundry.coach/privacy.html` |
-| Support URL | `https://thefoundry.coach/support.html` |
+| Privacy Policy URL | `https://thefoundry.coach/privacy` |
+| Support URL | `https://thefoundry.coach/support` |
 | Marketing URL | `https://thefoundry.coach` (optional) |
 
+**Use the extensionless URLs.** Cloudflare Pages 308-redirects `/privacy.html`
+→ `/privacy`, so the `.html` forms work but hand Apple a redirect for no reason.
+
 Apple requires the support URL to be a real page — a `mailto:` link is rejected.
-Both pages must be **live before submission**, not deployed alongside it.
+Both are live and returning 200 as of 2026-08-16.
 
 ---
 
