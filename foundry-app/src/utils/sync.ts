@@ -3433,33 +3433,25 @@ export async function previewInviteCode(code: string): Promise<{
   ownerName: string;
 } | null> {
   try {
-    const { data, error } = await supabase
-      .from('mesocycle_members')
-      .select('mesocycle_id')
-      .eq('invite_code', code.toUpperCase())
-      .maybeSingle();
-    if (error || !data) return null;
+    // preview_meso_invite (migration 010) — same reasoning as
+    // previewFriendInvite: three client-side selects across
+    // mesocycle_members, mesocycles, and user_profiles previously forced
+    // those tables open to every signed-in account. One RPC, keyed on the
+    // exact code, replaces all three.
+    const { data, error } = await supabase.rpc('preview_meso_invite', {
+      p_code: code.toUpperCase(),
+    });
+    if (error) return null;
+    const row = (data as
+      | Array<{ meso_id: string; meso_name: string; owner_name: string }>
+      | null)?.[0];
+    if (!row) return null;
 
-    const mesoId = (data as { mesocycle_id: string }).mesocycle_id;
-
-    const { data: meso } = await supabase
-      .from('mesocycles')
-      .select('name, user_id')
-      .eq('id', mesoId)
-      .maybeSingle();
-    if (!meso) return null;
-
-    const { name: mesoName, user_id: ownerId } = meso as { name: string; user_id: string };
-
-    const { data: ownerProfile } = await supabase
-      .from('user_profiles')
-      .select('name')
-      .eq('id', ownerId)
-      .maybeSingle();
-
-    const ownerName = (ownerProfile as { name: string } | null)?.name || 'Someone';
-
-    return { mesoId, mesoName, ownerName };
+    return {
+      mesoId: row.meso_id,
+      mesoName: row.meso_name,
+      ownerName: row.owner_name || 'Someone',
+    };
   } catch {
     return null;
   }
@@ -4218,29 +4210,29 @@ export async function previewFriendInvite(
     const normalized = code.trim().toUpperCase();
     if (normalized.length < 4) return null;
 
-    const { data: inviteRow } = await supabase
-      .from('friend_invites')
-      .select('code, user_id, expires_at')
-      .eq('code', normalized)
-      .maybeSingle();
-    const invite = inviteRow as
-      | { code: string; user_id: string; expires_at: string }
-      | null;
+    // Goes through preview_friend_invite (migration 010) rather than
+    // selecting the tables directly. The old path needed RLS policies that
+    // granted a read whenever the TARGET had an invite — never checking
+    // that the caller knew the code — which let any signed-in account
+    // enumerate every profile and every live code. The RPC inverts it:
+    // present the exact code, learn only what the join screen shows.
+    const { data: previewRows } = await supabase.rpc('preview_friend_invite', {
+      p_code: normalized,
+    });
+    const invite = (previewRows as
+      | Array<{
+          code: string;
+          inviter_id: string;
+          inviter_name: string;
+          expires_at: string;
+        }>
+      | null)?.[0];
     if (!invite) return null;
-    if (new Date(invite.expires_at) <= new Date()) return null;
-
-    const { data: profileRow } = await supabase
-      .from('user_profiles')
-      .select('name')
-      .eq('id', invite.user_id)
-      .maybeSingle();
-    const inviterName =
-      (profileRow as { name: string } | null)?.name || 'Friend';
 
     return {
       code: invite.code,
-      inviterUserId: invite.user_id,
-      inviterName,
+      inviterUserId: invite.inviter_id,
+      inviterName: invite.inviter_name || 'Friend',
       expiresAt: invite.expires_at,
     };
   } catch {
