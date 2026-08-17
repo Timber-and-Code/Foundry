@@ -122,31 +122,19 @@ App Store submission does.
 
 ---
 
-## 5. Known open issue
+## 5. Row-level security — fixed 2026-08-16
 
-**Row-level security is too permissive on four tables.** Verified 2026-08-16 by
-signing in as a brand-new account with no friends and no shared programs:
+Found while seeding the demo account: a brand-new account with no friends and no
+shared programs could read every `user_profiles` row (name, gender, date of
+birth, body weight), every `mesocycles` row, every `mesocycle_members` row, and
+every live join code. Training data was always correctly locked.
 
-| Table | Rows visible to a stranger |
-|---|---|
-| `user_profiles` | all — name, gender, date of birth, body weight |
-| `mesocycles` | all |
-| `mesocycle_members` | all |
-| `friend_invites` | all — live join codes are enumerable |
+Closed by migrations **010** (SECURITY DEFINER preview RPCs, `anon` revoked) and
+**011** (drops the five permissive policies). Both applied to production.
+Re-measured afterwards: a fresh account sees its own profile and nothing else,
+while an established user still sees their friends and shared programs.
 
-Training data (`workout_sets`, `workout_sessions`, `training_days`,
-`training_day_exercises`, `body_weight_log`, `readiness_checkins`) is correctly
-locked to its owner.
-
-The broad reads exist because `previewFriendInvite` in `sync.ts` selects
-`friend_invites` by code and then reads the inviter's `user_profiles.name`
-directly from the client. Locking the tables without replacing that path breaks
-joining a shared program.
-
-**Fix shape:** a `SECURITY DEFINER` RPC that takes a code and returns only that
-invite's preview (so a code can be redeemed but not enumerated), then restrict
-`friend_invites` to `auth.uid() = user_id` and `user_profiles` to self plus
-friends plus co-members of a shared mesocycle.
-
-This should land before the app is publicly available. It is a disclosure and
-access-control issue, and it contradicts what the privacy policy tells users.
+**One caveat while this branch is unmerged.** 011 is live, but the deployed web
+build still selects those tables directly, so invite preview and joining a
+shared program are broken on production until this branch merges and Cloudflare
+redeploys. Merge before pointing anyone at an invite link.
