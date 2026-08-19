@@ -26,6 +26,10 @@ export class NoOpHealthService implements HealthService {
     return false;
   }
 
+  async requestAllPermissions(): Promise<{ available: boolean; workouts: boolean; weight: boolean }> {
+    return { available: false, workouts: false, weight: false };
+  }
+
   async requestWorkoutPermission(): Promise<boolean> {
     return false;
   }

@@ -62,9 +62,15 @@ export interface HealthService {
   writeBodyWeight(pounds: number, takenAt?: Date): Promise<boolean>;
 
   /**
-   * Prompt for permission to write workouts. This is a SEPARATE grant from
-   * the weight permissions above — iOS shows its own sheet for
-   * HKWorkoutType, and a lifter can allow one and deny the other.
+   * Prompt for body weight and workouts together, in one iOS sheet.
+   * Throws if the native plugin isn't reachable — callers must distinguish
+   * "declined" from "never asked", which swallowing the error destroys.
+   */
+  requestAllPermissions(): Promise<{ available: boolean; workouts: boolean; weight: boolean }>;
+
+  /**
+   * Prompt for permission to write workouts only. Kept for the fallback
+   * path; prefer requestAllPermissions, which avoids the two-sheet race.
    */
   requestWorkoutPermission(): Promise<boolean>;
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import * as Sentry from '@sentry/react';
 import { tokens } from '../../styles/tokens';
 import { store } from '../../utils/store';
 import { useToast } from '../../contexts/ToastContext';
@@ -52,34 +53,36 @@ export default function HealthSection() {
       return;
     }
 
-    // Turning on — request perms if we don't have them yet
-    if (!hasReadPerm) {
-      try {
-        const result = await health.requestPermissions({ read: ['weight'], write: ['weight'] });
-        setAuth(result);
-        if (!result.readAuthorized.includes('weight')) {
-          showToast('Permission denied — enable in iOS Settings → Health', 'warning');
-          setBusy(false);
-          return;
-        }
-      } catch {
-        showToast("Couldn't reach Apple Health", 'warning');
-        setBusy(false);
-        return;
-      }
-    }
-
-    // Workout sharing is a second, independent iOS sheet — HKWorkoutType
-    // isn't covered by the weight grant above. Asked here so the lifter
-    // handles both prompts in one deliberate action instead of being
-    // surprised by a permission dialog the moment they finish a session.
-    // Declining is fine: weight sync still works, we just never write
-    // workouts, and `checkWorkoutPermission` gates every attempt.
+    // ONE sheet for body weight and workouts together.
+    //
+    // This used to be two chained requests — @capgo/capacitor-health for
+    // weight, then ours for workouts the moment the first promise resolved.
+    // That promise resolves while the first sheet is still dismissing, and
+    // HealthKit silently drops an authorization request made while another
+    // is on screen. The workout sheet never appeared, its status stayed
+    // .notDetermined, and no session ever reached Apple Fitness — with the
+    // failure swallowed, it looked exactly like the lifter had declined.
     let workoutsGranted = false;
     try {
-      workoutsGranted = await health.requestWorkoutPermission();
+      const res = await health.requestAllPermissions();
+      workoutsGranted = res.workouts;
+    } catch (e) {
+      // A missing native plugin lands here. Say so plainly rather than
+      // reporting it as a denied permission — they are different problems
+      // and only one of them is the lifter's to fix.
+      console.warn('[Foundry Health] native permission request failed', e);
+      Sentry.captureException(e, { tags: { context: 'health', operation: 'request_permissions' } });
+      showToast('Apple Health is unavailable on this build. Please report this.', 'warning');
+      setBusy(false);
+      return;
+    }
+
+    // Re-read weight status through the existing plugin so the rest of the
+    // section keeps rendering off one source of truth.
+    try {
+      setAuth(await health.checkPermissions({ read: ['weight'], write: ['weight'] }));
     } catch {
-      workoutsGranted = false;
+      /* status display only — never block the toggle on it */
     }
     setWorkoutPerm(workoutsGranted);
 

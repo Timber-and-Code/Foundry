@@ -16,6 +16,12 @@ import { registerPlugin } from '@capacitor/core';
  * appears there).
  */
 export interface FoundryHealthPlugin {
+  /**
+   * Body weight AND workouts in a single iOS sheet. Chaining two separate
+   * requests loses the second one — HealthKit drops an authorization request
+   * made while another sheet is still on screen.
+   */
+  requestHealthPermissions(): Promise<{ available: boolean; workouts: boolean; weight: boolean }>;
   /** True only on a device where HealthKit exists and workout sharing is granted. */
   requestWorkoutPermission(): Promise<{ granted: boolean }>;
   /** Current workout-write authorization without prompting. */

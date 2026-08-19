@@ -80,6 +80,13 @@ export class CapacitorHealthService implements HealthService {
   // own. Every one of these swallows failure: Health is a nice-to-have
   // side effect of finishing a workout, never a precondition for it.
 
+  async requestAllPermissions(): Promise<{ available: boolean; workouts: boolean; weight: boolean }> {
+    // Deliberately NOT wrapped in try/catch. A missing native plugin throws
+    // here, and that is the one failure the caller must be able to tell
+    // apart from a lifter tapping "Don't Allow".
+    return FoundryHealth.requestHealthPermissions();
+  }
+
   async requestWorkoutPermission(): Promise<boolean> {
     try {
       const { granted } = await FoundryHealth.requestWorkoutPermission();

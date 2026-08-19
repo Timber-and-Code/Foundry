@@ -22,6 +22,7 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "FoundryHealthPlugin"
     public let jsName = "FoundryHealth"
     public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "requestHealthPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestWorkoutPermission", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "checkWorkoutPermission", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveStrengthWorkout", returnType: CAPPluginReturnPromise)
@@ -37,10 +38,52 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         if let energy = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
             types.insert(energy)
         }
+        // Body weight rides along so ONE sheet covers everything — see
+        // requestPermissions for why that matters.
+        if let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) {
+            types.insert(mass)
+        }
         return types
     }
 
+    private var readTypes: Set<HKObjectType> {
+        guard let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) else { return [] }
+        return [mass]
+    }
+
     // MARK: - Permissions
+
+    /// Ask for body weight AND workouts in a single sheet.
+    ///
+    /// The app used to chain two requests: @capgo/capacitor-health for weight,
+    /// then ours for workouts, fired the moment the first promise resolved.
+    /// That promise resolves as the first sheet is still dismissing, and
+    /// HealthKit silently drops an authorization request made while another is
+    /// on screen — so the workout sheet never appeared, the status stayed
+    /// .notDetermined, and no session ever reached Apple Fitness. One call,
+    /// one sheet, no race.
+    @objc func requestHealthPermissions(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(["available": false, "workouts": false, "weight": false])
+            return
+        }
+        store.requestAuthorization(toShare: shareTypes, read: readTypes) { [weak self] _, error in
+            if let error = error {
+                CAPLog.print("[FoundryHealth] auth request failed: \(error.localizedDescription)")
+            }
+            // `success` only reports that the sheet completed, not what was
+            // chosen, so read the real share status back.
+            let weightOK: Bool = {
+                guard let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) else { return false }
+                return self?.store.authorizationStatus(for: mass) == .sharingAuthorized
+            }()
+            call.resolve([
+                "available": true,
+                "workouts": self?.isWorkoutShareAuthorized() ?? false,
+                "weight": weightOK
+            ])
+        }
+    }
 
     @objc func requestWorkoutPermission(_ call: CAPPluginCall) {
         guard HKHealthStore.isHealthDataAvailable() else {
