@@ -64,6 +64,13 @@ import { emit } from '../utils/events';
 //
 // Sign-out itself does NOT wipe — that would lose debounced unsynced
 // edits if the same user signs back in (the more common case).
+// Which user we've already run the post-sign-in adoption chain for, this
+// app session. Module scope rather than useRef on purpose: it has to outlive
+// a provider remount (StrictMode double-mounts in dev), and "once per app
+// session" is exactly module lifetime. A page reload legitimately resets it,
+// so nothing logged pre-auth can be stranded.
+const migratedForUserRef: { current: string | null } = { current: null };
+
 const PRESERVE_ON_USER_SWITCH = new Set([
   'foundry:welcomed',
   'foundry:onboarding_v2',
@@ -155,6 +162,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (event === 'SIGNED_IN') {
+          // supabase-js re-fires SIGNED_IN on every token refresh and every
+          // return-to-foreground, not just on an actual login. The chain
+          // below ends in migrateLocalWorkoutsToSupabase, which re-pushes
+          // EVERY set of EVERY logged day/week — so pocketing the phone
+          // between sets and unlocking it turned one workout into thousands
+          // of upserts (measured: 3,115 in a single hour to persist 15
+          // sets). At that volume a transient network failure is close to
+          // certain, which is where the "Cloud sync failed (workout_set)"
+          // toasts were coming from.
+          //
+          // The heavy adoption pass only has to happen once per signed-in
+          // user per app session; repeat fires just flush the dirty queue,
+          // which is what actually carries ongoing edits. Cleared on
+          // SIGNED_OUT so a genuine re-login runs the full chain again.
+          const uid = session?.user?.id ?? null;
+          if (uid && uid === migratedForUserRef.current) {
+            flushDirty();
+            return;
+          }
+          migratedForUserRef.current = uid;
           if (session?.user) {
             Sentry.setUser({ email: session.user.email, id: session.user.id });
             // Multi-user safety: if a DIFFERENT user signed in than was
@@ -194,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (event === 'USER_UPDATED') {
           pullFromSupabase();
         } else if (event === 'SIGNED_OUT') {
+          migratedForUserRef.current = null;
           Sentry.setUser(null);
         }
       });

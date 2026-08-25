@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('../supabase', () => ({
-  supabase: { auth: { getUser: vi.fn() }, from: () => ({}) },
+  supabase: { auth: { getUser: vi.fn(), getSession: vi.fn() }, from: () => ({}) },
 }));
 vi.mock('@sentry/react', () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
 

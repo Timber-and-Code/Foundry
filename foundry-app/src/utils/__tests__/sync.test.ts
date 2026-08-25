@@ -30,6 +30,13 @@ vi.mock('../supabase.js', () => ({
   supabase: {
     auth: {
       getUser: (...args: unknown[]) => mockGetUser(...args),
+      // sync.ts reads the cached session rather than paying a network
+      // round-trip per write; keep both shapes fed from one mock.
+      getSession: async (...args: unknown[]) => {
+        const r = await mockGetUser(...args);
+        const user = r?.data?.user ?? null;
+        return { data: { session: user ? { user } : null }, error: r?.error ?? null };
+      },
     },
     from: (_table: string) => ({
       upsert: (...args: unknown[]) => mockUpsert(...args),
