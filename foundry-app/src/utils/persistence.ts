@@ -175,6 +175,16 @@ export function findPrevSlotForExercise(
 }
 
 /**
+ * Resolves how many working sets an exercise was prescribed in a GIVEN week,
+ * honouring the lifter's add/remove-set overrides. Injected rather than
+ * computed here: the answer needs `getWeekSets`, which lives in training.ts,
+ * and training.ts already imports this module — importing back would close a
+ * cycle. Callers that don't pass one keep the old behaviour (this week's
+ * count stands in for last week's).
+ */
+export type PrevSetsResolver = (exIdx: number, week: number) => number;
+
+/**
  * Per-exercise carryover math, shared by the v1 (position-keyed) and v2
  * (id-keyed) read paths. Given an exercise spec + the prior-week slice that
  * holds its sets + the experience key, returns the per-set carryover values
@@ -200,11 +210,24 @@ function computeCarryoverForOneExercise(
   prevEx: Record<string, Record<string, unknown>>,
   expKey: string,
   recalibrateActive: boolean = false,
+  prevSetsOverride?: number,
 ): Record<string, WorkoutSet> {
   const repParts = String(ex.reps).split('-');
   const rangeMin = parseInt(repParts[0]) || 1;
   const rangeMax = parseInt(repParts[repParts.length - 1]) || rangeMin;
   const sets = typeof ex.sets === 'number' ? ex.sets : parseInt(String(ex.sets)) || 0;
+  // How many working sets the lifter was actually asked for LAST week.
+  //
+  // `sets` is THIS week's count, already week-adjusted by getWeekSets — and
+  // the two differ constantly: MEV→MAV adds a set, MAV→MRV adds another,
+  // and an add/remove-set override rides on top of both. Gating last week's
+  // evidence against this week's target meant a lifter who trimmed an
+  // exercise from 4 sets to 3 could never satisfy the gate again (they will
+  // never log 4 again), so that lift was locked out of progression for the
+  // rest of the meso. The MRV week did the same to every exercise at once.
+  const prevSets = prevSetsOverride != null && prevSetsOverride > 0
+    ? prevSetsOverride
+    : sets;
 
   // Bodyweight movements carry no load, so reps ARE the progression axis.
   // Gating them on `weight > 0` (as loaded lifts are) meant nothing ever
@@ -219,7 +242,7 @@ function computeCarryoverForOneExercise(
   // "expected working sets" count below isn't punished by warmups that
   // happen to occupy slots 0..sets-1.
   let warmupSlotsInRange = 0;
-  for (let s = 0; s < sets; s++) {
+  for (let s = 0; s < prevSets; s++) {
     const psd = (prevEx[s] || {}) as PrevSetShape;
     if (psd.warmup) {
       warmupSlotsInRange++;
@@ -265,7 +288,7 @@ function computeCarryoverForOneExercise(
   //     core.test.js) — sets at a lower weight don't gate progression at
   //     the higher one. But if a set AT baseline weight came in below the
   //     rep cap, that's the lifter saying they can't sustain the load yet.
-  const expectedWorkingSets = Math.max(0, sets - warmupSlotsInRange);
+  const expectedWorkingSets = Math.max(0, prevSets - warmupSlotsInRange);
   const allWorkingSetsLogged =
     expectedWorkingSets > 0 && completedPrevSets.length >= expectedWorkingSets;
   const baselineSetRepsList = completedPrevSets
@@ -371,6 +394,7 @@ function loadDayWeekWithCarryoverV1(
   profile: Profile | null | undefined,
   current: DayData,
   recalibrateActive: boolean = false,
+  prevSetsFor?: PrevSetsResolver,
 ): DayData {
   const expKey = expKeyFromProfile(profile);
   const dayHasBw = (day.exercises || []).some((ex) => !!ex.bw);
@@ -391,7 +415,13 @@ function loadDayWeekWithCarryoverV1(
       // Falls back to position-based lookup for legacy data / brand-new
       // exercises with no prior history.
       const prevEx = findPrevSlotForExercise(prev, ex.id, exIdx);
-      carried[exIdx] = computeCarryoverForOneExercise(ex, prevEx, expKey, recalibrateActive);
+      carried[exIdx] = computeCarryoverForOneExercise(
+        ex,
+        prevEx,
+        expKey,
+        recalibrateActive,
+        prevSetsFor?.(exIdx, w),
+      );
     });
     return carried;
   }
@@ -417,6 +447,7 @@ function loadDayWeekWithCarryoverV2(
   profile: Profile | null | undefined,
   tdeIds: Record<string, string>,
   recalibrateActive: boolean = false,
+  prevSetsFor?: PrevSetsResolver,
 ): DayData | null {
   const expKey = expKeyFromProfile(profile);
   const dayHasBw = (day.exercises || []).some((ex) => !!ex.bw);
@@ -438,6 +469,7 @@ function loadDayWeekWithCarryoverV2(
         prevSlice as unknown as Record<string, Record<string, unknown>>,
         expKey,
         recalibrateActive,
+        prevSetsFor?.(exIdx, w),
       );
     });
     return carried;
@@ -512,6 +544,7 @@ export function loadDayWeekWithCarryover(
   weekIdx: number,
   day: TrainingDay,
   profile: Profile | null | undefined,
+  prevSetsFor?: PrevSetsResolver,
 ): DayData {
   const current = realignDayDataByExId(loadDayWeek(dayIdx, weekIdx), day);
   const hasData = Object.values(current).some((exData) =>
@@ -526,14 +559,18 @@ export function loadDayWeekWithCarryover(
     if (!tdeIds) {
       reportV2Fallback(dayIdx, weekIdx, 'no_tde_cache');
     } else {
-      const v2Result = loadDayWeekWithCarryoverV2(dayIdx, weekIdx, day, profile, tdeIds, recalibrateActive);
+      const v2Result = loadDayWeekWithCarryoverV2(
+        dayIdx, weekIdx, day, profile, tdeIds, recalibrateActive, prevSetsFor,
+      );
       if (v2Result !== null) return v2Result;
       reportV2Fallback(dayIdx, weekIdx, 'v2_miss');
     }
   } else {
     reportV2Fallback(dayIdx, weekIdx, 'flag_off');
   }
-  return loadDayWeekWithCarryoverV1(dayIdx, weekIdx, day, profile, current, recalibrateActive);
+  return loadDayWeekWithCarryoverV1(
+    dayIdx, weekIdx, day, profile, current, recalibrateActive, prevSetsFor,
+  );
 }
 
 /** Load + parse the active meso's tde-id positional→uuid map. Null on any miss. */
