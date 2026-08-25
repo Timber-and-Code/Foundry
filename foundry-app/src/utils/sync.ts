@@ -1979,9 +1979,19 @@ export async function syncDayExercisesRemote(
   }
 }
 
+// Every sync write calls this to stamp `user_id`. `auth.getUser()` hits
+// /auth/v1/user over the network on EVERY call — with one upsert per set
+// that was thousands of auth round-trips a day, and each one is another
+// chance for a flaky gym connection to fail a write that had nothing wrong
+// with it. `getSession()` reads the cached session and only goes to the
+// network when the token actually needs refreshing.
+//
+// Safe here: the id is only used to stamp rows we write, and RLS re-derives
+// auth.uid() server-side on every one of them. A forged local session buys
+// nothing — Postgres would reject the row.
 async function getUser() {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user ?? null;
 }
 
 let _inflight = 0;

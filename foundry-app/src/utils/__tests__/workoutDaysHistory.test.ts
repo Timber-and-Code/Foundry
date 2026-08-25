@@ -17,7 +17,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('../supabase', () => ({
   supabase: {
-    auth: { getUser: vi.fn() },
+    auth: { getUser: vi.fn(), getSession: vi.fn() },
     from: () => ({
       upsert: () => Promise.resolve({ data: null, error: null }),
       select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }), single: () => Promise.resolve({ data: null, error: null }) }) }),

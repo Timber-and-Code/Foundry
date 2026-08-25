@@ -3,7 +3,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // Inert Supabase + Sentry so saveProfile's fire-and-forget sync is a no-op.
 vi.mock('../supabase.js', () => ({
   supabase: {
-    auth: { getUser: () => Promise.resolve({ data: { user: null }, error: null }) },
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+    },
     from: () => ({
       select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }),
       upsert: () => Promise.resolve({ error: null }),

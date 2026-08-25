@@ -41,7 +41,10 @@ const makeChain = (call: RecordedCall, resolve: () => { data: unknown; error: un
 
 vi.mock('../supabase.js', () => ({
   supabase: {
-    auth: { getUser: async () => ({ data: { user: { id: ME } }, error: null }) },
+    auth: {
+      getUser: async () => ({ data: { user: { id: ME } }, error: null }),
+      getSession: async () => ({ data: { session: { user: { id: ME } } }, error: null }),
+    },
     from: (table: string) => ({
       select: () => {
         const call: RecordedCall = { table, op: 'select', filters: {} };

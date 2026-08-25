@@ -235,6 +235,20 @@ function DayView({
     })),
   };
 
+  // How many working sets each exercise was prescribed in an ARBITRARY week,
+  // with the lifter's add/remove-set delta applied. Carryover needs LAST
+  // week's number to judge "did you complete the work", and `weekDay` above
+  // only carries this week's — they diverge every time getWeekSets steps
+  // MEV→MAV→MRV, and again whenever the lifter trims or adds a set.
+  const setCountWeeks = loadSetCountWeeks(dayIdx, weekIdx);
+  const prevSetsFor = (exIdx: number, week: number): number => {
+    const ex = day.exercises[exIdx];
+    if (!ex) return 0;
+    return pickSetCount(setCountWeeks, ex.id, week, (w) =>
+      getWeekSets(Number(ex.sets ?? 0), w, getMeso().totalWeeks),
+    );
+  };
+
   // Compute active week from completedDays (first week not fully done)
   const activeWeek = (() => {
     for (let w = 0; w < getMeso().totalWeeks; w++) {
@@ -279,7 +293,7 @@ function DayView({
   const [weekData, setWeekData] = useState(() =>
     isFutureSession
       ? loadDayWeek(dayIdx, weekIdx)
-      : loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile)
+      : loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor)
   );
   const [notes] = useState(() => loadNotes(dayIdx, weekIdx));
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
@@ -294,7 +308,7 @@ function DayView({
   const [supersetPickerSourceIdx, setSupersetPickerSourceIdx] = useState<number | null>(null);
   const [doneExercises, setDoneExercises] = useState<Set<number>>(() => {
     if (isFutureSession) return new Set<number>(); // future — nothing is done
-    const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile);
+    const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor);
     // Honor any persisted add/remove-set overrides so an exercise the
     // lifter shortened to 3 sets isn't judged against the program's 4.
     const setWeeks = loadSetCountWeeks(dayIdx, weekIdx);
