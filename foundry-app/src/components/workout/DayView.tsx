@@ -45,6 +45,7 @@ import {
   deleteWorkoutSetRemote,
   getOrCreateWorkoutSessionId,
   debouncedSync,
+  cancelDebouncedSync,
   readProgramRole,
 } from '../../utils/sync';
 import {
@@ -85,6 +86,29 @@ import type { Profile, TrainingDay, Exercise } from '../../types';
  * (no exercise has it set), so it round-trips through state cleanly.
  */
 const SUPERSETS_ENABLED = true;
+
+/**
+ * RPE as the numeric column wants it. The UI's prompt is label-based
+ * ("Easy"/"Good"/"Hard") so coaching dashboards can still query a number;
+ * already-numeric values pass through.
+ */
+function rpeToNumber(rpe: unknown): number | null {
+  if (typeof rpe === 'number') return rpe;
+  if (typeof rpe !== 'string' || !rpe) return null;
+  const label = rpe.toLowerCase();
+  if (label === 'easy') return 7;
+  if (label === 'good') return 8;
+  if (label === 'hard') return 9.5;
+  const parsed = parseFloat(rpe);
+  return isNaN(parsed) ? null : parsed;
+}
+
+/** Numeric weight/reps for the remote columns; blank and NaN both → null. */
+function numOrNull(v: unknown, parse: (s: string) => number): number | null {
+  if (v == null || v === '') return null;
+  const n = parse(String(v));
+  return Number.isFinite(n) && n !== 0 ? n : null;
+}
 
 interface DayViewProps {
   dayIdx: number;
@@ -1212,31 +1236,6 @@ function DayView({
           const exerciseId = String(exercise?.id ?? '');
           if (exerciseId) {
             const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
-            const weightNum =
-              merged.weight != null && merged.weight !== ''
-                ? parseFloat(String(merged.weight))
-                : null;
-            const repsNum =
-              merged.reps != null && merged.reps !== ''
-                ? parseInt(String(merged.reps), 10)
-                : null;
-            // rpe can be a string label ("Easy"/"Good"/"Hard") from the
-            // RPE prompt, or numeric. Map labels to approximate numbers
-            // for the numeric column; leave numeric values as-is.
-            let rpeNum: number | null = null;
-            if (typeof merged.rpe === 'number') {
-              rpeNum = merged.rpe;
-            } else if (typeof merged.rpe === 'string' && merged.rpe) {
-              const label = merged.rpe.toLowerCase();
-              if (label === 'easy') rpeNum = 7;
-              else if (label === 'good') rpeNum = 8;
-              else if (label === 'hard') rpeNum = 9.5;
-              else {
-                const parsed = parseFloat(merged.rpe);
-                rpeNum = isNaN(parsed) ? null : parsed;
-              }
-            }
-
             debouncedSync(
               `set:${setId}`,
               () => {
@@ -1246,9 +1245,9 @@ function DayView({
                   exerciseId,
                   setIdx,
                   {
-                    weight: weightNum && !isNaN(weightNum) ? weightNum : null,
-                    reps: repsNum && !isNaN(repsNum) ? repsNum : null,
-                    rpe: rpeNum,
+                    weight: numOrNull(merged.weight, parseFloat),
+                    reps: numOrNull(merged.reps, (x) => parseInt(x, 10)),
+                    rpe: rpeToNumber(merged.rpe),
                     isWarmup: !!merged.warmup,
                   },
                 );
@@ -1386,17 +1385,60 @@ function DayView({
         const removed = exData[setIdx] as Record<string, unknown> | undefined;
         const removedId = removed?.id as string | undefined;
         const reindexed: Record<string, Record<string, unknown>> = {};
+        // Sets after the removed one slide down a slot. Remember which, so
+        // their remote rows can be renumbered to match — see below.
+        const shifted: { setData: Record<string, unknown>; newIdx: number }[] = [];
         Object.keys(exData)
           .map((k) => parseInt(k, 10))
           .sort((a, b) => a - b)
           .forEach((k) => {
             if (k === setIdx) return;
-            reindexed[k < setIdx ? k : k - 1] = exData[k];
+            const newIdx = k < setIdx ? k : k - 1;
+            reindexed[newIdx] = exData[k];
+            if (newIdx !== k) shifted.push({ setData: exData[k], newIdx });
           });
         const next = { ...prev, [exIdx]: reindexed as unknown as typeof prev[number] } as typeof prev;
         saveDayWeek(dayIdx, weekIdx, next);
         if (removedId) {
           deleteWorkoutSetRemote(removedId);
+        }
+
+        // Renumber the rows that slid down.
+        //
+        // The local blob reindexes, but `set_number` on the remote row does
+        // not — and rebuildDayData keys the rebuilt blob BY set_number. So
+        // removing a set from the middle left remote holding {0,1,3} while
+        // local held {0,1,2}, and the next pull wrote that gap back into
+        // local storage. ExerciseCard renders Array.from({length: sets}) and
+        // so never showed the set stranded at 3, but MesoHistoryView walks
+        // Object.keys and calcMuscleSetsByTag counts every entry with reps —
+        // both kept counting it. One removal, a permanently inflated history
+        // and volume.
+        //
+        // Only rows that actually exist remotely are touched: an id is
+        // stamped on first write, but the row is only pushed once it has
+        // reps (handleUpdateSet's `hasData` gate). Upserting a repless set
+        // would CREATE the phantom row this is meant to prevent.
+        const renumber = shifted.filter(
+          (sh) => sh.setData?.id && sh.setData.reps != null && sh.setData.reps !== '',
+        );
+        const exerciseId = String(exercises[exIdx]?.id ?? '');
+        if (renumber.length > 0 && exerciseId) {
+          const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
+          renumber.forEach(({ setData, newIdx }) => {
+            const setId = String(setData.id);
+            // This set may have a debounced write queued at its OLD index;
+            // letting it fire would undo the renumber. Cancel it and push
+            // the current values now — the debounce was only coalescing
+            // writes of this same data, so nothing is lost.
+            cancelDebouncedSync(`set:${setId}`);
+            upsertWorkoutSetRemote(sessionId, setId, exerciseId, newIdx, {
+              weight: numOrNull(setData.weight, parseFloat),
+              reps: numOrNull(setData.reps, (x) => parseInt(x, 10)),
+              rpe: rpeToNumber(setData.rpe),
+              isWarmup: !!setData.warmup,
+            });
+          });
         }
         return next;
       });

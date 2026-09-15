@@ -943,26 +943,64 @@ export async function syncSkippedToSupabase(
   }
 }
 
+// ─── PER-ROW WRITE ORDERING ─────────────────────────────────────────────────
+//
+// Writes to one workout_sets row must land in the order they were issued.
+// They are all fire-and-forget, so without this a delete issued after an
+// upsert can still overtake it — each one independently awaits getUser()
+// and the network, and whichever finishes last wins the row.
+//
+// That is not hypothetical: removing a set within the 1500ms debounce
+// window deleted the row and then let the timer re-create it, leaving an
+// orphan nothing local knew about. Every later pull rebuilt the week from
+// it, so the set came back in history and in volume for good.
+//
+// cancelDebouncedSync handles the timer that has NOT fired yet; this
+// handles the one that has and is mid-flight.
+const _setOpChains = new Map<string, Promise<void>>();
+
+function chainSetOp(setId: string, op: () => Promise<void>): Promise<void> {
+  const prev = _setOpChains.get(setId) ?? Promise.resolve();
+  // `catch` before chaining: one failed op must not poison every later
+  // write to the same row. Each op already reports its own failure.
+  const next = prev.catch(() => {}).then(op);
+  _setOpChains.set(setId, next);
+  // Drop the entry once it settles, so a long session doesn't accumulate
+  // one promise per set ever written. Guarded because another op may have
+  // chained on in the meantime — only the tail is safe to remove.
+  void next.catch(() => {}).finally(() => {
+    if (_setOpChains.get(setId) === next) _setOpChains.delete(setId);
+  });
+  return next;
+}
+
 // Delete a single workout_set row. Called when the user unchecks a set —
 // uncheck means "I didn't do this," so the remote row should go away rather
 // than linger with stale data. Fire-and-forget.
+//
+// Cancels any pending debounced write for this row first, synchronously and
+// before the MIGRATED gate: a queued upsert for a row we are deleting is
+// never something we want to run.
 export async function deleteWorkoutSetRemote(setId: string): Promise<void> {
+  cancelDebouncedSync(`set:${setId}`);
   if (!MIGRATED.workouts) return;
-  syncStart();
-  try {
-    const user = await getUser();
-    if (!user) return;
-    const { error } = await supabase
-      .from('workout_sets')
-      .delete()
-      .eq('id', setId)
-      .eq('user_id', user.id);
-    if (error) throw error;
-  } catch (e) {
-    reportSyncFailure('workout_set_delete', e);
-  } finally {
-    syncEnd();
-  }
+  return chainSetOp(setId, async () => {
+    syncStart();
+    try {
+      const user = await getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from('workout_sets')
+        .delete()
+        .eq('id', setId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+    } catch (e) {
+      reportSyncFailure('workout_set_delete', e);
+    } finally {
+      syncEnd();
+    }
+  });
 }
 
 // Single-set upsert. Called from DayView.handleUpdateSet after a set is
@@ -981,33 +1019,35 @@ export async function upsertWorkoutSetRemote(
   },
 ): Promise<void> {
   if (!MIGRATED.workouts) return;
-  syncStart();
-  try {
-    const user = await getUser();
-    if (!user) return;
+  return chainSetOp(setId, async () => {
+    syncStart();
+    try {
+      const user = await getUser();
+      if (!user) return;
 
-    const { error } = await supabase
-      .from('workout_sets')
-      .upsert(
-        {
-          id: setId,
-          workout_session_id: sessionId,
-          user_id: user.id,
-          exercise_id: exerciseId,
-          set_number: setNumber,
-          weight_lbs: payload.weight,
-          reps: payload.reps,
-          rpe: payload.rpe,
-          is_warmup: payload.isWarmup,
-        },
-        { onConflict: 'id' },
-      );
-    if (error) throw error;
-  } catch (e) {
-    reportSyncFailure('workout_set', e);
-  } finally {
-    syncEnd();
-  }
+      const { error } = await supabase
+        .from('workout_sets')
+        .upsert(
+          {
+            id: setId,
+            workout_session_id: sessionId,
+            user_id: user.id,
+            exercise_id: exerciseId,
+            set_number: setNumber,
+            weight_lbs: payload.weight,
+            reps: payload.reps,
+            rpe: payload.rpe,
+            is_warmup: payload.isWarmup,
+          },
+          { onConflict: 'id' },
+        );
+      if (error) throw error;
+    } catch (e) {
+      reportSyncFailure('workout_set', e);
+    } finally {
+      syncEnd();
+    }
+  });
 }
 
 // ─── SHARED SET → SLOT RECONSTRUCTION ───────────────────────────────────────
@@ -2031,6 +2071,22 @@ export function debouncedSync(key: string, fn: () => void, delay = 1500): void {
     _debounceTimers.delete(key);
     fn();
   }, delay));
+}
+
+/**
+ * Drop a pending debounced write without running it.
+ *
+ * Needed whenever the write is about to be made WRONG rather than merely
+ * redundant: deleting the row it targets, or renumbering it. A debounce is
+ * a promise to write later, and "later" can land after the thing it was
+ * writing about has stopped being true.
+ */
+export function cancelDebouncedSync(key: string): void {
+  const existing = _debounceTimers.get(key);
+  if (existing) {
+    clearTimeout(existing);
+    _debounceTimers.delete(key);
+  }
 }
 
 export function markDirty(key: string): void {
