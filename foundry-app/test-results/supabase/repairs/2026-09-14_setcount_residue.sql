@@ -1,5 +1,17 @@
 -- Repair: clear no-op set-count override rows on meso 90f0d431.
 --
+-- STATUS: RUN against prod 2026-09-14. DELETE 9, as expected. Verified after:
+-- zero residue rows remain; the 11 real -1 rows (week 2) and 3 real +1 rows
+-- (week 5) all survived untouched.
+--
+-- NOTE: this clears the REMOTE rows only. pullSetCountOverrides merges remote
+-- over local and never deletes, so the same 9 entries persist in each device's
+-- `foundry:setcount:d{d}:w2` map. They are inert (stored value == that week's
+-- base, so the delta is 0) and nothing pushes them back -- the only writer is
+-- syncSetCountToSupabase, fired per-edit from saveSetCount, and no push path
+-- walks those keys. They would only matter if a swap changed that exercise's
+-- base under them, on a week of a meso that is now finished.
+--
 -- Context: before 7db9380, saveSetCount stored a row even when the lifter's
 -- chosen count changed nothing, so adding a set and taking it straight back
 -- off left a permanent mark. pickSetCount reads any stored row as an
