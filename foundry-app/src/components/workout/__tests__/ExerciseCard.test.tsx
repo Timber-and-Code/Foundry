@@ -500,3 +500,64 @@ describe('ExerciseCard', () => {
     expect(screen.queryByText(/mesos ago:/)).toBeNull();
   });
 });
+
+/**
+ * The stall chip is derived from set 0's CURRENT weight, so it re-evaluated
+ * on every keystroke: clearing "200" to retype it flashed the red "weight
+ * drop detected" warning at "2" and again at "20" on the way to "205".
+ * A half-typed number is not a decision.
+ */
+describe('ExerciseCard stall warning while typing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mocks.store.get.mockImplementation((key: string) => localStorage.getItem(key));
+  });
+
+  const seedLastWeekAt200 = () => {
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({
+        0: {
+          0: { weight: '200', reps: '6', confirmed: true, _exId: 'bench' },
+          1: { weight: '200', reps: '6', confirmed: true, _exId: 'bench' },
+        },
+      }),
+    );
+  };
+
+  /** Week 1, set 0 already dropped to a partially-typed "20". */
+  const renderMidType = () =>
+    render(
+      <ExerciseCard
+        {...defaultProps({
+          weekIdx: 1,
+          exercise: makeExercise({ id: 'bench', sets: 2, reps: '4-6' }),
+          weekData: { 0: { 0: { weight: '20', reps: '' } } },
+        })}
+      />,
+    );
+
+  it('shows the warning for a settled weight drop', () => {
+    seedLastWeekAt200();
+    renderMidType();
+    expect(screen.getByText(/weight drop detected/i)).toBeInTheDocument();
+  });
+
+  it('hides it the moment a set box takes focus', () => {
+    seedLastWeekAt200();
+    renderMidType();
+    fireEvent.focus(screen.getAllByLabelText(/weight in pounds/i)[0]);
+    expect(screen.queryByText(/weight drop detected/i)).not.toBeInTheDocument();
+  });
+
+  it('brings it back once the lifter leaves the box', () => {
+    seedLastWeekAt200();
+    renderMidType();
+    const input = screen.getAllByLabelText(/weight in pounds/i)[0];
+    fireEvent.focus(input);
+    expect(screen.queryByText(/weight drop detected/i)).not.toBeInTheDocument();
+    fireEvent.blur(input, { target: { value: '20' } });
+    expect(screen.getByText(/weight drop detected/i)).toBeInTheDocument();
+  });
+});

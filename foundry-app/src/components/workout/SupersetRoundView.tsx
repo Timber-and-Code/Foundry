@@ -123,6 +123,9 @@ export default function SupersetRoundView({
   // Restored from weekData on mount so the round view recovers state across
   // unmounts (e.g. user scrolls away and back). Keeps the same restore rule
   // as ExerciseCard: only `confirmed === true` counts.
+  // True while any set box in this round group has focus — see the
+  // `editing` prop on SupersetMemberHeader for why.
+  const [editingSet, setEditingSet] = useState(false);
   const [doneSetsMap, setDoneSetsMap] = useState<Map<number, Set<number>>>(() => {
     const map = new Map<number, Set<number>>();
     exIdxs.forEach((exIdx, gi) => {
@@ -325,6 +328,7 @@ export default function SupersetRoundView({
               prevWeekRaw={prevWeekRaw as Record<number, Record<string, SetData>>}
               weekIdx={weekIdx}
               readOnly={readOnly}
+              editing={editingSet}
               onHistoryClick={() => setHistoryExIdx(exIdx)}
               onSwapClick={() => onSwapClick(exIdx)}
               noteValue={notes ? notes[exIdx] : undefined}
@@ -442,6 +446,7 @@ export default function SupersetRoundView({
                 readOnly={readOnly}
                 exerciseName={ex.name}
                 isBodyweight={!!ex.bw}
+                onEditingChange={setEditingSet}
                 noLeadingColumn
                 onUpdateWeight={(value) => {
                   onUpdateSet(exIdx, r, 'weight', value);
@@ -728,6 +733,10 @@ interface SupersetMemberHeaderProps {
   prevWeekRaw: Record<number, Record<string, SetData>>;
   weekIdx: number;
   readOnly: boolean;
+  /** Suppresses the stall chip while a set box has focus — the warning is
+   *  derived from set 0's live weight and would otherwise fire at "2" and
+   *  "20" on the way to "205". */
+  editing?: boolean;
   onHistoryClick: () => void;
   onSwapClick: () => void;
   /** Note text + open state + handlers — wired only when DayView passes
@@ -747,6 +756,7 @@ function SupersetMemberHeader({
   prevWeekRaw,
   weekIdx,
   readOnly,
+  editing,
   onHistoryClick,
   onSwapClick,
   noteValue,
@@ -859,7 +869,7 @@ function SupersetMemberHeader({
           {progressionChipText}
         </span>
       )}
-      {stallWarning && stallTarget && (
+      {stallWarning && stallTarget && !editing && (
         <span
           data-testid={`stall-chip-${exIdx}`}
           title={`Last week: ${stallTarget.w} × ${stallTarget.r}`}

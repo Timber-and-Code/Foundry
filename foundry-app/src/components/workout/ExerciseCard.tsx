@@ -161,6 +161,11 @@ function ExerciseCard({
   // onSetLogged(isLastSet=true). Cancel = no change.
   const [pendingZeroSet, setPendingZeroSet] = useState<number | null>(null);
   const [noteOpen, _setNoteOpen] = useState(!!(note && note.trim()));
+  // True while a weight/reps box has focus. The stall warning is derived from
+  // set 0's CURRENT weight, so it re-evaluated on every keystroke: clearing
+  // "200" to retype it made the card flash the red "weight drop" chip at "2"
+  // and "20" on the way to "205". A half-typed number is not a decision.
+  const [editingSet, setEditingSet] = useState(false);
 
   // Load prev week raw data for "Last session" context hints
   const prevWeekRaw = useMemo(() => {
@@ -950,8 +955,8 @@ function ExerciseCard({
             </div>
           )}
 
-          {/* Stall warning */}
-          {stallWarning && (
+          {/* Stall warning — held back mid-edit, see `editingSet`. */}
+          {stallWarning && !editingSet && (
             <div
               data-coach="stall-chip"
               style={{
@@ -1116,6 +1121,7 @@ function ExerciseCard({
                     onUpdateWeight={(value) => onUpdateSet(exIdx, s, 'weight', value)}
                     onUpdateReps={(value) => handleRepsChange(s, value)}
                     onWeightBlur={(value) => handleWeightBlur(s, value)}
+                    onEditingChange={setEditingSet}
                     onCheckmark={() => handleSetCheckmark(s)}
                     onRequestRemove={canRemove ? () => setRemoveSetPrompt(s) : undefined}
                     variant={editorial ? 'editorial' : 'legacy'}

@@ -19,9 +19,17 @@ const mocks = vi.hoisted(() => ({
   getMeso: vi.fn(() => ({ totalWeeks: 7, workWeeks: 6 })),
 }));
 
-vi.mock('../../../utils/store', () => ({
+vi.mock('../../../utils/store', async () => ({
   store: mocks.store,
   loadDayWeek: mocks.loadDayWeek,
+  // Real implementation, not a stub: useExerciseProgression uses it to match
+  // last week's sets by exercise identity, and a positional stand-in would
+  // hide exactly the misattribution it exists to prevent.
+  findPrevSlotForExercise: (
+    await vi.importActual<typeof import('../../../utils/persistence')>(
+      '../../../utils/persistence',
+    )
+  ).findPrevSlotForExercise,
 }));
 
 vi.mock('../../../utils/helpers', () => ({

@@ -26,6 +26,7 @@
  * weight the banner disappears.
  */
 import { useMemo } from 'react';
+import { findPrevSlotForExercise } from '../utils/store';
 import type { Exercise, DayData } from '../types';
 
 interface SetData {
@@ -65,6 +66,28 @@ export interface ExerciseProgressionOutput {
   stallTarget: StallTarget | null;
 }
 
+/**
+ * Last week's sets for THIS exercise, matched by identity.
+ *
+ * A raw `prevWeekRaw[exIdx]` is the slot index, and a reorder, superset
+ * pairing, or swap moves an exercise between weeks — so the stall target
+ * came from whatever lift happened to sit in this position last week, and
+ * the card warned about a "weight drop" against a different exercise's
+ * numbers. Same helper the carryover and ExerciseCard's own workingWeight
+ * already use.
+ */
+function prevSlice(
+  prevWeekRaw: Record<string | number, Record<string, SetData>>,
+  exId: Exercise['id'],
+  exIdx: number,
+): Record<string, SetData> {
+  return findPrevSlotForExercise(
+    prevWeekRaw as never,
+    exId,
+    exIdx,
+  ) as unknown as Record<string, SetData>;
+}
+
 export function useExerciseProgression({
   exIdx,
   exercise,
@@ -81,7 +104,7 @@ export function useExerciseProgression({
     // Only show banner if set 0 still carries suggestion flags (user hasn't edited yet)
     if (!set0.suggested && !set0.repsSuggested) return null;
 
-    const prevData = prevWeekRaw[exIdx] || {};
+    const prevData = prevSlice(prevWeekRaw, exercise.id, exIdx);
     const prevWeight = parseFloat(String((prevData[0] || {}).weight || '0'));
     const currWeight = parseFloat(String(set0.weight || '0'));
 
@@ -96,7 +119,7 @@ export function useExerciseProgression({
       return { text: 'Same weight, +1 rep — building toward top of range', color: 'var(--text-accent)' };
     }
     return null;
-  }, [weekData, exIdx, weekIdx, prevWeekRaw, exercise.bw]);
+  }, [weekData, exIdx, weekIdx, prevWeekRaw, exercise.bw, exercise.id]);
 
   // Stall detection — compare current set 0 vs last week's LAST completed
   // working set (highest set index with non-empty weight + reps that isn't
@@ -111,7 +134,7 @@ export function useExerciseProgression({
     const curr = ((weekData[exIdx] || {}) as Record<string, SetData>)[0] || {};
     const reps = parseInt(String(curr.reps || 0));
     const weight = parseFloat(String(curr.weight || 0));
-    const prevData = prevWeekRaw[exIdx] || {};
+    const prevData = prevSlice(prevWeekRaw, exercise.id, exIdx);
     let stallTarget: StallTarget | null = null;
     let stallWarning = false;
     for (let ps = (Number(exercise.sets) || 4) - 1; ps >= 0; ps--) {
@@ -131,7 +154,7 @@ export function useExerciseProgression({
       }
     }
     return { stallTarget, stallWarning };
-  }, [weekData, exIdx, prevWeekRaw, exercise.sets]);
+  }, [weekData, exIdx, prevWeekRaw, exercise.sets, exercise.id]);
 
   return { progressionBanner, stallWarning, stallTarget };
 }

@@ -8,6 +8,7 @@ import {
   syncCardioPresetToSupabase,
   deleteCardioPresetRemote,
   syncSetCountToSupabase,
+  deleteSetCountRemote,
 } from './sync';
 import type {
   DayData,
@@ -205,12 +206,52 @@ function roundTo25(weight: number): number {
   return Math.round(weight / 2.5) * 2.5;
 }
 
+/**
+ * Meso shape the carryover needs to recognise a deload. Injected rather than
+ * read via getMeso() for the same reason `baseFor` is — this module is pure
+ * and training.ts/constants already point at it.
+ */
+export interface CarryoverMeso {
+  /** Weeks including the deload; the last index IS the deload week. */
+  totalWeeks: number;
+  /** Training days per week — the deload taper is stepped across these. */
+  daysPerWeek: number;
+}
+
+/** Load at the END of the deload week, as a fraction of the previous week's. */
+const DELOAD_END_FACTOR = 0.9;
+
+/**
+ * How hard to scale the bar for one day of the deload week.
+ *
+ * Day 1 holds last week's working weight and the last day sits at
+ * DELOAD_END_FACTOR, stepped evenly across however many days the meso
+ * trains — a 4-day week lands 100/97/93/90, a 6-day week 100/98/96/94/92/90.
+ *
+ * Deliberately shallow. The research consensus is that VOLUME is the lever
+ * that sheds fatigue and load should largely hold: RP prescribes a 40-50%
+ * volume cut at unchanged intensity, and Helms' guideline is 30-50% volume
+ * with intensity maintained and only "a little" off the bar. getWeekSets
+ * already does that half, dropping to 2 sets. This is the "little".
+ *
+ * Stepping by DAY INDEX is a deliberate product call for a full-body split,
+ * where no lift repeats inside the week: it reads the week's accumulating
+ * fatigue rather than any one lift's, so whatever sits on the last day takes
+ * the deepest cut.
+ */
+function deloadLoadFactor(dayIdx: number, daysPerWeek: number): number {
+  if (!Number.isFinite(daysPerWeek) || daysPerWeek <= 1) return 1;
+  const d = Math.min(Math.max(dayIdx, 0), daysPerWeek - 1);
+  return 1 - (1 - DELOAD_END_FACTOR) * (d / (daysPerWeek - 1));
+}
+
 function computeCarryoverForOneExercise(
   ex: TrainingDay['exercises'][number],
   prevEx: Record<string, Record<string, unknown>>,
   expKey: string,
   recalibrateActive: boolean = false,
   prevSetsOverride?: number,
+  deloadFactor?: number,
 ): Record<string, WorkoutSet> {
   const repParts = String(ex.reps).split('-');
   const rangeMin = parseInt(repParts[0]) || 1;
@@ -347,6 +388,39 @@ function computeCarryoverForOneExercise(
     return out;
   }
 
+  // Programmed deload week. Everything above this point is PROGRESSION — it
+  // asks "did you earn more?" and answers with a heavier bar or another rep.
+  // None of that belongs in a deload, and until now none of it was switched
+  // off: a lifter who hit the top of the rep range in the MRV week was told
+  // to add weight in the deload, and one who didn't was still told to add a
+  // rep. The week cut sets and then pushed intensity up underneath.
+  //
+  // Instead: last week's load scaled by the day's taper, reps at the BOTTOM
+  // of the range, and both suggestion flags cleared so nothing in the UI
+  // reads as "push here". Holding the weight while cutting sets and reps is
+  // what drops fatigue without giving up the load stimulus or the groove —
+  // and rangeMin is what puts real RIR back in the tank.
+  //
+  // Distinct from `recalibrateActive` above, which is the RE-ENTRY deload
+  // after a layoff. That one is a deeper, flat 85% and takes precedence:
+  // someone returning from time off is not the same athlete as someone
+  // closing out a mesocycle.
+  if (deloadFactor != null && deloadFactor > 0) {
+    const scaledStr = baselineWeight > 0
+      ? String(roundTo25(baselineWeight * deloadFactor))
+      : '';
+    const out: Record<string, WorkoutSet> = {};
+    for (let s = 0; s < sets; s++) {
+      out[s] = {
+        weight: scaledStr,
+        reps: String(rangeMin),
+        suggested: false,
+        repsSuggested: false,
+      };
+    }
+    return out;
+  }
+
   const out: Record<string, WorkoutSet> = {};
   for (let s = 0; s < sets; s++) {
     out[s] = {
@@ -395,6 +469,7 @@ function loadDayWeekWithCarryoverV1(
   current: DayData,
   recalibrateActive: boolean = false,
   prevSetsFor?: PrevSetsResolver,
+  deloadFactor?: number,
 ): DayData {
   const expKey = expKeyFromProfile(profile);
   const dayHasBw = (day.exercises || []).some((ex) => !!ex.bw);
@@ -421,6 +496,7 @@ function loadDayWeekWithCarryoverV1(
         expKey,
         recalibrateActive,
         prevSetsFor?.(exIdx, w),
+        deloadFactor,
       );
     });
     return carried;
@@ -448,6 +524,7 @@ function loadDayWeekWithCarryoverV2(
   tdeIds: Record<string, string>,
   recalibrateActive: boolean = false,
   prevSetsFor?: PrevSetsResolver,
+  deloadFactor?: number,
 ): DayData | null {
   const expKey = expKeyFromProfile(profile);
   const dayHasBw = (day.exercises || []).some((ex) => !!ex.bw);
@@ -470,6 +547,7 @@ function loadDayWeekWithCarryoverV2(
         expKey,
         recalibrateActive,
         prevSetsFor?.(exIdx, w),
+        deloadFactor,
       );
     });
     return carried;
@@ -545,6 +623,7 @@ export function loadDayWeekWithCarryover(
   day: TrainingDay,
   profile: Profile | null | undefined,
   prevSetsFor?: PrevSetsResolver,
+  meso?: CarryoverMeso,
 ): DayData {
   const current = realignDayDataByExId(loadDayWeek(dayIdx, weekIdx), day);
   const hasData = Object.values(current).some((exData) =>
@@ -553,6 +632,13 @@ export function loadDayWeekWithCarryover(
   if (hasData || weekIdx === 0) return current;
 
   const recalibrateActive = isRecalibrateActive(weekIdx);
+  // Last week of the meso is the deload. Omitting `meso` opts out entirely,
+  // which keeps every caller that predates this behaving as before.
+  const isDeload =
+    meso != null && meso.totalWeeks > 0 && weekIdx >= meso.totalWeeks - 1;
+  const deloadFactor = isDeload
+    ? deloadLoadFactor(dayIdx, meso!.daysPerWeek)
+    : undefined;
 
   if (isDayV2ReadsEnabled()) {
     const tdeIds = loadTdeIdsForActiveMeso();
@@ -561,6 +647,7 @@ export function loadDayWeekWithCarryover(
     } else {
       const v2Result = loadDayWeekWithCarryoverV2(
         dayIdx, weekIdx, day, profile, tdeIds, recalibrateActive, prevSetsFor,
+        deloadFactor,
       );
       if (v2Result !== null) return v2Result;
       reportV2Fallback(dayIdx, weekIdx, 'v2_miss');
@@ -570,6 +657,7 @@ export function loadDayWeekWithCarryover(
   }
   return loadDayWeekWithCarryoverV1(
     dayIdx, weekIdx, day, profile, current, recalibrateActive, prevSetsFor,
+    deloadFactor,
   );
 }
 
@@ -812,36 +900,109 @@ export function loadSetCountWeeks(dayIdx: number, weekIdx: number): Record<strin
  * `baseFor` is injected rather than importing getWeekSets, which lives in
  * training.ts — and training.ts already imports this module, so pulling it
  * in the other direction would close an import cycle.
+ *
+ * DELOAD EXCEPTION. A delta is only meaningful against a base of comparable
+ * size. A lifter who trims 4 sets to 3 in an MAV week has said "one less
+ * than the working prescription" — carrying that −1 onto a deload week,
+ * whose base is a flat 2, reads it as "one less than the deload" and lands
+ * on a single set. That is not a deload, it is a dropped session, and the
+ * `Math.max(1, …)` floor is what let it through. So a CARRIED NEGATIVE delta
+ * does not apply to the deload week; it takes its programmed count.
+ *
+ * Deliberately narrow, to preserve the 2af293f product call in both other
+ * directions: a carried POSITIVE delta still reaches the deload (the lifter
+ * who wants an extra set keeps it, and removes it if they don't), and an
+ * EXPLICIT choice made in the deload week itself still wins outright — that
+ * is the lifter looking at the deload and deciding, not a stale inference
+ * from four weeks ago.
+ *
+ * `totalWeeks` mirrors getWeekSets' own deload rule (`weekIdx >= length−1`)
+ * rather than importing it, for the same import-cycle reason as `baseFor`.
+ * `setCountCarry.test.ts` pins the two together. Omitted → no deload
+ * special-casing, matching the previous behaviour.
  */
 export function pickSetCount(
   weeks: Record<string, number>[],
   exId: string | number | null | undefined,
   weekIdx: number,
   baseFor: (week: number) => number,
+  totalWeeks?: number,
 ): number {
   const base = baseFor(weekIdx);
   const key = exId == null ? '' : String(exId);
   if (!key) return base;
   const own = weeks[weekIdx]?.[key];
   if (own != null) return own;
+  const isDeload = totalWeeks != null && totalWeeks > 0 && weekIdx >= totalWeeks - 1;
   for (let w = Math.min(weekIdx, weeks.length) - 1; w >= 0; w--) {
     const chosen = weeks[w]?.[key];
     if (chosen == null) continue;
-    return Math.max(1, base + (chosen - baseFor(w)));
+    const delta = chosen - baseFor(w);
+    if (isDeload && delta < 0) return base;
+    return Math.max(1, base + delta);
   }
   return base;
 }
 
+/**
+ * Record the lifter's chosen set count for one exercise in one week.
+ *
+ * A row is stored only when it actually CHANGES something. The test is not
+ * "does this equal the week's base" but "does this equal what the lifter
+ * would get anyway with no row here at all" — i.e. resolve the week with
+ * this entry removed and compare. Anything else gets the two cases wrong in
+ * opposite directions:
+ *
+ *  - Add a set and take it straight back off, in a week with no carried
+ *    delta. Lands back on the base, changes nothing, and must NOT be
+ *    stored. `pickSetCount` reads any stored row as an explicit choice, so
+ *    a row left behind here shadows an earlier real delta and becomes a
+ *    real delta itself the moment a swap moves the base under it. This is
+ *    how a whole meso ended up carrying deltas nobody chose.
+ *
+ *  - Add a set back while a −1 IS being carried, landing exactly on the
+ *    program's number. That looks identical to the case above if you only
+ *    compare against the base — but it is the opposite: the lifter is
+ *    overriding the carried delta to say "the full prescription, this
+ *    week". Dropping it would silently reassert the delta and undo them.
+ *
+ * `opts` is optional; callers that can't cheaply resolve the week keep the
+ * old store-whatever-you're-given behaviour.
+ */
 export function saveSetCount(
   dayIdx: number,
   weekIdx: number,
   exId: string,
   count: number,
+  opts?: { baseFor: (week: number) => number; totalWeeks?: number },
 ): void {
   if (!exId || !Number.isFinite(count) || count < 1) return;
   const current = loadSetCounts(dayIdx, weekIdx);
+  const key = `foundry:setcount:d${dayIdx}:w${weekIdx}`;
+
+  if (opts?.baseFor) {
+    // Resolve this week as if no row existed for this exercise.
+    const weeks = loadSetCountWeeks(dayIdx, weekIdx);
+    if (weeks[weekIdx]) {
+      const withoutThis = { ...weeks[weekIdx] };
+      delete withoutThis[exId];
+      weeks[weekIdx] = withoutThis;
+    }
+    const wouldBe = pickSetCount(weeks, exId, weekIdx, opts.baseFor, opts.totalWeeks);
+    if (count === wouldBe) {
+      if (!(exId in current)) return; // already no-opinion; nothing to clear
+      delete current[exId];
+      if (Object.keys(current).length === 0) store.remove(key);
+      else store.set(key, JSON.stringify(current));
+      // Must also drop the remote row: pullSetCountOverrides merges remote
+      // over local, so a local-only delete comes straight back on next pull.
+      void deleteSetCountRemote(dayIdx, weekIdx, exId);
+      return;
+    }
+  }
+
   current[exId] = count;
-  store.set(`foundry:setcount:d${dayIdx}:w${weekIdx}`, JSON.stringify(current));
+  store.set(key, JSON.stringify(current));
   // Fire-and-forget, matching every other write in this module: the local
   // save is authoritative and a failed push must never block adding a set.
   void syncSetCountToSupabase(dayIdx, weekIdx, exId, count);

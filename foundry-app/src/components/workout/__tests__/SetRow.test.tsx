@@ -124,3 +124,89 @@ describe('SetRow', () => {
     expect(row).toHaveAttribute('data-coach', 'missed-row');
   });
 });
+
+/**
+ * Focus behaviour. These boxes are nearly always pre-filled — with the
+ * carryover suggestion or the weight from the set above — so the common
+ * action is REPLACE, not append. Before this the lifter had to clear the
+ * field by hand, and a caret landing mid-number turned "200" into "2005".
+ */
+describe('SetRow focus', () => {
+  const inputs = () => ({
+    weight: screen.getByLabelText(/weight in pounds/i) as HTMLInputElement,
+    reps: screen.getByLabelText(/reps/i) as HTMLInputElement,
+  });
+
+  it('selects the existing weight so it can be typed straight over', () => {
+    render(<SetRow {...defaultProps({ weight: '200', reps: '8' })} />);
+    const el = inputs().weight;
+    const select = vi.spyOn(el, 'select');
+    fireEvent.focus(el);
+    // The select runs inside the same rAF as scrollIntoView.
+    return new Promise<void>((resolve) =>
+      requestAnimationFrame(() => {
+        expect(select).toHaveBeenCalled();
+        resolve();
+      }),
+    );
+  });
+
+  it('selects the existing reps too', () => {
+    render(<SetRow {...defaultProps({ weight: '200', reps: '8' })} />);
+    const el = inputs().reps;
+    const select = vi.spyOn(el, 'select');
+    fireEvent.focus(el);
+    return new Promise<void>((resolve) =>
+      requestAnimationFrame(() => {
+        expect(select).toHaveBeenCalled();
+        resolve();
+      }),
+    );
+  });
+
+  it('survives a browser that refuses selection on a number input', () => {
+    render(<SetRow {...defaultProps({ weight: '200' })} />);
+    const el = inputs().weight;
+    vi.spyOn(el, 'select').mockImplementation(() => {
+      throw new Error('InvalidStateError');
+    });
+    const scroll = vi.fn();
+    el.scrollIntoView = scroll;
+    fireEvent.focus(el);
+    return new Promise<void>((resolve) =>
+      requestAnimationFrame(() => {
+        // A failed select must not cost the lifter the scroll-into-view.
+        expect(scroll).toHaveBeenCalled();
+        resolve();
+      }),
+    );
+  });
+
+  it('reports edit start and end on the weight box', () => {
+    const onEditingChange = vi.fn();
+    render(<SetRow {...defaultProps({ weight: '200', onEditingChange })} />);
+    const el = inputs().weight;
+    fireEvent.focus(el);
+    expect(onEditingChange).toHaveBeenCalledWith(true);
+    fireEvent.blur(el);
+    expect(onEditingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('reports edit start and end on the reps box', () => {
+    const onEditingChange = vi.fn();
+    render(<SetRow {...defaultProps({ reps: '8', onEditingChange })} />);
+    const el = inputs().reps;
+    fireEvent.focus(el);
+    expect(onEditingChange).toHaveBeenCalledWith(true);
+    fireEvent.blur(el);
+    expect(onEditingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('still commits the weight on blur', () => {
+    const onWeightBlur = vi.fn();
+    const onEditingChange = vi.fn();
+    render(<SetRow {...defaultProps({ weight: '200', onWeightBlur, onEditingChange })} />);
+    fireEvent.blur(inputs().weight, { target: { value: '205' } });
+    expect(onWeightBlur).toHaveBeenCalledWith('205');
+  });
+});

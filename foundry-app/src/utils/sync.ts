@@ -817,38 +817,88 @@ function workoutSessionIdKey(dayIdx: number, weekIdx: number): string {
     : `foundry:ws_id:d${dayIdx}:w${weekIdx}`;
 }
 
+/**
+ * How recently an unscoped session id must have been written for it to still
+ * be worth adopting. Mirrors persistence.ts's own 6h STALE_MS: a workout
+ * still in flight is by definition recent; anything older is a leftover.
+ */
+const LEGACY_SESSION_ADOPT_MS = 6 * 60 * 60 * 1000;
+
+const legacySessionKeys = (dayIdx: number, weekIdx: number) => ({
+  id: `foundry:ws_id:d${dayIdx}:w${weekIdx}`,
+  at: `foundry:ws_id_at:d${dayIdx}:w${weekIdx}`,
+});
+
 // Generates or retrieves the stable uuid for a (dayIdx, weekIdx) session.
 // Cached in localStorage so set upserts all reference the same session row.
+//
+// Adopting an unscoped id is AGE-GATED, and that gate is load-bearing.
+//
+// The unscoped key can still legitimately appear: archiving a meso removes
+// `foundry:active_meso_id`, so a workout started in the gap before the next
+// meso has an id writes unscoped. Adopting there is right — otherwise the
+// session forks into a second row mid-workout.
+//
+// But adopting UNCONDITIONALLY is how months of history got merged. A
+// pre-2.14.2 key could be arbitrarily old and belong to a long-finished
+// meso; adopting it re-pointed that session row's meso_id to the current
+// cycle and dragged every set it already held along with it. Observed in
+// prod: 14 sessions holding up to 54 rows across four separate days, with
+// duplicate set_numbers that rebuildDayData then collapsed arbitrarily —
+// so which weights a lifter saw for a given week was nondeterministic.
+//
+// The two cases are told apart by age, so unscoped writes are stamped. No
+// stamp means the key predates this code, which means it predates the
+// current meso — never adopted. Either way the legacy keys are cleared, so
+// a stale id gets exactly one chance to be judged and then stops existing.
 export function getOrCreateWorkoutSessionId(dayIdx: number, weekIdx: number): string {
   if (typeof window === 'undefined') return crypto.randomUUID();
   const key = workoutSessionIdKey(dayIdx, weekIdx);
   const existing = localStorage.getItem(key);
   if (existing) return existing;
 
-  // Legacy unscoped key — adopt it ONCE into the scoped key so an in-flight
-  // session doesn't fork into a second row, then leave the old key alone.
-  const legacyKey = `foundry:ws_id:d${dayIdx}:w${weekIdx}`;
-  if (key !== legacyKey) {
-    const legacy = localStorage.getItem(legacyKey);
-    if (legacy) {
-      localStorage.setItem(key, legacy);
-      localStorage.removeItem(legacyKey);
-      return legacy;
+  const legacy = legacySessionKeys(dayIdx, weekIdx);
+  if (key !== legacy.id) {
+    const legacyId = localStorage.getItem(legacy.id);
+    if (legacyId) {
+      const stamp = Number(localStorage.getItem(legacy.at));
+      const inFlight =
+        Number.isFinite(stamp) && stamp > 0 && Date.now() - stamp < LEGACY_SESSION_ADOPT_MS;
+      localStorage.removeItem(legacy.id);
+      localStorage.removeItem(legacy.at);
+      if (inFlight) {
+        localStorage.setItem(key, legacyId);
+        return legacyId;
+      }
+      // Stale: fall through and mint a fresh id. The old session row keeps
+      // its own meso and its own sets, which is the point.
     }
   }
 
   const fresh = crypto.randomUUID();
   localStorage.setItem(key, fresh);
+  // Writing unscoped means no meso id exists yet. Stamp it so the scoped
+  // read that follows can tell this session is still in flight.
+  if (key === legacy.id) {
+    try {
+      localStorage.setItem(legacy.at, String(Date.now()));
+    } catch (e) {
+      console.warn('[Foundry] Failed to stamp unscoped session key', e);
+    }
+  }
   return fresh;
 }
 
-/** Read-only lookup — returns null rather than minting an id. */
+/**
+ * Read-only lookup — returns null rather than minting an id.
+ *
+ * No unscoped fallback: when there is no active meso `workoutSessionIdKey`
+ * already returns the unscoped key, and when there IS one, reaching for it
+ * is the same trapdoor documented above.
+ */
 export function peekWorkoutSessionId(dayIdx: number, weekIdx: number): string | null {
   if (typeof window === 'undefined') return null;
-  return (
-    localStorage.getItem(workoutSessionIdKey(dayIdx, weekIdx)) ||
-    localStorage.getItem(`foundry:ws_id:d${dayIdx}:w${weekIdx}`)
-  );
+  return localStorage.getItem(workoutSessionIdKey(dayIdx, weekIdx));
 }
 
 export async function upsertWorkoutSessionRemote(
@@ -943,26 +993,64 @@ export async function syncSkippedToSupabase(
   }
 }
 
+// ─── PER-ROW WRITE ORDERING ─────────────────────────────────────────────────
+//
+// Writes to one workout_sets row must land in the order they were issued.
+// They are all fire-and-forget, so without this a delete issued after an
+// upsert can still overtake it — each one independently awaits getUser()
+// and the network, and whichever finishes last wins the row.
+//
+// That is not hypothetical: removing a set within the 1500ms debounce
+// window deleted the row and then let the timer re-create it, leaving an
+// orphan nothing local knew about. Every later pull rebuilt the week from
+// it, so the set came back in history and in volume for good.
+//
+// cancelDebouncedSync handles the timer that has NOT fired yet; this
+// handles the one that has and is mid-flight.
+const _setOpChains = new Map<string, Promise<void>>();
+
+function chainSetOp(setId: string, op: () => Promise<void>): Promise<void> {
+  const prev = _setOpChains.get(setId) ?? Promise.resolve();
+  // `catch` before chaining: one failed op must not poison every later
+  // write to the same row. Each op already reports its own failure.
+  const next = prev.catch(() => {}).then(op);
+  _setOpChains.set(setId, next);
+  // Drop the entry once it settles, so a long session doesn't accumulate
+  // one promise per set ever written. Guarded because another op may have
+  // chained on in the meantime — only the tail is safe to remove.
+  void next.catch(() => {}).finally(() => {
+    if (_setOpChains.get(setId) === next) _setOpChains.delete(setId);
+  });
+  return next;
+}
+
 // Delete a single workout_set row. Called when the user unchecks a set —
 // uncheck means "I didn't do this," so the remote row should go away rather
 // than linger with stale data. Fire-and-forget.
+//
+// Cancels any pending debounced write for this row first, synchronously and
+// before the MIGRATED gate: a queued upsert for a row we are deleting is
+// never something we want to run.
 export async function deleteWorkoutSetRemote(setId: string): Promise<void> {
+  cancelDebouncedSync(`set:${setId}`);
   if (!MIGRATED.workouts) return;
-  syncStart();
-  try {
-    const user = await getUser();
-    if (!user) return;
-    const { error } = await supabase
-      .from('workout_sets')
-      .delete()
-      .eq('id', setId)
-      .eq('user_id', user.id);
-    if (error) throw error;
-  } catch (e) {
-    reportSyncFailure('workout_set_delete', e);
-  } finally {
-    syncEnd();
-  }
+  return chainSetOp(setId, async () => {
+    syncStart();
+    try {
+      const user = await getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from('workout_sets')
+        .delete()
+        .eq('id', setId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+    } catch (e) {
+      reportSyncFailure('workout_set_delete', e);
+    } finally {
+      syncEnd();
+    }
+  });
 }
 
 // Single-set upsert. Called from DayView.handleUpdateSet after a set is
@@ -981,33 +1069,35 @@ export async function upsertWorkoutSetRemote(
   },
 ): Promise<void> {
   if (!MIGRATED.workouts) return;
-  syncStart();
-  try {
-    const user = await getUser();
-    if (!user) return;
+  return chainSetOp(setId, async () => {
+    syncStart();
+    try {
+      const user = await getUser();
+      if (!user) return;
 
-    const { error } = await supabase
-      .from('workout_sets')
-      .upsert(
-        {
-          id: setId,
-          workout_session_id: sessionId,
-          user_id: user.id,
-          exercise_id: exerciseId,
-          set_number: setNumber,
-          weight_lbs: payload.weight,
-          reps: payload.reps,
-          rpe: payload.rpe,
-          is_warmup: payload.isWarmup,
-        },
-        { onConflict: 'id' },
-      );
-    if (error) throw error;
-  } catch (e) {
-    reportSyncFailure('workout_set', e);
-  } finally {
-    syncEnd();
-  }
+      const { error } = await supabase
+        .from('workout_sets')
+        .upsert(
+          {
+            id: setId,
+            workout_session_id: sessionId,
+            user_id: user.id,
+            exercise_id: exerciseId,
+            set_number: setNumber,
+            weight_lbs: payload.weight,
+            reps: payload.reps,
+            rpe: payload.rpe,
+            is_warmup: payload.isWarmup,
+          },
+          { onConflict: 'id' },
+        );
+      if (error) throw error;
+    } catch (e) {
+      reportSyncFailure('workout_set', e);
+    } finally {
+      syncEnd();
+    }
+  });
 }
 
 // ─── SHARED SET → SLOT RECONSTRUCTION ───────────────────────────────────────
@@ -2033,6 +2123,22 @@ export function debouncedSync(key: string, fn: () => void, delay = 1500): void {
   }, delay));
 }
 
+/**
+ * Drop a pending debounced write without running it.
+ *
+ * Needed whenever the write is about to be made WRONG rather than merely
+ * redundant: deleting the row it targets, or renumbering it. A debounce is
+ * a promise to write later, and "later" can land after the thing it was
+ * writing about has stopped being true.
+ */
+export function cancelDebouncedSync(key: string): void {
+  const existing = _debounceTimers.get(key);
+  if (existing) {
+    clearTimeout(existing);
+    _debounceTimers.delete(key);
+  }
+}
+
 export function markDirty(key: string): void {
   const s = readDirtySet();
   s.add(key);
@@ -2720,6 +2826,50 @@ export async function syncSetCountToSupabase(
     if (error) throw error;
   } catch (e) {
     reportSyncFailure('set_count_save', e);
+  } finally {
+    syncEnd();
+  }
+}
+
+/**
+ * Drop one set-count override row.
+ *
+ * Called when the lifter's chosen count lands back ON the week's
+ * prescription — that is "I have no opinion", not "I choose exactly what
+ * the program already said". The distinction matters because
+ * `pickSetCount` reads any stored row as an explicit choice and re-expresses
+ * it as a delta for every LATER week: a row left behind at the base value
+ * is inert only until a swap or program edit changes that base, at which
+ * point it silently becomes a real delta.
+ *
+ * Remote delete is not optional. `pullSetCountOverrides` MERGES remote rows
+ * over local ones, so clearing only the local map lets the next pull put the
+ * row straight back.
+ */
+export async function deleteSetCountRemote(
+  dayIdx: number,
+  weekIdx: number,
+  exId: string,
+): Promise<void> {
+  if (!MIGRATED.set_counts) return;
+  if (typeof window === 'undefined') return;
+  const mesoId = store.get('foundry:active_meso_id');
+  if (!mesoId || !exId) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('set_count_overrides')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('meso_id', mesoId)
+      .eq('day_index', dayIdx)
+      .eq('week_number', weekIdx)
+      .eq('exercise_id', exId);
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('set_count_delete', e);
   } finally {
     syncEnd();
   }

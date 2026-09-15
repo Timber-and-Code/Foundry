@@ -45,6 +45,7 @@ import {
   deleteWorkoutSetRemote,
   getOrCreateWorkoutSessionId,
   debouncedSync,
+  cancelDebouncedSync,
   readProgramRole,
 } from '../../utils/sync';
 import {
@@ -85,6 +86,29 @@ import type { Profile, TrainingDay, Exercise } from '../../types';
  * (no exercise has it set), so it round-trips through state cleanly.
  */
 const SUPERSETS_ENABLED = true;
+
+/**
+ * RPE as the numeric column wants it. The UI's prompt is label-based
+ * ("Easy"/"Good"/"Hard") so coaching dashboards can still query a number;
+ * already-numeric values pass through.
+ */
+function rpeToNumber(rpe: unknown): number | null {
+  if (typeof rpe === 'number') return rpe;
+  if (typeof rpe !== 'string' || !rpe) return null;
+  const label = rpe.toLowerCase();
+  if (label === 'easy') return 7;
+  if (label === 'good') return 8;
+  if (label === 'hard') return 9.5;
+  const parsed = parseFloat(rpe);
+  return isNaN(parsed) ? null : parsed;
+}
+
+/** Numeric weight/reps for the remote columns; blank and NaN both → null. */
+function numOrNull(v: unknown, parse: (s: string) => number): number | null {
+  if (v == null || v === '') return null;
+  const n = parse(String(v));
+  return Number.isFinite(n) && n !== 0 ? n : null;
+}
 
 interface DayViewProps {
   dayIdx: number;
@@ -244,9 +268,63 @@ function DayView({
   const prevSetsFor = (exIdx: number, week: number): number => {
     const ex = day.exercises[exIdx];
     if (!ex) return 0;
-    return pickSetCount(setCountWeeks, ex.id, week, (w) =>
-      getWeekSets(Number(ex.sets ?? 0), w, getMeso().totalWeeks),
+    return pickSetCount(
+      setCountWeeks,
+      ex.id,
+      week,
+      (w) => getWeekSets(Number(ex.sets ?? 0), w, getMeso().totalWeeks),
+      getMeso().totalWeeks,
     );
+  };
+
+  // Lets the carryover recognise the deload week and step its load taper
+  // across the split. `days` is the day COUNT, not a list.
+  const carryoverMeso = {
+    totalWeeks: getMeso().totalWeeks,
+    daysPerWeek: Number(getMeso().days) || activeDays.length || 1,
+  };
+
+  /**
+   * The raw program set count per exercise id — NOT week-adjusted.
+   * `saveSetCount` turns it into a `baseFor` resolver so it can work out
+   * whether the lifter's new count actually changes anything this week.
+   *
+   * Keyed by id, not slot, for two reasons. A reorder permutes `exercises`
+   * without touching `day.exercises`, so slot i is not the same lift in
+   * both; and `foundry:setcount` is itself keyed by exercise id, so a
+   * positional lookup could be compared against a different lift's override.
+   *
+   * Each entry mirrors how resolveExercises picks that slot's number — a
+   * swap override's own `sets` when there is one, the program's otherwise —
+   * and reads from `day`, never `weekDay`: weekDay is already week-adjusted
+   * and feeding it back through getWeekSets would adjust it twice.
+   */
+  const programSetsById = useMemo(() => {
+    const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');
+    const out = new Map<string, number>();
+    (day.exercises || []).forEach((ex: Exercise, i: number) => {
+      const programSets = Number(ex.sets ?? 0);
+      const ovId = loadExOverride(dayIdx, weekIdx, i);
+      if (!ovId) {
+        if (ex.id != null) out.set(String(ex.id), programSets);
+        return;
+      }
+      const dbEx = findExercise(ovId);
+      const customEx = !dbEx && ovId.startsWith('custom:') ? customExercises[ovId] : null;
+      const resolved = dbEx || customEx;
+      if (!resolved) return;
+      out.set(String(resolved.id), Number(resolved.sets ?? programSets));
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day.exercises, dayIdx, weekIdx]);
+
+  /** Resolver for saveSetCount, or undefined for an id we can't place. */
+  const setCountOptsFor = (exId: string) => {
+    const programSets = programSetsById.get(exId);
+    if (programSets == null) return undefined;
+    const totalWeeks = getMeso().totalWeeks;
+    return { baseFor: (w: number) => getWeekSets(programSets, w, totalWeeks), totalWeeks };
   };
 
   // Compute active week from completedDays (first week not fully done)
@@ -293,7 +371,7 @@ function DayView({
   const [weekData, setWeekData] = useState(() =>
     isFutureSession
       ? loadDayWeek(dayIdx, weekIdx)
-      : loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor)
+      : loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor, carryoverMeso)
   );
   const [notes] = useState(() => loadNotes(dayIdx, weekIdx));
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
@@ -308,7 +386,7 @@ function DayView({
   const [supersetPickerSourceIdx, setSupersetPickerSourceIdx] = useState<number | null>(null);
   const [doneExercises, setDoneExercises] = useState<Set<number>>(() => {
     if (isFutureSession) return new Set<number>(); // future — nothing is done
-    const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor);
+    const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor, carryoverMeso);
     // Honor any persisted add/remove-set overrides so an exercise the
     // lifter shortened to 3 sets isn't judged against the program's 4.
     const setWeeks = loadSetCountWeeks(dayIdx, weekIdx);
@@ -553,8 +631,12 @@ function DayView({
         // to come from `day` — feeding the adjusted number back through
         // getWeekSets would adjust it twice.
         const programSets = Number(day.exercises[i]?.sets ?? 0);
-        const c = pickSetCount(setWeeks, ex.id, weekIdx, (w) =>
-          getWeekSets(programSets, w, totalWeeks),
+        const c = pickSetCount(
+          setWeeks,
+          ex.id,
+          weekIdx,
+          (w) => getWeekSets(programSets, w, totalWeeks),
+          totalWeeks,
         );
         return c !== Number(ex.sets) ? ({ ...ex, sets: c } as Exercise) : ex;
       }
@@ -575,8 +657,12 @@ function DayView({
         equipment: resolved.equipment || 'other',
         tag: resolved.tag || ex.tag,
         anchor: ex.anchor,
-        sets: pickSetCount(setWeeks, resolved.id, weekIdx, (w) =>
-          getWeekSets(Number(resolved.sets ?? day.exercises[i]?.sets ?? 0), w, totalWeeks),
+        sets: pickSetCount(
+          setWeeks,
+          resolved.id,
+          weekIdx,
+          (w) => getWeekSets(Number(resolved.sets ?? day.exercises[i]?.sets ?? 0), w, totalWeeks),
+          totalWeeks,
         ),
         reps: resolved.reps || ex.reps,
         rest: resolved.rest || ex.rest,
@@ -1157,31 +1243,6 @@ function DayView({
           const exerciseId = String(exercise?.id ?? '');
           if (exerciseId) {
             const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
-            const weightNum =
-              merged.weight != null && merged.weight !== ''
-                ? parseFloat(String(merged.weight))
-                : null;
-            const repsNum =
-              merged.reps != null && merged.reps !== ''
-                ? parseInt(String(merged.reps), 10)
-                : null;
-            // rpe can be a string label ("Easy"/"Good"/"Hard") from the
-            // RPE prompt, or numeric. Map labels to approximate numbers
-            // for the numeric column; leave numeric values as-is.
-            let rpeNum: number | null = null;
-            if (typeof merged.rpe === 'number') {
-              rpeNum = merged.rpe;
-            } else if (typeof merged.rpe === 'string' && merged.rpe) {
-              const label = merged.rpe.toLowerCase();
-              if (label === 'easy') rpeNum = 7;
-              else if (label === 'good') rpeNum = 8;
-              else if (label === 'hard') rpeNum = 9.5;
-              else {
-                const parsed = parseFloat(merged.rpe);
-                rpeNum = isNaN(parsed) ? null : parsed;
-              }
-            }
-
             debouncedSync(
               `set:${setId}`,
               () => {
@@ -1191,9 +1252,9 @@ function DayView({
                   exerciseId,
                   setIdx,
                   {
-                    weight: weightNum && !isNaN(weightNum) ? weightNum : null,
-                    reps: repsNum && !isNaN(repsNum) ? repsNum : null,
-                    rpe: rpeNum,
+                    weight: numOrNull(merged.weight, parseFloat),
+                    reps: numOrNull(merged.reps, (x) => parseInt(x, 10)),
+                    rpe: rpeToNumber(merged.rpe),
                     isWarmup: !!merged.warmup,
                   },
                 );
@@ -1275,7 +1336,7 @@ function DayView({
       // Persist the new count so the added set survives a back-out + return.
       const addExId = String(exercises[exIdx]?.id ?? '');
       const addCount = (Number(exercises[exIdx]?.sets) || 0) + 1;
-      if (addExId) saveSetCount(dayIdx, weekIdx, addExId, addCount);
+      if (addExId) saveSetCount(dayIdx, weekIdx, addExId, addCount, setCountOptsFor(addExId));
       setExercises((prev) => {
         const updated = [...prev];
         const ex = updated[exIdx];
@@ -1316,7 +1377,7 @@ function DayView({
       // Persist the reduced count so the removed set stays removed on re-entry.
       const rmExId = String(exercises[exIdx]?.id ?? '');
       const rmCount = Math.max(1, (Number(exercises[exIdx]?.sets) || 0) - 1);
-      if (rmExId) saveSetCount(dayIdx, weekIdx, rmExId, rmCount);
+      if (rmExId) saveSetCount(dayIdx, weekIdx, rmExId, rmCount, setCountOptsFor(rmExId));
       setExercises((prev) => {
         const updated = [...prev];
         const ex = updated[exIdx];
@@ -1331,17 +1392,60 @@ function DayView({
         const removed = exData[setIdx] as Record<string, unknown> | undefined;
         const removedId = removed?.id as string | undefined;
         const reindexed: Record<string, Record<string, unknown>> = {};
+        // Sets after the removed one slide down a slot. Remember which, so
+        // their remote rows can be renumbered to match — see below.
+        const shifted: { setData: Record<string, unknown>; newIdx: number }[] = [];
         Object.keys(exData)
           .map((k) => parseInt(k, 10))
           .sort((a, b) => a - b)
           .forEach((k) => {
             if (k === setIdx) return;
-            reindexed[k < setIdx ? k : k - 1] = exData[k];
+            const newIdx = k < setIdx ? k : k - 1;
+            reindexed[newIdx] = exData[k];
+            if (newIdx !== k) shifted.push({ setData: exData[k], newIdx });
           });
         const next = { ...prev, [exIdx]: reindexed as unknown as typeof prev[number] } as typeof prev;
         saveDayWeek(dayIdx, weekIdx, next);
         if (removedId) {
           deleteWorkoutSetRemote(removedId);
+        }
+
+        // Renumber the rows that slid down.
+        //
+        // The local blob reindexes, but `set_number` on the remote row does
+        // not — and rebuildDayData keys the rebuilt blob BY set_number. So
+        // removing a set from the middle left remote holding {0,1,3} while
+        // local held {0,1,2}, and the next pull wrote that gap back into
+        // local storage. ExerciseCard renders Array.from({length: sets}) and
+        // so never showed the set stranded at 3, but MesoHistoryView walks
+        // Object.keys and calcMuscleSetsByTag counts every entry with reps —
+        // both kept counting it. One removal, a permanently inflated history
+        // and volume.
+        //
+        // Only rows that actually exist remotely are touched: an id is
+        // stamped on first write, but the row is only pushed once it has
+        // reps (handleUpdateSet's `hasData` gate). Upserting a repless set
+        // would CREATE the phantom row this is meant to prevent.
+        const renumber = shifted.filter(
+          (sh) => sh.setData?.id && sh.setData.reps != null && sh.setData.reps !== '',
+        );
+        const exerciseId = String(exercises[exIdx]?.id ?? '');
+        if (renumber.length > 0 && exerciseId) {
+          const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
+          renumber.forEach(({ setData, newIdx }) => {
+            const setId = String(setData.id);
+            // This set may have a debounced write queued at its OLD index;
+            // letting it fire would undo the renumber. Cancel it and push
+            // the current values now — the debounce was only coalescing
+            // writes of this same data, so nothing is lost.
+            cancelDebouncedSync(`set:${setId}`);
+            upsertWorkoutSetRemote(sessionId, setId, exerciseId, newIdx, {
+              weight: numOrNull(setData.weight, parseFloat),
+              reps: numOrNull(setData.reps, (x) => parseInt(x, 10)),
+              rpe: rpeToNumber(setData.rpe),
+              isWarmup: !!setData.warmup,
+            });
+          });
         }
         return next;
       });
