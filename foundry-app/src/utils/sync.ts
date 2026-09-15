@@ -817,38 +817,88 @@ function workoutSessionIdKey(dayIdx: number, weekIdx: number): string {
     : `foundry:ws_id:d${dayIdx}:w${weekIdx}`;
 }
 
+/**
+ * How recently an unscoped session id must have been written for it to still
+ * be worth adopting. Mirrors persistence.ts's own 6h STALE_MS: a workout
+ * still in flight is by definition recent; anything older is a leftover.
+ */
+const LEGACY_SESSION_ADOPT_MS = 6 * 60 * 60 * 1000;
+
+const legacySessionKeys = (dayIdx: number, weekIdx: number) => ({
+  id: `foundry:ws_id:d${dayIdx}:w${weekIdx}`,
+  at: `foundry:ws_id_at:d${dayIdx}:w${weekIdx}`,
+});
+
 // Generates or retrieves the stable uuid for a (dayIdx, weekIdx) session.
 // Cached in localStorage so set upserts all reference the same session row.
+//
+// Adopting an unscoped id is AGE-GATED, and that gate is load-bearing.
+//
+// The unscoped key can still legitimately appear: archiving a meso removes
+// `foundry:active_meso_id`, so a workout started in the gap before the next
+// meso has an id writes unscoped. Adopting there is right — otherwise the
+// session forks into a second row mid-workout.
+//
+// But adopting UNCONDITIONALLY is how months of history got merged. A
+// pre-2.14.2 key could be arbitrarily old and belong to a long-finished
+// meso; adopting it re-pointed that session row's meso_id to the current
+// cycle and dragged every set it already held along with it. Observed in
+// prod: 14 sessions holding up to 54 rows across four separate days, with
+// duplicate set_numbers that rebuildDayData then collapsed arbitrarily —
+// so which weights a lifter saw for a given week was nondeterministic.
+//
+// The two cases are told apart by age, so unscoped writes are stamped. No
+// stamp means the key predates this code, which means it predates the
+// current meso — never adopted. Either way the legacy keys are cleared, so
+// a stale id gets exactly one chance to be judged and then stops existing.
 export function getOrCreateWorkoutSessionId(dayIdx: number, weekIdx: number): string {
   if (typeof window === 'undefined') return crypto.randomUUID();
   const key = workoutSessionIdKey(dayIdx, weekIdx);
   const existing = localStorage.getItem(key);
   if (existing) return existing;
 
-  // Legacy unscoped key — adopt it ONCE into the scoped key so an in-flight
-  // session doesn't fork into a second row, then leave the old key alone.
-  const legacyKey = `foundry:ws_id:d${dayIdx}:w${weekIdx}`;
-  if (key !== legacyKey) {
-    const legacy = localStorage.getItem(legacyKey);
-    if (legacy) {
-      localStorage.setItem(key, legacy);
-      localStorage.removeItem(legacyKey);
-      return legacy;
+  const legacy = legacySessionKeys(dayIdx, weekIdx);
+  if (key !== legacy.id) {
+    const legacyId = localStorage.getItem(legacy.id);
+    if (legacyId) {
+      const stamp = Number(localStorage.getItem(legacy.at));
+      const inFlight =
+        Number.isFinite(stamp) && stamp > 0 && Date.now() - stamp < LEGACY_SESSION_ADOPT_MS;
+      localStorage.removeItem(legacy.id);
+      localStorage.removeItem(legacy.at);
+      if (inFlight) {
+        localStorage.setItem(key, legacyId);
+        return legacyId;
+      }
+      // Stale: fall through and mint a fresh id. The old session row keeps
+      // its own meso and its own sets, which is the point.
     }
   }
 
   const fresh = crypto.randomUUID();
   localStorage.setItem(key, fresh);
+  // Writing unscoped means no meso id exists yet. Stamp it so the scoped
+  // read that follows can tell this session is still in flight.
+  if (key === legacy.id) {
+    try {
+      localStorage.setItem(legacy.at, String(Date.now()));
+    } catch (e) {
+      console.warn('[Foundry] Failed to stamp unscoped session key', e);
+    }
+  }
   return fresh;
 }
 
-/** Read-only lookup — returns null rather than minting an id. */
+/**
+ * Read-only lookup — returns null rather than minting an id.
+ *
+ * No unscoped fallback: when there is no active meso `workoutSessionIdKey`
+ * already returns the unscoped key, and when there IS one, reaching for it
+ * is the same trapdoor documented above.
+ */
 export function peekWorkoutSessionId(dayIdx: number, weekIdx: number): string | null {
   if (typeof window === 'undefined') return null;
-  return (
-    localStorage.getItem(workoutSessionIdKey(dayIdx, weekIdx)) ||
-    localStorage.getItem(`foundry:ws_id:d${dayIdx}:w${weekIdx}`)
-  );
+  return localStorage.getItem(workoutSessionIdKey(dayIdx, weekIdx));
 }
 
 export async function upsertWorkoutSessionRemote(

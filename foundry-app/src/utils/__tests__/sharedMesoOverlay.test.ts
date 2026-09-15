@@ -253,9 +253,14 @@ describe('getOrCreateWorkoutSessionId — meso scoping', () => {
     expect(second).not.toBe(first);
   });
 
-  it('adopts a legacy unscoped id so an in-flight session does not fork', async () => {
+  // Adoption is now AGE-GATED. The intent below is unchanged — an in-flight
+  // session must not fork — but "in flight" has to be proved by the
+  // `ws_id_at` stamp written alongside an unscoped id. Adopting on the id
+  // alone is what merged whole mesocycles; see workoutSessionIdScoping.test.
+  it('adopts a recently-written unscoped id so an in-flight session does not fork', async () => {
     const { getOrCreateWorkoutSessionId } = await import('../sync');
     localStorage.setItem('foundry:ws_id:d2:w1', 'legacy-session');
+    localStorage.setItem('foundry:ws_id_at:d2:w1', String(Date.now()));
     localStorage.setItem('foundry:active_meso_id', 'meso-A');
 
     expect(getOrCreateWorkoutSessionId(2, 1)).toBe('legacy-session');
@@ -263,16 +268,26 @@ describe('getOrCreateWorkoutSessionId — meso scoping', () => {
     // Adopted once, then removed — leaving it would re-adopt into the NEXT
     // meso too, which is the original bug.
     expect(localStorage.getItem('foundry:ws_id:d2:w1')).toBeNull();
+    expect(localStorage.getItem('foundry:ws_id_at:d2:w1')).toBeNull();
   });
 
   it('does not adopt the legacy id into a second meso', async () => {
     const { getOrCreateWorkoutSessionId } = await import('../sync');
     localStorage.setItem('foundry:ws_id:d0:w0', 'legacy-session');
+    localStorage.setItem('foundry:ws_id_at:d0:w0', String(Date.now()));
     localStorage.setItem('foundry:active_meso_id', 'meso-A');
     expect(getOrCreateWorkoutSessionId(0, 0)).toBe('legacy-session');
 
     localStorage.setItem('foundry:active_meso_id', 'meso-B');
     expect(getOrCreateWorkoutSessionId(0, 0)).not.toBe('legacy-session');
+  });
+
+  it('refuses an unscoped id with no stamp — it predates the current meso', async () => {
+    const { getOrCreateWorkoutSessionId } = await import('../sync');
+    localStorage.setItem('foundry:ws_id:d3:w2', 'pre-2.14.2-session');
+    localStorage.setItem('foundry:active_meso_id', 'meso-A');
+
+    expect(getOrCreateWorkoutSessionId(3, 2)).not.toBe('pre-2.14.2-session');
   });
 
   it('is stable within one meso', async () => {
