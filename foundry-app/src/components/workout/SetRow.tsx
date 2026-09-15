@@ -38,6 +38,10 @@ export interface SetRowProps {
   onUpdateWeight: (value: string) => void;
   onUpdateReps: (value: string) => void;
   onWeightBlur: (value: string) => void;
+  /** Fires true when either input takes focus, false when it leaves.
+   *  Lets the card hold back derived warnings that would otherwise
+   *  recompute against a half-typed number. */
+  onEditingChange?: (editing: boolean) => void;
   onCheckmark: () => void;
   /** Emit intent to remove. Confirm dialog stays in the parent. */
   onRequestRemove?: () => void;
@@ -78,11 +82,39 @@ export default function SetRow({
   onUpdateWeight,
   onUpdateReps,
   onWeightBlur,
+  onEditingChange,
   onCheckmark,
   onRequestRemove,
   variant = 'legacy',
 }: SetRowProps) {
   const editorial = variant === 'editorial';
+
+  /**
+   * Focus behaviour for both numeric inputs.
+   *
+   * Selects the existing value so the lifter can type straight over a
+   * suggestion. These boxes are nearly always pre-filled — with last week's
+   * carryover or the set above — so the common action is REPLACE, not
+   * append. Without this you had to clear the field by hand first, and a
+   * caret landing mid-number turned "200" into "2005".
+   *
+   * `select()` is used rather than setSelectionRange, which throws
+   * InvalidStateError on type="number". Wrapped because Safari has
+   * historically been inconsistent about selection on number inputs, and a
+   * failed select must not cost the lifter the scroll-into-view.
+   */
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    const target = e.currentTarget;
+    onEditingChange?.(true);
+    requestAnimationFrame(() => {
+      try {
+        target.select();
+      } catch {
+        /* selection unsupported here — the field is still editable */
+      }
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+  };
 
   // Editorial input: fully borderless, Bebas display font for the numerals.
   // Matches the preview's editorial typography — set values read as
@@ -226,13 +258,11 @@ export default function SetRow({
             : `Set ${setIdx + 1} weight in pounds`
         }
         onChange={(e) => onUpdateWeight(e.target.value)}
-        onBlur={(e) => onWeightBlur(e.target.value)}
-        onFocus={(e) => {
-          const target = e.currentTarget;
-          requestAnimationFrame(() =>
-            target.scrollIntoView({ block: 'center', behavior: 'smooth' }),
-          );
+        onBlur={(e) => {
+          onEditingChange?.(false);
+          onWeightBlur(e.target.value);
         }}
+        onFocus={handleInputFocus}
         disabled={isDone || readOnly}
         style={editorial ? editorialInputStyle(isSuggestedWeight) : legacyInputStyle(isSuggestedWeight)}
       />
@@ -243,12 +273,8 @@ export default function SetRow({
         value={reps || ''}
         aria-label={`Set ${setIdx + 1} reps`}
         onChange={(e) => onUpdateReps(e.target.value)}
-        onFocus={(e) => {
-          const target = e.currentTarget;
-          requestAnimationFrame(() =>
-            target.scrollIntoView({ block: 'center', behavior: 'smooth' }),
-          );
-        }}
+        onBlur={() => onEditingChange?.(false)}
+        onFocus={handleInputFocus}
         disabled={isDone || readOnly}
         style={editorial ? editorialInputStyle(isSuggestedReps) : legacyInputStyle(isSuggestedReps)}
       />
