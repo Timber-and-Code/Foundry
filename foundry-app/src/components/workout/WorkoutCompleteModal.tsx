@@ -14,7 +14,21 @@ import ShareSheet, { type ShareSheetPayload } from './ShareSheet';
 import { captureShareCardPayload } from '../../utils/shareWorkout';
 import FriendDashboardModal from '../social/FriendDashboardModal';
 import { getMeso } from '../../data/constants';
+import {
+  formatAnchorRow,
+  anchorSectionLabel,
+  type AnchorDelta,
+  type AnchorTone,
+} from '../../utils/anchorComparison';
 import type { MesoMember, Profile } from '../../types';
+
+/** Row tone → this surface's palette. The copy itself lives in the util. */
+const TONE_COLOR: Record<AnchorTone, string> = {
+  up: '#4caf50',
+  down: '#f44336',
+  flat: 'var(--text-muted)',
+  planned: 'var(--text-muted)',
+};
 
 // Local-time YYYY-MM-DD (not UTC) — matches the dateStr format used across
 // the codebase for per-day localStorage keys (mobility sessions, cardio
@@ -45,7 +59,10 @@ export interface WorkoutCompleteStats {
   exercises: number;
   duration: number | null;
   prs: { name: string; newBest: number; prevBest: number }[];
-  anchorComparison: { name: string; today: number; prev: number; delta: number }[];
+  anchorComparison: AnchorDelta[];
+  /** Deload week — a lighter bar there is the prescription, so the anchor
+   *  comparison is labelled and de-emphasised rather than shown as a loss. */
+  isDeload?: boolean;
   /** Per-exercise set-by-set reps + weight log, rendered as the workout
    *  summary beneath the totals and baked into the share card. */
   breakdown?: WorkoutCompleteExerciseBreakdown[];
@@ -643,16 +660,11 @@ function WorkoutCompleteModal({
                 marginBottom: 10,
               }}
             >
-              VS LAST WEEK
+              {anchorSectionLabel(stats.isDeload)}
             </div>
             {stats.anchorComparison.map((a, i) => {
-              const sign = a.delta > 0 ? '+' : '';
-              const color =
-                a.delta > 0
-                  ? '#4caf50'
-                  : a.delta < 0
-                    ? '#f44336'
-                    : 'var(--text-muted)';
+              const row = formatAnchorRow(a, stats.isDeload);
+              const color = TONE_COLOR[row.tone];
               return (
                 <div
                   key={i}
@@ -660,6 +672,7 @@ function WorkoutCompleteModal({
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
+                    gap: 10,
                     padding: '6px 0',
                     borderTop: i > 0 ? '1px solid var(--border)' : undefined,
                   }}
@@ -667,11 +680,38 @@ function WorkoutCompleteModal({
                   <span
                     style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}
                   >
-                    {a.name}
+                    {row.name}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color }}>
-                    {sign}
-                    {a.delta} lbs
+                  <span
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {/* The weights themselves, so the row says what it is
+                        comparing instead of asking the lifter to decode a
+                        signed number. Matches the PR block above. */}
+                    <span
+                      style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}
+                    >
+                      {row.weights}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color,
+                        background: 'var(--bg-root)',
+                        border: `1px solid ${color}`,
+                        borderRadius: 999,
+                        padding: '1px 7px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {row.chip}
+                    </span>
                   </span>
                 </div>
               );
@@ -802,6 +842,7 @@ function WorkoutCompleteModal({
             reps: 1,
           }))}
           anchorComparison={stats.anchorComparison}
+          isDeload={stats.isDeload}
           breakdown={stats.breakdown}
           quote={quote}
           congratsHeadline={congrats.headline}

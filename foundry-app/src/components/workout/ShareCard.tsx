@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatAnchorRow, anchorSectionLabel } from '../../utils/anchorComparison';
 
 /**
  * ShareCard — 1080-wide capture surface for the "Share this workout" feature.
@@ -72,6 +73,8 @@ export interface ShareCardProps {
   breakdown?: ShareCardBreakdownExercise[];
   /** Anchor comparison vs prior week, rendered when weekIdx > 0. */
   anchorComparison?: ShareCardAnchorDelta[];
+  /** Deload week — the comparison is labelled and its drop not painted red. */
+  isDeload?: boolean;
   /** Motivational quote rendered below the summary, above the footer. */
   quote?: ShareCardQuote;
 }
@@ -105,6 +108,7 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
       congratsSub,
       breakdown,
       anchorComparison,
+      isDeload,
       quote,
     },
     ref,
@@ -486,12 +490,12 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
                 marginBottom: 14,
               }}
             >
-              Vs Last Week
+              {anchorSectionLabel(isDeload)}
             </div>
             {anchorComparison!.map((a, i) => {
-              const sign = a.delta > 0 ? '+' : '';
+              const row = formatAnchorRow(a, isDeload);
               const color =
-                a.delta > 0 ? '#6ABE63' : a.delta < 0 ? '#E76A5C' : DIM;
+                row.tone === 'up' ? '#6ABE63' : row.tone === 'down' ? '#E76A5C' : DIM;
               return (
                 <div
                   key={i}
@@ -499,16 +503,33 @@ const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
+                    gap: 14,
                     padding: '10px 0',
                     borderTop: i > 0 ? `1px solid ${BORDER}` : undefined,
                   }}
                 >
                   <span style={{ fontSize: 20, fontWeight: 600, color: TEXT }}>
-                    {a.name}
+                    {row.name}
                   </span>
-                  <span style={{ fontSize: 22, fontWeight: 800, color }}>
-                    {sign}
-                    {a.delta} lbs
+                  <span
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}
+                  >
+                    <span style={{ fontSize: 22, fontWeight: 800, color: TEXT }}>
+                      {row.weights}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color,
+                        border: `1px solid ${color}`,
+                        borderRadius: 999,
+                        padding: '2px 10px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {row.chip}
+                    </span>
                   </span>
                 </div>
               );

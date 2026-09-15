@@ -2,7 +2,9 @@ import { useState, useRef } from 'react';
 import {
   store,
   detectSessionPRs,
+  findPrevSlotForExercise,
 } from '../utils/store';
+import { getMeso } from '../data/constants';
 import {
   upsertWorkoutSessionRemote,
   getOrCreateWorkoutSessionId,
@@ -111,7 +113,16 @@ export function useCompletionFlow({
           const rawPrev = store.get(`foundry:day${dayIdx}:week${weekIdx - 1}`);
           if (rawPrev) {
             const prevData = JSON.parse(rawPrev);
-            const prevExData = (prevData[i] || {}) as Record<string, WorkoutSet>;
+            // Match last week's slice by exercise IDENTITY, not slot index.
+            // A reorder, superset pairing, or swap shifts an exercise's
+            // position between weeks, and `prevData[i]` then compared
+            // today's bench against last week's squat. Same helper the
+            // carryover and the per-exercise "last week" reads already use.
+            const prevExData = findPrevSlotForExercise(
+              prevData,
+              ex.id,
+              i,
+            ) as unknown as Record<string, WorkoutSet>;
             let prevBest = 0;
             Object.values(prevExData).forEach((s: WorkoutSet) => {
               const w = parseFloat(String(s.weight || 0));
@@ -144,6 +155,9 @@ export function useCompletionFlow({
 
     setCompletionWeekIdx(weekIdx);
     setWorkoutStats({
+      // Last week of the meso. A lighter bar is prescribed there, so the
+      // comparison must not paint it as lost ground.
+      isDeload: weekIdx >= getMeso().totalWeeks - 1,
       sets: totalSets,
       reps: totalReps,
       volume: totalVolume,
