@@ -2725,6 +2725,50 @@ export async function syncSetCountToSupabase(
   }
 }
 
+/**
+ * Drop one set-count override row.
+ *
+ * Called when the lifter's chosen count lands back ON the week's
+ * prescription — that is "I have no opinion", not "I choose exactly what
+ * the program already said". The distinction matters because
+ * `pickSetCount` reads any stored row as an explicit choice and re-expresses
+ * it as a delta for every LATER week: a row left behind at the base value
+ * is inert only until a swap or program edit changes that base, at which
+ * point it silently becomes a real delta.
+ *
+ * Remote delete is not optional. `pullSetCountOverrides` MERGES remote rows
+ * over local ones, so clearing only the local map lets the next pull put the
+ * row straight back.
+ */
+export async function deleteSetCountRemote(
+  dayIdx: number,
+  weekIdx: number,
+  exId: string,
+): Promise<void> {
+  if (!MIGRATED.set_counts) return;
+  if (typeof window === 'undefined') return;
+  const mesoId = store.get('foundry:active_meso_id');
+  if (!mesoId || !exId) return;
+  syncStart();
+  try {
+    const user = await getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('set_count_overrides')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('meso_id', mesoId)
+      .eq('day_index', dayIdx)
+      .eq('week_number', weekIdx)
+      .eq('exercise_id', exId);
+    if (error) throw error;
+  } catch (e) {
+    reportSyncFailure('set_count_delete', e);
+  } finally {
+    syncEnd();
+  }
+}
+
 export async function pullSetCountOverrides(
   userId: string,
   mesoId: string | null,

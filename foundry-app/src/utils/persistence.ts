@@ -8,6 +8,7 @@ import {
   syncCardioPresetToSupabase,
   deleteCardioPresetRemote,
   syncSetCountToSupabase,
+  deleteSetCountRemote,
 } from './sync';
 import type {
   DayData,
@@ -812,36 +813,109 @@ export function loadSetCountWeeks(dayIdx: number, weekIdx: number): Record<strin
  * `baseFor` is injected rather than importing getWeekSets, which lives in
  * training.ts — and training.ts already imports this module, so pulling it
  * in the other direction would close an import cycle.
+ *
+ * DELOAD EXCEPTION. A delta is only meaningful against a base of comparable
+ * size. A lifter who trims 4 sets to 3 in an MAV week has said "one less
+ * than the working prescription" — carrying that −1 onto a deload week,
+ * whose base is a flat 2, reads it as "one less than the deload" and lands
+ * on a single set. That is not a deload, it is a dropped session, and the
+ * `Math.max(1, …)` floor is what let it through. So a CARRIED NEGATIVE delta
+ * does not apply to the deload week; it takes its programmed count.
+ *
+ * Deliberately narrow, to preserve the 2af293f product call in both other
+ * directions: a carried POSITIVE delta still reaches the deload (the lifter
+ * who wants an extra set keeps it, and removes it if they don't), and an
+ * EXPLICIT choice made in the deload week itself still wins outright — that
+ * is the lifter looking at the deload and deciding, not a stale inference
+ * from four weeks ago.
+ *
+ * `totalWeeks` mirrors getWeekSets' own deload rule (`weekIdx >= length−1`)
+ * rather than importing it, for the same import-cycle reason as `baseFor`.
+ * `setCountCarry.test.ts` pins the two together. Omitted → no deload
+ * special-casing, matching the previous behaviour.
  */
 export function pickSetCount(
   weeks: Record<string, number>[],
   exId: string | number | null | undefined,
   weekIdx: number,
   baseFor: (week: number) => number,
+  totalWeeks?: number,
 ): number {
   const base = baseFor(weekIdx);
   const key = exId == null ? '' : String(exId);
   if (!key) return base;
   const own = weeks[weekIdx]?.[key];
   if (own != null) return own;
+  const isDeload = totalWeeks != null && totalWeeks > 0 && weekIdx >= totalWeeks - 1;
   for (let w = Math.min(weekIdx, weeks.length) - 1; w >= 0; w--) {
     const chosen = weeks[w]?.[key];
     if (chosen == null) continue;
-    return Math.max(1, base + (chosen - baseFor(w)));
+    const delta = chosen - baseFor(w);
+    if (isDeload && delta < 0) return base;
+    return Math.max(1, base + delta);
   }
   return base;
 }
 
+/**
+ * Record the lifter's chosen set count for one exercise in one week.
+ *
+ * A row is stored only when it actually CHANGES something. The test is not
+ * "does this equal the week's base" but "does this equal what the lifter
+ * would get anyway with no row here at all" — i.e. resolve the week with
+ * this entry removed and compare. Anything else gets the two cases wrong in
+ * opposite directions:
+ *
+ *  - Add a set and take it straight back off, in a week with no carried
+ *    delta. Lands back on the base, changes nothing, and must NOT be
+ *    stored. `pickSetCount` reads any stored row as an explicit choice, so
+ *    a row left behind here shadows an earlier real delta and becomes a
+ *    real delta itself the moment a swap moves the base under it. This is
+ *    how a whole meso ended up carrying deltas nobody chose.
+ *
+ *  - Add a set back while a −1 IS being carried, landing exactly on the
+ *    program's number. That looks identical to the case above if you only
+ *    compare against the base — but it is the opposite: the lifter is
+ *    overriding the carried delta to say "the full prescription, this
+ *    week". Dropping it would silently reassert the delta and undo them.
+ *
+ * `opts` is optional; callers that can't cheaply resolve the week keep the
+ * old store-whatever-you're-given behaviour.
+ */
 export function saveSetCount(
   dayIdx: number,
   weekIdx: number,
   exId: string,
   count: number,
+  opts?: { baseFor: (week: number) => number; totalWeeks?: number },
 ): void {
   if (!exId || !Number.isFinite(count) || count < 1) return;
   const current = loadSetCounts(dayIdx, weekIdx);
+  const key = `foundry:setcount:d${dayIdx}:w${weekIdx}`;
+
+  if (opts?.baseFor) {
+    // Resolve this week as if no row existed for this exercise.
+    const weeks = loadSetCountWeeks(dayIdx, weekIdx);
+    if (weeks[weekIdx]) {
+      const withoutThis = { ...weeks[weekIdx] };
+      delete withoutThis[exId];
+      weeks[weekIdx] = withoutThis;
+    }
+    const wouldBe = pickSetCount(weeks, exId, weekIdx, opts.baseFor, opts.totalWeeks);
+    if (count === wouldBe) {
+      if (!(exId in current)) return; // already no-opinion; nothing to clear
+      delete current[exId];
+      if (Object.keys(current).length === 0) store.remove(key);
+      else store.set(key, JSON.stringify(current));
+      // Must also drop the remote row: pullSetCountOverrides merges remote
+      // over local, so a local-only delete comes straight back on next pull.
+      void deleteSetCountRemote(dayIdx, weekIdx, exId);
+      return;
+    }
+  }
+
   current[exId] = count;
-  store.set(`foundry:setcount:d${dayIdx}:w${weekIdx}`, JSON.stringify(current));
+  store.set(key, JSON.stringify(current));
   // Fire-and-forget, matching every other write in this module: the local
   // save is authoritative and a failed push must never block adding a set.
   void syncSetCountToSupabase(dayIdx, weekIdx, exId, count);

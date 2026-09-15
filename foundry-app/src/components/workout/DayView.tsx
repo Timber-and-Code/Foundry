@@ -244,9 +244,56 @@ function DayView({
   const prevSetsFor = (exIdx: number, week: number): number => {
     const ex = day.exercises[exIdx];
     if (!ex) return 0;
-    return pickSetCount(setCountWeeks, ex.id, week, (w) =>
-      getWeekSets(Number(ex.sets ?? 0), w, getMeso().totalWeeks),
+    return pickSetCount(
+      setCountWeeks,
+      ex.id,
+      week,
+      (w) => getWeekSets(Number(ex.sets ?? 0), w, getMeso().totalWeeks),
+      getMeso().totalWeeks,
     );
+  };
+
+  /**
+   * The raw program set count per exercise id — NOT week-adjusted.
+   * `saveSetCount` turns it into a `baseFor` resolver so it can work out
+   * whether the lifter's new count actually changes anything this week.
+   *
+   * Keyed by id, not slot, for two reasons. A reorder permutes `exercises`
+   * without touching `day.exercises`, so slot i is not the same lift in
+   * both; and `foundry:setcount` is itself keyed by exercise id, so a
+   * positional lookup could be compared against a different lift's override.
+   *
+   * Each entry mirrors how resolveExercises picks that slot's number — a
+   * swap override's own `sets` when there is one, the program's otherwise —
+   * and reads from `day`, never `weekDay`: weekDay is already week-adjusted
+   * and feeding it back through getWeekSets would adjust it twice.
+   */
+  const programSetsById = useMemo(() => {
+    const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');
+    const out = new Map<string, number>();
+    (day.exercises || []).forEach((ex: Exercise, i: number) => {
+      const programSets = Number(ex.sets ?? 0);
+      const ovId = loadExOverride(dayIdx, weekIdx, i);
+      if (!ovId) {
+        if (ex.id != null) out.set(String(ex.id), programSets);
+        return;
+      }
+      const dbEx = findExercise(ovId);
+      const customEx = !dbEx && ovId.startsWith('custom:') ? customExercises[ovId] : null;
+      const resolved = dbEx || customEx;
+      if (!resolved) return;
+      out.set(String(resolved.id), Number(resolved.sets ?? programSets));
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day.exercises, dayIdx, weekIdx]);
+
+  /** Resolver for saveSetCount, or undefined for an id we can't place. */
+  const setCountOptsFor = (exId: string) => {
+    const programSets = programSetsById.get(exId);
+    if (programSets == null) return undefined;
+    const totalWeeks = getMeso().totalWeeks;
+    return { baseFor: (w: number) => getWeekSets(programSets, w, totalWeeks), totalWeeks };
   };
 
   // Compute active week from completedDays (first week not fully done)
@@ -553,8 +600,12 @@ function DayView({
         // to come from `day` — feeding the adjusted number back through
         // getWeekSets would adjust it twice.
         const programSets = Number(day.exercises[i]?.sets ?? 0);
-        const c = pickSetCount(setWeeks, ex.id, weekIdx, (w) =>
-          getWeekSets(programSets, w, totalWeeks),
+        const c = pickSetCount(
+          setWeeks,
+          ex.id,
+          weekIdx,
+          (w) => getWeekSets(programSets, w, totalWeeks),
+          totalWeeks,
         );
         return c !== Number(ex.sets) ? ({ ...ex, sets: c } as Exercise) : ex;
       }
@@ -575,8 +626,12 @@ function DayView({
         equipment: resolved.equipment || 'other',
         tag: resolved.tag || ex.tag,
         anchor: ex.anchor,
-        sets: pickSetCount(setWeeks, resolved.id, weekIdx, (w) =>
-          getWeekSets(Number(resolved.sets ?? day.exercises[i]?.sets ?? 0), w, totalWeeks),
+        sets: pickSetCount(
+          setWeeks,
+          resolved.id,
+          weekIdx,
+          (w) => getWeekSets(Number(resolved.sets ?? day.exercises[i]?.sets ?? 0), w, totalWeeks),
+          totalWeeks,
         ),
         reps: resolved.reps || ex.reps,
         rest: resolved.rest || ex.rest,
@@ -1275,7 +1330,7 @@ function DayView({
       // Persist the new count so the added set survives a back-out + return.
       const addExId = String(exercises[exIdx]?.id ?? '');
       const addCount = (Number(exercises[exIdx]?.sets) || 0) + 1;
-      if (addExId) saveSetCount(dayIdx, weekIdx, addExId, addCount);
+      if (addExId) saveSetCount(dayIdx, weekIdx, addExId, addCount, setCountOptsFor(addExId));
       setExercises((prev) => {
         const updated = [...prev];
         const ex = updated[exIdx];
@@ -1316,7 +1371,7 @@ function DayView({
       // Persist the reduced count so the removed set stays removed on re-entry.
       const rmExId = String(exercises[exIdx]?.id ?? '');
       const rmCount = Math.max(1, (Number(exercises[exIdx]?.sets) || 0) - 1);
-      if (rmExId) saveSetCount(dayIdx, weekIdx, rmExId, rmCount);
+      if (rmExId) saveSetCount(dayIdx, weekIdx, rmExId, rmCount, setCountOptsFor(rmExId));
       setExercises((prev) => {
         const updated = [...prev];
         const ex = updated[exIdx];
