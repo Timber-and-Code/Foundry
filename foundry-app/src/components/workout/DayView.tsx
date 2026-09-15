@@ -277,6 +277,13 @@ function DayView({
     );
   };
 
+  // Lets the carryover recognise the deload week and step its load taper
+  // across the split. `days` is the day COUNT, not a list.
+  const carryoverMeso = {
+    totalWeeks: getMeso().totalWeeks,
+    daysPerWeek: Number(getMeso().days) || activeDays.length || 1,
+  };
+
   /**
    * The raw program set count per exercise id — NOT week-adjusted.
    * `saveSetCount` turns it into a `baseFor` resolver so it can work out
@@ -364,7 +371,7 @@ function DayView({
   const [weekData, setWeekData] = useState(() =>
     isFutureSession
       ? loadDayWeek(dayIdx, weekIdx)
-      : loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor)
+      : loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor, carryoverMeso)
   );
   const [notes] = useState(() => loadNotes(dayIdx, weekIdx));
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
@@ -379,7 +386,7 @@ function DayView({
   const [supersetPickerSourceIdx, setSupersetPickerSourceIdx] = useState<number | null>(null);
   const [doneExercises, setDoneExercises] = useState<Set<number>>(() => {
     if (isFutureSession) return new Set<number>(); // future — nothing is done
-    const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor);
+    const saved = loadDayWeekWithCarryover(dayIdx, weekIdx, weekDay, profile, prevSetsFor, carryoverMeso);
     // Honor any persisted add/remove-set overrides so an exercise the
     // lifter shortened to 3 sets isn't judged against the program's 4.
     const setWeeks = loadSetCountWeeks(dayIdx, weekIdx);

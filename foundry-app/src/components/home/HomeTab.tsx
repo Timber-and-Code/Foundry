@@ -60,7 +60,12 @@ function getUpcomingWeight(
   //    is pure — reads localStorage prior weeks, no I/O. Fast enough for
   //    the Home next-session render.
   if (weekIdx === 0) return ''; // first week has no prior; no suggestion.
-  const carry = loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile ?? null);
+  // Same meso context DayView passes, so the Home prescription chip can't
+  // show last week's weight while the session shows the deload's taper.
+  const carry = loadDayWeekWithCarryover(dayIdx, weekIdx, day, profile ?? null, undefined, {
+    totalWeeks: getMeso().totalWeeks,
+    daysPerWeek: Number(getMeso().days) || 1,
+  });
   const carrySet0 = carry?.[exIdx]?.[0];
   return carrySet0?.weight != null ? String(carrySet0.weight) : '';
 }
