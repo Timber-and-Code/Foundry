@@ -16,6 +16,9 @@ import HealthKit
  * early while Capacitor's autoRegisterPlugins is on — that path only reads
  * the generated capacitor.config.json packageClassList, and an app-local
  * plugin never appears in it.
+ *
+ * Errors are logged with NSLog, not CAPLog: CAPLog is silent in Release
+ * builds, which made every failure on a TestFlight device invisible.
  */
 @objc(FoundryHealthPlugin)
 public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -23,6 +26,7 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "FoundryHealth"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "requestHealthPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getHealthAuthorizationStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestWorkoutPermission", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "checkWorkoutPermission", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveStrengthWorkout", returnType: CAPPluginReturnPromise)
@@ -30,25 +34,85 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private let store = HKHealthStore()
 
+    private var bodyMassType: HKQuantityType? {
+        HKObjectType.quantityType(forIdentifier: .bodyMass)
+    }
+
+    private var activeEnergyType: HKQuantityType? {
+        HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)
+    }
+
     /// Workout envelope plus the active-energy samples inside it. The Move
     /// ring is driven by the energy samples, not by the workout alone, so
     /// both need share authorization or the session lands with no calories.
     private var shareTypes: Set<HKSampleType> {
         var types: Set<HKSampleType> = [HKObjectType.workoutType()]
-        if let energy = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
-            types.insert(energy)
-        }
+        if let energy = activeEnergyType { types.insert(energy) }
         // Body weight rides along so ONE sheet covers everything — see
-        // requestPermissions for why that matters.
-        if let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) {
-            types.insert(mass)
-        }
+        // requestHealthPermissions for why that matters.
+        if let mass = bodyMassType { types.insert(mass) }
         return types
     }
 
     private var readTypes: Set<HKObjectType> {
-        guard let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) else { return [] }
+        guard let mass = bodyMassType else { return [] }
         return [mass]
+    }
+
+    // MARK: - Status
+
+    /// HealthKit reports SHARE status honestly (it only hides READ status),
+    /// so each of these is a real answer.
+    private func shareStatus(_ type: HKObjectType?) -> String {
+        guard let type = type else { return "unavailable" }
+        switch store.authorizationStatus(for: type) {
+        case .sharingAuthorized: return "authorized"
+        case .sharingDenied: return "denied"
+        case .notDetermined: return "notDetermined"
+        @unknown default: return "notDetermined"
+        }
+    }
+
+    private func statusPayload(needsPrompt: Bool) -> [String: Any] {
+        let workouts = shareStatus(HKObjectType.workoutType())
+        let weight = shareStatus(bodyMassType)
+        return [
+            "available": true,
+            "weight": weight,
+            "workouts": workouts,
+            "activeEnergy": shareStatus(activeEnergyType),
+            // True when iOS WOULD show the sheet for at least one of our
+            // types — i.e. something has never been asked. A lifter who
+            // enabled Health on a build that dropped the workout request is
+            // exactly this state, and only a new request can fix it: iOS
+            // Settings has no switch for a type the app never asked about.
+            "needsPrompt": needsPrompt
+        ]
+    }
+
+    private static let unavailablePayload: [String: Any] = [
+        "available": false,
+        "weight": "unavailable",
+        "workouts": "unavailable",
+        "activeEnergy": "unavailable",
+        "needsPrompt": false
+    ]
+
+    /// Current share status of every type we use, without prompting.
+    @objc func getHealthAuthorizationStatus(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(Self.unavailablePayload)
+            return
+        }
+        store.getRequestStatusForAuthorization(toShare: shareTypes, read: readTypes) { [weak self] status, error in
+            guard let self = self else { return }
+            if let error = error {
+                NSLog("[FoundryHealth] request-status query failed: \(error.localizedDescription)")
+                call.reject(error.localizedDescription, "STATUS_FAILED", error)
+                return
+            }
+            call.resolve(self.statusPayload(needsPrompt: status == .shouldRequest))
+        }
     }
 
     // MARK: - Permissions
@@ -62,26 +126,25 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     /// on screen — so the workout sheet never appeared, the status stayed
     /// .notDetermined, and no session ever reached Apple Fitness. One call,
     /// one sheet, no race.
+    ///
+    /// Resolves with the per-type share status after the sheet closes (the
+    /// `success` flag only says the sheet completed, not what was chosen).
+    /// Rejects when HealthKit itself refuses the request — a missing
+    /// entitlement, a bad usage string — so JS can report it instead of
+    /// mistaking it for a lifter tapping "Don't Allow".
     @objc func requestHealthPermissions(_ call: CAPPluginCall) {
         guard HKHealthStore.isHealthDataAvailable() else {
-            call.resolve(["available": false, "workouts": false, "weight": false])
+            call.resolve(Self.unavailablePayload)
             return
         }
         store.requestAuthorization(toShare: shareTypes, read: readTypes) { [weak self] _, error in
+            guard let self = self else { return }
             if let error = error {
-                CAPLog.print("[FoundryHealth] auth request failed: \(error.localizedDescription)")
+                NSLog("[FoundryHealth] auth request failed: \(error.localizedDescription)")
+                call.reject(error.localizedDescription, "AUTH_FAILED", error)
+                return
             }
-            // `success` only reports that the sheet completed, not what was
-            // chosen, so read the real share status back.
-            let weightOK: Bool = {
-                guard let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) else { return false }
-                return self?.store.authorizationStatus(for: mass) == .sharingAuthorized
-            }()
-            call.resolve([
-                "available": true,
-                "workouts": self?.isWorkoutShareAuthorized() ?? false,
-                "weight": weightOK
-            ])
+            call.resolve(self.statusPayload(needsPrompt: false))
         }
     }
 
@@ -90,12 +153,12 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["granted": false])
             return
         }
-        store.requestAuthorization(toShare: shareTypes, read: []) { [weak self] _, error in
+        store.requestAuthorization(toShare: shareTypes, read: readTypes) { [weak self] _, error in
             if let error = error {
-                CAPLog.print("[FoundryHealth] auth request failed: \(error.localizedDescription)")
+                NSLog("[FoundryHealth] auth request failed: \(error.localizedDescription)")
+                call.reject(error.localizedDescription, "AUTH_FAILED", error)
+                return
             }
-            // `success` only reports that the sheet completed, not what the
-            // lifter chose, so read back the actual share status instead.
             call.resolve(["granted": self?.isWorkoutShareAuthorized() ?? false])
         }
     }
@@ -104,8 +167,6 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["granted": isWorkoutShareAuthorized()])
     }
 
-    /// HealthKit hides READ denial to avoid leaking what a user withholds,
-    /// but share status is reported honestly — so this is a real answer.
     private func isWorkoutShareAuthorized() -> Bool {
         guard HKHealthStore.isHealthDataAvailable() else { return false }
         return store.authorizationStatus(for: HKObjectType.workoutType()) == .sharingAuthorized
@@ -113,20 +174,23 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - Writing a session
 
+    /// Resolves `{ saved: false, reason }` for the expected no-ops (no
+    /// HealthKit, workouts not shared) and REJECTS on a real HealthKit
+    /// failure, so the JS side can tell "not allowed" from "broken".
     @objc func saveStrengthWorkout(_ call: CAPPluginCall) {
         guard HKHealthStore.isHealthDataAvailable() else {
-            call.resolve(["saved": false])
+            call.resolve(["saved": false, "reason": "unavailable"])
             return
         }
         guard isWorkoutShareAuthorized() else {
-            call.resolve(["saved": false])
+            call.resolve(["saved": false, "reason": "not_authorized"])
             return
         }
 
         let startMs = call.getDouble("startMs") ?? 0
         let endMs = call.getDouble("endMs") ?? 0
         guard startMs > 0, endMs > startMs else {
-            call.reject("startMs and endMs must describe a positive interval")
+            call.reject("startMs and endMs must describe a positive interval", "BAD_INTERVAL")
             return
         }
 
@@ -144,19 +208,19 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
         builder.beginCollection(withStart: start) { [weak self] began, error in
             guard began else {
-                self?.finish(call, saved: false, error: error)
+                self?.fail(call, stage: "beginCollection", error: error)
                 return
             }
             self?.attachMetadata(builder, call: call) {
                 self?.attachEnergy(builder, kcal: kcal, start: start, end: end) {
                     builder.endCollection(withEnd: end) { ended, endError in
                         guard ended else {
-                            self?.finish(call, saved: false, error: endError)
+                            self?.fail(call, stage: "endCollection", error: endError)
                             return
                         }
                         builder.finishWorkout { workout, finishError in
                             guard let workout = workout else {
-                                self?.finish(call, saved: false, error: finishError)
+                                self?.fail(call, stage: "finishWorkout", error: finishError)
                                 return
                             }
                             call.resolve([
@@ -186,7 +250,7 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
         builder.addMetadata(metadata) { _, error in
             if let error = error {
-                CAPLog.print("[FoundryHealth] metadata rejected: \(error.localizedDescription)")
+                NSLog("[FoundryHealth] metadata rejected: \(error.localizedDescription)")
             }
             // Metadata is decoration — a session with none is still valid,
             // so never abandon the write over it.
@@ -203,8 +267,14 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         end: Date,
         then: @escaping () -> Void
     ) {
-        guard kcal > 0,
-              let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) else {
+        guard kcal > 0, let energyType = activeEnergyType else {
+            then()
+            return
+        }
+        // Writing a sample of a type the lifter refused fails the whole
+        // add; skip it up front so the workout itself still lands.
+        guard store.authorizationStatus(for: energyType) == .sharingAuthorized else {
+            NSLog("[FoundryHealth] active energy not shared — saving workout without calories")
             then()
             return
         }
@@ -212,7 +282,7 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         let sample = HKQuantitySample(type: energyType, quantity: quantity, start: start, end: end)
         builder.add([sample]) { _, error in
             if let error = error {
-                CAPLog.print("[FoundryHealth] energy sample rejected: \(error.localizedDescription)")
+                NSLog("[FoundryHealth] energy sample rejected: \(error.localizedDescription)")
             }
             // Same reasoning as metadata: a workout with no calories still
             // beats no workout at all.
@@ -220,10 +290,9 @@ public class FoundryHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func finish(_ call: CAPPluginCall, saved: Bool, error: Error?) {
-        if let error = error {
-            CAPLog.print("[FoundryHealth] workout write failed: \(error.localizedDescription)")
-        }
-        call.resolve(["saved": saved])
+    private func fail(_ call: CAPPluginCall, stage: String, error: Error?) {
+        let message = "\(stage) failed: \(error?.localizedDescription ?? "no error given")"
+        NSLog("[FoundryHealth] workout write \(message)")
+        call.reject(message, "WRITE_FAILED", error)
     }
 }

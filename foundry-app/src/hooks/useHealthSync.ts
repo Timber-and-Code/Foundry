@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
+import * as Sentry from '@sentry/react';
 import { App } from '@capacitor/app';
 import { store, loadProfile, saveProfile, loadBwLog, addBwEntry } from '../utils/store';
 import { getHealthService } from '../utils/health';
+import { reconcileHealthAccess } from '../utils/health/reconcileAccess';
 import type { Profile } from '../types';
 
 const TOGGLE_KEY = 'foundry:health:enabled';
@@ -65,12 +67,26 @@ async function syncBodyWeight() {
  * Wire body-weight sync into the app lifecycle. Fires on mount and on each
  * resume from background — HealthKit doesn't push to us on its own.
  */
+function report(operation: string) {
+  return (e: unknown) => {
+    console.warn(`[Foundry Health] ${operation} failed`, e);
+    Sentry.captureException(e, { tags: { context: 'health', operation } });
+  };
+}
+
 export function useHealthSync(): void {
   useEffect(() => {
-    syncBodyWeight().catch(() => { /* swallow — we tried */ });
+    // Launch only: a lifter who turned Health on before workouts were ever
+    // requested gets the one combined sheet here, before their next session
+    // instead of never. A no-op (no sheet) for everyone already asked.
+    // Weight sync waits for it so it reads with the fresh grant.
+    reconcileHealthAccess()
+      .catch(report('reconcile_access'))
+      .then(() => syncBodyWeight())
+      .catch(report('weight_sync'));
     const listenerPromise = App.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) return;
-      syncBodyWeight().catch(() => { /* swallow */ });
+      syncBodyWeight().catch(report('weight_sync'));
     });
     return () => {
       listenerPromise.then((l) => l.remove()).catch(() => {});

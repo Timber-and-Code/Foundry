@@ -1,6 +1,7 @@
 import { Health } from '@capgo/capacitor-health';
 import type { AuthorizationStatus } from '@capgo/capacitor-health';
 import type {
+  HealthAccessStatus,
   HealthPermissions,
   HealthService,
   StrengthWorkoutWrite,
@@ -75,16 +76,18 @@ export class CapacitorHealthService implements HealthService {
 
   // ── Workouts (our own Swift plugin — see foundryWorkoutPlugin.ts) ──────
   // These are separate from the weight calls above because HKWorkout has no
-  // representation in @capgo/capacitor-health, and because iOS treats
-  // workout sharing as its own authorization the lifter can refuse on its
-  // own. Every one of these swallows failure: Health is a nice-to-have
-  // side effect of finishing a workout, never a precondition for it.
+  // representation in @capgo/capacitor-health. Permission and status calls
+  // throw when the native plugin is unreachable or HealthKit refuses the
+  // request; the callers decide how to surface that. Health stays a side
+  // effect of finishing a workout — logWorkoutToHealth is the guard that
+  // keeps any of this from failing a completion.
 
-  async requestAllPermissions(): Promise<{ available: boolean; workouts: boolean; weight: boolean }> {
-    // Deliberately NOT wrapped in try/catch. A missing native plugin throws
-    // here, and that is the one failure the caller must be able to tell
-    // apart from a lifter tapping "Don't Allow".
+  async requestAllPermissions(): Promise<HealthAccessStatus> {
     return FoundryHealth.requestHealthPermissions();
+  }
+
+  async getAccessStatus(): Promise<HealthAccessStatus> {
+    return FoundryHealth.getHealthAuthorizationStatus();
   }
 
   async requestWorkoutPermission(): Promise<boolean> {
@@ -106,11 +109,9 @@ export class CapacitorHealthService implements HealthService {
   }
 
   async writeStrengthWorkout(workout: StrengthWorkoutWrite): Promise<boolean> {
-    try {
-      const { saved } = await FoundryHealth.saveStrengthWorkout(workout);
-      return !!saved;
-    } catch {
-      return false;
-    }
+    // Not caught: a rejection here is a real HealthKit failure, and the
+    // caller reports it. An expected no-op resolves { saved: false }.
+    const { saved } = await FoundryHealth.saveStrengthWorkout(workout);
+    return !!saved;
   }
 }

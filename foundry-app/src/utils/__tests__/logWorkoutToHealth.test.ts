@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { HealthAccessStatus } from '../health/types';
 
 interface WrittenWorkout {
   startMs: number;
@@ -16,8 +17,24 @@ const mocks = vi.hoisted(() => ({
   checkWorkoutPermission: vi.fn(async () => true),
   // Declared with its parameter so `mock.calls[0][0]` stays typed.
   writeStrengthWorkout: vi.fn(async (_workout: unknown) => true),
-  loadProfile: vi.fn(() => ({ weight: 220.462 })),
+  loadProfile: vi.fn((): Record<string, unknown> => ({ weight: 220.462 })),
+  getAccessStatus: vi.fn(async () => access({ needsPrompt: false, workouts: 'denied' })),
+  requestAllPermissions: vi.fn(async () => access({ workouts: 'authorized' })),
+  captureException: vi.fn(),
 }));
+
+function access(over: Partial<HealthAccessStatus> = {}): HealthAccessStatus {
+  return {
+    available: true,
+    weight: 'authorized',
+    workouts: 'authorized',
+    activeEnergy: 'authorized',
+    needsPrompt: false,
+    ...over,
+  };
+}
+
+vi.mock('@sentry/react', () => ({ captureException: mocks.captureException }));
 
 /** The workout handed to the native layer on the Nth call. */
 const written = (n = 0) => mocks.writeStrengthWorkout.mock.calls[n]![0] as WrittenWorkout;
@@ -27,6 +44,8 @@ vi.mock('../health/index', () => ({
     isAvailable: mocks.isAvailable,
     checkWorkoutPermission: mocks.checkWorkoutPermission,
     writeStrengthWorkout: mocks.writeStrengthWorkout,
+    getAccessStatus: mocks.getAccessStatus,
+    requestAllPermissions: mocks.requestAllPermissions,
   }),
 }));
 
@@ -57,6 +76,9 @@ describe('logWorkoutToHealth', () => {
     mocks.checkWorkoutPermission.mockResolvedValue(true);
     mocks.writeStrengthWorkout.mockResolvedValue(true);
     mocks.loadProfile.mockReturnValue({ weight: 220.462 });
+    mocks.getAccessStatus.mockResolvedValue(access({ needsPrompt: false, workouts: 'denied' }));
+    mocks.requestAllPermissions.mockResolvedValue(access({ workouts: 'authorized' }));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     localStorage.setItem('foundry:health:enabled', '1');
     localStorage.setItem('foundry:active_meso_id', 'meso-abc');
   });
@@ -95,6 +117,28 @@ describe('logWorkoutToHealth', () => {
     mocks.checkWorkoutPermission.mockResolvedValue(false);
     await expect(logWorkoutToHealth(base)).resolves.toBe(false);
     expect(mocks.writeStrengthWorkout).not.toHaveBeenCalled();
+    // A refusal is an answer — it must never be re-asked.
+    expect(mocks.requestAllPermissions).not.toHaveBeenCalled();
+    expect(mocks.captureException).not.toHaveBeenCalled();
+  });
+
+  it('asks for workouts when they were never requested, then writes', async () => {
+    // The 2.15.0 build 1 state: Health ON, weight granted, the workout
+    // request dropped by iOS — so workouts are notDetermined, not refused.
+    // This used to return false silently on every completion, forever.
+    mocks.checkWorkoutPermission.mockResolvedValue(false);
+    mocks.getAccessStatus.mockResolvedValue(access({ needsPrompt: true, workouts: 'notDetermined' }));
+    await expect(logWorkoutToHealth(base)).resolves.toBe(true);
+    expect(mocks.requestAllPermissions).toHaveBeenCalledTimes(1);
+    expect(mocks.writeStrengthWorkout).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not write when the lifter declines the late workout sheet', async () => {
+    mocks.checkWorkoutPermission.mockResolvedValue(false);
+    mocks.getAccessStatus.mockResolvedValue(access({ needsPrompt: true, workouts: 'notDetermined' }));
+    mocks.requestAllPermissions.mockResolvedValue(access({ workouts: 'denied' }));
+    await expect(logWorkoutToHealth(base)).resolves.toBe(false);
+    expect(mocks.writeStrengthWorkout).not.toHaveBeenCalled();
   });
 
   it('never writes the same session twice', async () => {
@@ -127,9 +171,34 @@ describe('logWorkoutToHealth', () => {
     expect(mocks.writeStrengthWorkout).not.toHaveBeenCalled();
   });
 
-  it('swallows a throwing service rather than failing the completion', async () => {
-    mocks.writeStrengthWorkout.mockRejectedValue(new Error('HealthKit exploded'));
+  it('reports a throwing service instead of failing the completion', async () => {
+    const err = new Error('HealthKit exploded');
+    mocks.writeStrengthWorkout.mockRejectedValue(err);
     await expect(logWorkoutToHealth(base)).resolves.toBe(false);
+    // Swallowed silently, this is exactly how "Health does nothing" shipped
+    // with no trace. It must reach Sentry.
+    expect(mocks.captureException).toHaveBeenCalledWith(err, {
+      tags: { context: 'health', operation: 'write_workout' },
+    });
+  });
+
+  it('writes the same day/week slot again in a new meso', async () => {
+    // d0/w0 exists in every meso. An unscoped written-key from the first
+    // meso blocked that slot in every meso after it.
+    await expect(logWorkoutToHealth(base)).resolves.toBe(true);
+    localStorage.setItem('foundry:active_meso_id', 'meso-next');
+    await expect(logWorkoutToHealth(base)).resolves.toBe(true);
+    expect(mocks.writeStrengthWorkout).toHaveBeenCalledTimes(2);
+  });
+
+  it('scopes the dedupe by start date for a lifter with no meso id', async () => {
+    localStorage.removeItem('foundry:active_meso_id');
+    mocks.loadProfile.mockReturnValue({ weight: 220.462, startDate: '2026-08-01' });
+    await expect(logWorkoutToHealth(base)).resolves.toBe(true);
+    await expect(logWorkoutToHealth(base)).resolves.toBe(false);
+    mocks.loadProfile.mockReturnValue({ weight: 220.462, startDate: '2026-09-15' });
+    await expect(logWorkoutToHealth(base)).resolves.toBe(true);
+    expect(mocks.writeStrengthWorkout).toHaveBeenCalledTimes(2);
   });
 
   it('still writes when the meso pointer is missing', async () => {
