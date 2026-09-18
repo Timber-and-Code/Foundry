@@ -1,3 +1,31 @@
 /* Responsive overrides — setup. Conventions: see ../responsive.css header.
    Wide-only rules live inside min-width media queries and may use !important
    to beat inline styles; nothing here may change the compact (<700px) layout. */
+
+/* Setup + new-user flow.
+   - Question/form steps (IntakeCard, Essentials, path select, Quick Build,
+     cardio step, Program Ready, Welcome, MicroTour) sit in --form-max via
+     their inline maxWidth — 480 on phones, so those are unchanged.
+   - Program review (ProgramReview, Beat2Preview) uses --wide-max; at
+     >=1000px the day cards go 2-up (.fd-grid-2 on DayAccordion, which also
+     opens every day by default there) and the split / session / meso-length
+     bars go 3-up (.fd-grid-3). */
+
+@media (min-width: 700px) {
+  /* Short single-question screens: centre the form in the viewport rather
+     than pinning it to the top of an iPad-tall page. */
+  .fd-setup-vcenter {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+  }
+
+  /* Primary CTAs inside a wider-than-form page keep the form column's
+     width (same 16px padding / 15pt text) instead of spanning the page. */
+  .fd-setup-cta {
+    display: block !important;
+    max-width: calc(var(--form-max) - 40px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
