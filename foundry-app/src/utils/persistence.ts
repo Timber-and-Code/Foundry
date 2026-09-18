@@ -218,21 +218,23 @@ export interface CarryoverMeso {
   daysPerWeek: number;
 }
 
-/** Load at the END of the deload week, as a fraction of the previous week's. */
+/** Load at the END of the deload week, as a fraction of week 1's. */
 const DELOAD_END_FACTOR = 0.9;
 
 /**
  * How hard to scale the bar for one day of the deload week.
  *
- * Day 1 holds last week's working weight and the last day sits at
- * DELOAD_END_FACTOR, stepped evenly across however many days the meso
+ * Applied to WEEK 1's working weight (see deloadBaselineWeight), not last
+ * week's. Day 1 holds week 1's weight and the last day sits at
+ * DELOAD_END_FACTOR of it, stepped evenly across however many days the meso
  * trains — a 4-day week lands 100/97/93/90, a 6-day week 100/98/96/94/92/90.
  *
- * Deliberately shallow. The research consensus is that VOLUME is the lever
- * that sheds fatigue and load should largely hold: RP prescribes a 40-50%
- * volume cut at unchanged intensity, and Helms' guideline is 30-50% volume
- * with intensity maintained and only "a little" off the bar. getWeekSets
- * already does that half, dropping to 2 sets. This is the "little".
+ * A middle ground between the two camps. RP/Israetel's full deload week
+ * drops to week 1's load for the first half and HALF of week 1's load for
+ * the second half. Helms and Nuckols hold load and let volume do the work
+ * (getWeekSets already drops to 2 sets). Anchoring to week 1 takes RP's
+ * biggest lever — the whole meso's load gains come off — while the shallow
+ * taper keeps the bar heavy enough to hold the groove.
  *
  * Stepping by DAY INDEX is a deliberate product call for a full-body split,
  * where no lift repeats inside the week: it reads the week's accumulating
@@ -245,6 +247,21 @@ function deloadLoadFactor(dayIdx: number, daysPerWeek: number): number {
   return 1 - (1 - DELOAD_END_FACTOR) * (d / (daysPerWeek - 1));
 }
 
+/**
+ * Heaviest working (non-warmup) weight in one exercise's week-1 slice — the
+ * load the deload is anchored to. 0 when week 1 has nothing usable for this
+ * exercise, which tells the deload to fall back to last week's weight.
+ */
+function deloadBaselineWeight(slice: Record<string, Record<string, unknown>>): number {
+  let best = 0;
+  for (const set of Object.values(slice || {})) {
+    if (!set || set.warmup) continue;
+    const w = parseFloat(String(set.weight ?? ''));
+    if (Number.isFinite(w) && w > best) best = w;
+  }
+  return best;
+}
+
 function computeCarryoverForOneExercise(
   ex: TrainingDay['exercises'][number],
   prevEx: Record<string, Record<string, unknown>>,
@@ -252,6 +269,7 @@ function computeCarryoverForOneExercise(
   recalibrateActive: boolean = false,
   prevSetsOverride?: number,
   deloadFactor?: number,
+  deloadBaseWeight?: number,
 ): Record<string, WorkoutSet> {
   const repParts = String(ex.reps).split('-');
   const rangeMin = parseInt(repParts[0]) || 1;
@@ -395,7 +413,7 @@ function computeCarryoverForOneExercise(
   // to add weight in the deload, and one who didn't was still told to add a
   // rep. The week cut sets and then pushed intensity up underneath.
   //
-  // Instead: last week's load scaled by the day's taper, reps at the BOTTOM
+  // Instead: week 1's load scaled by the day's taper, reps at the BOTTOM
   // of the range, and both suggestion flags cleared so nothing in the UI
   // reads as "push here". Holding the weight while cutting sets and reps is
   // what drops fatigue without giving up the load stimulus or the groove —
@@ -406,8 +424,15 @@ function computeCarryoverForOneExercise(
   // someone returning from time off is not the same athlete as someone
   // closing out a mesocycle.
   if (deloadFactor != null && deloadFactor > 0) {
-    const scaledStr = baselineWeight > 0
-      ? String(roundTo25(baselineWeight * deloadFactor))
+    // Week 1's weight when we have it, never heavier than what was lifted
+    // last week (a lifter who dropped the bar mid-meso shouldn't be sent
+    // back UP in the deload). No week-1 history — the lift was swapped in
+    // mid-meso — falls back to last week's weight.
+    const base = deloadBaseWeight != null && deloadBaseWeight > 0
+      ? (baselineWeight > 0 ? Math.min(deloadBaseWeight, baselineWeight) : deloadBaseWeight)
+      : baselineWeight;
+    const scaledStr = base > 0
+      ? String(roundTo25(base * deloadFactor))
       : '';
     const out: Record<string, WorkoutSet> = {};
     for (let s = 0; s < sets; s++) {
@@ -490,6 +515,9 @@ function loadDayWeekWithCarryoverV1(
       // Falls back to position-based lookup for legacy data / brand-new
       // exercises with no prior history.
       const prevEx = findPrevSlotForExercise(prev, ex.id, exIdx);
+      const deloadBase = deloadFactor != null
+        ? deloadBaselineWeight(findPrevSlotForExercise(loadDayWeek(dayIdx, 0), ex.id, exIdx))
+        : undefined;
       carried[exIdx] = computeCarryoverForOneExercise(
         ex,
         prevEx,
@@ -497,6 +525,7 @@ function loadDayWeekWithCarryoverV1(
         recalibrateActive,
         prevSetsFor?.(exIdx, w),
         deloadFactor,
+        deloadBase,
       );
     });
     return carried;
@@ -537,10 +566,18 @@ function loadDayWeekWithCarryoverV2(
     );
     if (!prevHasData) continue;
 
+    // tde ids are per meso slot, not per week, so the same id finds this
+    // exercise's week-1 slice for the deload anchor.
+    const week1V2 = deloadFactor != null ? loadDayWeekV2(dayIdx, 0) : {};
     const carried: DayData = {};
     day.exercises.forEach((ex, exIdx) => {
       const tdeId = tdeIds[`${dayIdx}:${exIdx}`];
       const prevSlice = tdeId ? prevV2[tdeId]?.sets || {} : {};
+      const deloadBase = deloadFactor != null && tdeId
+        ? deloadBaselineWeight(
+            (week1V2[tdeId]?.sets || {}) as unknown as Record<string, Record<string, unknown>>,
+          )
+        : undefined;
       carried[exIdx] = computeCarryoverForOneExercise(
         ex,
         prevSlice as unknown as Record<string, Record<string, unknown>>,
@@ -548,6 +585,7 @@ function loadDayWeekWithCarryoverV2(
         recalibrateActive,
         prevSetsFor?.(exIdx, w),
         deloadFactor,
+        deloadBase,
       );
     });
     return carried;

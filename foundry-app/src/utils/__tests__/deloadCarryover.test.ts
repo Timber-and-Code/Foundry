@@ -8,11 +8,11 @@
  * weight in the deload, and one who didn't was still told to add a rep. The
  * week cut sets and then pushed intensity up underneath.
  *
- * The shape here follows the research consensus that VOLUME sheds fatigue
- * and load should largely hold — RP cuts volume 40-50% at unchanged
- * intensity, Helms 30-50% with intensity maintained and only "a little" off
- * the bar. getWeekSets already does the volume half. This is the rest:
- * reps at rangeMin for the RIR, and a shallow load taper across the week.
+ * The shape is a middle ground: RP/Israetel's full deload goes back to week
+ * 1's load and halves it for the second half of the week; Helms and Nuckols
+ * hold load and let volume do the work. getWeekSets already does the volume
+ * half. This is the rest: load anchored to WEEK 1 with a shallow taper
+ * across the week, and reps at rangeMin for the RIR.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { loadDayWeekWithCarryover, saveDayWeek } from '../persistence';
@@ -53,6 +53,15 @@ const seedMrvWeek = (dayIdx: number, weight: string, reps: string) => {
     slice[s] = { weight, reps, confirmed: true, _exId: 'bench' };
   }
   saveDayWeek(dayIdx, MRV, { 0: slice } as never);
+};
+
+/** Week 1 (index 0) at `weight` — what the deload is anchored to. */
+const seedWeek1 = (dayIdx: number, weight: string, extra: Record<number, unknown> = {}) => {
+  const slice: Record<number, unknown> = { ...extra };
+  for (let s = 0; s < getWeekSets(BASE_SETS, 0, TOTAL); s++) {
+    slice[s] ??= { weight, reps: '6', confirmed: true, _exId: 'bench' };
+  }
+  saveDayWeek(dayIdx, 0, { 0: slice } as never);
 };
 
 const prevSetsFor = (_e: number, w: number) => getWeekSets(BASE_SETS, w, TOTAL);
@@ -163,5 +172,52 @@ describe('the deload branch stays out of the way', () => {
     seedMrvWeek(0, '200', '6');
     // Recalibrate is a flat 85% of baseline, not the day-0 hold.
     expect(deloadFor(0, 4)[0].weight).toBe('170');
+  });
+});
+
+describe('the deload is anchored to WEEK 1, not the MRV week', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('drops back to week 1\'s weight, then tapers it', () => {
+    // 170 → 200 over the meso. Old code: 200 on day 0, 180 on the last day.
+    const got = [0, 3].map((d) => {
+      localStorage.clear();
+      seedWeek1(d, '170');
+      seedMrvWeek(d, '200', '6');
+      return deloadFor(d, 4)[0].weight;
+    });
+    expect(got).toEqual(['170', '152.5']); // 170 × 0.9 = 153 → nearest 2.5
+  });
+
+  it('ignores warmups when reading week 1', () => {
+    seedWeek1(0, '170', { 0: { weight: '250', reps: '3', warmup: true, _exId: 'bench' } });
+    seedMrvWeek(0, '200', '6');
+    expect(deloadFor(0, 4)[0].weight).toBe('170');
+  });
+
+  it('never sends a lifter UP if they went lighter since week 1', () => {
+    seedWeek1(0, '220');
+    seedMrvWeek(0, '200', '6');
+    expect(deloadFor(0, 4)[0].weight).toBe('200');
+  });
+
+  it('falls back to last week when week 1 has nothing for the lift', () => {
+    seedMrvWeek(0, '200', '6'); // swapped in mid-meso — no week-1 history
+    expect(deloadFor(0, 4)[0].weight).toBe('200');
+  });
+
+  it('reads week 1 by tde id on the v2 path', () => {
+    localStorage.setItem('foundry:active_meso_id', 'm1');
+    localStorage.setItem('foundry:tde_ids:m1', JSON.stringify({ '3:0': 'tde-bench' }));
+    const v2 = (weight: string, n: number) => ({
+      'tde-bench': {
+        sets: Object.fromEntries(
+          Array.from({ length: n }, (_, i) => [i, { weight, reps: '6', confirmed: true }]),
+        ),
+      },
+    });
+    localStorage.setItem('foundry:day_v2:3:0', JSON.stringify(v2('170', getWeekSets(BASE_SETS, 0, TOTAL))));
+    localStorage.setItem(`foundry:day_v2:3:${MRV}`, JSON.stringify(v2('200', getWeekSets(BASE_SETS, MRV, TOTAL))));
+    expect(deloadFor(3, 4)[0].weight).toBe('152.5');
   });
 });
