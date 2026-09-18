@@ -295,13 +295,16 @@ export default function MesoHistoryView({
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
+        // Bottom sheet on phones; centered dialog on regular+ widths
+        // (.fd-abs-sheet in styles/responsive/workout.css).
+        className="fd-abs-sheet"
         style={{
           position: 'absolute',
           left: 0,
           right: 0,
           bottom: 0,
           margin: '0 auto',
-          maxWidth: 480,
+          maxWidth: 'var(--sheet-max)',
           maxHeight: '88vh',
           background: 'var(--bg-card)',
           borderTopLeftRadius: 20,
@@ -325,6 +328,7 @@ export default function MesoHistoryView({
         >
           <div
             aria-hidden="true"
+            className="fd-abs-sheet-handle"
             style={{ width: 40, height: 5, borderRadius: 3, background: 'var(--border)', margin: '0 auto' }}
           />
         </div>

@@ -412,6 +412,7 @@ function ShareSheet({ open, onClose, getPayload, onDone }: ShareSheetProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-sheet-title"
+      className="fd-sheet-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -427,6 +428,7 @@ function ShareSheet({ open, onClose, getPayload, onDone }: ShareSheetProps) {
     >
       <div
         ref={sheetRef}
+        className="fd-sheet-panel"
         style={{
           background: 'var(--bg-card)',
           borderTop: '1px solid var(--border)',
@@ -434,7 +436,7 @@ function ShareSheet({ open, onClose, getPayload, onDone }: ShareSheetProps) {
           borderTopRightRadius: tokens.radius.xl,
           padding: '14px 16px 28px',
           paddingBottom: 'max(28px, env(safe-area-inset-bottom, 0px))',
-          maxWidth: 480,
+          maxWidth: 'var(--sheet-max)',
           margin: '0 auto',
           width: '100%',
           boxSizing: 'border-box',
@@ -448,6 +450,7 @@ function ShareSheet({ open, onClose, getPayload, onDone }: ShareSheetProps) {
       >
         <div
           aria-hidden="true"
+          className="fd-sheet-handle"
           style={{
             width: 44,
             height: 4,

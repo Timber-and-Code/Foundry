@@ -1873,7 +1873,8 @@ function DayView({
           left: '50%',
           transform: 'translateX(-50%)',
           width: '100%',
-          maxWidth: 480,
+          // Same width as the route column it heads (480 on phones).
+          maxWidth: 'var(--col-max)',
           boxSizing: 'border-box',
           zIndex: 40,
           paddingTop: 12,
