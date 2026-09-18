@@ -78,7 +78,17 @@ export default function PreviousMesosPage({ goBack }: PreviousMesosPageProps) {
         </span>
       </div>
 
-      <div style={{ padding: '16px' }}>
+      {/* Body in a column so the intro lines up with the cards on wide
+          screens: the dashboard width for a grid of cards, the reading column
+          for a lone one (a no-op on phones, where both are 480). */}
+      <div
+        style={{
+          padding: '16px',
+          maxWidth: previousMesos.length > 1 ? 'var(--wide-max)' : 'var(--col-max)',
+          margin: '0 auto',
+          boxSizing: 'border-box',
+        }}
+      >
         {previousMesos.length === 0 ? (
           <div
             style={{

@@ -91,6 +91,10 @@
     align-items: start;
   }
   .fd-pm-grid > * { margin-bottom: 0 !important; }
+  /* One past meso (the common case for a newer lifter) shouldn't sit in a
+     third-width column beside empty space: let it take the row, at a
+     readable width. */
+  .fd-pm-grid > :only-child { grid-column: 1 / -1; }
 }
 @media (min-width: 1000px) {
   .fd-pm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
