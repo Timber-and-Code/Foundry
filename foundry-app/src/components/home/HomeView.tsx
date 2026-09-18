@@ -938,7 +938,8 @@ function HomeView({
       )}
 
       {['overview', 'history'].includes(tab) && (
-        <div className="fd-wide">
+        // Overview is a reading page; history (Previous Meso Cycles) tiles.
+        <div className={tab === 'overview' ? 'fd-col' : 'fd-wide'}>
           <MesoOverview
             tab={tab}
             goBack={goBack}

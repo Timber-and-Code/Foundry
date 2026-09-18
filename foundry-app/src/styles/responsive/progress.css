@@ -106,3 +106,19 @@
   }
   .fd-recap-gains > .fd-span-all { grid-column: 1 / -1; }
 }
+
+/* ── Plans / pricing ───────────────────────────────────────────────────── */
+@media (min-width: 1000px) {
+  .fd-pricing {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    max-width: 1080px !important;
+  }
+  .fd-pricing > .fd-pricing-full {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 640px;
+    justify-self: center;
+  }
+}
