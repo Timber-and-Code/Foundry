@@ -1,4 +1,5 @@
 import React, { Suspense, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../contexts/AuthContext';
 import { store, resolveAccountTier, resetMeso } from '../../utils/store';
@@ -119,7 +120,12 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   // Tier, reduced to a chip. resolveAccountTier was being called twice in the
   // render below; once is enough.
   const tierResult = resolveAccountTier(saved);
-  const tierChip = tierResult.qualifiesForFree
+  // Paid plans can't be shown in the iOS app until they can be bought there
+  // (App Store 3.1.1): the pricing page lists prices and collects a waitlist
+  // email with nothing to purchase. The web keeps it. The tier chip goes too —
+  // "FREE · STUDENT" only makes sense next to a paid plan.
+  const showPaidPlans = !Capacitor.isNativePlatform();
+  const tierChip = showPaidPlans && tierResult.qualifiesForFree
     ? tierResult.reason === 'student' ? 'FREE · STUDENT'
       : tierResult.reason === 'under_18' ? 'FREE · UNDER 18'
       : tierResult.reason === 'senior' ? 'FREE · 62+' : 'FREE'
@@ -855,7 +861,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               this drawer and the plumbing half, where it reads as an offer
               rather than a setting. */}
           {divider}
-          {!tierResult.qualifiesForFree && (
+          {showPaidPlans && !tierResult.qualifiesForFree && (
           <button
             onClick={() => { onClose(); emit('foundry:showPricing'); }}
             style={{
@@ -1222,11 +1228,11 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
             // The letter lives on the pricing page, which is a sibling of
             // Settings rather than a child — so close both and let HomeView
             // open it, the same route the "See plans" row already takes.
-            onReadLetter={() => {
+            onReadLetter={showPaidPlans ? () => {
               setShowAbout(false);
               onClose();
               emit('foundry:showPricing');
-            }}
+            } : undefined}
           />
         </Suspense>
       )}
