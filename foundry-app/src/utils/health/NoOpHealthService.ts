@@ -1,5 +1,6 @@
 import type { AuthorizationStatus } from '@capgo/capacitor-health';
-import type { HealthService, WeightReading } from './types';
+import { UNAVAILABLE_ACCESS } from './types';
+import type { HealthAccessStatus, HealthService, WeightReading } from './types';
 
 /**
  * Web fallback. Returns "not available" for every call so the rest of the
@@ -26,8 +27,12 @@ export class NoOpHealthService implements HealthService {
     return false;
   }
 
-  async requestAllPermissions(): Promise<{ available: boolean; workouts: boolean; weight: boolean }> {
-    return { available: false, workouts: false, weight: false };
+  async requestAllPermissions(): Promise<HealthAccessStatus> {
+    return { ...UNAVAILABLE_ACCESS };
+  }
+
+  async getAccessStatus(): Promise<HealthAccessStatus> {
+    return { ...UNAVAILABLE_ACCESS };
   }
 
   async requestWorkoutPermission(): Promise<boolean> {

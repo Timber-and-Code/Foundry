@@ -1,4 +1,5 @@
 import { registerPlugin } from '@capacitor/core';
+import type { HealthAccessStatus } from './types';
 
 /**
  * Bridge to our own Swift plugin (`ios/App/App/FoundryHealthPlugin.swift`).
@@ -21,7 +22,13 @@ export interface FoundryHealthPlugin {
    * requests loses the second one — HealthKit drops an authorization request
    * made while another sheet is still on screen.
    */
-  requestHealthPermissions(): Promise<{ available: boolean; workouts: boolean; weight: boolean }>;
+  requestHealthPermissions(): Promise<HealthAccessStatus>;
+  /**
+   * Per-type share status plus whether iOS would still show a sheet, without
+   * prompting. `needsPrompt` is how an already-enabled lifter whose workout
+   * request was never made (or was dropped) gets detected.
+   */
+  getHealthAuthorizationStatus(): Promise<HealthAccessStatus>;
   /** True only on a device where HealthKit exists and workout sharing is granted. */
   requestWorkoutPermission(): Promise<{ granted: boolean }>;
   /** Current workout-write authorization without prompting. */
@@ -35,7 +42,7 @@ export interface FoundryHealthPlugin {
     weekIndex?: number;
     totalSets?: number;
     totalVolumeLbs?: number;
-  }): Promise<{ saved: boolean; uuid?: string }>;
+  }): Promise<{ saved: boolean; uuid?: string; reason?: 'unavailable' | 'not_authorized' }>;
 }
 
 export const FoundryHealth = registerPlugin<FoundryHealthPlugin>('FoundryHealth');
