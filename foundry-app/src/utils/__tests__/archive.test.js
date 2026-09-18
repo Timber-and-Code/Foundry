@@ -3,6 +3,11 @@
  * loadArchive, deleteArchiveEntry, resetMeso, archiveCurrentMeso
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+
+// A meso with one logged working set. Empty mesos are dropped by every
+// archive reader (archiveRules), so fixtures that stand for real history
+// need real work in them.
+const WORK = [{ d: 0, w: 0, data: { 0: { 0: { weight: 100, reps: 5 } } } }];
 import {
   loadArchive,
   deleteArchiveEntry,
@@ -23,8 +28,8 @@ describe('loadArchive', () => {
 
   it('returns the parsed archive array', () => {
     const entries = [
-      { id: 1, archivedAt: '2024-01-01', profile: {}, sessions: [] },
-      { id: 2, archivedAt: '2024-02-01', profile: {}, sessions: [] },
+      { id: 1, archivedAt: '2024-01-01', profile: {}, sessions: WORK },
+      { id: 2, archivedAt: '2024-02-01', profile: {}, sessions: WORK },
     ];
     localStorage.setItem('foundry:archive', JSON.stringify(entries));
     expect(loadArchive()).toEqual(entries);
@@ -44,8 +49,8 @@ describe('deleteArchiveEntry', () => {
 
   it('removes the matching entry by id', () => {
     const entries = [
-      { id: 10, archivedAt: '2024-01-01', sessions: [] },
-      { id: 20, archivedAt: '2024-02-01', sessions: [] },
+      { id: 10, archivedAt: '2024-01-01', sessions: WORK },
+      { id: 20, archivedAt: '2024-02-01', sessions: WORK },
     ];
     localStorage.setItem('foundry:archive', JSON.stringify(entries));
 
@@ -56,7 +61,7 @@ describe('deleteArchiveEntry', () => {
   });
 
   it('is a no-op when the id does not exist', () => {
-    const entries = [{ id: 5, archivedAt: '2024-01-01', sessions: [] }];
+    const entries = [{ id: 5, archivedAt: '2024-01-01', sessions: WORK }];
     localStorage.setItem('foundry:archive', JSON.stringify(entries));
 
     deleteArchiveEntry(999);
@@ -222,6 +227,7 @@ describe('archiveCurrentMeso — additional', () => {
     localStorage.setItem('foundry:done:d0:w0', '1');
     localStorage.setItem('foundry:done:d0:w1', '1');
     localStorage.setItem('foundry:done:d1:w0', '1');
+    localStorage.setItem('foundry:day0:week0', JSON.stringify({ 0: { 0: { weight: 100, reps: 5 } } }));
 
     archiveCurrentMeso(baseProfile, {});
     const archive = JSON.parse(localStorage.getItem('foundry:archive') || '[]');

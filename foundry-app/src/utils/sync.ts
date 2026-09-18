@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react';
 import { supabase } from './supabase.js';
 import { store, wipeMesoSessionData } from './storage.js';
 import { emit } from './events';
+import { hasLoggedWork, isLegacyTwin } from './archiveRules';
 import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData, CardioPreset, ArchiveEntry } from '../types';
 // validateDayData + validateProfile are imported by other modules; sync.ts
 // will use them again once workouts/readiness chunks migrate to the
@@ -1383,7 +1384,13 @@ export function mergeArchiveEntries<T extends { id: string; archivedAt?: string 
     const derivedIds = new Set(derived.map((d) => String(d.id)));
     if (Array.isArray(parsed)) {
       localOnly = (parsed as ArchiveEntry[]).filter(
-        (e) => e && e.id != null && !derivedIds.has(String(e.id)),
+        (e) =>
+          e &&
+          e.id != null &&
+          !derivedIds.has(String(e.id)) &&
+          // Pre-2.15.6 local entries carry a Date.now() id, so the id check
+          // alone never matched their remote twin.
+          !derived.some((d) => isLegacyTwin(e as never, d as never)),
       );
     }
   } catch (e) {
@@ -1514,6 +1521,9 @@ async function pullMesoArchive(userId: string, activeMesoId: string | null): Pro
           done: s.is_complete,
           cardioLog: null,
         }));
+
+        // A session row with no working sets in it is not history either.
+        if (!hasLoggedWork({ sessions: archiveSessions })) return null;
 
         return {
           // The meso uuid, not Date.now() — makes the rebuild idempotent and
@@ -2363,9 +2373,16 @@ export async function syncMesocycleToSupabase(profile: Profile): Promise<void> {
   } catch (e) { reportSyncFailure('mesocycle', e); } finally { syncEnd(); }
 }
 
-// Mark the active mesocycle as abandoned and clear the local active meso
-// pointer. Called from resetMeso() in archive.ts when the user discards
-// the current cycle mid-way. Next saveProfile creates a fresh mesocycle.
+// End the active mesocycle early and clear the local active meso pointer.
+// Called from resetMeso() in archive.ts when the user discards the current
+// cycle mid-way. Next saveProfile creates a fresh mesocycle.
+//
+// An EMPTY meso (no logged working sets, by anyone) is deleted rather than
+// marked abandoned — it was a mistake, not history. That check runs server
+// side in discard_empty_meso (migration 012): the delete cascades to every
+// member's sessions, and this client can't be trusted to see them all. Any
+// other outcome — not empty, shared, RPC missing, network error — falls
+// through to 'abandoned', which is the safe default.
 export async function archiveMesocycleRemote(): Promise<void> {
   if (!MIGRATED.mesocycles) return;
   if (typeof window === 'undefined') return;
@@ -2376,6 +2393,14 @@ export async function archiveMesocycleRemote(): Promise<void> {
   try {
     const user = await getUser();
     if (!user) return;
+    let discarded = false;
+    try {
+      const { data, error: rpcError } = await supabase.rpc('discard_empty_meso', { p_meso_id: mesoId });
+      discarded = !rpcError && data === true;
+    } catch (e) {
+      console.warn('[Foundry]', 'discard_empty_meso failed; marking abandoned', e);
+    }
+    if (discarded) return; // user_profiles.active_meso_id is ON DELETE SET NULL
     const { error } = await supabase
       .from('mesocycles')
       .update({

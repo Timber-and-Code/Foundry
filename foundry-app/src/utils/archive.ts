@@ -6,6 +6,7 @@ import {
   detachActiveMesoRemote,
   completeMesocycleRemote,
 } from './sync';
+import { isEmptyMeso, type ArchiveStatus } from './archiveRules';
 import type { Profile, ArchiveEntry, Exercise, TrainingDay } from '../types';
 
 // ─── ARCHIVE HELPERS ─────────────────────────────────────────────────────────
@@ -73,6 +74,8 @@ export function resetMesoAfterCompletion(): Promise<void> {
 interface ArchiveDeps {
   generateProgram?: (profile: Profile) => TrainingDay[];
   EXERCISE_DB?: Exercise[];
+  /** 'abandoned' when the meso is ended early. Defaults to 'completed'. */
+  status?: ArchiveStatus;
 }
 
 interface ArchiveSession {
@@ -129,7 +132,9 @@ export function snapshotCurrentMeso(profile: Profile): ArchiveEntry {
   }
 
   const record = {
-    id: Date.now(),
+    // The meso's uuid when it has one, so the remote rebuild (keyed the same
+    // way) replaces this entry instead of listing the meso twice.
+    id: store.get('foundry:active_meso_id') || Date.now(),
     archivedAt: new Date().toISOString(),
     profile: { ...profile },
     mesoWeeks,
@@ -142,9 +147,9 @@ export function snapshotCurrentMeso(profile: Profile): ArchiveEntry {
 }
 
 export function archiveCurrentMeso(profile: Profile | null | undefined, deps?: ArchiveDeps): void {
-  const { generateProgram: _generateProgram, EXERCISE_DB: _EXERCISE_DB } = deps || {};
+  const { generateProgram: _generateProgram, EXERCISE_DB: _EXERCISE_DB, status = 'completed' } = deps || {};
   if (!profile) return;
-  const record = snapshotCurrentMeso(profile);
+  const record = { ...snapshotCurrentMeso(profile), status } as ArchiveEntry;
   const { mesoDays } = record as unknown as { mesoDays: number };
 
   let archive: ArchiveEntry[] = [];
@@ -153,9 +158,14 @@ export function archiveCurrentMeso(profile: Profile | null | undefined, deps?: A
   } catch (e) {
     console.warn('[Foundry]', 'Failed to load archive for meso archival', e);
   }
-  archive.unshift(record as unknown as ArchiveEntry);
-  if (archive.length > 10) archive = archive.slice(0, 10);
-  store.set('foundry:archive', JSON.stringify(archive));
+  // Nothing logged = nothing to keep (see archiveRules). The transition
+  // context below is still written — it carries the settings to pre-fill.
+  if (!isEmptyMeso(record as never)) {
+    archive = archive.filter((e) => String(e.id) !== String(record.id));
+    archive.unshift(record);
+    if (archive.length > 10) archive = archive.slice(0, 10);
+    store.set('foundry:archive', JSON.stringify(archive));
+  }
 
   // ── Meso transition context ──
   try {

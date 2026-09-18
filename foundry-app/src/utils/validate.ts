@@ -1,5 +1,6 @@
 // ─── SCHEMA VALIDATORS FOR LOCALSTORAGE READS ────────────────────────────────
 import type { Profile, DayData, WorkoutSet, ArchiveEntry } from '../types';
+import { isEmptyMeso } from './archiveRules';
 export function validateProfile(data: unknown): Profile | null {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     console.warn('[Foundry] validateProfile: invalid data shape', data);
@@ -44,6 +45,8 @@ export function validateArchive(data: unknown): ArchiveEntry[] {
   return data.filter((entry): entry is ArchiveEntry => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
     if ((entry as Record<string, unknown>).id == null) return false;
+    // An empty meso is not history — drop it for every reader (archiveRules).
+    if (isEmptyMeso(entry as never)) return false;
     return true;
   });
 }

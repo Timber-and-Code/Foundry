@@ -183,7 +183,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     // ended it. Cycles ended from this drawer left no archive entry at all,
     // and the next meso opened with no history for lifts trained for months.
     try {
-      archiveCurrentMeso(saved);
+      archiveCurrentMeso(saved, { status: 'abandoned' });
     } catch (e) {
       console.warn('[Foundry]', 'archiveCurrentMeso failed on new-meso start', e);
     }

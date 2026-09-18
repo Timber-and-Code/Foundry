@@ -109,7 +109,7 @@ export default function ResumptionSheet({
       // MesoCompleteSheet uses — App's foundry:new-meso listener resets
       // state and routes to SetupPage.
       try {
-        archiveCurrentMeso(profile);
+        archiveCurrentMeso(profile, { status: 'abandoned' });
       } catch (e) {
         console.warn('[Foundry]', 'archiveCurrentMeso failed', e);
       }

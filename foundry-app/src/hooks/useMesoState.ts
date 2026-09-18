@@ -160,7 +160,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
   };
 
   const handleReset = () => {
-    archiveCurrentMeso(profile, { generateProgram, EXERCISE_DB: getExerciseDB() });
+    archiveCurrentMeso(profile, { generateProgram, EXERCISE_DB: getExerciseDB(), status: 'abandoned' });
     resetMeso();
     store.remove('foundry:profile');
     store.remove('foundry:storedProgram');

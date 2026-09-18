@@ -253,6 +253,8 @@ export interface BodyWeightEntry {
 
 export interface ArchiveEntry {
   id: number | string;
+  /** 'abandoned' = ended early. Absent on entries written before 2.15.6. */
+  status?: string;
   profile?: Partial<Profile> & Record<string, unknown>;
   builtBy?: 'ai' | 'manual';
   completedAt?: string;
