@@ -197,6 +197,7 @@ export default function SaveProgressSheet({
 
   return (
     <div
+      className="fd-sheet-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -215,12 +216,13 @@ export default function SaveProgressSheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="fd-sheet-panel"
         style={{
           background: 'var(--bg-card)',
           borderTop: '1px solid var(--border)',
           borderRadius: `${tokens.radius.xl}px ${tokens.radius.xl}px 0 0`,
           padding: '28px 24px 32px',
-          maxWidth: 480,
+          maxWidth: 'var(--sheet-max)',
           width: '100%',
           boxSizing: 'border-box',
           maxHeight: '100%',

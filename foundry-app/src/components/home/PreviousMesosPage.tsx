@@ -101,6 +101,9 @@ export default function PreviousMesosPage({ goBack }: PreviousMesosPageProps) {
             >
               Every past meso — lifts by muscle, cardio, PRs.
             </div>
+            {/* Cards tile two-up on regular+ widths (display:contents on
+                phones). See .fd-pm-grid in responsive/progress.css. */}
+            <div className="fd-pm-grid">
             {previousMesos.map((m) => {
               const open = expandedMeso === m.id;
               const title = m.number == null ? 'Ended early' : `Meso ${String(m.number).padStart(2, '0')}`;
@@ -316,6 +319,7 @@ export default function PreviousMesosPage({ goBack }: PreviousMesosPageProps) {
                 </div>
               );
             })}
+            </div>
           </>
         )}
       </div>

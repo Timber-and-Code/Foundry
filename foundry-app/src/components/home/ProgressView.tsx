@@ -215,6 +215,7 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
         <div style={{ padding: '10px 16px 0' }}>
           {hasChart ? (
             <>
+              <div style={{ position: 'relative' }}>
               <svg
                 width="100%"
                 viewBox={`0 0 ${W} ${H}`}
@@ -258,12 +259,26 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
                   </>
                 )}
                 <circle
+                  className="fd-bw-dot-svg"
                   cx={toX(bwLog.length - 1)}
                   cy={toY(latest.weight)}
                   r="4"
                   fill="var(--accent)"
                 />
               </svg>
+              {/* The chart stretches horizontally (preserveAspectRatio none),
+                  which turns the SVG dot into an oval once the card is much
+                  wider than the 280-unit viewBox (roomy/tablet widths). This
+                  HTML dot replaces it there; hidden on phones. */}
+              <span
+                className="fd-bw-dot"
+                aria-hidden="true"
+                style={{
+                  left: `${(toX(bwLog.length - 1) / W) * 100}%`,
+                  top: toY(latest.weight),
+                }}
+              />
+              </div>
               <div
                 style={{
                   display: 'flex',
@@ -614,11 +629,15 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
 
   return (
     <div>
-      <div style={{ padding: '0 16px 24px' }}>
+      {/* Wide screens (≥1000px) lay each sub-tab out in two columns via the
+          .fd-pv-* wrappers (display:contents below that, so the phone layout
+          is the same single column). See responsive/progress.css. */}
+      <div className="fd-pv-body" style={{ padding: '0 16px 24px' }}>
         {/* Sub-tab switcher — pill style segmented control */}
         <div
           role="tablist"
           aria-label="Progress view"
+          className="fd-pv-switch"
           style={{
             display: 'flex',
             gap: 4,
@@ -664,7 +683,7 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
         {progressTab === 'week' && (
         <>
         {/* Week summary — header + weekly workout bar */}
-        <div style={{ marginBottom: 16 }}>
+        <div className="fd-pv-a" style={{ marginBottom: 16 }}>
           <div
             style={{
               fontSize: 14,
@@ -718,6 +737,7 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
 
         {progressTab === 'history' && (
         <>
+        <div className="fd-pv-a">
         {/* Meso session bar + N/M headline (replaces old TOTAL SESSIONS stat) */}
         <div
           style={{
@@ -765,7 +785,9 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
         ) : (
           <DurationChart />
         )}
+        </div>
 
+        <div className="fd-pv-b">
         {/* Lifts by muscle — per-muscle start → current + PR grid */}
         {liftsByMuscle.length > 0 && (
           <div style={{ marginBottom: 16 }}>
@@ -989,12 +1011,13 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
             </div>
           );
         })()}
+        </div>
 
         </>
         )}
 
         {progressTab === 'week' && (
-        <>
+        <div className="fd-pv-b">
         {/* Current weights by day — moved to Week tab */}
         <div
           style={{
@@ -1283,11 +1306,11 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
         >
           Analytics Dashboard
         </button>
-        </>
+        </div>
         )}
 
         {progressTab === 'history' && (
-        <>
+        <div className="fd-pv-c">
         {/* Cardio History */}
         {(() => {
           const cardioKeys = store.keys('foundry:cardio:session:');
@@ -1401,7 +1424,7 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
         >
           Previous Meso Cycles →
         </button>
-        </>
+        </div>
         )}
 
       </div>
