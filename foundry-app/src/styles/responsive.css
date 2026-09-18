@@ -1,0 +1,194 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Responsive layout — iPad, large iPhones, foldables.
+
+   EVERYTHING here keys off AVAILABLE WIDTH, never the device. The same
+   breakpoints serve an iPad in any orientation, an iPad in Split View /
+   Slide Over (which hands us phone-sized widths — those get the phone
+   layout, correctly), and any unfolded width in between.
+
+     compact   < 700px   the phone layout. Every token below resolves to the
+                         exact value the phone UI was built with, so phones
+                         (≤ 440pt) and narrow multitasking panes render
+                         pixel-identical to before this file existed.
+     regular   ≥ 700px   side rail replaces the bottom tab bar; content gets
+                         a wider single column; sheets become centered dialogs.
+     wide      ≥ 1000px  dashboards (Home, Progress, Explore, setup review)
+                         go multi-column.
+
+   Components are styled with inline styles, which a stylesheet can't beat on
+   specificity. So the rule in this file is: the wide-screen overrides below
+   use !important, and they live ONLY inside min-width media queries — they
+   can never reach a phone. Width tokens (the --*-max vars) are the other
+   mechanism: inline styles reference them, and on compact they resolve to
+   the old literal value.
+   ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Width of the navigation rail. 0 unless the rail is actually on screen
+     (html.fd-has-rail at regular+), so offsets computed from it are no-ops
+     everywhere else. */
+  --rail-w: 0px;
+  /* The app shell. On compact the whole app is a 480 column (unchanged). */
+  --shell-max: 480px;
+  /* Default single content column (tabs, workout day, settings). */
+  --col-max: 480px;
+  /* Dashboard width — Home / Progress / Explore / setup review can go
+     multi-column inside it on wide screens. */
+  --wide-max: 480px;
+  /* Forms and short single-purpose steps (setup questions, Essentials). */
+  --form-max: 480px;
+  /* Sheets / dialogs presented over content. */
+  --sheet-max: 480px;
+}
+
+@media (min-width: 700px) {
+  :root {
+    --shell-max: none;
+    --col-max: 720px;
+    --wide-max: 720px;
+    --form-max: 560px;
+    --sheet-max: 560px;
+  }
+  html.fd-has-rail { --rail-w: 88px; }
+}
+
+@media (min-width: 1000px) {
+  :root {
+    --wide-max: 1120px;
+  }
+}
+
+/* ── Column helpers ─────────────────────────────────────────────────────── */
+.fd-col  { width: 100%; max-width: var(--col-max);  margin-left: auto; margin-right: auto; }
+.fd-wide { width: 100%; max-width: var(--wide-max); margin-left: auto; margin-right: auto; }
+.fd-form { width: 100%; max-width: var(--form-max); margin-left: auto; margin-right: auto; }
+
+/* ── Grids that only exist on wide screens ──────────────────────────────
+   On compact these are plain blocks / pass-through wrappers, so the phone
+   layout is untouched. */
+.fd-contents { display: contents; }
+
+@media (min-width: 1000px) {
+  .fd-grid-2 {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  .fd-grid-2 > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+  .fd-grid-3 {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+  .fd-grid-3 > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+  .fd-span-all { grid-column: 1 / -1; }
+}
+
+/* ── Navigation: bottom tab bar → side rail ─────────────────────────────── */
+@media (min-width: 700px) {
+  .fd-tabbar {
+    top: var(--app-header-bottom, 79px) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    width: var(--rail-w) !important;
+    max-width: none !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 4px;
+    padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-left: env(safe-area-inset-left, 0px) !important;
+    border-top: none !important;
+    border-right: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    background: #0f0f0f !important;
+  }
+  .fd-tabbar > button {
+    flex: 0 0 auto !important;
+    padding: 12px 0 !important;
+    min-height: 64px;
+  }
+  /* The tab content no longer needs to clear a 70px bottom bar. */
+  .fd-home-root { padding-bottom: 48px !important; }
+}
+
+/* ── Sheets: bottom sheet on compact → centered dialog on regular+ ─────── */
+@media (min-width: 700px) {
+  .fd-sheet-overlay {
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 32px 24px !important;
+  }
+  .fd-sheet-panel {
+    max-width: var(--sheet-max) !important;
+    width: 100% !important;
+    border-radius: 20px !important;
+    border: 1px solid var(--border) !important;
+    max-height: min(86vh, 900px) !important;
+    box-shadow: var(--shadow-xl), 0 24px 80px rgba(0, 0, 0, 0.5);
+    margin: 0 auto !important;
+  }
+  /* The drag handle is a phone affordance — meaningless on a dialog. */
+  .fd-sheet-panel .fd-sheet-handle { display: none !important; }
+
+  /* Full-screen takeovers (a whole screen, not a sheet) become a large
+     centered card: the backdrop stays full-bleed, the content is framed. */
+  .fd-takeover-overlay {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 32px 24px !important;
+  }
+  .fd-takeover-panel {
+    max-width: var(--col-max) !important;
+    width: 100% !important;
+    max-height: min(92vh, 1100px) !important;
+    border-radius: 24px !important;
+    border: 1px solid var(--border) !important;
+    overflow-y: auto !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+    margin: 0 auto !important;
+  }
+}
+
+/* ── Fixed bottom CTA bars ───────────────────────────────────────────────
+   On compact they span the 480 shell. On regular+ they stay pinned to the
+   bottom but only as wide as the content column they belong to (and clear
+   of the rail). Apply to the FIXED element; its inner content is free. */
+@media (min-width: 700px) {
+  .fd-fixed-col {
+    left: calc(var(--rail-w) + (100% - var(--rail-w)) / 2) !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: calc(100% - var(--rail-w)) !important;
+    max-width: var(--col-max) !important;
+  }
+  .fd-fixed-form {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: 100% !important;
+    max-width: var(--form-max) !important;
+  }
+}
+
+/* ── Home tab: Today card left, supporting cards right (wide) ─────────── */
+.fd-home-split, .fd-home-pre, .fd-home-main, .fd-home-post { display: contents; }
+@media (min-width: 1000px) {
+  .fd-home-split {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-rows: auto 1fr;
+    column-gap: 20px;
+    row-gap: 12px;
+    align-items: start;
+  }
+  .fd-home-main { display: flex; flex-direction: column; gap: 12px; grid-column: 1; grid-row: 1 / span 2; }
+  .fd-home-pre  { display: flex; flex-direction: column; gap: 12px; grid-column: 2; grid-row: 1; }
+  .fd-home-post { display: flex; flex-direction: column; gap: 12px; grid-column: 2; grid-row: 2; }
+  .fd-home-pre:empty { display: none; }
+  /* The column split replaces the divider between primary and secondary. */
+  .fd-home-post > .fd-section-divider { display: none; }
+}

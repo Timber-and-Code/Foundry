@@ -1,0 +1,3 @@
+/* Responsive overrides — workout. Conventions: see ../responsive.css header.
+   Wide-only rules live inside min-width media queries and may use !important
+   to beat inline styles; nothing here may change the compact (<700px) layout. */

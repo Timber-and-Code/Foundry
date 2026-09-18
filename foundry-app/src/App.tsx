@@ -811,7 +811,9 @@ function App() {
           background: 'var(--bg-root)',
           color: 'var(--text-primary)',
           fontFamily: "'Inter',system-ui,sans-serif",
-          maxWidth: 480,
+          // 480 on compact (the phone column, unchanged); full-bleed on
+          // regular+ widths, where each route sizes its own column below.
+          maxWidth: 'var(--shell-max)',
           margin: '0 auto',
         }}
       >
@@ -865,7 +867,11 @@ function App() {
         )}
 
         {/* Views */}
-        <main id="main-content">
+        {/* Home's tabs size their own columns (dashboards go wide); every
+            other route is a single reading column. Both are 480 on compact.
+            --rail-w is non-zero only while Home's side rail is on screen. */}
+        <main id="main-content" style={{ paddingLeft: 'var(--rail-w)' }}>
+        <div className={isHome ? undefined : 'fd-col'}>
         <Routes>
           <Route
             path="/"
@@ -931,6 +937,7 @@ function App() {
           <Route path="/friend/:code" element={<FriendInvitePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </div>
         </main>
 
         {showTour && !v2 && (

@@ -35,6 +35,7 @@ import FriendsTab from '../social/FriendsTab';
 import WorkoutSplash from '../workout/WorkoutSplash';
 import RebuildDayModal from '../workout/RebuildDayModal';
 import type { Profile, TrainingDay } from '../../types';
+import { useIsRegularWidth } from '../../hooks/useMediaQuery';
 
 interface HomeViewProps {
   tabRef: React.MutableRefObject<((key: string) => void) | null>;
@@ -84,6 +85,19 @@ function HomeView({
     window.scrollTo(0, 0);
   }, []);
   if (tabRef) tabRef.current = goTo;
+
+  // The tab bar shows on the five root tabs only (sub-views like Analytics
+  // have their own back button). On regular+ widths it renders as a side
+  // rail; html.fd-has-rail turns on --rail-w so the page column, fixed CTAs
+  // and toasts shift clear of it. Pure CSS does the restyle — this flag only
+  // exists so the offset is off whenever the rail isn't actually mounted.
+  const showTabBar = ['landing', 'progress', 'schedule', 'friends', 'explore'].includes(tab);
+  const isRail = useIsRegularWidth();
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('fd-has-rail', showTabBar);
+    return () => root.classList.remove('fd-has-rail');
+  }, [showTabBar]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -681,7 +695,7 @@ function HomeView({
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div style={{ paddingBottom: 140 }}>
+    <div className="fd-home-root" style={{ paddingBottom: 140 }}>
       {/* Global overlays */}
       {showReset && <ResetDialog />}
       <AddWorkoutModal />
@@ -827,7 +841,7 @@ function HomeView({
 
       {/* ── Tab content ── */}
       {tab === 'landing' && (
-        <>
+        <div className="fd-wide">
           <HomeTab
             profile={profile}
             activeDays={activeDays}
@@ -864,27 +878,32 @@ function HomeView({
 
           {/* Social lives in the Friends tab now (2.13.0) — the old
               FriendsSection strip and Share/Join buttons moved there. */}
-        </>
+        </div>
       )}
 
       {tab === 'progress' && (
-        <ProgressTab
-          displayWeek={displayWeek}
-          completedDays={completedDays}
-          activeDays={activeDays}
-          goTo={goTo}
-        />
+        <div className="fd-wide">
+          <ProgressTab
+            displayWeek={displayWeek}
+            completedDays={completedDays}
+            activeDays={activeDays}
+            goTo={goTo}
+          />
+        </div>
       )}
 
       {tab === 'analytics' && (
-        <AnalyticsView
-          completedDays={completedDays}
-          activeDays={activeDays}
-          goBack={() => goTo('progress')}
-        />
+        <div className="fd-wide">
+          <AnalyticsView
+            completedDays={completedDays}
+            activeDays={activeDays}
+            goBack={() => goTo('progress')}
+          />
+        </div>
       )}
 
       {tab === 'schedule' && (
+        <div className="fd-col">
         <ScheduleTab
           profile={profile}
           activeDays={activeDays}
@@ -915,43 +934,53 @@ function HomeView({
           setAddWorkoutType={setAddWorkoutType}
           setAddWorkoutDayType={setAddWorkoutDayType}
         />
+        </div>
       )}
 
       {['overview', 'history'].includes(tab) && (
-        <MesoOverview
-          tab={tab}
-          goBack={goBack}
-          goTo={goTo}
-          activeDays={activeDays}
-          completedDays={completedDays}
-          profile={profile}
-          currentWeek={displayWeek}
-        />
+        <div className="fd-wide">
+          <MesoOverview
+            tab={tab}
+            goBack={goBack}
+            goTo={goTo}
+            activeDays={activeDays}
+            completedDays={completedDays}
+            profile={profile}
+            currentWeek={displayWeek}
+          />
+        </div>
       )}
 
       {tab === 'explore' && (
-        <ExplorePage
-          profile={profile}
-          onStartProgram={(newProfile) => {
-            saveProfile(newProfile as unknown as Profile);
-            window.location.reload();
-          }}
-          onProfileUpdate={onProfileUpdate}
-        />
+        <div className="fd-wide">
+          <ExplorePage
+            profile={profile}
+            onStartProgram={(newProfile) => {
+              saveProfile(newProfile as unknown as Profile);
+              window.location.reload();
+            }}
+            onProfileUpdate={onProfileUpdate}
+          />
+        </div>
       )}
 
       {tab === 'friends' && (
-        <FriendsTab
-          onShareProgram={() => setShowShare(true)}
-          onJoinFriend={() => setShowJoin(true)}
-        />
+        <div className="fd-col">
+          <FriendsTab
+            onShareProgram={() => setShowShare(true)}
+            onJoinFriend={() => setShowJoin(true)}
+          />
+        </div>
       )}
 
-      {/* ── Bottom tab bar ── */}
-      {['landing', 'progress', 'schedule', 'friends', 'explore'].includes(tab) && (
+      {/* ── Bottom tab bar (compact) / side rail (regular+, see
+          responsive.css .fd-tabbar) ── */}
+      {showTabBar && (
         <nav
           role="tablist"
           aria-label="Main navigation"
+          aria-orientation={isRail ? 'vertical' : 'horizontal'}
+          className="fd-tabbar"
           style={{
             position: 'fixed',
             bottom: 0,

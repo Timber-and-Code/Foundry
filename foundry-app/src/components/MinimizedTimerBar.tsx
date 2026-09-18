@@ -165,7 +165,8 @@ export default function MinimizedTimerBar({ restTimer, onTap }: MinimizedTimerBa
       style={{
         position: 'fixed',
         bottom: 80,
-        left: 16,
+        // Clear of the side rail on regular+ widths (--rail-w is 0 otherwise).
+        left: 'calc(16px + var(--rail-w))',
         right: 16,
         maxWidth: 388,
         margin: '0 auto',
