@@ -251,6 +251,7 @@ export default function FriendsSection({ alwaysShow = true }: FriendsSectionProp
           mesoId={undefined}
           totalWeeks={0}
           daysPerWeek={0}
+          friendship={{ myShareLevel: dashboardFriend.myShareLevel }}
         />
       )}
     </div>

@@ -323,6 +323,9 @@ export interface Friend {
   /** Their share_level toward the viewer — governs whether the dashboard
    *  can render weights/BW. */
   shareLevel: MesoShareLevel;
+  /** The viewer's share_level toward this friend (the viewer's own row) —
+   *  what the friend is allowed to see. */
+  myShareLevel: MesoShareLevel;
   /** Friend's currently active mesocycle, if any. Resolved by
    *  listFriends for the Home tile labels. */
   activeMesoId: string | null;
