@@ -2,6 +2,7 @@ import React from 'react';
 import { tokens } from '../../styles/tokens';
 import { ageFromDob } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
+import EquipmentPicker from './EquipmentPicker';
 import { GOAL_OPTIONS } from '../../data/constants';
 import FoundryBanner from '../shared/FoundryBanner';
 
@@ -649,89 +650,11 @@ export default function AutoBuilderFlow({
         >
           Available equipment *
         </label>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 8,
-            marginTop: 8,
-          }}
-        >
-          {[
-            'barbell',
-            'dumbbell',
-            'bodyweight',
-            'kettlebell',
-            'band',
-            'machine',
-            'cable',
-          ].map((val) => {
-            const names: Record<string, string> = {
-              barbell: 'Barbell',
-              dumbbell: 'Dumbbells',
-              bodyweight: 'Bodyweight',
-              kettlebell: 'Kettlebell',
-              band: 'Bands',
-              machine: 'Machines',
-              cable: 'Cable',
-            };
-            const sel = autoForm.equipment.includes(val);
-            return (
-              <button
-                key={val}
-                onClick={() => toggleAutoEquip(val)}
-                className="btn-toggle"
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: tokens.radius.md,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  background: sel ? 'rgba(var(--accent-rgb),0.14)' : 'var(--bg-card)',
-                  border: `1px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
-                  transition: 'all 0.15s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                <div
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: tokens.radius.sm,
-                    flexShrink: 0,
-                    border: `1.5px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
-                    background: sel ? 'var(--accent)' : 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {sel && (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                      <path
-                        d="M2 5l2 2 4-4"
-                        stroke="#fff"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: sel ? 'var(--accent)' : 'var(--text-primary)',
-                  }}
-                >
-                  {names[val]}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <EquipmentPicker
+          selected={autoForm.equipment}
+          onToggle={toggleAutoEquip}
+          onSetAll={(values) => setAuto('equipment', values)}
+        />
       </div>
 
       {/* Start date — a planned meso starts on the day it's started */}
@@ -872,13 +795,13 @@ export default function AutoBuilderFlow({
         className="btn-primary"
         style={{
           width: '100%',
-          padding: '20px',
+          padding: '16px',
           borderRadius: tokens.radius.md,
           cursor: aiLoading ? 'not-allowed' : 'pointer',
           background: 'var(--btn-primary-bg)',
           border: '1px solid var(--btn-primary-border)',
           color: 'var(--btn-primary-text)',
-          fontSize: 17,
+          fontSize: 15,
           fontWeight: 800,
           letterSpacing: '0.04em',
           boxShadow: '0 4px 24px rgba(var(--accent-rgb),0.35)',

@@ -553,7 +553,7 @@ export default function CardioSetupFlow({
               onComplete(pendingProfile);
             }}
             style={{
-              padding: '18px',
+              padding: '16px',
               borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               fontSize: 14,
@@ -572,7 +572,7 @@ export default function CardioSetupFlow({
             }}
             className="btn-primary"
             style={{
-              padding: '18px',
+              padding: '16px',
               borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               fontSize: 15,
