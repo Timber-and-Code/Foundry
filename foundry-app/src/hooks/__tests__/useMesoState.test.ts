@@ -211,7 +211,7 @@ describe('useMesoState', () => {
 
     expect(mockStoreUtils.archiveCurrentMeso).toHaveBeenCalledWith(
       defaultProfile,
-      { generateProgram: mockProgram.generateProgram, EXERCISE_DB: mockExercises.EXERCISE_DB },
+      { generateProgram: mockProgram.generateProgram, EXERCISE_DB: mockExercises.EXERCISE_DB, status: 'abandoned' },
     );
     expect(mockStoreUtils.resetMeso).toHaveBeenCalled();
     expect(mockConstants.resetMesoCache).toHaveBeenCalled();

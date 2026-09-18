@@ -40,13 +40,17 @@ const CARDS: CardDef[] = [
  * user has completed the final week of their current meso and no new
  * meso is queued. NOT dismissable — the whole point is "what's next".
  *
- * Each card fires one of three window events that App.tsx listens for:
- *   foundry:repeat-meso    → archive + retain meso_transition → SetupPage
- *   foundry:new-meso       → archive + clear meso_transition → SetupPage
- *   foundry:browse-samples → archive + clear + navigate to Explore Samples
+ * Repeat and Build new are NON-DESTRUCTIVE: they open setup on top of the
+ * finished meso (`foundry:build-next-meso`), which is only archived and
+ * retired when the new one starts — same path as a meso planned during the
+ * deload. Backing out, or closing the app mid-setup, lands back here with
+ * the meso and its summary intact. Archiving on tap used to wipe the
+ * session keys up front while the profile survived, so any exit restarted
+ * the SAME program at week 1 and the summary was gone.
  *
- * Archiving happens inline so the transition context is always fresh at
- * the moment of choice.
+ *   foundry:build-next-meso   → SetupPage (after-meso) → startPlannedMeso
+ *   foundry:view-meso-summary → reopen the end-of-meso recap
+ *   foundry:browse-samples    → archive + clear + navigate to Explore Samples
  */
 export default function MesoCompleteSheet({ profile }: MesoCompleteSheetProps) {
   // A meso planned during the deload goes first and starts in one tap. App
@@ -63,6 +67,10 @@ export default function MesoCompleteSheet({ profile }: MesoCompleteSheetProps) {
   }, []);
 
   const handleChoice = (key: CardDef['key']) => {
+    if (key === 'repeat' || key === 'new') {
+      emit('foundry:build-next-meso', { fresh: key === 'new' });
+      return;
+    }
     try {
       archiveCurrentMeso(profile);
     } catch (e) {
@@ -73,13 +81,9 @@ export default function MesoCompleteSheet({ profile }: MesoCompleteSheetProps) {
     // now the only copy. Remote row keeps status='completed'; only the
     // active-meso pointer is detached.
     resetMesoAfterCompletion();
-    if (key === 'new' || key === 'sample') {
-      store.remove('foundry:meso_transition');
-    }
+    store.remove('foundry:meso_transition');
     store.remove('foundry:meso_complete_shown');
-    if (key === 'repeat') emit('foundry:repeat-meso');
-    else if (key === 'new') emit('foundry:new-meso');
-    else emit('foundry:browse-samples');
+    emit('foundry:browse-samples');
   };
 
   return (
@@ -246,6 +250,28 @@ export default function MesoCompleteSheet({ profile }: MesoCompleteSheetProps) {
             </button>
           ))}
         </div>
+
+        <button
+          type="button"
+          onClick={() => emit('foundry:view-meso-summary')}
+          style={{
+            display: 'block',
+            width: '100%',
+            marginTop: 20,
+            minHeight: 44,
+            padding: '12px 16px',
+            borderRadius: tokens.radius.lg,
+            border: `1px solid ${tokens.colors.accentBorder}`,
+            background: 'transparent',
+            color: tokens.colors.textSecondary,
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            cursor: 'pointer',
+          }}
+        >
+          VIEW MESO SUMMARY
+        </button>
       </div>
     </main>
   );

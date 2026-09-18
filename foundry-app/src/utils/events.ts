@@ -26,7 +26,10 @@ interface FoundryEventMap {
   'foundry:coach-mark-dismissed': { conceptId: string };
   'foundry:schedule-tab-opened': void;
   // Phase 2 — end-of-meso takeover sheet actions
-  'foundry:repeat-meso': void;
+  // Repeat / build new: opens setup WITHOUT ending the finished meso — it is
+  // archived only once the next one actually starts. fresh = drop carryover.
+  'foundry:build-next-meso': { fresh: boolean };
+  'foundry:view-meso-summary': void;
   'foundry:new-meso': void;
   'foundry:browse-samples': void;
   // Planning the next meso during the deload — HomeTab card → App

@@ -10,12 +10,15 @@ export interface CardioSetupFlowProps {
   onComplete: (profile: any) => void;
   /** Planning the next meso — the last step saves a plan, it doesn't start training. */
   planningNext?: boolean;
+  /** Built from the end-of-meso sheet and started immediately. */
+  startsNow?: boolean;
 }
 
 export default function CardioSetupFlow({
   pendingProfile,
   onComplete,
   planningNext = false,
+  startsNow = false,
 }: CardioSetupFlowProps) {
   const [cardioSchedule, setCardioSchedule] = useState<{ dayOfWeek: number; protocol: string }[]>([]);
   const [expandedCardioDow, setExpandedCardioDow] = useState<number | null>(null);
@@ -31,9 +34,10 @@ export default function CardioSetupFlow({
     'Saturday',
   ];
 
-  const liftingDows = new Set(
-    (pendingProfile?.workoutDays || []).map((d: number) => (d - 1 + 7) % 7)
-  );
+  // workoutDays is JS getDay() order (0 = Sunday), same as DAY_FULL and the
+  // schedule. This used to shift by one, so Mon/Tue/Thu/Fri lifting read as
+  // Sun/Mon/Wed/Thu and cardio suggestions could land on real lifting days.
+  const liftingDows = new Set<number>(pendingProfile?.workoutDays || []);
 
   const profileGoal = pendingProfile?.goal || '';
   const liftDayCount = (pendingProfile?.workoutDays || []).length;
@@ -549,7 +553,7 @@ export default function CardioSetupFlow({
               onComplete(pendingProfile);
             }}
             style={{
-              padding: '18px',
+              padding: '16px',
               borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               fontSize: 14,
@@ -568,7 +572,7 @@ export default function CardioSetupFlow({
             }}
             className="btn-primary"
             style={{
-              padding: '18px',
+              padding: '16px',
               borderRadius: tokens.radius.lg,
               cursor: 'pointer',
               fontSize: 15,
@@ -585,7 +589,7 @@ export default function CardioSetupFlow({
           >
             {cardioSchedule.length > 0
               ? `Add Plan (${cardioSchedule.length} day${cardioSchedule.length > 1 ? 's' : ''}) →`
-              : planningNext
+              : planningNext && !startsNow
                 ? 'Save plan →'
                 : 'Start Training →'}
           </button>

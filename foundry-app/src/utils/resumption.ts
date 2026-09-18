@@ -293,7 +293,7 @@ export function applyResumptionChoice(
 
   // restart_meso
   try {
-    archiveCurrentMeso(profile);
+    archiveCurrentMeso(profile, { status: 'abandoned' });
   } catch (e) {
     console.warn('[Foundry]', 'archiveCurrentMeso failed during restart', e);
   }

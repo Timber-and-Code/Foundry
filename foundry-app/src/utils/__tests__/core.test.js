@@ -258,6 +258,10 @@ function setLS(key, value) {
   localStorage.setItem(key, value);
 }
 
+// A meso with one logged working set — empty ones are not archived.
+const WORK = [{ d: 0, w: 0, data: { 0: { 0: { weight: 100, reps: 5 } } } }];
+const logWork = () => setLSJson('foundry:day0:week0', { 0: { 0: { weight: 100, reps: 5 } } });
+
 function setLSJson(key, obj) {
   localStorage.setItem(key, JSON.stringify(obj));
 }
@@ -1041,10 +1045,11 @@ describe('archiveCurrentMeso', () => {
   it('prepends new archive entry (most recent first)', () => {
     // Pre-seed existing archive with 2 entries
     const existing = [
-      { id: 1, archivedAt: '2024-01-01', profile: {}, sessions: [] },
-      { id: 2, archivedAt: '2024-01-15', profile: {}, sessions: [] },
+      { id: 1, archivedAt: '2024-01-01', profile: {}, sessions: WORK },
+      { id: 2, archivedAt: '2024-01-15', profile: {}, sessions: WORK },
     ];
     setLSJson('foundry:archive', existing);
+    logWork();
 
     archiveCurrentMeso(profile, {});
     const archive = JSON.parse(localStorage.getItem('foundry:archive') || '[]');
@@ -1059,9 +1064,10 @@ describe('archiveCurrentMeso', () => {
       id: i + 1,
       archivedAt: '2024-01-01',
       profile: {},
-      sessions: [],
+      sessions: WORK,
     }));
     setLSJson('foundry:archive', fullArchive);
+    logWork();
 
     archiveCurrentMeso(profile, {});
     const archive = JSON.parse(localStorage.getItem('foundry:archive') || '[]');
@@ -1114,6 +1120,7 @@ describe('archiveCurrentMeso', () => {
   });
 
   it('stores profile snapshot inside archive record', () => {
+    logWork();
     archiveCurrentMeso(profile, {});
     const archive = JSON.parse(localStorage.getItem('foundry:archive') || '[]');
     expect(archive[0].profile.experience).toBe('intermediate');

@@ -103,7 +103,7 @@ export default function PreviousMesosPage({ goBack }: PreviousMesosPageProps) {
             </div>
             {previousMesos.map((m) => {
               const open = expandedMeso === m.id;
-              const numStr = String(m.number).padStart(2, '0');
+              const title = m.number == null ? 'Ended early' : `Meso ${String(m.number).padStart(2, '0')}`;
               return (
                 <div
                   key={m.id}
@@ -139,14 +139,17 @@ export default function PreviousMesosPage({ goBack }: PreviousMesosPageProps) {
                           fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
                           fontSize: 20,
                           letterSpacing: '0.04em',
-                          color: 'var(--text-primary)',
+                          color: m.endedEarly ? 'var(--text-secondary)' : 'var(--text-primary)',
                           textTransform: 'uppercase',
                           lineHeight: 1,
                         }}
                       >
-                        Meso {numStr}
+                        {title}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {m.endedEarly && m.endedEarly.of > 0
+                          ? `Week ${m.endedEarly.week} of ${m.endedEarly.of} · `
+                          : ''}
                         {m.dates} · {m.phaseSummary}
                       </div>
                     </div>

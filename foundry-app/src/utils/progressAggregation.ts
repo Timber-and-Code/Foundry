@@ -25,6 +25,7 @@ import type {
   ArchiveEntry,
 } from '../types';
 import type { ExerciseEntry } from '../data/exerciseDB';
+import { isEndedEarly, weeksReached } from './archiveRules';
 
 // ─── Public display shapes ──────────────────────────────────────────────────
 
@@ -66,8 +67,13 @@ export interface PrevMesoMuscleGroup {
 export interface PrevMeso {
   /** Archive entry id (number or string). */
   id: string;
-  /** Meso index — newer = higher number. Latest archived = highest. */
-  number: number;
+  /**
+   * Meso index — newer = higher number. Only mesos run to the end are
+   * numbered; an early-ended one is null (it counts for data, not progress).
+   */
+  number: number | null;
+  /** Set when the meso was ended early: furthest week logged, of how many. */
+  endedEarly?: { week: number; of: number };
   /** Human date range, e.g. 'Jan 6 – Feb 23'. */
   dates: string;
   /** Phase summary, e.g. 'Hypertrophy block · 7 wk'. */
@@ -298,6 +304,7 @@ interface ArchiveSessionShape {
 
 interface ArchiveRecordShape {
   id: number | string;
+  status?: string;
   archivedAt?: string;
   profile?: Partial<{
     name: string;
@@ -676,9 +683,14 @@ export function aggregatePreviousMesos(
 ): PrevMeso[] {
   const out: PrevMeso[] = [];
   const total = archive.length;
+  // Newest first, so a meso's number is how many completed mesos are at or
+  // below it in the list.
+  let completedBelow = archive.filter((e) => e && !isEndedEarly(e as never)).length;
   for (let i = 0; i < total; i++) {
     const raw = archive[i] as unknown as ArchiveRecordShape;
     if (!raw) continue;
+    const early = isEndedEarly(raw as never);
+    const number = early ? null : completedBelow--;
     const dates = deriveDates(raw);
     const phaseSummary = derivePhaseSummary(raw);
     const liftsByMuscle = aggregateArchiveByMuscle(raw, exerciseDB);
@@ -688,7 +700,8 @@ export function aggregatePreviousMesos(
       raw.totalSessions ?? (raw.mesoWeeks ?? 0) * (raw.mesoDays ?? 0);
     out.push({
       id: String(raw.id ?? `meso-${i}`),
-      number: total - i,
+      number,
+      ...(early ? { endedEarly: { week: weeksReached(raw as never), of: raw.mesoWeeks ?? 0 } } : {}),
       dates,
       phaseSummary,
       liftsByMuscle,

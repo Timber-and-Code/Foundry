@@ -34,6 +34,7 @@ import {
   startPlannedMeso,
   trainedIdsIncludingCurrent,
 } from './utils/nextMeso';
+import { buildWeekRecap } from './utils/weekRecap';
 import { formatSplitName } from './utils/splitLabel';
 import { runDayDataV2Migration } from './utils/dayDataV2Migration';
 import { repairDriftedSplitType } from './utils/splitTypeRepair';
@@ -220,6 +221,10 @@ function App() {
   // Building the NEXT meso during the deload. Renders SetupPage in draft
   // mode in place of the app; nothing live changes until it's started.
   const [planningNextMeso, setPlanningNextMeso] = useState(false);
+  // Same builder, opened from the end-of-meso sheet (Repeat / Build new).
+  // The finished meso stays live underneath until the new one is started —
+  // in memory only, so closing the app mid-setup lands back on the sheet.
+  const [buildingAfterMeso, setBuildingAfterMeso] = useState(false);
   const [showSetup, setShowSetup] = useState(
     () => !!store.get('foundry:onboarded') && !store.get('foundry:profile'),
   );
@@ -487,20 +492,11 @@ function App() {
     setResumptionGap(gap);
   }, [profile, completedDays, activeDays, showMesoComplete]);
 
-  // Three takeover-sheet actions route here:
-  //   repeat-meso     → MesoCompleteSheet archived + kept meso_transition; land on Setup
-  //   new-meso        → MesoCompleteSheet archived + cleared transition; fresh Setup
+  // Takeover-sheet actions that route here (Repeat / Build new open setup
+  // via foundry:build-next-meso below instead — nothing is archived yet):
+  //   new-meso        → ResumptionSheet chose a fresh meso; land on Setup
   //   browse-samples  → archived + cleared; jump user to Explore tab samples
   useEffect(() => {
-    const unsubRepeat = on('foundry:repeat-meso', () => {
-      setShowMesoComplete(false);
-      resetMesoCache();
-      setProfile(null);
-      setCompletedDays(new Set());
-      setCurrentWeek(0);
-      setShowSetup(true);
-      navigate('/');
-    });
     const unsubNew = on('foundry:new-meso', () => {
       setShowMesoComplete(false);
       resetMesoCache();
@@ -525,7 +521,6 @@ function App() {
       requestAnimationFrame(() => homeTabRef.current?.('explore'));
     });
     return () => {
-      unsubRepeat();
       unsubNew();
       unsubSamples();
     };
@@ -541,6 +536,27 @@ function App() {
       window.scrollTo(0, 0);
     });
   }, [profile, activeDays]);
+
+  // Repeat / Build new from the end-of-meso sheet. Carryover context is read
+  // from the LIVE meso (Repeat) or dropped (Build new); the meso itself is
+  // only archived by startPlannedMeso once the lifter finishes the builder.
+  useEffect(() => {
+    return on('foundry:build-next-meso', ({ fresh }) => {
+      if (!profile) return;
+      if (fresh) store.remove('foundry:meso_transition');
+      else preparePlanningContext(profile, activeDays);
+      setBuildingAfterMeso(true);
+      window.scrollTo(0, 0);
+    });
+  }, [profile, activeDays]);
+
+  // Reopen the end-of-meso summary from the sheet. Read from the live
+  // session keys, which is why the sheet must not archive before a start.
+  useEffect(() => {
+    return on('foundry:view-meso-summary', () => {
+      setWeekCompleteModal(buildWeekRecap(getMeso().totalWeeks - 1, loadCompleted(getMeso())));
+    });
+  }, [setWeekCompleteModal]);
 
   // Start the planned meso — from the Home card (early, mid-deload) or from
   // MesoCompleteSheet once the deload is done. startPlannedMeso archives and
@@ -559,6 +575,7 @@ function App() {
           setCurrentWeek(loadCurrentWeek());
           setWeekCompleteModal(null);
           setShowMesoComplete(false);
+          setBuildingAfterMeso(false);
           navigate('/');
           emit('foundry:toast', { message: 'New meso started. Week 1 is ready.', type: 'success' });
         })
@@ -566,6 +583,8 @@ function App() {
           console.warn('[Foundry]', 'Failed to start planned meso', e);
           emit('foundry:toast', { message: "Couldn't start the planned meso. Try again.", type: 'error' });
           emit('foundry:start-planned-meso-failed');
+          // Back to the sheet, where the saved plan is now the lead card.
+          setBuildingAfterMeso(false);
         })
         .finally(() => {
           startingPlanned.current = false;
@@ -638,13 +657,14 @@ function App() {
     );
   }
 
-  if (profile && planningNextMeso) {
+  if (profile && (planningNextMeso || buildingAfterMeso)) {
     return (
       <React.Suspense fallback={suspenseFallback}>
         <SetupPage
-          mode="plan-next"
+          mode={buildingAfterMeso ? 'after-meso' : 'plan-next'}
           onCancel={() => {
             setPlanningNextMeso(false);
+            setBuildingAfterMeso(false);
             navigate('/');
           }}
           onComplete={(p: Profile) => {
@@ -661,6 +681,12 @@ function App() {
               return;
             }
             saveNextMesoDraft(p, program);
+            if (buildingAfterMeso) {
+              // Start it now: archive + retire the finished meso, install
+              // this exact program. The listener clears buildingAfterMeso.
+              emit('foundry:start-planned-meso');
+              return;
+            }
             setPlanningNextMeso(false);
             navigate('/');
             emit('foundry:toast', {

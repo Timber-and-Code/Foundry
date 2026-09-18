@@ -94,7 +94,7 @@ describe('ResumptionSheet', () => {
     const onDismiss = renderSheet();
     fireEvent.click(screen.getByText(/start a new meso/i));
 
-    expect(archiveMock).toHaveBeenCalledWith(PROFILE);
+    expect(archiveMock).toHaveBeenCalledWith(PROFILE, { status: 'abandoned' });
     expect(resetMesoMock).toHaveBeenCalledTimes(1);
     expect(flags.has('foundry:meso_transition')).toBe(false);
     expect(markHandledMock).toHaveBeenCalledWith(GAP);
