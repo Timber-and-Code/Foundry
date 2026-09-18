@@ -93,6 +93,29 @@ function HomeView({
   // exists so the offset is off whenever the rail isn't actually mounted.
   const showTabBar = ['landing', 'progress', 'schedule', 'friends', 'explore'].includes(tab);
   const isRail = useIsRegularWidth();
+
+  // Publish how much of the bottom edge the tab bar covers, so fixed bottom
+  // CTAs (cardio / mobility "Add to schedule") can sit on top of it instead
+  // of underneath it. 0 when the bar is a side rail or not shown.
+  const tabBarRO = useRef<ResizeObserver | null>(null);
+  const tabBarRef = useCallback(
+    (el: HTMLElement | null) => {
+      tabBarRO.current?.disconnect();
+      tabBarRO.current = null;
+      const root = document.documentElement;
+      if (!el || isRail) {
+        root.style.setProperty('--tabbar-clear', '0px');
+        return;
+      }
+      const publish = () => root.style.setProperty('--tabbar-clear', `${Math.round(el.getBoundingClientRect().height)}px`);
+      publish();
+      if (typeof ResizeObserver !== 'undefined') {
+        tabBarRO.current = new ResizeObserver(publish);
+        tabBarRO.current.observe(el);
+      }
+    },
+    [isRail],
+  );
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('fd-has-rail', showTabBar);
@@ -978,6 +1001,7 @@ function HomeView({
           responsive.css .fd-tabbar) ── */}
       {showTabBar && (
         <nav
+          ref={tabBarRef}
           role="tablist"
           aria-label="Main navigation"
           aria-orientation={isRail ? 'vertical' : 'horizontal'}
