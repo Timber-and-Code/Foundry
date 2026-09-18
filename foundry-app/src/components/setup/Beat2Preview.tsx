@@ -7,7 +7,7 @@ import { getExerciseDB } from '../../data/exerciseDB';
 import { store } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
 import type { Beat1Values } from './Beat1Essentials';
-import type { Profile } from '../../types';
+import type { Profile, TrainingDay } from '../../types';
 import { SplitBody, type SplitType } from './SplitSheet';
 import { MesoLengthBody, type MesoLength } from './MesoLengthSheet';
 import { SessionLengthBody, type SessionLength } from './SessionLengthSheet';
@@ -40,9 +40,13 @@ const SESSION_DURATION: Record<SessionLength, number> = {
  * Chip row opens bottom sheets (Split / Length / Session). The
  * DayAccordion renders the current program shape in real time, driven
  * by a deterministic client-side `generateProgram(profile, DB)` call
- * whenever any beat-level selection changes. The AI refinement runs
- * once at save time and replaces the day list with a coach-tuned
- * version; on failure we fall back to the deterministic build.
+ * whenever any beat-level selection changes.
+ *
+ * The coach pass (AI) runs BEFORE saving and lands in this same list, so the
+ * lifter reviews — and can swap — the coach-tuned program. Save installs
+ * exactly what is on screen; nothing is replaced after approval. (It used to
+ * run at save time and overwrite the reviewed days with its own.) Changing
+ * split / length / session drops the tuning, since it no longer matches.
  */
 export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2Props) {
   const [split, setSplit] = useState<SplitType>('upper_lower');
@@ -50,6 +54,7 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
   const [session, setSession] = useState<SessionLength>('standard');
   // One-open-at-a-time: clicking any bar collapses the others. Null = all closed.
   const [openBar, setOpenBar] = useState<'split' | 'session' | 'length' | null>(null);
+  const [saveError, setSaveError] = useState('');
 
   // Onboarding intake carries name/gender/goal/experience forward.
   const intake = useMemo(() => {
@@ -85,8 +90,15 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
 
   // Deterministic preview — fast, offline-safe. Recomputed on any change.
   const [days, setDays] = useState<DayBuild[]>([]);
+  // The program `days` was made from — carries each lift's prescription
+  // through to the saved program. Coach-tuned days replace it.
+  const [source, setSource] = useState<TrainingDay[] | undefined>(undefined);
+  const [tune, setTune] = useState<'idle' | 'tuning' | 'tuned' | 'failed'>('idle');
   useEffect(() => {
+    setTune('idle');
+    setSaveError('');
     if (split === 'custom') {
+      setSource(undefined);
       // Custom split seeds each day with an empty exercise list; the
       // user composes via the DayAccordion swap flow.
       setDays(
@@ -111,39 +123,26 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
         getExerciseDB() as unknown as Parameters<typeof generateProgram>[1],
         { trainedIds: getTrainedExerciseIds() },
       );
+      setSource(td);
       setDays(toDayBuilds(td));
     } catch {
+      setSource(undefined);
       setDays([]);
     }
   }, [profileDraft, split, beat1.workoutDays]);
 
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSaveError('');
-    const dbNow = getExerciseDB();
-
-    // Lock in the user's current preview as the deterministic program.
-    // We hydrate each DayBuild back into a full TrainingDay using
-    // EXERCISE_DB so the Home view can render the exact program the user
-    // saw — regardless of whether the AI refinement below succeeds.
-    const lockedDays = hydrateDayBuilds(days, dbNow as never);
-
-    const deterministicProfile: Profile = {
+  const handleSave = () => {
+    onSave({
       ...(profileDraft as Profile),
-      aiDays: lockedDays,
+      // Exactly the program on screen — coach-tuned or not, edits included.
+      aiDays: hydrateDayBuilds(days, getExerciseDB() as never, source),
       autoBuilt: split !== 'custom',
-    };
-    // Custom split is hand-built by the user. Skip the AI refinement entirely
-    // — calling it with split='ppl' (the prior fallback) overwrote the user's
-    // chosen days with a generic 3-day Push/Pull/Legs program.
-    if (split === 'custom') {
-      setSaving(false);
-      onSave(deterministicProfile);
-      return;
-    }
+    });
+  };
+
+  const handleTune = async () => {
+    setTune('tuning');
+    setSaveError('');
     try {
       const result = await callFoundryAI(
         {
@@ -157,27 +156,27 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
           goal,
           goalNote: '',
         },
-        dbNow as Parameters<typeof callFoundryAI>[1],
+        getExerciseDB() as Parameters<typeof callFoundryAI>[1],
       );
-      const aiProfile: Profile = {
-        ...deterministicProfile,
-        aiDays: result.days,
-      };
-      setSaving(false);
-      onSave(aiProfile);
+      if (!result.days?.some((d) => d.exercises?.length)) throw new Error('empty coach program');
+      setSource(result.days);
+      setDays(toDayBuilds(result.days));
+      setTune('tuned');
+      window.scrollTo(0, 0);
     } catch (err: unknown) {
-      // Graceful fallback — ship the deterministic program, surface a
-      // soft error inline so the user knows the coach pass didn't run.
-      setSaving(false);
       const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+      setTune('failed');
       setSaveError(
         isTimeout
-          ? 'Coach refinement timed out — saving the program we built instead.'
-          : "Coach refinement unavailable — saving the program we built instead.",
+          ? 'The coach pass timed out. This is the standard build — save it, or try the coach again.'
+          : "The coach pass isn't available right now. This is the standard build — save it, or try the coach again.",
       );
-      onSave(deterministicProfile);
     }
   };
+
+  // Custom splits are hand-built — no coach pass.
+  const needsTune = split !== 'custom' && tune !== 'tuned' && tune !== 'failed';
+  const busy = tune === 'tuning';
 
   return (
     <div
@@ -296,6 +295,25 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
 
       <PhaseBar variant="static" />
 
+      {tune === 'tuned' && (
+        <div
+          role="status"
+          style={{
+            marginTop: 16,
+            padding: '10px 12px',
+            borderRadius: tokens.radius.md,
+            border: `1px solid ${tokens.colors.accent}`,
+            background: 'rgba(232,101,26,0.10)',
+            fontSize: 12,
+            lineHeight: 1.5,
+            color: tokens.colors.textSecondary,
+          }}
+        >
+          <span style={{ fontWeight: 800, letterSpacing: '0.1em', color: tokens.colors.accent }}>COACH-TUNED</span>
+          {' · '}Your coach reworked this program. Review each day and swap anything you don't want — what you save is what you'll train.
+        </div>
+      )}
+
       <div style={{ marginTop: 18 }}>
         <DayAccordion
           days={days}
@@ -321,10 +339,30 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
         </div>
       )}
 
+      {needsTune && !busy && days.length > 0 && (
+        <button
+          type="button"
+          onClick={handleSave}
+          style={{
+            display: 'block',
+            margin: '18px auto 0',
+            background: 'transparent',
+            border: 'none',
+            color: tokens.colors.textMuted,
+            fontSize: 12,
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            minHeight: 44,
+          }}
+        >
+          Skip the coach — save this build
+        </button>
+      )}
+
       <button
         type="button"
-        onClick={handleSave}
-        disabled={saving || days.length === 0}
+        onClick={needsTune ? handleTune : handleSave}
+        disabled={busy || days.length === 0}
         style={{
           position: 'fixed',
           bottom: 16,
@@ -338,16 +376,16 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
           borderRadius: tokens.radius.xl,
-          background: saving ? 'rgba(232,101,26,0.35)' : tokens.colors.btnPrimaryBg,
+          background: busy ? 'rgba(232,101,26,0.35)' : tokens.colors.btnPrimaryBg,
           border: `1px solid ${tokens.colors.btnPrimaryBorder}`,
           color: tokens.colors.btnPrimaryText,
-          cursor: saving ? 'wait' : 'pointer',
-          boxShadow: saving ? 'none' : '0 4px 24px rgba(232,101,26,0.35)',
+          cursor: busy ? 'wait' : 'pointer',
+          boxShadow: busy ? 'none' : '0 4px 24px rgba(232,101,26,0.35)',
           zIndex: 5,
           opacity: days.length === 0 ? 0.5 : 1,
         }}
       >
-        {saving ? 'Building…' : 'Save program'}
+        {busy ? 'Coach is tuning…' : needsTune ? 'Coach-tune my program' : 'Save program'}
       </button>
     </div>
   );
