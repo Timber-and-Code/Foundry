@@ -8,22 +8,21 @@ import type { MesoShareLevel } from '../../types';
 interface FriendshipControlsProps {
   friendId: string;
   friendName: string;
-  /** What the viewer currently shares WITH this friend (the viewer's own row). */
+  /** The friendship's sharing level — mutual, the same for both people. */
   myShareLevel: MesoShareLevel;
   /** Called after the friendship is removed — the caller closes its sheet. */
   onRemoved: () => void;
 }
 
 const LEVELS: { value: MesoShareLevel; label: string; detail: string }[] = [
-  { value: 'full', label: 'Full', detail: 'Workouts, weights, reps and body weight' },
-  { value: 'basic', label: 'Basic', detail: 'Only whether you trained' },
+  { value: 'full', label: 'Full', detail: "You both see each other's workouts, weights, reps and body weight" },
+  { value: 'basic', label: 'Basic', detail: 'You both see only which days the other trained' },
 ];
 
 /**
- * The viewer's side of a friendship: what this friend can see, and a way
- * out. Both existed server-side (per-direction share_level, and a delete
- * trigger that drops the mirror row) but nothing in the app exposed them —
- * once connected, there was no way to stop sharing with someone.
+ * A friendship's controls: its sharing level (mutual — one level for both
+ * people, migration 014) and a way out. Nothing in the app exposed either
+ * before: once connected, there was no way to stop sharing with someone.
  */
 export default function FriendshipControls({ friendId, friendName, myShareLevel, onRemoved }: FriendshipControlsProps) {
   const [level, setLevel] = useState<MesoShareLevel>(myShareLevel);
@@ -76,8 +75,11 @@ export default function FriendshipControls({ friendId, friendName, myShareLevel,
           marginBottom: 8,
         }}
       >
-        What {first} can see
+        Sharing with {first}
       </div>
+      <p style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.5, color: 'var(--text-muted)' }}>
+        Sharing is mutual. Changing it changes what you both see.
+      </p>
       <div role="radiogroup" aria-labelledby="friendship-controls-title" style={{ display: 'grid', gap: 8 }}>
         {LEVELS.map((l) => {
           const on = level === l.value;

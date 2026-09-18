@@ -4610,8 +4610,7 @@ export async function removeFriend(friendUserId: string): Promise<boolean> {
 }
 
 /**
- * Update the caller's share_level toward a specific friend. RLS policy
- * restricts updates to rows where user_id = auth.uid().
+ * Set the sharing level of a friendship — applies to both people.
  */
 export async function updateFriendShareLevel(
   friendUserId: string,
@@ -4620,17 +4619,15 @@ export async function updateFriendShareLevel(
   try {
     const user = await getUser();
     if (!user) return false;
-    // Upsert, not update: a friendship accepted before migration 013 may be
-    // missing the caller's own row, and an update would match nothing and
-    // report success while the friend kept seeing nothing.
-    const { error } = await supabase
-      .from('user_friendships')
-      .upsert(
-        { user_id: user.id, friend_id: friendUserId, share_level: level },
-        { onConflict: 'user_id,friend_id' },
-      );
+    // Sharing is mutual: one level per friendship, written to BOTH rows
+    // server-side (migration 014). Also repairs a one-sided friendship from
+    // before 013, where the caller's own row was never created.
+    const { data, error } = await supabase.rpc('set_friend_share_level', {
+      p_friend_id: friendUserId,
+      p_share_level: level,
+    });
     if (error) throw error;
-    return true;
+    return data === true;
   } catch (e) {
     reportSyncFailure('update_friend_share_level', e);
     return false;

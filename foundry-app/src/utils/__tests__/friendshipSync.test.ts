@@ -54,12 +54,15 @@ describe('friendship sync', () => {
     expect(rpcMock).toHaveBeenCalledWith('remove_friend', { p_friend_id: 'them' });
   });
 
-  it("share level upserts the caller's own row (it may not exist yet)", async () => {
-    upsertMock.mockResolvedValue({ error: null });
+  it('share level is set for both people server-side', async () => {
+    rpcMock.mockResolvedValue({ data: true, error: null });
     expect(await updateFriendShareLevel('them', 'basic')).toBe(true);
-    expect(upsertMock).toHaveBeenCalledWith(
-      { user_id: 'me', friend_id: 'them', share_level: 'basic' },
-      { onConflict: 'user_id,friend_id' },
-    );
+    expect(rpcMock).toHaveBeenCalledWith('set_friend_share_level', { p_friend_id: 'them', p_share_level: 'basic' });
+    expect(upsertMock).not.toHaveBeenCalled();
+  });
+
+  it('reports failure when the server refuses (no friendship)', async () => {
+    rpcMock.mockResolvedValue({ data: false, error: null });
+    expect(await updateFriendShareLevel('stranger', 'full')).toBe(false);
   });
 });

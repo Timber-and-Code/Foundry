@@ -452,19 +452,19 @@ function EnterCodePanel({
               textAlign: 'center',
             }}
           >
-            Pick how much {preview.inviterName} and future mutual-friend
-            surfaces can see from you. You can change this later.
+            Pick how much you and {preview.inviterName} share with each other.
+            It's mutual, and either of you can change it later.
           </div>
 
           <ShareLevelOption
             title="Full"
-            subtitle="Completion + weights, reps, volume, PRs, bodyweight"
+            subtitle="You both see workouts, weights, reps, volume, PRs and body weight"
             selected={shareLevel === 'full'}
             onSelect={() => setShareLevel('full')}
           />
           <ShareLevelOption
             title="Basic"
-            subtitle="Completion only — friends see which days you trained, nothing else"
+            subtitle="You both see only which days the other trained"
             selected={shareLevel === 'basic'}
             onSelect={() => setShareLevel('basic')}
           />
