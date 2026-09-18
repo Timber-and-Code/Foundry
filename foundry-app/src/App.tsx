@@ -25,7 +25,15 @@ import {
 
 // Utils
 import { migrateKeys } from './utils/storage';
-import { on } from './utils/events';
+import { on, emit } from './utils/events';
+import { generateProgram } from './utils/program';
+import { getExerciseDB } from './data/exerciseDB';
+import {
+  preparePlanningContext,
+  saveNextMesoDraft,
+  startPlannedMeso,
+  trainedIdsIncludingCurrent,
+} from './utils/nextMeso';
 import { formatSplitName } from './utils/splitLabel';
 import { runDayDataV2Migration } from './utils/dayDataV2Migration';
 import { repairDriftedSplitType } from './utils/splitTypeRepair';
@@ -209,6 +217,9 @@ function App() {
   // yet — that's the "first meso build in progress" state, and should
   // survive reloads. Otherwise a page reload mid-setup lands on NoMesoShell
   // which auto-saves a generic profile when a sample program is selected.
+  // Building the NEXT meso during the deload. Renders SetupPage in draft
+  // mode in place of the app; nothing live changes until it's started.
+  const [planningNextMeso, setPlanningNextMeso] = useState(false);
   const [showSetup, setShowSetup] = useState(
     () => !!store.get('foundry:onboarded') && !store.get('foundry:profile'),
   );
@@ -520,6 +531,48 @@ function App() {
     };
   }, [navigate, setProfile, setCompletedDays, setCurrentWeek]);
 
+  // Plan the next meso (deload-week card). Seed the builders' carryover
+  // context from the LIVE meso first — nothing has been archived yet.
+  useEffect(() => {
+    return on('foundry:plan-next-meso', () => {
+      if (!profile) return;
+      preparePlanningContext(profile, activeDays);
+      setPlanningNextMeso(true);
+      window.scrollTo(0, 0);
+    });
+  }, [profile, activeDays]);
+
+  // Start the planned meso — from the Home card (early, mid-deload) or from
+  // MesoCompleteSheet once the deload is done. startPlannedMeso archives and
+  // retires the current meso, then installs the draft.
+  const startingPlanned = useRef(false);
+  useEffect(() => {
+    return on('foundry:start-planned-meso', () => {
+      if (startingPlanned.current) return;
+      startingPlanned.current = true;
+      void startPlannedMeso(profile)
+        .then((next) => {
+          if (!next) return;
+          resetMesoCache();
+          setProfile(loadProfile());
+          setCompletedDays(loadCompleted(getMeso()));
+          setCurrentWeek(loadCurrentWeek());
+          setWeekCompleteModal(null);
+          setShowMesoComplete(false);
+          navigate('/');
+          emit('foundry:toast', { message: 'New meso started. Week 1 is ready.', type: 'success' });
+        })
+        .catch((e) => {
+          console.warn('[Foundry]', 'Failed to start planned meso', e);
+          emit('foundry:toast', { message: "Couldn't start the planned meso. Try again.", type: 'error' });
+          emit('foundry:start-planned-meso-failed');
+        })
+        .finally(() => {
+          startingPlanned.current = false;
+        });
+    });
+  }, [profile, navigate, setProfile, setCompletedDays, setCurrentWeek, setWeekCompleteModal]);
+
   // Publish the header stack's real on-screen bottom edge as a CSS custom
   // property. DayView's fixed session bar pins to it. Positioning that bar
   // with assumed geometry (79px banner + env(safe-area-inset-top)) kept
@@ -579,6 +632,41 @@ function App() {
           onDone={() => {
             setOnboarded(true);
             setShowSetup(true);
+          }}
+        />
+      </React.Suspense>
+    );
+  }
+
+  if (profile && planningNextMeso) {
+    return (
+      <React.Suspense fallback={suspenseFallback}>
+        <SetupPage
+          mode="plan-next"
+          onCancel={() => {
+            setPlanningNextMeso(false);
+            navigate('/');
+          }}
+          onComplete={(p: Profile) => {
+            // Generate ONCE and keep the result: generateProgram shuffles,
+            // so the program started later must be this exact one.
+            const program = generateProgram(p, getExerciseDB() as never, {
+              trainedIds: trainedIdsIncludingCurrent(profile),
+            });
+            if (!program.some((d) => d.exercises && d.exercises.length > 0)) {
+              emit('foundry:toast', {
+                message: "Couldn't build that plan — the exercise library hasn't loaded. Try again.",
+                type: 'error',
+              });
+              return;
+            }
+            saveNextMesoDraft(p, program);
+            setPlanningNextMeso(false);
+            navigate('/');
+            emit('foundry:toast', {
+              message: 'Next meso planned. It starts when you finish your deload.',
+              type: 'success',
+            });
           }}
         />
       </React.Suspense>
@@ -746,10 +834,6 @@ function App() {
               setWeekCompleteModal(null);
               setOpenWeekly(true);
               navigate('/');
-            }}
-            onReset={() => {
-              setWeekCompleteModal(null);
-              handleReset();
             }}
           />
         )}
@@ -957,7 +1041,11 @@ function App() {
             it sits on top of whatever view is behind. Not dismissable — the
             sheet itself wires archive + transition handling for its 3
             action cards. */}
-        {showMesoComplete && (
+        {/* Held back while the final-week recap is up: the sheet sits above it
+            (z 400 vs 200) and would bury the recap the moment the meso ends.
+            Also held during a cool-down: the recap is parked then (see
+            deferredWeekComplete) and the sheet would cover the session. */}
+        {showMesoComplete && !weekCompleteModal && !location.pathname.startsWith('/mobility/') && (
           <React.Suspense fallback={null}>
             <MesoCompleteSheet profile={profile} />
           </React.Suspense>

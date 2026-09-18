@@ -23,10 +23,9 @@ interface WeekCompleteModalProps {
   profile: Profile;
   onDismiss: () => void;
   onViewSummary?: () => void;
-  onReset?: () => void;
 }
 
-export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSummary, onReset }: WeekCompleteModalProps) {
+export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSummary }: WeekCompleteModalProps) {
   if (modal.isFinal) {
     return (
       <div
@@ -275,8 +274,11 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
                 conservatively at ~85% of your peak weights.
               </div>
             </div>
+            {/* Dismissing reveals MesoCompleteSheet, which owns the choice of
+                what comes next and archives the meso as COMPLETED. This button
+                used to run handleReset, which marked it 'abandoned'. */}
             <button
-              onClick={onReset}
+              onClick={onDismiss}
               className="btn-primary"
               style={{
                 width: '100%',
@@ -290,23 +292,7 @@ export default function WeekCompleteModal({ modal, profile, onDismiss, onViewSum
                 color: '#000',
               }}
             >
-              Build Meso 2 →
-            </button>
-            <button
-              onClick={onDismiss}
-              style={{
-                width: '100%',
-                padding: '12px',
-                fontSize: 13,
-                fontWeight: 600,
-                borderRadius: tokens.radius.lg,
-                cursor: 'pointer',
-                border: '1px solid var(--border)',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              Close
+              What's next →
             </button>
           </div>
         </div>

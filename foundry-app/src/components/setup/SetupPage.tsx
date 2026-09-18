@@ -34,9 +34,19 @@ type V2Step = 'beat1' | 'beat2' | 'ready';
 
 interface SetupPageProps {
   onComplete: (profile: Profile) => void;
+  /**
+   * 'plan-next' builds the NEXT meso while the current one is still in its
+   * deload. Same builders, but the result is saved as a draft by the caller
+   * and nothing live changes — so it always takes the returning-lifter path
+   * and can be backed out of.
+   */
+  mode?: 'new' | 'plan-next';
+  /** Leave without building. Shown as Back on the first screen. */
+  onCancel?: () => void;
 }
 
-export default function SetupPage({ onComplete }: SetupPageProps) {
+export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupPageProps) {
+  const planningNext = mode === 'plan-next';
   const SPLIT_CONFIG = {
     ppl: {
       label: 'Push · Pull · Legs',
@@ -335,8 +345,13 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
         return;
       }
       // From any inner flow, back → path select. Path select has no earlier
-      // step (IntakeCard lives outside SetupPage now).
-      if (isAutoInputs) setPathMode(null);
+      // step (IntakeCard lives outside SetupPage now) — except when the
+      // caller can take us back out, e.g. planning the next meso.
+      if (isPathSelect) {
+        onCancel?.();
+        return;
+      }
+      setPathMode(null);
       window.scrollTo(0, 0);
     };
 
@@ -373,7 +388,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
               {title}
             </div>
           </div>
-          {pathMode !== null && (
+          {(pathMode !== null || onCancel) && (
             <button
               onClick={handleBack}
               style={{
@@ -417,7 +432,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
   // ════════════════════════════════════════════════════════
   // Phase 2 v2 state machine (Beat 1 → Beat 2 → ProgramReady)
   // ════════════════════════════════════════════════════════
-  const [setupV2] = useState<boolean>(() => shouldUseSetupV2());
+  const [setupV2] = useState<boolean>(() => !planningNext && shouldUseSetupV2());
   const [v2Step, setV2Step] = useState<V2Step>('beat1');
   const [beat1Values, setBeat1Values] = useState<Beat1Values | null>(null);
   const [v2Profile, setV2Profile] = useState<Profile | null>(null);
@@ -483,14 +498,14 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
         }}
       >
         {/* Foundry Banner */}
-        <FoundryBanner subtitle="MESOCYCLE SETUP" />
+        <FoundryBanner subtitle={planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'} />
         {/* Meso 2+ continuation banner */}
         {(() => {
           let t = null;
           try {
             t = JSON.parse(store.get('foundry:meso_transition') || 'null');
           } catch { /* JSON parse fallback */ }
-          if (!t) return null;
+          if (!t && !planningNext) return null;
           return (
             <div
               style={{
@@ -514,7 +529,7 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                     marginBottom: 2,
                   }}
                 >
-                  MESO 2 — CONTINUING YOUR PROGRESS
+                  {planningNext ? 'PLANNING YOUR NEXT MESO' : 'MESO 2 — CONTINUING YOUR PROGRESS'}
                 </div>
                 <div
                   style={{
@@ -523,7 +538,9 @@ export default function SetupPage({ onComplete }: SetupPageProps) {
                     lineHeight: 1.5,
                   }}
                 >
-                  Your previous settings are pre-loaded. Change anything you want, then build.
+                  {planningNext
+                    ? "This meso's settings are pre-loaded. Nothing changes until you start the new one — finish your deload, or tap Start now on Home."
+                    : 'Your previous settings are pre-loaded. Change anything you want, then build.'}
                 </div>
               </div>
             </div>

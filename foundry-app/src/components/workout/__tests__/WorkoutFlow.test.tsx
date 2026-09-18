@@ -264,19 +264,34 @@ describe('WorkoutFlow integration – useMesoState', () => {
     expect(result.current.weekCompleteModal!.isFinal).toBe(false);
   });
 
-  /* 4 */ it('weekCompleteModal has isFinal=true when last week completed', () => {
-    // With days: 2, totalWeeks: 2, isFinal is true when weekIdx === getMeso().totalWeeks === 2
+  /* 4 */ it('weekCompleteModal has isFinal=true when the deload (last, 0-indexed) week completes', () => {
+    // totalWeeks: 2 → weeks 0 and 1; week 1 is the deload and the last week.
+    // (This used to complete week 2 — a week that can't exist — which is how
+    // an off-by-one that kept the meso-complete flow from ever firing passed.)
     mocks.getMeso.mockReturnValue({ days: 2, totalWeeks: 2, workWeeks: 1 });
-    mocks.loadCompleted.mockReturnValue(new Set(['0:0', '1:0', '0:1', '1:1', '0:2']));
+    mocks.loadCompleted.mockReturnValue(new Set(['0:0', '1:0', '0:1']));
 
     const { result } = renderHook(() => useMesoState(defaultHookParams));
 
     act(() => {
-      result.current.handleComplete(1, 2);
+      result.current.handleComplete(1, 1);
     });
 
     expect(result.current.weekCompleteModal).not.toBeNull();
     expect(result.current.weekCompleteModal!.isFinal).toBe(true);
+  });
+
+  /* 4b */ it('the week before the deload is not final', () => {
+    mocks.getMeso.mockReturnValue({ days: 2, totalWeeks: 2, workWeeks: 1 });
+    mocks.loadCompleted.mockReturnValue(new Set(['0:0']));
+
+    const { result } = renderHook(() => useMesoState(defaultHookParams));
+
+    act(() => {
+      result.current.handleComplete(1, 0);
+    });
+
+    expect(result.current.weekCompleteModal!.isFinal).toBe(false);
   });
 
   /* 5 */ it('handleComplete increments currentWeek on week completion', () => {

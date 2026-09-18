@@ -195,7 +195,11 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
         } catch { /* JSON parse fallback — data optional */ }
       });
 
-      const isFinal = weekIdx === getMeso().totalWeeks;
+      // Weeks are 0-indexed and the deload is the last one, so the final week
+      // is totalWeeks - 1. This compared against totalWeeks — a week no route
+      // can reach — so the meso-complete recap and the "what's next" sheet
+      // never fired from a real completion.
+      const isFinal = weekIdx === getMeso().totalWeeks - 1;
 
       // Meso retrospective data (isFinal only)
       let mesoAnchorGains: AnchorGain[] = [];
