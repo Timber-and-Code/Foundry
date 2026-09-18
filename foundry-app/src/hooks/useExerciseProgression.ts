@@ -20,6 +20,11 @@
  *     enough rep compensation, flags a stall and exposes the target
  *     (last-week weight × reps) for the chip copy.
  *
+ * The stall warning is off in the programmed deload week: there a lighter
+ * bar IS the prescription (week 1's load, tapered), so "weight drop
+ * detected" told the lifter they were regressing for doing what the program
+ * asked. Same call anchorComparison makes for the completion summary.
+ *
  * Both gates require `weekIdx > 0` — week 0 has no prior week to compare
  * against. The banner additionally requires set 0 to still carry suggestion
  * flags (`suggested` or `repsSuggested`), so once the lifter edits the
@@ -48,6 +53,8 @@ export interface ExerciseProgressionInputs {
    *  ExerciseCard both load this from `foundry:day{N}:week{N-1}`. */
   prevWeekRaw: Record<string | number, Record<string, SetData>>;
   weekIdx: number;
+  /** Programmed deload week — a lighter bar is planned, not a stall. */
+  isDeload?: boolean;
 }
 
 export interface ProgressionBanner {
@@ -94,6 +101,7 @@ export function useExerciseProgression({
   weekData,
   prevWeekRaw,
   weekIdx,
+  isDeload = false,
 }: ExerciseProgressionInputs): ExerciseProgressionOutput {
   // Progression hint — derived from whether set 0 has suggested flags.
   // Lifted verbatim from ExerciseCard.tsx (commit 7c103dd, lines ~369-391).
@@ -147,14 +155,14 @@ export function useExerciseProgression({
       break;
     }
     // Stall if weight drops and reps don't increase enough to compensate
-    if (stallTarget && weight > 0) {
+    if (stallTarget && weight > 0 && !isDeload) {
       const prevRepsEquiv = stallTarget.r * (stallTarget.w / weight); // Reps equivalent at new weight
       if (weight < stallTarget.w - 2 && reps < prevRepsEquiv) {
         stallWarning = true;
       }
     }
     return { stallTarget, stallWarning };
-  }, [weekData, exIdx, prevWeekRaw, exercise.sets, exercise.id]);
+  }, [weekData, exIdx, prevWeekRaw, exercise.sets, exercise.id, isDeload]);
 
   return { progressionBanner, stallWarning, stallTarget };
 }

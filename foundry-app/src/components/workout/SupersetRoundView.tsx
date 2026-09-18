@@ -770,6 +770,7 @@ function SupersetMemberHeader({
     weekData,
     prevWeekRaw,
     weekIdx,
+    isDeload: weekIdx >= getMeso().totalWeeks - 1,
   });
 
   const repsRange = String(exercise.reps ?? '');

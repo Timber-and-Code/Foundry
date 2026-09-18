@@ -163,4 +163,18 @@ describe('useExerciseProgression', () => {
     expect(result.current.stallTarget).toEqual({ w: 30, r: 12 });
     expect(result.current.stallWarning).toBe(true);
   });
+
+  it('does not flag a stall in the deload week — lighter is the prescription', () => {
+    const args = {
+      exIdx: 0,
+      exercise: makeEx({ sets: 3 }),
+      weekData: { 0: { 0: { weight: 150, reps: 8 } } },
+      prevWeekRaw: { 0: { 0: { weight: 200, reps: 10 } } },
+      weekIdx: 6,
+    };
+    const working = renderHook(() => useExerciseProgression(args));
+    expect(working.result.current.stallWarning).toBe(true);
+    const deload = renderHook(() => useExerciseProgression({ ...args, isDeload: true }));
+    expect(deload.result.current.stallWarning).toBe(false);
+  });
 });

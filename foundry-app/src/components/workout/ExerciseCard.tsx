@@ -376,6 +376,7 @@ function ExerciseCard({
     weekData,
     prevWeekRaw,
     weekIdx,
+    isDeload: weekIdx >= getMeso().totalWeeks - 1,
   });
 
   // Onboarding v2: emit first-stall once per user when the stall warning
