@@ -552,13 +552,16 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
           background: 'var(--bg-root)',
           display: 'flex',
           flexDirection: 'column',
-          maxWidth: 480,
+          // Phones: the 480 column. Regular+: banner full-bleed, questions
+          // in a form column below.
+          maxWidth: 'var(--shell-max)',
           margin: '0 auto',
         }}
       >
         {/* Foundry Banner */}
         <FoundryBanner subtitle={startsNow ? 'NEXT MESO' : planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'} />
         {/* Meso 2+ continuation banner */}
+        <div className="fd-form">
         {(() => {
           let t = null;
           try {
@@ -611,9 +614,10 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
             </div>
           );
         })()}
+        </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="fd-form" style={{ flex: 1, overflowY: 'auto' }}>
           <Header />
 
 

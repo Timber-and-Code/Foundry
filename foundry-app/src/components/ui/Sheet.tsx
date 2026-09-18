@@ -13,8 +13,10 @@ const FOCUSABLE = 'a[href],button:not([disabled]),textarea:not([disabled]),input
 
 /**
  * Sheet — bottom sheet that slides up from the bottom of the screen.
+ * On regular+ widths (iPad, unfolded) it presents as a centered dialog
+ * instead — see .fd-sheet-* in responsive.css.
  */
-export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex = 300 }: SheetProps) {
+export default function Sheet({ open, onClose, children, maxWidth, zIndex = 300 }: SheetProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
 
@@ -52,6 +54,7 @@ export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex 
       onClick={onClose}
       role="dialog"
       aria-modal="true"
+      className="fd-sheet-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -65,12 +68,14 @@ export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex 
       <div
         ref={contentRef}
         onClick={(e) => e.stopPropagation()}
+        className="fd-sheet-panel"
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
           borderRadius: `${tokens.radius.xxl}px ${tokens.radius.xxl}px 0 0`,
           width: '100%',
-          maxWidth,
+          // Default tracks the shell (480 on phones, wider on roomy widths).
+          maxWidth: maxWidth ?? 'var(--sheet-max)',
           maxHeight: '85vh',
           overflowY: 'auto',
           WebkitOverflowScrolling: 'touch',
@@ -79,6 +84,7 @@ export default function Sheet({ open, onClose, children, maxWidth = 480, zIndex 
       >
         {/* drag handle */}
         <div
+          className="fd-sheet-handle"
           style={{
             display: 'flex',
             justifyContent: 'center',

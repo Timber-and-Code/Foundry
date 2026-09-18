@@ -223,13 +223,16 @@ export default function ReorderSheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        // Bottom sheet on phones; centered dialog on regular+ widths
+        // (.fd-abs-sheet in styles/responsive/workout.css).
+        className="fd-abs-sheet"
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
           margin: '0 auto',
-          maxWidth: 480,
+          maxWidth: 'var(--sheet-max)',
           maxHeight: '85vh',
           background: 'var(--bg-card)',
           borderTopLeftRadius: 18,
@@ -242,6 +245,7 @@ export default function ReorderSheet({
         <div style={{ padding: '10px 0 14px 0' }}>
           <div
             aria-hidden="true"
+            className="fd-abs-sheet-handle"
             style={{
               width: 36,
               height: 4,

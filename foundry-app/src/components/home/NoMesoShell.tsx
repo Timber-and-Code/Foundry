@@ -16,7 +16,7 @@ function NoMesoShell({ onSetup, onStartProgram }: NoMesoShellProps) {
         background: 'var(--bg-root)',
         color: 'var(--text-primary)',
         fontFamily: "'Inter',system-ui,sans-serif",
-        maxWidth: 480,
+        maxWidth: 'var(--shell-max)',
         margin: '0 auto',
         display: 'flex',
         flexDirection: 'column',
@@ -25,7 +25,7 @@ function NoMesoShell({ onSetup, onStartProgram }: NoMesoShellProps) {
       <FoundryBanner subtitle="EXPLORE" />
 
       {/* Explore content — scrollable */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 100 }}>
+      <div className="fd-wide" style={{ flex: 1, overflowY: 'auto', paddingBottom: 100 }}>
         {/* Empty state hero */}
         <div
           style={{
@@ -79,6 +79,8 @@ function NoMesoShell({ onSetup, onStartProgram }: NoMesoShellProps) {
       </div>
 
       {/* Sticky CTA */}
+      {/* Full-bleed bar (matches the shell); the button inside is capped to
+          the form column on wide screens via .fd-setup-cta. */}
       <div
         style={{
           position: 'fixed',
@@ -86,7 +88,7 @@ function NoMesoShell({ onSetup, onStartProgram }: NoMesoShellProps) {
           left: '50%',
           transform: 'translateX(-50%)',
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 'var(--shell-max)',
           background: 'var(--bg-card)',
           borderTop: '1px solid var(--border)',
           padding: '14px 20px',
@@ -97,7 +99,7 @@ function NoMesoShell({ onSetup, onStartProgram }: NoMesoShellProps) {
       >
         <button
           onClick={onSetup}
-          className="btn-primary"
+          className="btn-primary fd-setup-cta"
           style={{
             width: '100%',
             padding: '15px',

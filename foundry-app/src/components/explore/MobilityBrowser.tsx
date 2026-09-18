@@ -137,6 +137,7 @@ function MobilityBrowser({ onBack, profile, onProfileUpdate }: MobilityBrowserPr
         id={`mobility-panel-${tab}`}
         role="tabpanel"
         aria-labelledby={`mobility-tab-${tab}`}
+        className="fd-card-grid"
         style={{
           padding: '8px 16px 16px',
           display: 'flex',
@@ -145,6 +146,7 @@ function MobilityBrowser({ onBack, profile, onProfileUpdate }: MobilityBrowserPr
         }}
       >
         <div
+          className="fd-span-all"
           style={{
             fontSize: 12,
             color: 'var(--text-muted)',

@@ -213,12 +213,14 @@ export default function IntakeCard({ onDone }: IntakeCardProps) {
 
   return (
     <div
+      className="fd-setup-vcenter"
       style={{
         minHeight: '100vh',
         background: tokens.colors.bgRoot,
         color: tokens.colors.textPrimary,
         fontFamily: "'Inter', system-ui, sans-serif",
-        maxWidth: 480,
+        // 480 on phones; a comfortable form column on wider screens.
+        maxWidth: 'var(--form-max)',
         margin: '0 auto',
         padding: '28px 24px 32px',
         boxSizing: 'border-box',

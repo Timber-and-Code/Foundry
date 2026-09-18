@@ -37,6 +37,7 @@ export default function SupersetPickerSheet({
       aria-modal="true"
       aria-labelledby="superset-picker-title"
       onClick={onClose}
+      className="fd-sheet-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -50,13 +51,14 @@ export default function SupersetPickerSheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="fd-sheet-panel fd-sheet-panel--accent"
         style={{
           background: 'var(--bg-card)',
           borderTop: `2px solid var(--accent)`,
           borderTopLeftRadius: tokens.radius.xxl,
           borderTopRightRadius: tokens.radius.xxl,
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 'var(--sheet-max)',
           maxHeight: '80vh',
           overflowY: 'auto',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',

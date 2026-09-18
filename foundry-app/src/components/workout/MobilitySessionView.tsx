@@ -458,7 +458,7 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
               display: 'flex',
               flexDirection: 'column',
               gap: 16,
-              maxWidth: 480,
+              maxWidth: 'var(--col-max)',
               margin: '0 auto',
               width: '100%',
               boxSizing: 'border-box',
@@ -945,7 +945,7 @@ function MobilitySessionView({ dateStr, onBack, profile: _profile }: MobilitySes
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
-          maxWidth: 480,
+          maxWidth: 'var(--col-max)',
           margin: '0 auto',
           width: '100%',
         }}

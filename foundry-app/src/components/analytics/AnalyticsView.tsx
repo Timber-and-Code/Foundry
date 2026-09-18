@@ -677,9 +677,13 @@ export default function AnalyticsView({ completedDays, activeDays, goBack }: Ana
         </span>
       </div>
 
-      <div style={{ padding: '0 16px 24px' }}>
+      {/* Section wrappers are display:contents on phones; on wider screens
+          they become grid areas (responsive/progress.css .fd-an-*). */}
+      <div className="fd-an-body" style={{ padding: '0 16px 24px' }}>
         {/* ── Session Stats ── */}
+        <div className="fd-an-sec fd-an-stats-sec">
         <SectionHeader title="SESSION STATS" />
+        <div className="fd-an-stats">
         <div style={{ display: 'flex', gap: 8 }}>
           <StatBox
             label="Tonnage"
@@ -704,6 +708,7 @@ export default function AnalyticsView({ completedDays, activeDays, goBack }: Ana
             color="var(--text-primary)"
           />
         </div>
+        </div>
         <div
           style={{
             fontSize: 11,
@@ -714,27 +719,34 @@ export default function AnalyticsView({ completedDays, activeDays, goBack }: Ana
         >
           {stats.completedSessions}/{stats.totalSessions} sessions completed
         </div>
+        </div>
 
         {/* ── Muscle Volume ── */}
+        <div className="fd-an-sec fd-an-vol-sec">
         <SectionHeader title="MUSCLE VOLUME" />
         <VolumeCard activeDays={activeDays} completedDays={completedDays} />
+        </div>
 
         {/* ── Strength Progression ── */}
         {anchors.length > 0 && (
-          <>
+          <div className="fd-an-sec fd-an-str-sec">
             <SectionHeader title="STRENGTH PROGRESSION" />
+            <div className="fd-an-charts">
             {anchors.map((chart, i) => (
               <StrengthChart key={i} chart={chart} />
             ))}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
               Estimated 1RM (Epley formula) across mesocycle weeks.
             </div>
-          </>
+          </div>
         )}
 
         {/* ── PR Timeline ── */}
+        <div className="fd-an-sec fd-an-pr-sec">
         <SectionHeader title="PR TIMELINE" />
         <PRTimelineCard entries={prTimeline} />
+        </div>
       </div>
     </div>
   );

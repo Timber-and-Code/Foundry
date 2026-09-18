@@ -185,7 +185,9 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
         background: tokens.colors.bgRoot,
         color: tokens.colors.textPrimary,
         fontFamily: "'Inter', system-ui, sans-serif",
-        maxWidth: 480,
+        // 480 on phones; the dashboard width on wider screens, where the
+        // setting bars sit 3-up and the day cards 2-up (>=1000px).
+        maxWidth: 'var(--wide-max)',
         margin: '0 auto',
         padding: '20px 20px 120px',
         boxSizing: 'border-box',
@@ -241,6 +243,7 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
           combo. Inline expansion keeps the user in one place and exposes
           bigger tap targets. */}
       <div
+        className="fd-grid-3"
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -369,7 +372,9 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'calc(100% - 40px)',
-          maxWidth: 440,
+          // 440 on phones (the 480 column minus its gutters); tracks the
+          // form column on wider screens so the CTA never spans an iPad.
+          maxWidth: 'calc(var(--form-max) - 40px)',
           padding: '16px',
           fontSize: 15,
           fontWeight: 800,

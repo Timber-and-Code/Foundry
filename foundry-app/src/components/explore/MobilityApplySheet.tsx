@@ -87,6 +87,7 @@ export default function MobilityApplySheet({
       aria-modal="true"
       aria-labelledby="mobility-apply-heading"
       onClick={onClose}
+      className="fd-sheet-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -99,6 +100,7 @@ export default function MobilityApplySheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="fd-sheet-panel"
         style={{
           background: 'var(--bg-card)',
           borderTop: '1px solid var(--border)',
@@ -115,6 +117,7 @@ export default function MobilityApplySheet({
         }}
       >
         <div
+          className="fd-sheet-handle"
           style={{
             width: 40,
             height: 4,

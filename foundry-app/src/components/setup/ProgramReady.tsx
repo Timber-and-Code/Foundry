@@ -49,7 +49,7 @@ export default function ProgramReady({ profile, onContinue }: ProgramReadyProps)
         alignItems: 'stretch',
         justifyContent: 'center',
         padding: '32px 24px',
-        maxWidth: 480,
+        maxWidth: 'var(--form-max)',
         margin: '0 auto',
         gap: 36,
       }}

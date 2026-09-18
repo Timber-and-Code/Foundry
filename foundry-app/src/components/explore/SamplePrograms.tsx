@@ -172,7 +172,9 @@ function SamplePrograms({ profile, onBack, onStartProgram }: SampleProgramsProps
   );
 
   return (
-    <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
+    // Reading page: capped at the regular column (720) on iPad rather than
+    // stretching across Explore's wide dashboard column.
+    <div className="fd-col" style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
       <div
         style={{
           display: 'flex',
@@ -348,6 +350,9 @@ function SamplePrograms({ profile, onBack, onStartProgram }: SampleProgramsProps
                       {prog.description}
                     </p>
                   </div>
+                  {/* ≥700px the days sit two-up (fd-sp-days, responsive/tabs.css);
+                      on phones this wrapper is an ordinary block — no change. */}
+                  <div className="fd-sp-days">
                   {prog.days.map((day, di) => {
                     const tc = TAG_COLORS[day.tag] || 'var(--accent)';
                     return (
@@ -438,6 +443,7 @@ function SamplePrograms({ profile, onBack, onStartProgram }: SampleProgramsProps
                       </div>
                     );
                   })}
+                  </div>
                   {onStartProgram && (
                     <div style={{ padding: '14px 16px' }}>
                       <button

@@ -169,6 +169,7 @@ export default function CardioApplySheet({
       aria-modal="true"
       aria-labelledby="cardio-apply-heading"
       onClick={onClose}
+      className="fd-sheet-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -181,6 +182,7 @@ export default function CardioApplySheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="fd-sheet-panel"
         style={{
           background: 'var(--bg-card)',
           borderTop: '1px solid var(--border)',
@@ -200,6 +202,7 @@ export default function CardioApplySheet({
         }}
       >
         <div
+          className="fd-sheet-handle"
           style={{
             width: 40,
             height: 4,

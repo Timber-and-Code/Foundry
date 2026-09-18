@@ -168,7 +168,7 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
         background: 'var(--bg-root)',
         color: 'var(--text-primary)',
         fontFamily: "'Inter',system-ui,sans-serif",
-        maxWidth: 480,
+        maxWidth: 'var(--form-max)',
         margin: '0 auto',
         display: 'flex',
         flexDirection: 'column',
