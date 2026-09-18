@@ -8,11 +8,14 @@ export interface CardioSetupFlowProps {
   pendingProfile: Profile | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onComplete: (profile: any) => void;
+  /** Planning the next meso — the last step saves a plan, it doesn't start training. */
+  planningNext?: boolean;
 }
 
 export default function CardioSetupFlow({
   pendingProfile,
   onComplete,
+  planningNext = false,
 }: CardioSetupFlowProps) {
   const [cardioSchedule, setCardioSchedule] = useState<{ dayOfWeek: number; protocol: string }[]>([]);
   const [expandedCardioDow, setExpandedCardioDow] = useState<number | null>(null);
@@ -582,7 +585,9 @@ export default function CardioSetupFlow({
           >
             {cardioSchedule.length > 0
               ? `Add Plan (${cardioSchedule.length} day${cardioSchedule.length > 1 ? 's' : ''}) →`
-              : 'Start Training →'}
+              : planningNext
+                ? 'Save plan →'
+                : 'Start Training →'}
           </button>
         </div>
       </div>

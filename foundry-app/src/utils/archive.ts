@@ -55,9 +55,15 @@ export function resetMeso(): void {
 // which detaching is precisely what makes it — so a finished meso left
 // active gets re-adopted on the next pull, dragging its done flags back and
 // reopening "new meso starts on week 3" from a different direction.
-export function resetMesoAfterCompletion(): void {
+//
+// Returns the remote chain so a caller that saves the NEXT profile straight
+// away can wait for it: saveProfile mints the new meso's id only when
+// foundry:active_meso_id is gone, and detach is what removes it. Save before
+// it lands and the new meso upserts into the finished one's row, flipping it
+// back to 'active'. Never rejects.
+export function resetMesoAfterCompletion(): Promise<void> {
   wipeMesoSessionData();
-  completeMesocycleRemote()
+  return completeMesocycleRemote()
     .then(() => detachActiveMesoRemote())
     .catch((e) => console.warn('[Foundry]', 'Meso completion sync failed', e));
 }
@@ -78,7 +84,7 @@ interface ArchiveSession {
   cardioLog: unknown;
 }
 
-interface MesoTransition {
+export interface MesoTransition {
   builtBy: 'ai' | 'manual';
   anchorPeaks: { name: string; id?: string | number; peak: number }[];
   accessoryIds: (string | number)[];
@@ -91,9 +97,13 @@ interface MesoTransition {
   };
 }
 
-export function archiveCurrentMeso(profile: Profile | null | undefined, deps?: ArchiveDeps): void {
-  const { generateProgram: _generateProgram, EXERCISE_DB: _EXERCISE_DB } = deps || {};
-  if (!profile) return;
+/**
+ * The live meso's session keys packaged as an archive record, WITHOUT
+ * writing it anywhere. archiveCurrentMeso stores it; planning the next meso
+ * during the deload reads it to see what has been trained so far, before
+ * anything has been archived.
+ */
+export function snapshotCurrentMeso(profile: Profile): ArchiveEntry {
   const mesoWeeks = profile.mesoLength ? profile.mesoLength + 1 : 7;
   const mesoDays = profile.workoutDays?.length || profile.daysPerWeek || 6;
 
@@ -128,6 +138,14 @@ export function archiveCurrentMeso(profile: Profile | null | undefined, deps?: A
     completedSessions: completedCount,
     sessions,
   };
+  return record as unknown as ArchiveEntry;
+}
+
+export function archiveCurrentMeso(profile: Profile | null | undefined, deps?: ArchiveDeps): void {
+  const { generateProgram: _generateProgram, EXERCISE_DB: _EXERCISE_DB } = deps || {};
+  if (!profile) return;
+  const record = snapshotCurrentMeso(profile);
+  const { mesoDays } = record as unknown as { mesoDays: number };
 
   let archive: ArchiveEntry[] = [];
   try {
@@ -142,98 +160,108 @@ export function archiveCurrentMeso(profile: Profile | null | undefined, deps?: A
   // ── Meso transition context ──
   try {
     if (_generateProgram) {
-      const prog = _generateProgram(profile).slice(0, mesoDays);
-      const anchorPeaks: { name: string; id?: string | number; peak: number }[] = [];
-      prog.forEach((day, d) => {
-        day.exercises.forEach((ex, exIdx) => {
-          if (!ex.anchor) return;
-          let peakWeight = 0;
-          for (let w = 0; w < mesoWeeks - 1; w++) {
-            const raw = store.get(`foundry:day${d}:week${w}`);
-            if (!raw) continue;
-            try {
-              const wd = JSON.parse(raw) as Record<string, Record<string, { weight?: string | number }>>;
-              Object.values(wd[exIdx] || {}).forEach((s) => {
-                const wVal = parseFloat(String(s?.weight || 0));
-                if (wVal > peakWeight) peakWeight = wVal;
-              });
-            } catch (e) {
-              console.warn('[Foundry]', 'Failed to parse week data for anchor peak', e);
-            }
-          }
-          if (peakWeight > 0) anchorPeaks.push({ name: ex.name, id: ex.id, peak: peakWeight });
-        });
-      });
-
-      const accessoryIds: (string | number)[] = [];
-      prog.forEach((day) => {
-        day.exercises.forEach((ex) => {
-          if (!ex.anchor && ex.id && !accessoryIds.includes(ex.id)) accessoryIds.push(ex.id);
-        });
-      });
-
-      const transition: MesoTransition = {
-        builtBy: profile.autoBuilt ? 'ai' : 'manual',
-        anchorPeaks,
-        accessoryIds,
-        profile: {
-          experience: profile.experience,
-          equipment: profile.equipment,
-          splitType: profile.splitType,
-          daysPerWeek: profile.daysPerWeek,
-          workoutDays: profile.workoutDays,
-          mesoLength: profile.mesoLength,
-          sessionDuration: profile.sessionDuration,
-          goal: profile.goal,
-          name: profile.name,
-          age: profile.age,
-          gender: profile.gender,
-          weight: profile.weight,
-        },
-      };
-
-      try {
-        if (profile.startDate) {
-          const start = new Date(profile.startDate + 'T00:00:00');
-          const end = new Date();
-          let totalScore = 0,
-            totalLogged = 0,
-            lowDays = 0;
-          const cursor = new Date(start);
-          while (cursor <= end) {
-            const key = `foundry:readiness:${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
-            const raw = store.get(key);
-            if (raw) {
-              try {
-                const r = JSON.parse(raw);
-                const score = getReadinessScore(r);
-                if (score !== null) {
-                  totalScore += score;
-                  totalLogged++;
-                  if (score <= 2) lowDays++;
-                }
-              } catch (e) {
-                console.warn('[Foundry]', 'Failed to parse readiness entry', e);
-              }
-            }
-            cursor.setDate(cursor.getDate() + 1);
-          }
-          if (totalLogged > 0) {
-            transition.readinessSummary = {
-              avgScore: Math.round((totalScore / totalLogged) * 10) / 10,
-              lowDays,
-              totalLogged,
-              totalDays: Math.round((end.getTime() - start.getTime()) / 86400000) + 1,
-            };
-          }
-        }
-      } catch (e) {
-        console.warn('[Foundry]', 'Failed to compute readiness summary', e);
-      }
-
+      const transition = buildMesoTransition(profile, _generateProgram(profile).slice(0, mesoDays));
       store.set('foundry:meso_transition', JSON.stringify(transition));
     }
   } catch (e) {
     console.warn('[Foundry]', 'Failed to build meso transition context', e);
   }
+}
+
+/**
+ * Carryover context for the NEXT meso — anchor peaks, accessory ids, the
+ * settings to pre-fill, a readiness summary — read from the live session
+ * keys. `prog` must be the program those keys were logged against: the
+ * peaks are read by slot index.
+ */
+export function buildMesoTransition(profile: Profile, prog: TrainingDay[]): MesoTransition {
+  const mesoWeeks = profile.mesoLength ? profile.mesoLength + 1 : 7;
+  const anchorPeaks: { name: string; id?: string | number; peak: number }[] = [];
+  prog.forEach((day, d) => {
+    day.exercises.forEach((ex, exIdx) => {
+      if (!ex.anchor) return;
+      let peakWeight = 0;
+      for (let w = 0; w < mesoWeeks - 1; w++) {
+        const raw = store.get(`foundry:day${d}:week${w}`);
+        if (!raw) continue;
+        try {
+          const wd = JSON.parse(raw) as Record<string, Record<string, { weight?: string | number }>>;
+          Object.values(wd[exIdx] || {}).forEach((s) => {
+            const wVal = parseFloat(String(s?.weight || 0));
+            if (wVal > peakWeight) peakWeight = wVal;
+          });
+        } catch (e) {
+          console.warn('[Foundry]', 'Failed to parse week data for anchor peak', e);
+        }
+      }
+      if (peakWeight > 0) anchorPeaks.push({ name: ex.name, id: ex.id, peak: peakWeight });
+    });
+  });
+
+  const accessoryIds: (string | number)[] = [];
+  prog.forEach((day) => {
+    day.exercises.forEach((ex) => {
+      if (!ex.anchor && ex.id && !accessoryIds.includes(ex.id)) accessoryIds.push(ex.id);
+    });
+  });
+
+  const transition: MesoTransition = {
+    builtBy: profile.autoBuilt ? 'ai' : 'manual',
+    anchorPeaks,
+    accessoryIds,
+    profile: {
+      experience: profile.experience,
+      equipment: profile.equipment,
+      splitType: profile.splitType,
+      daysPerWeek: profile.daysPerWeek,
+      workoutDays: profile.workoutDays,
+      mesoLength: profile.mesoLength,
+      sessionDuration: profile.sessionDuration,
+      goal: profile.goal,
+      name: profile.name,
+      age: profile.age,
+      gender: profile.gender,
+      weight: profile.weight,
+    },
+  };
+
+  try {
+    if (profile.startDate) {
+      const start = new Date(profile.startDate + 'T00:00:00');
+      const end = new Date();
+      let totalScore = 0,
+        totalLogged = 0,
+        lowDays = 0;
+      const cursor = new Date(start);
+      while (cursor <= end) {
+        const key = `foundry:readiness:${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+        const raw = store.get(key);
+        if (raw) {
+          try {
+            const r = JSON.parse(raw);
+            const score = getReadinessScore(r);
+            if (score !== null) {
+              totalScore += score;
+              totalLogged++;
+              if (score <= 2) lowDays++;
+            }
+          } catch (e) {
+            console.warn('[Foundry]', 'Failed to parse readiness entry', e);
+          }
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      if (totalLogged > 0) {
+        transition.readinessSummary = {
+          avgScore: Math.round((totalScore / totalLogged) * 10) / 10,
+          lowDays,
+          totalLogged,
+          totalDays: Math.round((end.getTime() - start.getTime()) / 86400000) + 1,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('[Foundry]', 'Failed to compute readiness summary', e);
+  }
+  return transition;
 }

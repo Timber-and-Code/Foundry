@@ -29,6 +29,10 @@ interface FoundryEventMap {
   'foundry:repeat-meso': void;
   'foundry:new-meso': void;
   'foundry:browse-samples': void;
+  // Planning the next meso during the deload — HomeTab card → App
+  'foundry:plan-next-meso': void;
+  'foundry:start-planned-meso': void;
+  'foundry:start-planned-meso-failed': void;
   // Sign-in found both an anon-built local meso and an account meso —
   // App renders MesoConflictSheet, which runs the deferred pull chain
   // after the user chooses.

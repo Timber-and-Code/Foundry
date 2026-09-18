@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { loadDayWeek, findPrevSlotForExercise, loadArchive } from '../../utils/store';
 import { store } from '../../utils/store';
@@ -208,6 +208,81 @@ export default function MesoHistoryView({
     };
   }, [onClose]);
 
+  // ── Derived stats for the header strip and the chart ──
+  const deloadIdx = mesoWeeks - 1;
+  const chronological = useMemo(() => [...rows].reverse(), [rows]);
+  const loggedWeeks = chronological.filter((r) => r.bestWeight > 0);
+  const firstBest = loggedWeeks[0]?.bestWeight ?? 0;
+  // Gain is measured to the best WORKING week — the deload's lighter bar
+  // isn't a loss, and it isn't the peak either.
+  const peakBest = loggedWeeks
+    .filter((r) => r.weekIdx !== deloadIdx)
+    .reduce((m, r) => Math.max(m, r.bestWeight), 0);
+  const gain = loggedWeeks.length >= 2 ? peakBest - firstBest : null;
+  const chartMax = Math.max(...chronological.map((r) => r.bestWeight), 0);
+  const chartMin = Math.min(...loggedWeeks.map((r) => r.bestWeight), chartMax);
+  // Bars start from a floor below the lightest week so small jumps read as
+  // progress instead of five near-identical columns.
+  const chartFloor = Math.max(0, chartMin - Math.max((chartMax - chartMin) * 0.6, chartMax * 0.08));
+
+  // Swipe-down to dismiss from the grab handle.
+  const [dragY, setDragY] = useState(0);
+  const dragStart = useRef<number | null>(null);
+  const onHandleTouchStart = (e: React.TouchEvent) => {
+    dragStart.current = e.touches[0].clientY;
+  };
+  const onHandleTouchMove = (e: React.TouchEvent) => {
+    if (dragStart.current == null) return;
+    setDragY(Math.max(0, e.touches[0].clientY - dragStart.current));
+  };
+  const onHandleTouchEnd = () => {
+    const shouldClose = dragY > 90;
+    dragStart.current = null;
+    setDragY(0);
+    if (shouldClose) onClose();
+  };
+
+  const bebas = "'Bebas Neue', 'Inter', system-ui, sans-serif";
+  const eyebrow: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 800,
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    color: 'var(--text-muted)',
+  };
+
+  const StatTile = ({ label, value, accent, sub }: { label: string; value: string; accent?: boolean; sub?: string }) => (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 0,
+        padding: '10px 12px',
+        borderRadius: tokens.radius.md,
+        background: accent ? 'rgba(var(--accent-rgb),0.10)' : 'var(--bg-surface)',
+        border: `1px solid ${accent ? 'rgba(var(--accent-rgb),0.45)' : 'var(--border)'}`,
+      }}
+    >
+      <div style={eyebrow}>{label}</div>
+      <div
+        style={{
+          fontFamily: bebas,
+          fontSize: 28,
+          lineHeight: 1.05,
+          marginTop: 4,
+          letterSpacing: '0.02em',
+          color: accent ? 'var(--accent)' : 'var(--text-primary)',
+          fontVariantNumeric: 'tabular-nums',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {value}
+      </div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+
   return (
     <div
       role="dialog"
@@ -217,33 +292,47 @@ export default function MesoHistoryView({
       style={{
         position: 'fixed',
         inset: 0,
-        background: tokens.colors.overlayHeavy,
+        background: tokens.colors.overlayMed,
         zIndex: 240,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
       }}
     >
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
         style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          margin: '0 auto',
+          maxWidth: 480,
+          maxHeight: '88vh',
           background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: tokens.radius.xxl,
-          width: '100%',
-          maxWidth: 460,
-          maxHeight: 'calc(100vh - 32px)',
-          overflowY: 'auto',
-          padding: '20px 22px 18px',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.45)',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          borderTop: '1px solid rgba(var(--accent-rgb),0.35)',
+          boxShadow: '0 -12px 48px rgba(0,0,0,0.5)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 16,
+          transform: dragY ? `translateY(${dragY}px)` : undefined,
+          transition: dragY ? 'none' : 'transform 0.2s ease',
+          animation: 'slideUp 0.22s ease-out',
           fontFamily: 'inherit',
         }}
       >
+        {/* Grab handle — also the swipe-down target */}
+        <div
+          onTouchStart={onHandleTouchStart}
+          onTouchMove={onHandleTouchMove}
+          onTouchEnd={onHandleTouchEnd}
+          style={{ padding: '10px 0 6px', touchAction: 'none', flexShrink: 0 }}
+        >
+          <div
+            aria-hidden="true"
+            style={{ width: 40, height: 5, borderRadius: 3, background: 'var(--border)', margin: '0 auto' }}
+          />
+        </div>
+
         {/* Header */}
         <div
           style={{
@@ -251,30 +340,21 @@ export default function MesoHistoryView({
             alignItems: 'flex-start',
             justifyContent: 'space-between',
             gap: 12,
+            padding: '4px 20px 14px',
+            flexShrink: 0,
           }}
         >
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.2em',
-                color: 'var(--accent)',
-                textTransform: 'uppercase',
-                marginBottom: 4,
-              }}
-            >
-              History
-            </div>
+            <div style={{ ...eyebrow, color: 'var(--accent)', marginBottom: 4 }}>Lift history</div>
             <h2
               id="meso-history-title"
               style={{
-                fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-                fontSize: 24,
+                fontFamily: bebas,
+                fontSize: 30,
                 fontWeight: 400,
                 letterSpacing: '0.02em',
                 color: 'var(--text-primary)',
-                lineHeight: 1.05,
+                lineHeight: 1,
                 margin: 0,
               }}
             >
@@ -287,208 +367,252 @@ export default function MesoHistoryView({
             onClick={onClose}
             aria-label="Close history"
             style={{
-              background: 'transparent',
-              border: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
+              flexShrink: 0,
+              width: 44,
+              height: 44,
               borderRadius: 999,
-              width: 32,
-              height: 32,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              fontSize: 16,
-              lineHeight: 1,
-              flexShrink: 0,
             }}
           >
-            <span aria-hidden="true">&times;</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
 
-        {/* Body */}
-        {!hasAnySets ? (
-          <div
-            style={{
-              padding: '24px 8px',
-              textAlign: 'center',
-              fontSize: 13,
-              color: 'var(--text-muted)',
-            }}
-          >
-            No logged sets yet for this exercise.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {rows.map((row) => (
-              <div
-                key={row.weekIdx}
-                style={{
-                  borderTop: '1px solid var(--border-subtle, var(--border))',
-                  paddingTop: 10,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    gap: 8,
-                    marginBottom: 6,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
-                      fontSize: 16,
-                      letterSpacing: '0.06em',
-                      color: 'var(--text-primary)',
-                      fontWeight: 400,
-                    }}
+        {/* Scrollable body */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '0 20px 8px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {!hasAnySets ? (
+            <div style={{ padding: '28px 8px', textAlign: 'center' }}>
+              <div style={{ fontFamily: bebas, fontSize: 22, letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
+                No sets logged yet
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>
+                Log this lift and its history builds here, week by week.
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Headline numbers */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <StatTile
+                  label="Best set"
+                  value={prRef ? `${fmtNumber(prRef.weight)} × ${prRef.reps}` : '—'}
+                  accent
+                />
+                <StatTile
+                  label="This meso"
+                  value={gain == null ? '—' : `${gain >= 0 ? '+' : '−'}${fmtNumber(Math.abs(gain))} lb`}
+                  sub={gain == null ? 'Needs 2 weeks' : `from ${fmtNumber(firstBest)}`}
+                />
+              </div>
+
+              {/* Top weight per week */}
+              {loggedWeeks.length >= 2 && (
+                <div>
+                  <div style={{ ...eyebrow, marginBottom: 10 }}>Top weight by week</div>
+                  <div
+                    role="img"
+                    aria-label={`Top weight by week: ${chronological
+                      .filter((r) => r.bestWeight > 0)
+                      .map((r) => `week ${r.weekIdx + 1} ${fmtNumber(r.bestWeight)}`)
+                      .join(', ')}`}
+                    style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 104 }}
                   >
-                    WEEK {row.weekIdx + 1}
-                  </span>
-                  {row.isCurrent && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 800,
-                        letterSpacing: '0.14em',
-                        color: 'var(--text-muted)',
-                        textTransform: 'uppercase',
-                        padding: '2px 6px',
-                        borderRadius: tokens.radius.xs,
-                        border: '1px solid var(--border)',
-                        background: 'var(--bg-inset)',
-                      }}
-                    >
-                      Today
-                    </span>
-                  )}
-                  {row.dateLabel && !row.isCurrent && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      &mdash; {row.dateLabel}
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {row.sets.length === 0 ? (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: 'var(--text-muted)',
-                        paddingLeft: 4,
-                      }}
-                    >
-                      &mdash;
-                    </div>
-                  ) : (
-                    row.sets.map((s) => {
-                      const isPr =
-                        !row.isCurrent &&
-                        prRef &&
-                        s.weight != null &&
-                        s.reps != null &&
-                        s.weight === prRef.weight &&
-                        s.reps === prRef.reps &&
-                        !s.warmup;
+                    {chronological.map((r) => {
+                      const isDeload = r.weekIdx === deloadIdx;
+                      const isPrWeek = !!prRef && r.bestWeight === prRef.weight && !r.isCurrent;
+                      const pct = r.bestWeight > 0 && chartMax > chartFloor
+                        ? Math.max(0.12, (r.bestWeight - chartFloor) / (chartMax - chartFloor))
+                        : 0;
                       return (
-                        <div
-                          key={s.setIdx}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            fontSize: 12,
-                            color: s.warmup ? 'var(--text-muted)' : 'var(--text-secondary)',
-                            paddingLeft: 4,
-                            border: isPr ? '1px solid var(--accent)' : '1px solid transparent',
-                            borderRadius: tokens.radius.xs,
-                            padding: isPr ? '4px 6px' : '2px 4px',
-                            background: isPr ? 'rgba(var(--accent-rgb),0.08)' : 'transparent',
-                          }}
-                        >
-                          <span style={{ minWidth: 36, fontWeight: 700, color: 'var(--text-muted)' }}>
-                            Set {s.setIdx + 1}{s.warmup ? ' (warmup)' : ''}:
-                          </span>
-                          <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                            {s.weight != null && s.reps != null
-                              ? `${fmtNumber(s.weight)} × ${s.reps}`
-                              : '—'}
-                          </span>
-                          {s.confirmed && !s.warmup && (
-                            <span aria-hidden="true" style={{ color: 'var(--success)', fontSize: 11 }}>
-                              &#10003;
+                        <div key={r.weekIdx} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
+                          {r.bestWeight > 0 && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: isPrWeek ? 'var(--accent)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                              {fmtNumber(r.bestWeight)}
                             </span>
                           )}
-                          {isPr && (
-                            <span
-                              style={{
-                                fontSize: 9,
-                                fontWeight: 800,
-                                letterSpacing: '0.14em',
-                                color: 'var(--accent)',
-                                textTransform: 'uppercase',
-                                marginLeft: 'auto',
-                              }}
-                            >
-                              PR
-                            </span>
-                          )}
+                          <div
+                            style={{
+                              width: '100%',
+                              maxWidth: 34,
+                              height: r.bestWeight > 0 ? `${pct * 70}px` : 4,
+                              borderRadius: '4px 4px 1px 1px',
+                              background: r.bestWeight === 0
+                                ? 'transparent'
+                                : isPrWeek
+                                  ? 'linear-gradient(180deg, #F08A3E, var(--accent))'
+                                  : isDeload
+                                    ? 'var(--bg-inset, var(--bg-surface))'
+                                    : 'rgba(var(--accent-rgb),0.35)',
+                              border: r.bestWeight === 0 ? '1px dashed var(--border)' : isDeload ? '1px solid var(--border)' : 'none',
+                              boxShadow: isPrWeek ? '0 0 14px rgba(var(--accent-rgb),0.45)' : 'none',
+                            }}
+                          />
                         </div>
                       );
-                    })
-                  )}
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    {chronological.map((r) => (
+                      <div
+                        key={r.weekIdx}
+                        style={{
+                          flex: 1,
+                          textAlign: 'center',
+                          fontFamily: bebas,
+                          fontSize: 13,
+                          letterSpacing: '0.06em',
+                          color: r.isCurrent ? 'var(--text-primary)' : 'var(--text-muted)',
+                        }}
+                      >
+                        {r.weekIdx === deloadIdx ? 'DL' : `W${r.weekIdx + 1}`}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
 
-        {/* Cross-meso reference — last weight used in a previous meso,
-            including unfinished ones. Omitted when no archived meso has
-            matchable data for this exercise. */}
-        {lastMeso && (
-          <div
+              {/* Week by week, newest first */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {rows.map((row) => {
+                  const isDeload = row.weekIdx === deloadIdx;
+                  return (
+                    <div
+                      key={row.weekIdx}
+                      style={{
+                        display: 'flex',
+                        gap: 12,
+                        padding: '12px 12px',
+                        borderRadius: tokens.radius.md,
+                        background: 'var(--bg-surface)',
+                        border: `1px solid ${row.isCurrent ? 'rgba(var(--accent-rgb),0.35)' : 'var(--border)'}`,
+                      }}
+                    >
+                      <div style={{ width: 58, flexShrink: 0 }}>
+                        <div style={{ fontFamily: bebas, fontSize: 22, lineHeight: 1, letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
+                          WK {row.weekIdx + 1}
+                        </div>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 4, color: row.isCurrent ? 'var(--accent)' : 'var(--text-muted)' }}>
+                          {row.isCurrent ? 'Today' : isDeload ? 'Deload' : row.dateLabel?.replace(/^\w+,\s*/, '') ?? ''}
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 6, alignContent: 'center' }}>
+                        {row.sets.filter((s) => s.weight != null || s.reps != null).length === 0 ? (
+                          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Not logged yet</span>
+                        ) : (
+                          row.sets
+                            .filter((s) => s.weight != null || s.reps != null)
+                            .map((s) => {
+                              const isPr =
+                                !row.isCurrent &&
+                                !!prRef &&
+                                s.weight === prRef.weight &&
+                                s.reps === prRef.reps &&
+                                !s.warmup;
+                              return (
+                                <span
+                                  key={s.setIdx}
+                                  title={`Set ${s.setIdx + 1}${s.warmup ? ' (warmup)' : ''}`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    padding: '6px 10px',
+                                    borderRadius: 999,
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    fontVariantNumeric: 'tabular-nums',
+                                    color: isPr ? 'var(--accent)' : s.warmup ? 'var(--text-muted)' : 'var(--text-primary)',
+                                    background: isPr ? 'rgba(var(--accent-rgb),0.12)' : 'var(--bg-card)',
+                                    border: isPr
+                                      ? '1px solid var(--accent)'
+                                      : s.warmup
+                                        ? '1px dashed var(--border)'
+                                        : '1px solid var(--border)',
+                                  }}
+                                >
+                                  {s.warmup && <span style={{ fontSize: 10, letterSpacing: '0.08em' }}>WU</span>}
+                                  {s.weight != null && s.reps != null
+                                    ? `${fmtNumber(s.weight)} × ${s.reps}`
+                                    : s.reps != null
+                                      ? `${s.reps} reps`
+                                      : '—'}
+                                  {isPr && (
+                                    <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em' }}>PR</span>
+                                  )}
+                                </span>
+                              );
+                            })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Cross-meso reference — last weight used in a previous meso,
+              including unfinished ones. Omitted when no archived meso has
+              matchable data for this exercise. */}
+          {lastMeso && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 10,
+                padding: '12px',
+                borderRadius: tokens.radius.md,
+                border: '1px solid var(--border)',
+                background: 'var(--bg-surface)',
+              }}
+            >
+              <span style={{ ...eyebrow, color: 'var(--amber)' }}>Last meso</span>
+              <span style={{ fontFamily: bebas, fontSize: 20, letterSpacing: '0.03em', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                {fmtNumber(lastMeso.weight)} × {lastMeso.reps}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                week {lastMeso.weekIdx + 1}
+                {lastMeso.mesosAgo > 1 ? ` · ${lastMeso.mesosAgo} mesos back` : ''}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Thumb-reach close */}
+        <div
+          style={{
+            flexShrink: 0,
+            padding: '10px 20px calc(12px + env(safe-area-inset-bottom, 0px))',
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
             style={{
-              borderTop: '1px solid var(--border-subtle, var(--border))',
-              paddingTop: 12,
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: 8,
+              width: '100%',
+              minHeight: 52,
+              borderRadius: tokens.radius.lg,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontFamily: bebas,
+              fontSize: 20,
+              letterSpacing: '0.1em',
+              cursor: 'pointer',
             }}
           >
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: '0.14em',
-                color: 'var(--amber)',
-                textTransform: 'uppercase',
-              }}
-            >
-              Last meso
-            </span>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                fontVariantNumeric: 'tabular-nums',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              {fmtNumber(lastMeso.weight)} × {lastMeso.reps}
-            </span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              &mdash; week {lastMeso.weekIdx + 1}
-              {lastMeso.mesosAgo > 1 ? `, ${lastMeso.mesosAgo} mesos back` : ''}
-            </span>
-          </div>
-        )}
+            DONE
+          </button>
+        </div>
       </div>
     </div>
   );

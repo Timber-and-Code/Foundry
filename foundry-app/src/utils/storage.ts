@@ -112,8 +112,13 @@ export function migrateKeys(): void {
 // that don't exist (foundry:completedSets:, foundry:setLog:, …) while the
 // real ones survived. There should be exactly one of these.
 const MESO_SESSION_KEY_RE =
-  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$|active_session$)/;
+  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$|active_session$|next_meso_draft$)/;
 
+// `next_meso_draft` rides along on purpose: a plan made during THIS meso's
+// deload belongs to it. Every caller here is a meso ending by some other
+// route (a new one built, a shared one joined, a reset), and a plan left
+// behind would start in place of whatever the lifter just chose.
+//
 // Wipe all per-session data of the current meso and zero the stored week.
 // Purely local — remote pointer handling is the callers' concern.
 export function wipeMesoSessionData(): void {

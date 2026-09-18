@@ -53,6 +53,8 @@ export interface ManualBuilderFlowProps {
   setError: (v: string) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   maybePromptCardio: (profile: any) => void;
+  /** Planning the next meso: no start date (it starts when it's started) and no "Start Training". */
+  planningNext?: boolean;
 }
 
 export default function ManualBuilderFlow({
@@ -80,6 +82,7 @@ export default function ManualBuilderFlow({
   setCardioDays,
   setError,
   maybePromptCardio,
+  planningNext = false,
 }: ManualBuilderFlowProps) {
   const [pairPickFirst, setPairPickFirst] = useState<{ dayIdx: number; exIdx: number } | null>(null);
 
@@ -660,7 +663,8 @@ export default function ManualBuilderFlow({
           </div>
         </div>
 
-        {/* Start date */}
+        {/* Start date — a planned meso starts on the day it's started */}
+        {!planningNext && (
         <div style={sec}>
           <label style={sLabel}>Start date *</label>
           <input
@@ -690,6 +694,7 @@ export default function ManualBuilderFlow({
             </div>
           )}
         </div>
+        )}
 
         {/* Error */}
         {error && (
@@ -1061,7 +1066,7 @@ export default function ManualBuilderFlow({
               boxShadow: '0 4px 24px rgba(var(--accent-rgb),0.3)',
             }}
           >
-            Start Training →
+            {planningNext ? 'Continue →' : 'Start Training →'}
           </button>
         </div>
       </div>
@@ -1311,7 +1316,7 @@ export default function ManualBuilderFlow({
             opacity: allDaysValid ? 1 : 0.5,
           }}
         >
-          Start Training →
+          {planningNext ? 'Continue →' : 'Start Training →'}
         </button>
       </div>
     </div>

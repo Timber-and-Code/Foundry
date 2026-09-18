@@ -1,4 +1,6 @@
 import React from 'react';
+import NextMesoCard from './NextMesoCard';
+import { isPlanningWindow } from '../../utils/nextMeso';
 import {
   TAG_ACCENT,
   getMeso,
@@ -858,6 +860,9 @@ function HomeTab({
           })}
         </div>
       </button>
+
+      {/* Deload week: plan the next meso while this one winds down. */}
+      {isPlanningWindow(activeWeek) && <NextMesoCard />}
 
       {/* Mobility streak pill — subtle gold chip, hidden at 0 */}
       {mobilityStreak > 0 && (

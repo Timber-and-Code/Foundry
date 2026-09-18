@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { store } from '../../utils/store';
-import { emit } from '../../utils/events';
+import { emit, on } from '../../utils/events';
 import { archiveCurrentMeso, resetMesoAfterCompletion } from '../../utils/archive';
+import { loadNextMesoDraft } from '../../utils/nextMeso';
+import { formatSplitName } from '../../utils/splitLabel';
 import type { Profile } from '../../types';
 
 interface MesoCompleteSheetProps {
@@ -47,6 +49,12 @@ const CARDS: CardDef[] = [
  * the moment of choice.
  */
 export default function MesoCompleteSheet({ profile }: MesoCompleteSheetProps) {
+  // A meso planned during the deload goes first and starts in one tap. App
+  // owns starting it (archive, retire, install) — see startPlannedMeso.
+  const [draft] = useState(loadNextMesoDraft);
+  const [starting, setStarting] = useState(false);
+  useEffect(() => on('foundry:start-planned-meso-failed', () => setStarting(false)), []);
+
   useEffect(() => {
     // Gate so the event doesn't re-emit on rerender.
     if (store.get('foundry:meso_complete_shown') !== '1') {
@@ -137,6 +145,49 @@ export default function MesoCompleteSheet({ profile }: MesoCompleteSheetProps) {
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {draft && (
+            <button
+              type="button"
+              disabled={starting}
+              onClick={() => {
+                setStarting(true);
+                emit('foundry:start-planned-meso');
+              }}
+              style={{
+                textAlign: 'left',
+                padding: '18px 18px 20px',
+                borderRadius: tokens.radius.lg,
+                border: `1px solid ${tokens.colors.accent}`,
+                background: 'rgba(232,101,26,0.10)',
+                color: tokens.colors.textPrimary,
+                cursor: starting ? 'default' : 'pointer',
+                opacity: starting ? 0.7 : 1,
+                boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', color: tokens.colors.accent, marginBottom: 6 }}>
+                YOUR PLAN
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '0.01em' }}>
+                  {starting ? 'Starting…' : 'Start your planned meso'}
+                </div>
+                <span aria-hidden="true" style={{ color: tokens.colors.accent, fontSize: 16, fontWeight: 700 }}>
+                  →
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: tokens.colors.textMuted, lineHeight: 1.5 }}>
+                {[
+                  formatSplitName(draft.profile.splitType),
+                  `${draft.profile.workoutDays?.length || draft.profile.daysPerWeek || draft.program.length} days/wk`,
+                  draft.profile.mesoLength ? `${draft.profile.mesoLength} weeks + deload` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+                . Built during your deload — week 1 is ready.
+              </div>
+            </button>
+          )}
           {CARDS.map((c) => (
             <button
               key={c.key}
