@@ -194,6 +194,7 @@ export default function CardioDesigner({ initial, onClose, onDone, onApplyToSche
 
   return (
     <div
+      className="fd-col"
       style={{
         minHeight: '100vh',
         background: 'var(--bg-root)',

@@ -93,7 +93,11 @@ function ExplorePage({ profile, onStartProgram, onProfileUpdate }: ExplorePagePr
 
   return (
     <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
-      <div style={{ padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* ≥1000px: tiles go two-up (fd-explore-tiles in responsive/tabs.css). */}
+      <div
+        className="fd-explore-tiles"
+        style={{ padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}
+      >
         {tiles.map((t, i) => (
           <NumberedTile
             key={t.id}
