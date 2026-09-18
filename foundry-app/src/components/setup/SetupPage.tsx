@@ -8,7 +8,13 @@ import CardioSetupFlow from './CardioSetupFlow';
 import Beat1Essentials, { type Beat1Values } from './Beat1Essentials';
 import Beat2Preview from './Beat2Preview';
 import ProgramReady from './ProgramReady';
-import type { Profile } from '../../types';
+import ProgramReview from './ProgramReview';
+import { generateProgram } from '../../utils/program';
+import { getExerciseDB } from '../../data/exerciseDB';
+import { getTrainedExerciseIds } from '../../utils/trainingHistory';
+import { trainedIdsIncludingCurrent } from '../../utils/nextMeso';
+import { loadProfile } from '../../utils/store';
+import type { Profile, TrainingDay } from '../../types';
 
 /**
  * foundry:setup_v2 flag — default ON for fresh users, OFF when carrying
@@ -184,6 +190,8 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
   const [legBalancePrompt, setLegBalancePrompt] = useState<Profile | null>(null);
   const [showCardioStep, setShowCardioStep] = useState(false);
   const [pendingProfile, setPendingProfile] = useState<Profile | null>(null);
+  // Every meso is reviewed day by day before it exists — see ProgramReview.
+  const [review, setReview] = useState<{ profile: Profile; program: TrainingDay[] } | null>(null);
 
   // Auto-builder specific state
   const [autoForm, setAutoForm] = useState(() => {
@@ -215,8 +223,21 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
       const d = String(setupDob.day).padStart(2, '0');
       enriched.birthdate = `${setupDob.year}-${m}-${d}`;
     }
-    setPendingProfile(enriched);
-    setShowCardioStep(true);
+    // Generate ONCE (generateProgram shuffles) and review exactly that.
+    // Anchor continuity reads the live meso too when building on top of one.
+    const trainedIds = planningNext
+      ? (() => {
+          const live = loadProfile();
+          return live ? trainedIdsIncludingCurrent(live) : getTrainedExerciseIds();
+        })()
+      : getTrainedExerciseIds();
+    const program = generateProgram(enriched, getExerciseDB() as never, { trainedIds });
+    if (!program.some((d) => d.exercises && d.exercises.length > 0)) {
+      setError("Couldn't build the program — the exercise library hasn't loaded. Try again.");
+      return;
+    }
+    setError('');
+    setReview({ profile: enriched, program });
     window.scrollTo(0, 0);
   };
   const maybePromptLegBalance = (built: Profile) => {
@@ -496,6 +517,28 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
     }
     // v2 fell out of a valid state — drop to the legacy render. Shouldn't
     // happen in normal flow; guards against stale branch state.
+  }
+
+  if (review) {
+    return (
+      <ProgramReview
+        program={review.program}
+        userEquipment={Array.isArray(review.profile.equipment) ? review.profile.equipment : undefined}
+        subtitle={startsNow ? 'NEXT MESO' : planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'}
+        onBack={() => {
+          setReview(null);
+          window.scrollTo(0, 0);
+        }}
+        onConfirm={(program) => {
+          // Pinned as aiDays: generateProgram returns it verbatim, so every
+          // later build of this meso is the program just approved.
+          setPendingProfile({ ...review.profile, aiDays: program });
+          setReview(null);
+          setShowCardioStep(true);
+          window.scrollTo(0, 0);
+        }}
+      />
+    );
   }
 
   // ════════════════════════════════════════════════════════

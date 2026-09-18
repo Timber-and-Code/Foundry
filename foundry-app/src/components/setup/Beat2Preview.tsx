@@ -7,13 +7,14 @@ import { getExerciseDB } from '../../data/exerciseDB';
 import { store } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
 import type { Beat1Values } from './Beat1Essentials';
-import type { Exercise, Profile, TrainingDay } from '../../types';
+import type { Profile } from '../../types';
 import { SplitBody, type SplitType } from './SplitSheet';
 import { MesoLengthBody, type MesoLength } from './MesoLengthSheet';
 import { SessionLengthBody, type SessionLength } from './SessionLengthSheet';
 import AccordionBar from './AccordionBar';
 import DayAccordion, { type DayBuild } from './DayAccordion';
 import { formatSplitName } from '../../utils/splitLabel';
+import { toDayBuilds, hydrateDayBuilds } from './dayBuilds';
 
 interface Beat2Props {
   beat1: Beat1Values;
@@ -32,31 +33,6 @@ const SESSION_DURATION: Record<SessionLength, number> = {
   standard: 55,
   long: 70,
 };
-
-/**
- * Map program.ts TrainingDay[] output into the DayBuild[] shape the
- * DayAccordion works with. Anchors become an indices-array instead of
- * per-exercise booleans to keep state mutations simple.
- */
-function toDayBuilds(days: TrainingDay[]): DayBuild[] {
-  return days.map((d) => {
-    const exercises = (d.exercises || []).map((e) => ({
-      id: String(e.id ?? e.name ?? ''),
-      name: String(e.name ?? ''),
-      muscle: String(e.muscle ?? 'other'),
-    }));
-    const anchors: number[] = [];
-    (d.exercises || []).forEach((e, i) => {
-      if (e.anchor) anchors.push(i);
-    });
-    return {
-      tag: String(d.tag ?? 'CUSTOM'),
-      label: String(d.label ?? `Day ${d.dayNum ?? '?'}`),
-      exercises,
-      anchors,
-    };
-  });
-}
 
 /**
  * Beat 2 — live program preview.
@@ -153,60 +129,7 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
     // We hydrate each DayBuild back into a full TrainingDay using
     // EXERCISE_DB so the Home view can render the exact program the user
     // saw — regardless of whether the AI refinement below succeeds.
-    const lockedDays: TrainingDay[] = days
-      .map((d, i): TrainingDay => {
-        const exercises: Exercise[] = d.exercises.map((e, idx) => {
-          const isAnchor = d.anchors.includes(idx);
-          const match = dbNow.find((x) => x.id === e.id) as unknown as
-            | { [k: string]: unknown }
-            | undefined;
-          if (match) {
-            return {
-              id: String(match.id),
-              name: String(match.name),
-              muscle: String(match.muscle || e.muscle || 'other'),
-              muscles: (match.muscles as string[] | undefined) || [String(match.muscle || e.muscle)],
-              equipment: (match.equipment as string | string[] | undefined) || 'barbell',
-              tag: String(match.tag || d.tag || 'FULL'),
-              anchor: isAnchor,
-              sets: isAnchor ? 4 : 3,
-              reps: typeof match.reps === 'string' ? match.reps : '6-12',
-              rest: typeof match.rest === 'string' ? match.rest : isAnchor ? '3 min' : '2 min',
-              warmup: isAnchor ? 'Full protocol' : '1 feeler set',
-              progression: match.pattern === 'isolation' ? 'reps' : 'weight',
-              description: typeof match.description === 'string' ? match.description : '',
-              videoUrl: typeof match.videoUrl === 'string' ? match.videoUrl : '',
-              bw: !!match.bw,
-            } as Exercise;
-          }
-          return {
-            id: e.id,
-            name: e.name,
-            muscle: e.muscle,
-            muscles: [e.muscle],
-            equipment: 'barbell',
-            tag: d.tag,
-            anchor: isAnchor,
-            sets: isAnchor ? 4 : 3,
-            reps: '6-12',
-            rest: isAnchor ? '3 min' : '2 min',
-            warmup: isAnchor ? 'Full protocol' : '1 feeler set',
-            progression: 'weight',
-            description: '',
-            videoUrl: '',
-          } as Exercise;
-        });
-        return {
-          dayNum: i + 1,
-          label: d.label,
-          tag: d.tag,
-          muscles: '',
-          note: '',
-          cardio: null,
-          exercises,
-        };
-      })
-      .filter((d) => d.exercises.length > 0);
+    const lockedDays = hydrateDayBuilds(days, dbNow as never);
 
     const deterministicProfile: Profile = {
       ...(profileDraft as Profile),
