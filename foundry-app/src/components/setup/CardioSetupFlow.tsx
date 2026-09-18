@@ -10,12 +10,15 @@ export interface CardioSetupFlowProps {
   onComplete: (profile: any) => void;
   /** Planning the next meso — the last step saves a plan, it doesn't start training. */
   planningNext?: boolean;
+  /** Built from the end-of-meso sheet and started immediately. */
+  startsNow?: boolean;
 }
 
 export default function CardioSetupFlow({
   pendingProfile,
   onComplete,
   planningNext = false,
+  startsNow = false,
 }: CardioSetupFlowProps) {
   const [cardioSchedule, setCardioSchedule] = useState<{ dayOfWeek: number; protocol: string }[]>([]);
   const [expandedCardioDow, setExpandedCardioDow] = useState<number | null>(null);
@@ -585,7 +588,7 @@ export default function CardioSetupFlow({
           >
             {cardioSchedule.length > 0
               ? `Add Plan (${cardioSchedule.length} day${cardioSchedule.length > 1 ? 's' : ''}) →`
-              : planningNext
+              : planningNext && !startsNow
                 ? 'Save plan →'
                 : 'Start Training →'}
           </button>

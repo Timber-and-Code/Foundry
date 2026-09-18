@@ -39,14 +39,20 @@ interface SetupPageProps {
    * deload. Same builders, but the result is saved as a draft by the caller
    * and nothing live changes — so it always takes the returning-lifter path
    * and can be backed out of.
+   *
+   * 'after-meso' is the same flow from the end-of-meso sheet: the finished
+   * meso stays live (and its summary viewable) until the result is started,
+   * which the caller does straight away.
    */
-  mode?: 'new' | 'plan-next';
+  mode?: 'new' | 'plan-next' | 'after-meso';
   /** Leave without building. Shown as Back on the first screen. */
   onCancel?: () => void;
 }
 
 export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupPageProps) {
-  const planningNext = mode === 'plan-next';
+  // Both non-'new' modes build on top of a meso that is still live.
+  const planningNext = mode !== 'new';
+  const startsNow = mode === 'after-meso';
   const SPLIT_CONFIG = {
     ppl: {
       label: 'Push · Pull · Legs',
@@ -508,7 +514,7 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
         }}
       >
         {/* Foundry Banner */}
-        <FoundryBanner subtitle={planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'} />
+        <FoundryBanner subtitle={startsNow ? 'NEXT MESO' : planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'} />
         {/* Meso 2+ continuation banner */}
         {(() => {
           let t = null;
@@ -539,7 +545,11 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
                     marginBottom: 2,
                   }}
                 >
-                  {planningNext ? 'PLANNING YOUR NEXT MESO' : 'MESO 2 — CONTINUING YOUR PROGRESS'}
+                  {startsNow
+                    ? 'BUILDING YOUR NEXT MESO'
+                    : planningNext
+                      ? 'PLANNING YOUR NEXT MESO'
+                      : 'MESO 2 — CONTINUING YOUR PROGRESS'}
                 </div>
                 <div
                   style={{
@@ -548,7 +558,9 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
                     lineHeight: 1.5,
                   }}
                 >
-                  {planningNext
+                  {startsNow
+                    ? 'Your finished meso stays on record until you start this one. Back out any time.'
+                    : planningNext
                     ? "This meso's settings are pre-loaded. Nothing changes until you start the new one — finish your deload, or tap Start now on Home."
                     : 'Your previous settings are pre-loaded. Change anything you want, then build.'}
                 </div>
@@ -873,6 +885,7 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
           pendingProfile={pendingProfile}
           onComplete={onComplete}
           planningNext={planningNext}
+          startsNow={startsNow}
         />
       )}
     </>

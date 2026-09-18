@@ -6,9 +6,10 @@ import '@testing-library/jest-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 const flags = new Map<string, string>();
-const { emitMock, archiveMock } = vi.hoisted(() => ({
+const { emitMock, archiveMock, resetMock } = vi.hoisted(() => ({
   emitMock: vi.fn(),
   archiveMock: vi.fn(),
+  resetMock: vi.fn(),
 }));
 
 vi.mock('../../../utils/store', () => ({
@@ -22,7 +23,7 @@ vi.mock('../../../utils/store', () => ({
 vi.mock('../../../utils/events', () => ({ emit: emitMock, on: vi.fn(() => () => {}) }));
 vi.mock('../../../utils/archive', () => ({
   archiveCurrentMeso: archiveMock,
-  resetMesoAfterCompletion: vi.fn(),
+  resetMesoAfterCompletion: resetMock,
 }));
 
 import MesoCompleteSheet from '../MesoCompleteSheet';
@@ -34,6 +35,7 @@ describe('MesoCompleteSheet', () => {
     flags.clear();
     emitMock.mockClear();
     archiveMock.mockClear();
+    resetMock.mockClear();
   });
 
   it('renders the three action cards', () => {
@@ -54,23 +56,34 @@ describe('MesoCompleteSheet', () => {
     expect(dialog).toHaveAttribute('aria-modal', 'true');
   });
 
-  it('Repeat keeps meso_transition and emits repeat-meso', () => {
+  // Repeat / Build new must NOT end the meso on tap: archiving wiped the
+  // session keys while the profile survived, so backing out of setup (or
+  // closing the app) restarted the same program at week 1 and the summary
+  // was gone. App archives only once the new meso actually starts.
+  it('Repeat opens setup without archiving or wiping anything', () => {
     flags.set('foundry:meso_transition', '{"some":"data"}');
     render(<MesoCompleteSheet profile={PROFILE as never} />);
     fireEvent.click(screen.getByText(/repeat this meso/i));
-    expect(archiveMock).toHaveBeenCalledWith(PROFILE);
-    // transition is NOT cleared for the repeat path
-    expect(flags.get('foundry:meso_transition')).toBe('{"some":"data"}');
-    expect(emitMock).toHaveBeenCalledWith('foundry:repeat-meso');
+    expect(archiveMock).not.toHaveBeenCalled();
+    expect(resetMock).not.toHaveBeenCalled();
+    expect(flags.get('foundry:meso_complete_shown')).toBe('1');
+    expect(emitMock).toHaveBeenCalledWith('foundry:build-next-meso', { fresh: false });
   });
 
-  it('Build new clears meso_transition and emits new-meso', () => {
-    flags.set('foundry:meso_transition', '{"old":"data"}');
+  it('Build new opens a fresh setup without archiving or wiping anything', () => {
     render(<MesoCompleteSheet profile={PROFILE as never} />);
     fireEvent.click(screen.getByText(/build a new meso/i));
-    expect(archiveMock).toHaveBeenCalledWith(PROFILE);
-    expect(flags.has('foundry:meso_transition')).toBe(false);
-    expect(emitMock).toHaveBeenCalledWith('foundry:new-meso');
+    expect(archiveMock).not.toHaveBeenCalled();
+    expect(resetMock).not.toHaveBeenCalled();
+    expect(flags.get('foundry:meso_complete_shown')).toBe('1');
+    expect(emitMock).toHaveBeenCalledWith('foundry:build-next-meso', { fresh: true });
+  });
+
+  it('View meso summary reopens the recap', () => {
+    render(<MesoCompleteSheet profile={PROFILE as never} />);
+    fireEvent.click(screen.getByText(/view meso summary/i));
+    expect(emitMock).toHaveBeenCalledWith('foundry:view-meso-summary');
+    expect(archiveMock).not.toHaveBeenCalled();
   });
 
   it('Try a Foundry program clears transition and emits browse-samples', () => {
@@ -82,10 +95,10 @@ describe('MesoCompleteSheet', () => {
     expect(emitMock).toHaveBeenCalledWith('foundry:browse-samples');
   });
 
-  it('sets meso_complete_shown flag on mount and clears it on choice', () => {
+  it('sets meso_complete_shown flag on mount and clears it when browsing samples', () => {
     render(<MesoCompleteSheet profile={PROFILE as never} />);
     expect(flags.get('foundry:meso_complete_shown')).toBe('1');
-    fireEvent.click(screen.getByText(/build a new meso/i));
+    fireEvent.click(screen.getByText(/try a foundry program/i));
     expect(flags.has('foundry:meso_complete_shown')).toBe(false);
   });
 
@@ -102,7 +115,7 @@ describe('MesoCompleteSheet', () => {
     it('leads with it, above the usual three', () => {
       render(<MesoCompleteSheet profile={PROFILE as never} />);
       const buttons = screen.getAllByRole('button');
-      expect(buttons).toHaveLength(4);
+      expect(buttons).toHaveLength(5); // + View meso summary
       expect(buttons[0]).toHaveTextContent(/Start your planned meso/);
       expect(buttons[0]).toHaveTextContent(/Upper \/ Lower · 4 days\/wk · 4 weeks \+ deload/);
     });
