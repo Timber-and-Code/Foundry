@@ -47,8 +47,8 @@ describe('MesoHistoryView', () => {
       />,
     );
 
-    expect(screen.getByText('WEEK 2')).toBeInTheDocument();
-    expect(screen.getByText('WEEK 1')).toBeInTheDocument();
+    expect(screen.getByText('WK 2')).toBeInTheDocument();
+    expect(screen.getByText('WK 1')).toBeInTheDocument();
     // Current-week TODAY tag.
     expect(screen.getByText('Today')).toBeInTheDocument();
   });
@@ -65,7 +65,7 @@ describe('MesoHistoryView', () => {
       />,
     );
     expect(
-      screen.getByText('No logged sets yet for this exercise.'),
+      screen.getByText('No sets logged yet'),
     ).toBeInTheDocument();
   });
 
@@ -145,5 +145,15 @@ describe('MesoHistoryView', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Close history' }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes from the thumb-reach Done button and the close button', () => {
+    const onClose = vi.fn();
+    render(
+      <MesoHistoryView exercise={exercise} dayIdx={0} exIdx={0} currentWeekIdx={0} mesoWeeks={5} onClose={onClose} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'DONE' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close history' }));
+    expect(onClose).toHaveBeenCalledTimes(2);
   });
 });
