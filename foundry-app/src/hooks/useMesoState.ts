@@ -14,6 +14,8 @@ interface AnchorGain {
   peak: number;
   delta: number;
   peakWeek: number;
+  /** Top working weight per week (0 = not logged), deload last. */
+  weekly: number[];
 }
 import { getMeso, resetMesoCache } from '../data/constants';
 import { getExerciseDB, findExercise, useExerciseDB } from '../data/exerciseDB';
@@ -27,6 +29,7 @@ import {
   snapshotData,
   resetMeso,
   archiveCurrentMeso,
+  findPrevSlotForExercise,
 } from '../utils/store';
 import { generateProgram } from '../utils/program';
 import { getTrainedExerciseIds } from '../utils/trainingHistory';
@@ -206,88 +209,89 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       let mesoTotalVolume = 0;
       let mesoTotalPRs = 0;
       let mesoCompletedSessions = 0;
+      let mesoWeeklyVolume: number[] = [];
       const mesoTotalSessions = getMeso().totalWeeks * getMeso().days;
 
       if (isFinal) {
-        for (let w = 0; w < getMeso().totalWeeks; w++) {
+        const totalWeeks = getMeso().totalWeeks;
+        for (let w = 0; w < totalWeeks; w++) {
           for (let d = 0; d < getMeso().days; d++) {
             if (newCompleted.has(`${d}:${w}`)) mesoCompletedSessions++;
           }
         }
-        for (let w = 0; w < getMeso().totalWeeks; w++) {
-          prog.forEach((day: TrainingDay, d: number) => {
-            const raw = store.get(`foundry:day${d}:week${w}`);
-            if (!raw) return;
+        // Each week's day blobs, read once. Slices are matched to an
+        // exercise by its `_exId` stamp (slot fallback for legacy data):
+        // reading `wd[exIdx]` by position credited another lift's sets to
+        // this one whenever a reorder, swap or superset moved it.
+        const weekData: Record<string, Record<string, WorkoutSet>>[][] = [];
+        for (let w = 0; w < totalWeeks; w++) {
+          weekData[w] = prog.map((_: TrainingDay, d: number) => {
             try {
-              const wd = JSON.parse(raw);
-              day.exercises.forEach((ex: Exercise, exIdx: number) => {
-                const exData = wd[exIdx] || {};
-                let thisBest = 0;
-                Object.values(exData as Record<string, WorkoutSet>).forEach((s) => {
-                  if (!s || !s.reps) return;
-                  const weight = parseFloat(String(s.weight || 0));
-                  const reps = parseInt(String(s.reps));
-                  if (!reps) return;
-                  const eff = ex.bw ? bw + weight : weight;
-                  mesoTotalVolume += eff * reps;
-                  if (eff * reps > thisBest) thisBest = eff * reps;
-                });
-                if (w > 0) {
-                  let priorBest = 0;
-                  for (let pw = 0; pw < w; pw++) {
-                    const pr = store.get(`foundry:day${d}:week${pw}`);
-                    if (!pr) continue;
-                    try {
-                      const pwd = JSON.parse(pr);
-                      Object.values(pwd[exIdx] as Record<string, WorkoutSet> || {}).forEach((s) => {
-                        if (!s || !s.reps) return;
-                        const weight = parseFloat(String(s.weight || 0));
-                        const reps = parseInt(String(s.reps));
-                        const eff = ex.bw ? bw + weight : weight;
-                        if (eff * reps > priorBest) priorBest = eff * reps;
-                      });
-                    } catch { /* JSON parse fallback — data optional */ }
-                  }
-                  if (thisBest > priorBest && priorBest > 0) mesoTotalPRs++;
-                }
+              return JSON.parse(store.get(`foundry:day${d}:week${w}`) || '{}');
+            } catch {
+              return {};
+            }
+          });
+        }
+        const sliceFor = (w: number, d: number, ex: Exercise, exIdx: number) =>
+          findPrevSlotForExercise(weekData[w][d] as never, ex.id, exIdx) as unknown as Record<string, WorkoutSet>;
+
+        mesoWeeklyVolume = Array.from({ length: totalWeeks }, () => 0);
+        for (let w = 0; w < totalWeeks; w++) {
+          prog.forEach((day: TrainingDay, d: number) => {
+            day.exercises.forEach((ex: Exercise, exIdx: number) => {
+              let thisBest = 0;
+              Object.values(sliceFor(w, d, ex, exIdx)).forEach((s) => {
+                if (!s || !s.reps || s.warmup) return;
+                const weight = parseFloat(String(s.weight || 0));
+                const reps = parseInt(String(s.reps));
+                if (!reps) return;
+                const eff = ex.bw ? bw + weight : weight;
+                mesoTotalVolume += eff * reps;
+                mesoWeeklyVolume[w] += eff * reps;
+                if (eff * reps > thisBest) thisBest = eff * reps;
               });
-            } catch { /* JSON parse fallback — data optional */ }
+              if (w > 0) {
+                let priorBest = 0;
+                for (let pw = 0; pw < w; pw++) {
+                  Object.values(sliceFor(pw, d, ex, exIdx)).forEach((s) => {
+                    if (!s || !s.reps || s.warmup) return;
+                    const weight = parseFloat(String(s.weight || 0));
+                    const reps = parseInt(String(s.reps));
+                    const eff = ex.bw ? bw + weight : weight;
+                    if (eff * reps > priorBest) priorBest = eff * reps;
+                  });
+                }
+                if (thisBest > priorBest && priorBest > 0) mesoTotalPRs++;
+              }
+            });
           });
         }
 
-        // Anchor lift progression
+        // Anchor lifts: top working weight per week, which feeds both the
+        // start → peak line and the per-lift chart. The peak is taken over
+        // WORKING weeks — the deload is lighter by design, never the peak.
         prog.forEach((day: TrainingDay, d: number) => {
           day.exercises.forEach((ex: Exercise, exIdx: number) => {
             if (!ex.anchor) return;
-            const w1Raw = store.get(`foundry:day${d}:week0`);
-            let w1Best = 0;
-            if (w1Raw) {
-              try {
-                const w1d = JSON.parse(w1Raw);
-                Object.values(w1d[exIdx] as Record<string, WorkoutSet> || {}).forEach((s) => {
-                  if (!s || !s.weight) return;
-                  const w = parseFloat(String(s.weight));
-                  if (w > w1Best) w1Best = w;
-                });
-              } catch { /* JSON parse fallback — data optional */ }
-            }
+            const weekly = Array.from({ length: totalWeeks }, (_, w) => {
+              let top = 0;
+              Object.values(sliceFor(w, d, ex, exIdx)).forEach((s) => {
+                if (!s || s.warmup || !s.weight) return;
+                const weight = parseFloat(String(s.weight));
+                if (weight > top) top = weight;
+              });
+              return top;
+            });
+            const w1Best = weekly[0];
             let peakBest = 0;
             let peakWeek = 0;
-            for (let w = 0; w < getMeso().totalWeeks; w++) {
-              const raw = store.get(`foundry:day${d}:week${w}`);
-              if (!raw) continue;
-              try {
-                const wd = JSON.parse(raw);
-                Object.values(wd[exIdx] as Record<string, WorkoutSet> || {}).forEach((s) => {
-                  if (!s || !s.weight) return;
-                  const weight = parseFloat(String(s.weight));
-                  if (weight > peakBest) {
-                    peakBest = weight;
-                    peakWeek = w;
-                  }
-                });
-              } catch { /* JSON parse fallback — data optional */ }
-            }
+            weekly.slice(0, totalWeeks - 1).forEach((v, w) => {
+              if (v > peakBest) {
+                peakBest = v;
+                peakWeek = w;
+              }
+            });
             const ovId = store.get(`foundry:exov:d${d}:ex${exIdx}`);
             const dbEx = ovId ? findExercise(ovId) ?? null : null;
             const exName = dbEx ? dbEx.name : ex.name;
@@ -298,6 +302,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
                 peak: peakBest,
                 delta: parseFloat((peakBest - w1Best).toFixed(1)),
                 peakWeek: peakWeek + 1,
+                weekly,
               });
             }
           });
@@ -323,6 +328,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
         mesoTotalPRs,
         mesoCompletedSessions,
         mesoTotalSessions,
+        mesoWeeklyVolume: mesoWeeklyVolume.map((v) => Math.round(v)),
       });
 
       // Onboarding v2: emit meso-complete once per user when the final week

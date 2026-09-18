@@ -3,6 +3,7 @@ import { tokens } from '../../styles/tokens';
 import { loadDayWeek, findPrevSlotForExercise, loadArchive } from '../../utils/store';
 import { store } from '../../utils/store';
 import { findLastMesoWeight } from '../../utils/progressAggregation';
+import WeekBars from '../shared/WeekBars';
 import type { Exercise, WorkoutSet } from '../../types';
 
 export interface MesoHistoryViewProps {
@@ -219,11 +220,6 @@ export default function MesoHistoryView({
     .filter((r) => r.weekIdx !== deloadIdx)
     .reduce((m, r) => Math.max(m, r.bestWeight), 0);
   const gain = loggedWeeks.length >= 2 ? peakBest - firstBest : null;
-  const chartMax = Math.max(...chronological.map((r) => r.bestWeight), 0);
-  const chartMin = Math.min(...loggedWeeks.map((r) => r.bestWeight), chartMax);
-  // Bars start from a floor below the lightest week so small jumps read as
-  // progress instead of five near-identical columns.
-  const chartFloor = Math.max(0, chartMin - Math.max((chartMax - chartMin) * 0.6, chartMax * 0.08));
 
   // Swipe-down to dismiss from the grab handle.
   const [dragY, setDragY] = useState(0);
@@ -417,65 +413,20 @@ export default function MesoHistoryView({
               {loggedWeeks.length >= 2 && (
                 <div>
                   <div style={{ ...eyebrow, marginBottom: 10 }}>Top weight by week</div>
-                  <div
-                    role="img"
-                    aria-label={`Top weight by week: ${chronological
-                      .filter((r) => r.bestWeight > 0)
+                  <WeekBars
+                    ariaLabel={`Top weight by week: ${loggedWeeks
                       .map((r) => `week ${r.weekIdx + 1} ${fmtNumber(r.bestWeight)}`)
                       .join(', ')}`}
-                    style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 104 }}
-                  >
-                    {chronological.map((r) => {
-                      const isDeload = r.weekIdx === deloadIdx;
-                      const isPrWeek = !!prRef && r.bestWeight === prRef.weight && !r.isCurrent;
-                      const pct = r.bestWeight > 0 && chartMax > chartFloor
-                        ? Math.max(0.12, (r.bestWeight - chartFloor) / (chartMax - chartFloor))
-                        : 0;
-                      return (
-                        <div key={r.weekIdx} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
-                          {r.bestWeight > 0 && (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: isPrWeek ? 'var(--accent)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                              {fmtNumber(r.bestWeight)}
-                            </span>
-                          )}
-                          <div
-                            style={{
-                              width: '100%',
-                              maxWidth: 34,
-                              height: r.bestWeight > 0 ? `${pct * 70}px` : 4,
-                              borderRadius: '4px 4px 1px 1px',
-                              background: r.bestWeight === 0
-                                ? 'transparent'
-                                : isPrWeek
-                                  ? 'linear-gradient(180deg, #F08A3E, var(--accent))'
-                                  : isDeload
-                                    ? 'var(--bg-inset, var(--bg-surface))'
-                                    : 'rgba(var(--accent-rgb),0.35)',
-                              border: r.bestWeight === 0 ? '1px dashed var(--border)' : isDeload ? '1px solid var(--border)' : 'none',
-                              boxShadow: isPrWeek ? '0 0 14px rgba(var(--accent-rgb),0.45)' : 'none',
-                            }}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                    {chronological.map((r) => (
-                      <div
-                        key={r.weekIdx}
-                        style={{
-                          flex: 1,
-                          textAlign: 'center',
-                          fontFamily: bebas,
-                          fontSize: 13,
-                          letterSpacing: '0.06em',
-                          color: r.isCurrent ? 'var(--text-primary)' : 'var(--text-muted)',
-                        }}
-                      >
-                        {r.weekIdx === deloadIdx ? 'DL' : `W${r.weekIdx + 1}`}
-                      </div>
-                    ))}
-                  </div>
+                    format={fmtNumber}
+                    bars={chronological.map((r) => ({
+                      key: r.weekIdx,
+                      label: r.weekIdx === deloadIdx ? 'DL' : `W${r.weekIdx + 1}`,
+                      value: r.bestWeight,
+                      highlight: !!prRef && r.bestWeight === prRef.weight && !r.isCurrent,
+                      muted: r.weekIdx === deloadIdx,
+                      current: r.isCurrent,
+                    }))}
+                  />
                 </div>
               )}
 

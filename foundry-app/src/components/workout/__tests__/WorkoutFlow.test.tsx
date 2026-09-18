@@ -160,6 +160,8 @@ vi.mock('../../../utils/store', () => ({
   saveCurrentWeek: mocks.saveCurrentWeek,
   archiveCurrentMeso: mocks.archiveCurrentMeso,
   resetMeso: mocks.resetMeso,
+  // Identity lookup — pass the slot through; these tests don't reorder.
+  findPrevSlotForExercise: (data: Record<number, unknown>, _id: unknown, idx: number) => (data && data[idx]) || {},
 }));
 
 vi.mock('../../../data/constants', () => ({
