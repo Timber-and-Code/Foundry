@@ -110,7 +110,17 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
       transition = JSON.parse(store.get('foundry:meso_transition') || 'null');
     } catch { /* JSON parse fallback */ }
     const tp = transition?.profile || null;
+    let current: Partial<Profile> = {};
+    try {
+      current = JSON.parse(store.get('foundry:profile') || '{}');
+    } catch { /* JSON parse fallback */ }
     return {
+      // The manual builder spreads this form into the profile, and
+      // validateProfile REJECTS one without experience — the app then reads
+      // "no profile" and drops the lifter on the empty shell. Onboarding sets
+      // it for a first meso; a returning lifter's form never had it.
+      experience:
+        (saved.experience as string) || tp?.experience || current.experience || 'intermediate',
       name: (saved.name as string) || tp?.name || '',
       age: saved.age ? String(saved.age) : tp?.age ? String(tp.age) : '',
       gender: (saved.gender as string) || tp?.gender || '',
@@ -717,6 +727,7 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
               setAiCoachNote={setAiCoachNote}
               setError={setError}
               maybePromptLegBalance={maybePromptLegBalance}
+              planningNext={planningNext}
             />
           )}
 
@@ -747,6 +758,7 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
               setCardioDays={setCardioDays}
               setError={setError}
               maybePromptCardio={maybePromptCardio}
+              planningNext={planningNext}
             />
           )}
         </div>
@@ -860,6 +872,7 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
         <CardioSetupFlow
           pendingProfile={pendingProfile}
           onComplete={onComplete}
+          planningNext={planningNext}
         />
       )}
     </>

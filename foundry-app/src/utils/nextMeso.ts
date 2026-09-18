@@ -119,7 +119,13 @@ export async function startPlannedMeso(current: Profile | null): Promise<Profile
   store.remove('foundry:meso_complete_emitted');
   clearNextMesoDraft();
 
-  const next: Profile = { ...draft.profile, startDate: todayISO() };
+  // validateProfile rejects a profile with no experience, and the app then
+  // reads "no profile" — carry the lifter's over rather than risk that.
+  const next: Profile = {
+    ...draft.profile,
+    experience: draft.profile.experience || current?.experience || 'intermediate',
+    startDate: todayISO(),
+  };
   store.set('foundry:storedProgram', JSON.stringify(draft.program));
   saveProfile(next);
   return next;

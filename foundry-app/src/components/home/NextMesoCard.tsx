@@ -101,7 +101,6 @@ export default function NextMesoCard() {
   const daysPerWeek = profile.workoutDays?.length || profile.daysPerWeek || program.length;
   const days = program.slice(0, daysPerWeek);
   const summary = [
-    formatSplitName(profile.splitType),
     `${daysPerWeek} days/wk`,
     profile.mesoLength ? `${profile.mesoLength} weeks + deload` : null,
   ]
@@ -111,7 +110,10 @@ export default function NextMesoCard() {
   return (
     <section style={card} aria-labelledby="next-meso-title">
       <div style={eyebrow}>Next meso planned</div>
-      <div id="next-meso-title" style={title}>{summary}</div>
+      <div id="next-meso-title" style={title}>{formatSplitName(profile.splitType)}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4, letterSpacing: '0.02em' }}>
+        {summary}
+      </div>
       <p style={{ ...body, margin: '6px 0 12px' }}>
         Starts when you finish your deload. Feeling recovered sooner? Start it now.
       </p>

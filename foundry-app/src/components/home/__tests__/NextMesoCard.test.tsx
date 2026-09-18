@@ -32,7 +32,8 @@ describe('NextMesoCard', () => {
   it('summarises a saved plan and previews its days', () => {
     localStorage.setItem('foundry:next_meso_draft', JSON.stringify(draft));
     render(<NextMesoCard />);
-    expect(screen.getByText(/Upper \/ Lower · 4 days\/wk · 4 weeks \+ deload/)).toBeTruthy();
+    expect(screen.getByText('Upper / Lower')).toBeTruthy();
+    expect(screen.getByText('4 days/wk · 4 weeks + deload')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /preview days/i }));
     expect(screen.getByText('Bench Press')).toBeTruthy();
   });

@@ -37,6 +37,8 @@ export interface AutoBuilderFlowProps {
   setError: (v: string) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   maybePromptLegBalance: (built: any) => void;
+  /** Planning the next meso: no start date (it starts when it's started) and no "Start Training". */
+  planningNext?: boolean;
 }
 
 export default function AutoBuilderFlow({
@@ -54,6 +56,7 @@ export default function AutoBuilderFlow({
   setAiCoachNote,
   setError,
   maybePromptLegBalance,
+  planningNext = false,
 }: AutoBuilderFlowProps) {
   const handleAutoSubmit = async () => {
     setError('');
@@ -731,7 +734,8 @@ export default function AutoBuilderFlow({
         </div>
       </div>
 
-      {/* Start date */}
+      {/* Start date — a planned meso starts on the day it's started */}
+      {!planningNext && (
       <div style={sec}>
         <label style={sLabel}>Start date</label>
         <input
@@ -749,6 +753,7 @@ export default function AutoBuilderFlow({
           }}
         />
       </div>
+      )}
 
       {/* Program summary preview */}
       {autoForm.split &&

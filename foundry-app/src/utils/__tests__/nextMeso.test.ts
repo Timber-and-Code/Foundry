@@ -57,7 +57,7 @@ import { resetMesoCache } from '../../data/constants';
 import type { Profile, TrainingDay } from '../../types';
 
 const current = {
-  name: 'J', splitType: 'full_body', daysPerWeek: 4, workoutDays: [1, 2, 4, 5],
+  name: 'J', experience: 'experienced', splitType: 'full_body', daysPerWeek: 4, workoutDays: [1, 2, 4, 5],
   mesoLength: 5, startDate: '2026-08-10',
 } as unknown as Profile;
 
@@ -171,6 +171,9 @@ describe('startPlannedMeso', () => {
     expect(JSON.parse(localStorage.getItem('foundry:profile')!).splitType).toBe('upper_lower');
     // Starts today, not on the day it was planned.
     expect(next?.startDate).not.toBe('2026-09-01');
+    // A draft built without experience must not produce a profile the app
+    // rejects (validateProfile → null → the empty shell).
+    expect(next?.experience).toBeTruthy();
     expect(loadNextMesoDraft()).toBeNull();
   });
 });
