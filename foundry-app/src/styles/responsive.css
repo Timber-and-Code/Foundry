@@ -6,10 +6,15 @@
    Slide Over (which hands us phone-sized widths — those get the phone
    layout, correctly), and any unfolded width in between.
 
-     compact   < 700px   the phone layout. Every token below resolves to the
+     compact   ≤ 480px   the phone layout. Every token below resolves to the
                          exact value the phone UI was built with, so phones
-                         (≤ 440pt) and narrow multitasking panes render
-                         pixel-identical to before this file existed.
+                         (≤ 440pt, incl. a folded foldable ~466pt) and narrow
+                         multitasking panes render pixel-identical to before
+                         this file existed.
+     roomy     481–699px the SAME phone layout (bottom tab bar, bottom sheets)
+                         but filling the width up to 640px instead of sitting
+                         in a 480 column with dead gutters. Unfolded foldables
+                         (~626pt portrait) and mid-size iPad Split View panes.
      regular   ≥ 700px   side rail replaces the bottom tab bar; content gets
                          a wider single column; sheets become centered dialogs.
      wide      ≥ 1000px  dashboards (Home, Progress, Explore, setup review)
@@ -39,6 +44,16 @@
   --form-max: 480px;
   /* Sheets / dialogs presented over content. */
   --sheet-max: 480px;
+}
+
+@media (min-width: 481px) and (max-width: 699px) {
+  :root {
+    --shell-max: 640px;
+    --col-max: 640px;
+    --wide-max: 640px;
+    --form-max: 560px;
+    --sheet-max: 640px;
+  }
 }
 
 @media (min-width: 700px) {
@@ -115,6 +130,20 @@
 }
 
 /* ── Sheets: bottom sheet on compact → centered dialog on regular+ ─────── */
+/* Roomy: still a bottom sheet / full-screen takeover, just as wide as the
+   (wider) shell so it lines up with the content behind it. */
+@media (min-width: 481px) and (max-width: 699px) {
+  .fd-sheet-panel { max-width: var(--sheet-max) !important; }
+  .fd-takeover-panel { max-width: var(--col-max) !important; margin-left: auto !important; margin-right: auto !important; }
+  .fd-fixed-col, .fd-fixed-form {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: 100% !important;
+    max-width: var(--col-max) !important;
+  }
+  .fd-fixed-form { max-width: var(--form-max) !important; }
+}
 @media (min-width: 700px) {
   .fd-sheet-overlay {
     align-items: center !important;
@@ -191,4 +220,14 @@
   .fd-home-pre:empty { display: none; }
   /* The column split replaces the divider between primary and secondary. */
   .fd-home-post > .fd-section-divider { display: none; }
+}
+
+/* ── Centered decision pages ─────────────────────────────────────────────
+   Short full-screen decision screens ("What's next", resume after a break,
+   sign-in meso conflict): centre the column in the viewport on tall iPad
+   screens instead of pinning it to the top. margin:auto inside a flex column
+   centres without clipping the top when the content overflows. */
+@media (min-width: 700px) {
+  .fd-center-page { display: flex !important; flex-direction: column; }
+  .fd-center-page > .fd-center-page-inner { margin: auto !important; }
 }

@@ -9,6 +9,8 @@ import { useEffect, useState } from 'react';
  * Prefer the CSS classes/tokens in responsive.css; reach for these only when
  * the markup itself has to differ (e.g. ARIA orientation, chart sizing).
  */
+/** 481–699: phone layout filling up to 640px (unfolded foldables, Split View). */
+export const BP_ROOMY = 481;
 export const BP_REGULAR = 700;
 export const BP_WIDE = 1000;
 

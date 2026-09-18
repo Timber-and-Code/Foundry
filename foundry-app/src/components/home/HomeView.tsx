@@ -987,7 +987,7 @@ function HomeView({
             left: '50%',
             transform: 'translateX(-50%)',
             width: '100%',
-            maxWidth: 480,
+            maxWidth: 'var(--shell-max)',
             zIndex: 100,
             background: 'var(--bg-card)',
             borderTop: '1px solid var(--border)',
