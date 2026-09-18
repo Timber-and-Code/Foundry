@@ -34,9 +34,10 @@ export default function CardioSetupFlow({
     'Saturday',
   ];
 
-  const liftingDows = new Set(
-    (pendingProfile?.workoutDays || []).map((d: number) => (d - 1 + 7) % 7)
-  );
+  // workoutDays is JS getDay() order (0 = Sunday), same as DAY_FULL and the
+  // schedule. This used to shift by one, so Mon/Tue/Thu/Fri lifting read as
+  // Sun/Mon/Wed/Thu and cardio suggestions could land on real lifting days.
+  const liftingDows = new Set<number>(pendingProfile?.workoutDays || []);
 
   const profileGoal = pendingProfile?.goal || '';
   const liftDayCount = (pendingProfile?.workoutDays || []).length;
