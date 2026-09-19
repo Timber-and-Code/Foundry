@@ -162,7 +162,7 @@ function StatRow({ items }: { items: { label: string; value: string }[] }) {
           }}
         >
           <div style={{ fontFamily: DISPLAY, fontSize: 104, lineHeight: 1, letterSpacing: '0.02em' }}>{it.value}</div>
-          <div style={{ marginTop: 12, fontSize: 26, fontWeight: 700, letterSpacing: '0.18em', color: MUTED }}>{it.label}</div>
+          <div style={{ marginTop: 14, fontSize: 30, fontWeight: 700, letterSpacing: '0.18em', color: MUTED }}>{it.label}</div>
         </div>
       ))}
     </div>
@@ -182,14 +182,14 @@ function sessionStats(stats: WorkoutCompleteStats) {
 
 function ListRows({ rows }: { rows: { name: string; right: string; rightColor?: string; sub?: string }[] }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
       {rows.map((r) => (
         <div key={r.name} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 30 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 40, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 560 }}>{r.name}</div>
-            {r.sub && <div style={{ marginTop: 6, fontSize: 28, color: MUTED, fontWeight: 600 }}>{r.sub}</div>}
+            <div style={{ fontSize: 48, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 560 }}>{r.name}</div>
+            {r.sub && <div style={{ marginTop: 8, fontSize: 34, color: MUTED, fontWeight: 600 }}>{r.sub}</div>}
           </div>
-          <div style={{ fontFamily: DISPLAY, fontSize: 64, lineHeight: 1, color: r.rightColor ?? CREAM, whiteSpace: 'nowrap' }}>{r.right}</div>
+          <div style={{ fontFamily: DISPLAY, fontSize: 80, lineHeight: 1, color: r.rightColor ?? CREAM, whiteSpace: 'nowrap' }}>{r.right}</div>
         </div>
       ))}
     </div>
@@ -234,18 +234,30 @@ function PrCard({ data }: { data: ShareCardData }) {
         <div style={{ fontFamily: DISPLAY, fontSize: 110, lineHeight: 1, paddingBottom: 12 }}>LB</div>
       </div>
       {pr.prevBest > 0 && gain > 0 && (
-        <div style={{ marginTop: 40, fontSize: 44, fontWeight: 700 }}>
+        <div style={{ marginTop: 44, fontSize: 64, fontWeight: 800, lineHeight: 1.1 }}>
           <span style={{ color: UP }}>+{fmt(gain)} lb</span>
-          <span style={{ color: MUTED }}> from {fmt(pr.prevBest)}</span>
+          <span style={{ color: MUTED, fontWeight: 600 }}> from {fmt(pr.prevBest)}</span>
         </div>
       )}
       <div style={{ marginTop: 'auto', marginBottom: 80 }}>
         {more.length > 0 && (
-          <div style={{ marginBottom: 50 }}>
-            <ListRows rows={more.slice(0, 2).map((p) => ({ name: p.name, right: `${fmt(p.newBest)} LB`, rightColor: ORANGE, sub: 'Also a PR today' }))} />
+          <div style={{ marginBottom: 64 }}>
+            <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '0.2em', color: ORANGE, marginBottom: 24 }}>
+              {more.length > 1 ? 'ALSO PRS TODAY' : 'ALSO A PR TODAY'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+              {more.slice(0, 2).map((p) => (
+                <div key={p.name} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 30 }}>
+                  <div style={{ fontSize: 60, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 560 }}>{p.name}</div>
+                  <div style={{ fontFamily: DISPLAY, fontSize: 116, lineHeight: 0.9, color: ORANGE, whiteSpace: 'nowrap' }}>
+                    {fmt(p.newBest)}<span style={{ fontSize: 60, color: CREAM, marginLeft: 12 }}>LB</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
-        <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '0.14em', color: MUTED, marginBottom: 20 }}>
+        <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: '0.14em', color: MUTED, marginBottom: 22 }}>
           {data.dayLabel.toUpperCase()} · WEEK {data.weekIdx + 1}
         </div>
         <StatRow items={sessionStats(stats)} />
