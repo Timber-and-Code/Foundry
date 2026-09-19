@@ -40,26 +40,12 @@ vi.mock('../social/FriendsStrip', () => ({
   default: () => <div data-testid="friends-strip" />,
 }));
 
-// captureShareCardPayload is the seam the ShareSheet tiles call; we spy on
-// it to verify the modal wires in the right meta (title / fileName / text)
-// regardless of which destination tile the user ends up picking.
-const captureSpy = vi.fn(
-  (
-    _node: HTMLElement,
-    meta: { title: string; text: string; fileName: string },
-  ) =>
-    Promise.resolve({
-      file: new File([new Uint8Array([0])], meta.fileName, { type: 'image/png' }),
-      dataUrl: 'data:image/png;base64,AAA',
-      ...meta,
-    }),
-);
-vi.mock('../../../utils/shareWorkout', () => ({
-  captureShareCardPayload: (
-    node: HTMLElement,
-    meta: { title: string; text: string; fileName: string },
-  ) => captureSpy(node, meta),
+const { captureSpy, shareSpy } = vi.hoisted(() => ({
+  captureSpy: vi.fn(() => Promise.resolve('data:image/png;base64,AAA')),
+  shareSpy: vi.fn(() => Promise.resolve('shared')),
 }));
+vi.mock('../../../utils/shareWorkout', () => ({ captureNodeToPng: captureSpy }));
+vi.mock('../../../utils/shareImage', () => ({ shareImage: shareSpy, downloadImage: vi.fn() }));
 
 import WorkoutCompleteModal from '../WorkoutCompleteModal';
 import type { WorkoutCompleteStats } from '../WorkoutCompleteModal';
@@ -72,88 +58,80 @@ const baseStats: WorkoutCompleteStats = {
   duration: 3600,
   prs: [],
   anchorComparison: [],
+  breakdown: [{ name: 'Barbell Bench', anchor: true, sets: [{ weight: 185, reps: 6 }, { weight: 185, reps: 5 }] }],
 };
 
-function renderModal(
-  overrides: Partial<React.ComponentProps<typeof WorkoutCompleteModal>> = {},
-) {
-  const props = {
-    dayLabel: 'Push A',
-    dayTag: 'PUSH',
-    stats: baseStats,
-    weekIdx: 1,
-    onOk: vi.fn(),
-    ...overrides,
-  };
+function renderModal(overrides: Partial<React.ComponentProps<typeof WorkoutCompleteModal>> = {}) {
+  const props = { dayLabel: 'Push A', dayTag: 'PUSH', stats: baseStats, weekIdx: 1, onOk: vi.fn(), ...overrides };
   return { ...render(<WorkoutCompleteModal {...props} />), props };
 }
 
-describe('WorkoutCompleteModal — SHARE button', () => {
+const openStudio = () => fireEvent.click(screen.getByRole('button', { name: /share this workout/i }));
+
+describe('WorkoutCompleteModal — share', () => {
   beforeEach(() => {
     localStorage.clear();
     captureSpy.mockClear();
+    shareSpy.mockClear();
   });
 
   it('renders a SHARE button alongside NEXT SESSION', () => {
     renderModal();
-    expect(
-      screen.getByRole('button', { name: /share this workout/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /next session/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /share this workout/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next session/i })).toBeInTheDocument();
   });
 
-  it('opens the branded share sheet when tapped', async () => {
+  it('opens the share screen with a preview of the image', () => {
     renderModal();
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /share this workout/i }),
-    );
-
-    // Sheet presence — the redesigned 3-action card uses share-system /
-    // share-save / share-copy testids. Save is the simplest action.
-    await waitFor(() =>
-      expect(screen.getByTestId('share-save')).toBeInTheDocument(),
-    );
+    openStudio();
+    expect(screen.getByRole('dialog', { name: /share workout/i })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /session image/i })).toBeInTheDocument();
   });
 
-  it('captures with the correct meta when a tile is picked', async () => {
+  it('offers only the templates the session can fill', () => {
     renderModal();
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /share this workout/i }),
-    );
-    // "Save image" is the simplest action — no window.open / native share
-    // to stub, just exercises the capture path.
-    fireEvent.click(await screen.findByTestId('share-save'));
-
-    await waitFor(() => expect(captureSpy).toHaveBeenCalledTimes(1));
-
-    const meta = captureSpy.mock.calls[0][1];
-    expect(meta.title).toBe('Crushed Push A');
-    expect(meta.fileName).toMatch(/^foundry-push-a-w2\.png$/);
-    expect(meta.text).toContain('Crushed Push A');
-    expect(meta.text).toContain('Week 2');
-    expect(meta.text).toContain('18 sets');
-    expect(meta.text).toContain('12,480 lbs');
+    openStudio();
+    // Session only: no PR, no week-over-week comparison → no switcher at all.
+    expect(screen.queryByRole('radiogroup', { name: /image style/i })).not.toBeInTheDocument();
   });
 
-  it('prepends the PR line when a PR was set this session', async () => {
+  it('leads with the PR image when there is a PR', () => {
     renderModal({
       stats: {
         ...baseStats,
-        prs: [{ name: 'Bench', newBest: 185, prevBest: 175 }],
+        prs: [{ name: 'Bench', newBest: 225, prevBest: 215 }],
+        anchorComparison: [{ name: 'Bench', today: 225, prev: 215, delta: 10 }],
       },
     });
+    openStudio();
+    const radios = screen.getAllByRole('radio');
+    expect(radios.map((r) => r.textContent)).toEqual(['PR', 'Session', 'Progress']);
+    expect(radios[0]).toHaveAttribute('aria-checked', 'true');
+  });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /share this workout/i }),
-    );
-    fireEvent.click(await screen.findByTestId('share-save'));
-    await waitFor(() => expect(captureSpy).toHaveBeenCalledTimes(1));
+  it('Share renders the full-size card and hands it to the system share sheet', async () => {
+    renderModal();
+    openStudio();
+    fireEvent.click(screen.getByRole('button', { name: /^share$/i }));
+    await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+    expect(captureSpy).toHaveBeenCalledWith(expect.any(HTMLElement), 1);
+    expect(shareSpy).toHaveBeenCalledWith({
+      dataUrl: 'data:image/png;base64,AAA',
+      fileName: 'foundry-push-a-w2-session.png',
+      title: 'Push A — The Foundry',
+    });
+  });
 
-    const meta = captureSpy.mock.calls[0][1];
-    expect(meta.text).toMatch(/NEW PR: Bench 185 lbs/);
+  it('Copy caption copies a readable caption', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.assign(navigator, { clipboard: { writeText } });
+    renderModal({ stats: { ...baseStats, prs: [{ name: 'Bench', newBest: 185, prevBest: 175 }] } });
+    openStudio();
+    fireEvent.click(screen.getByRole('button', { name: /copy caption/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    const text = (writeText.mock.calls[0] as unknown as [string])[0];
+    expect(text).toContain('New PR: Bench 185 lb');
+    expect(text).toContain('Push A, week 2');
+    expect(text).toContain('18 sets, 12,480 lb moved');
   });
 });

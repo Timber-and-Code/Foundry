@@ -70,7 +70,9 @@ function ExerciseBrowser({ onBack }: ExerciseBrowserProps) {
   const totalCount = EXERCISE_DB.length;
 
   return (
-    <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
+    // Reading page: capped at the regular column (720) on iPad rather than
+    // stretching across Explore's wide dashboard column.
+    <div className="fd-col" style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 90 }}>
       {detail && (
         <ExerciseDetailModal ex={detail as unknown as Exercise} onClose={() => setDetail(null)} />
       )}

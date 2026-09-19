@@ -148,7 +148,10 @@ function CardioBrowser({ onBack, profile, onProfileUpdate }: CardioBrowserProps)
         </span>
       </div>
 
+      {/* ≥1000px: protocol cards go two-up; intro, designer entry and saved
+          presets span the row (fd-card-grid in responsive/tabs.css). */}
       <div
+        className="fd-card-grid"
         style={{
           padding: '16px',
           display: 'flex',
@@ -157,6 +160,7 @@ function CardioBrowser({ onBack, profile, onProfileUpdate }: CardioBrowserProps)
         }}
       >
         <div
+          className="fd-span-all"
           style={{
             fontSize: 12,
             color: 'var(--text-muted)',
@@ -170,6 +174,7 @@ function CardioBrowser({ onBack, profile, onProfileUpdate }: CardioBrowserProps)
         {/* Design your own — full-screen 4-axis composer (Group D / C2). */}
         <button
           onClick={() => setShowDesigner(true)}
+          className="fd-span-all"
           style={{
             background: `${tokens.colors.gold}10`,
             border: `1px dashed ${tokens.colors.gold}66`,
@@ -223,7 +228,7 @@ function CardioBrowser({ onBack, profile, onProfileUpdate }: CardioBrowserProps)
 
         {/* My saved — user-created presets. Only renders if any exist. */}
         {userPresets.length > 0 && (
-          <div style={{ marginTop: 4 }}>
+          <div className="fd-span-all" style={{ marginTop: 4 }}>
             <div
               style={{
                 fontSize: 10,
@@ -235,7 +240,7 @@ function CardioBrowser({ onBack, profile, onProfileUpdate }: CardioBrowserProps)
             >
               MY SAVED
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="fd-card-grid" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {userPresets.map((p) => (
                 <div
                   key={p.id}

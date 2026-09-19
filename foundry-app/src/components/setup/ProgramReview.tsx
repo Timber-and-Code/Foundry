@@ -32,14 +32,16 @@ export default function ProgramReview({ program, userEquipment, subtitle, onConf
       style={{
         minHeight: '100vh',
         background: 'var(--bg-root)',
-        maxWidth: 480,
+        // Phones: the 480 column. Regular+: banner goes full-bleed and the
+        // review below sizes itself (2-up day cards at >=1000px).
+        maxWidth: 'var(--shell-max)',
         margin: '0 auto',
         color: 'var(--text-primary)',
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
       <FoundryBanner subtitle={subtitle} />
-      <div style={{ padding: '20px 20px 40px' }}>
+      <div className="fd-wide" style={{ padding: '20px 20px 40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <h1
             style={{
@@ -78,6 +80,7 @@ export default function ProgramReview({ program, userEquipment, subtitle, onConf
 
         <button
           type="button"
+          className="fd-setup-cta"
           disabled={empty}
           onClick={() => onConfirm(hydrateDayBuilds(days, getExerciseDB() as never, program))}
           style={{

@@ -336,6 +336,7 @@ export default function FriendsTab({ onShareProgram, onJoinFriend }: FriendsTabP
           mesoId={undefined}
           totalWeeks={0}
           daysPerWeek={0}
+          friendship={{ myShareLevel: dashboardFriend.myShareLevel }}
         />
       )}
     </div>

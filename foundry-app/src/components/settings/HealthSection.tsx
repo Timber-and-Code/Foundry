@@ -1,98 +1,105 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import * as Sentry from '@sentry/react';
+import { App } from '@capacitor/app';
 import { tokens } from '../../styles/tokens';
 import { store } from '../../utils/store';
 import { useToast } from '../../contexts/ToastContext';
 import { getHealthService } from '../../utils/health';
-import type { AuthorizationStatus } from '../../utils/health';
-
-const TOGGLE_KEY = 'foundry:health:enabled';
+import type { HealthAccessStatus } from '../../utils/health';
+import { HEALTH_TOGGLE_KEY } from '../../utils/health/reconcileAccess';
+import { describeHealthState, HEALTH_SETTINGS_PATH } from '../../utils/health/describeHealthState';
 
 type Availability = 'unknown' | 'available' | 'unavailable';
 
+function reportHealthError(e: unknown, operation: string) {
+  console.warn(`[Foundry Health] ${operation} failed`, e);
+  Sentry.captureException(e, { tags: { context: 'health', operation } });
+}
+
 export default function HealthSection() {
   const { showToast } = useToast();
-  const [enabled, setEnabled] = useState(() => store.get(TOGGLE_KEY) === '1');
+  const [enabled, setEnabled] = useState(() => store.get(HEALTH_TOGGLE_KEY) === '1');
   const [availability, setAvailability] = useState<Availability>('unknown');
-  const [auth, setAuth] = useState<AuthorizationStatus | null>(null);
-  const [workoutPerm, setWorkoutPerm] = useState(false);
+  const [access, setAccess] = useState<HealthAccessStatus | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const health = getHealthService();
+    const avail = await health.isAvailable();
+    setAvailability(avail ? 'available' : 'unavailable');
+    if (!avail) return;
+    setAccess(await health.getAccessStatus());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const health = getHealthService();
-      const avail = await health.isAvailable();
-      if (cancelled) return;
-      setAvailability(avail ? 'available' : 'unavailable');
-      if (!avail) return;
-      const current = await health.checkPermissions({ read: ['weight'], write: ['weight'] });
-      if (!cancelled) setAuth(current);
-      // Separate grant from the weight permissions, and revocable on its
-      // own in iOS Settings — so it needs its own read on mount.
-      const workouts = await health.checkWorkoutPermission();
-      if (!cancelled) setWorkoutPerm(workouts);
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    const load = () => {
+      refresh().catch((e) => {
+        if (!cancelled) reportHealthError(e, 'read_status');
+      });
+    };
+    load();
+    // Permissions change in the Health app, outside ours — re-read on return.
+    const listener = App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive && !cancelled) load();
+    });
+    return () => {
+      cancelled = true;
+      listener.then((l) => l.remove()).catch(() => {});
+    };
+  }, [refresh]);
 
-  const hasReadPerm = !!auth?.readAuthorized.includes('weight');
+  const view = describeHealthState(enabled, access);
 
   const handleToggle = async () => {
     if (busy) return;
-    setBusy(true);
-    const health = getHealthService();
 
-    if (enabled) {
+    if (enabled && !view.tapRequests) {
       // Turning off — just flip the flag. We can't revoke HK perms from here;
-      // the user does that in iOS Settings. Surfacing that is out of scope.
-      store.set(TOGGLE_KEY, '0');
+      // the user does that in the Health app.
+      store.set(HEALTH_TOGGLE_KEY, '0');
       setEnabled(false);
       showToast('Apple Health sync turned off', 'info');
-      setBusy(false);
       return;
     }
 
+    setBusy(true);
     // ONE sheet for body weight and workouts together.
     //
     // This used to be two chained requests — @capgo/capacitor-health for
     // weight, then ours for workouts the moment the first promise resolved.
     // That promise resolves while the first sheet is still dismissing, and
     // HealthKit silently drops an authorization request made while another
-    // is on screen. The workout sheet never appeared, its status stayed
-    // .notDetermined, and no session ever reached Apple Fitness — with the
-    // failure swallowed, it looked exactly like the lifter had declined.
-    let workoutsGranted = false;
+    // is on screen, so the workout type was never asked. iOS shows the sheet
+    // only for never-asked types, which is why a tap in the SET UP state is
+    // how such a lifter finally gets asked.
+    let result: HealthAccessStatus;
     try {
-      const res = await health.requestAllPermissions();
-      workoutsGranted = res.workouts;
+      result = await getHealthService().requestAllPermissions();
     } catch (e) {
-      // A missing native plugin lands here. Say so plainly rather than
-      // reporting it as a denied permission — they are different problems
-      // and only one of them is the lifter's to fix.
-      console.warn('[Foundry Health] native permission request failed', e);
-      Sentry.captureException(e, { tags: { context: 'health', operation: 'request_permissions' } });
+      // A missing native plugin or a HealthKit refusal (e.g. entitlement)
+      // lands here. Say so plainly rather than reporting it as a denied
+      // permission — only one of those is the lifter's to fix.
+      reportHealthError(e, 'request_permissions');
       showToast('Apple Health is unavailable on this build. Please report this.', 'warning');
       setBusy(false);
       return;
     }
 
-    // Re-read weight status through the existing plugin so the rest of the
-    // section keeps rendering off one source of truth.
-    try {
-      setAuth(await health.checkPermissions({ read: ['weight'], write: ['weight'] }));
-    } catch {
-      /* status display only — never block the toggle on it */
-    }
-    setWorkoutPerm(workoutsGranted);
-
-    store.set(TOGGLE_KEY, '1');
+    setAccess(result);
+    store.set(HEALTH_TOGGLE_KEY, '1');
     setEnabled(true);
+    const weight = result.weight === 'authorized';
+    const workouts = result.workouts === 'authorized';
     showToast(
-      workoutsGranted
+      weight && workouts
         ? 'Apple Health on — bodyweight syncs, workouts post to Apple Fitness'
-        : 'Apple Health on for bodyweight. Allow Workouts in iOS Settings to post sessions to Apple Fitness.',
-      'success',
+        : workouts
+          ? 'Apple Health on for workouts. Bodyweight is off in Apple Health.'
+          : weight
+            ? `Apple Health on for bodyweight. To post workouts, turn them on in ${HEALTH_SETTINGS_PATH}.`
+            : `Apple Health access is off. Turn it on in ${HEALTH_SETTINGS_PATH}.`,
+      weight || workouts ? 'success' : 'warning',
     );
     setBusy(false);
   };
@@ -148,16 +155,8 @@ export default function HealthSection() {
     );
   }
 
-  const subtitle = !enabled
-    ? 'Sync bodyweight with Apple Health, and post finished workouts to Apple Fitness so they count toward your rings.'
-    : hasReadPerm
-      ? workoutPerm
-        ? 'Active. Bodyweight syncs both ways; finished workouts post to Apple Fitness.'
-        : 'Active for bodyweight. Allow Workouts in iOS Settings → Health to post sessions to Apple Fitness.'
-      : 'Enabled, but we lost read access. Toggle off and back on, or check iOS Settings → Health.';
-
-  const statusColor = enabled && hasReadPerm ? '#4ade80' : enabled ? 'var(--stalling)' : 'var(--text-muted)';
-  const statusText = enabled && hasReadPerm ? 'ON' : enabled ? 'PAUSED' : 'OFF';
+  const statusColor =
+    view.status === 'ON' ? '#4ade80' : view.status === 'OFF' ? 'var(--text-muted)' : 'var(--stalling)';
 
   return (
     <>
@@ -180,7 +179,7 @@ export default function HealthSection() {
             opacity: busy ? 0.7 : 1,
           }}
         >
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Sync bodyweight</span>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Sync with Apple Health</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span
               style={{
@@ -192,7 +191,7 @@ export default function HealthSection() {
               }}
             />
             <span style={{ fontSize: 13, color: statusColor, fontWeight: 600, letterSpacing: '0.05em' }}>
-              {statusText}
+              {view.status}
             </span>
           </span>
         </button>
@@ -204,7 +203,7 @@ export default function HealthSection() {
             padding: '0 4px',
           }}
         >
-          {subtitle}
+          {view.subtitle}
         </div>
       </div>
     </>

@@ -124,11 +124,21 @@ function SwapMenu({
 
   return (
     <>
+      {/* Backdrop — only exists on regular+ widths, where the full-screen
+          picker becomes a centered dialog (.fd-swap-menu in
+          styles/responsive/workout.css). display:none on phones. */}
+      <div
+        className="fd-swap-backdrop"
+        aria-hidden="true"
+        onClick={onClose}
+        style={{ display: 'none' }}
+      />
       <div
         ref={containerRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        className="fd-swap-menu"
         style={{
           position: 'fixed',
           inset: 0,

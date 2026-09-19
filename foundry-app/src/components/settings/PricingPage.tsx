@@ -116,7 +116,10 @@ export function PricingPage({ onClose }: PricingPageProps) {
         </span>
       </div>
 
+      {/* Tiers sit side by side on wide screens (.fd-pricing in
+          responsive/progress.css); stacked everywhere else. */}
       <div
+        className="fd-pricing"
         style={{
           padding: '24px 20px 48px',
           maxWidth: 440,
@@ -127,7 +130,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
         }}
       >
         {/* Hero headline */}
-        <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+        <div className="fd-pricing-full" style={{ textAlign: 'center', padding: '8px 0 4px' }}>
           <div
             style={{
               fontSize: 24,
@@ -608,6 +611,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
 
         {/* ── BUILT BY STORY ── */}
         <div
+          className="fd-pricing-full"
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
@@ -726,6 +730,7 @@ export function PricingPage({ onClose }: PricingPageProps) {
 
         {/* Footer note */}
         <div
+          className="fd-pricing-full"
           style={{
             textAlign: 'center',
             fontSize: 12,

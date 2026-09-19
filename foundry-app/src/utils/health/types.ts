@@ -33,6 +33,34 @@ export interface StrengthWorkoutWrite {
   totalVolumeLbs?: number;
 }
 
+/**
+ * HealthKit share (write) status for one data type. Unlike read status,
+ * which iOS deliberately hides, share status is reported truthfully.
+ */
+export type ShareStatus = 'authorized' | 'denied' | 'notDetermined' | 'unavailable';
+
+/** Where the lifter stands with every Health type the app uses. */
+export interface HealthAccessStatus {
+  available: boolean;
+  weight: ShareStatus;
+  workouts: ShareStatus;
+  activeEnergy: ShareStatus;
+  /**
+   * iOS would still show a permission sheet for at least one type — it has
+   * never been asked. Only a new request can fix this: iOS Settings has no
+   * switch for a type the app never requested.
+   */
+  needsPrompt: boolean;
+}
+
+export const UNAVAILABLE_ACCESS: HealthAccessStatus = {
+  available: false,
+  weight: 'unavailable',
+  workouts: 'unavailable',
+  activeEnergy: 'unavailable',
+  needsPrompt: false,
+};
+
 export interface HealthService {
   /** True when the underlying platform supports HealthKit / Health Connect. */
   isAvailable(): Promise<boolean>;
@@ -66,7 +94,13 @@ export interface HealthService {
    * Throws if the native plugin isn't reachable — callers must distinguish
    * "declined" from "never asked", which swallowing the error destroys.
    */
-  requestAllPermissions(): Promise<{ available: boolean; workouts: boolean; weight: boolean }>;
+  requestAllPermissions(): Promise<HealthAccessStatus>;
+
+  /**
+   * Current status of every type, without prompting. Throws if the native
+   * plugin isn't reachable, for the same reason as requestAllPermissions.
+   */
+  getAccessStatus(): Promise<HealthAccessStatus>;
 
   /**
    * Prompt for permission to write workouts only. Kept for the fallback
@@ -80,8 +114,10 @@ export interface HealthService {
   /**
    * Save a completed session as a real HKWorkout so it appears in Apple
    * Fitness → Workouts and contributes to the Activity rings.
-   * Resolves false when unsupported, unauthorized, or on any native error
-   * — a failed Health write must never fail a finished workout.
+   * Resolves false when unsupported or unauthorized — the expected no-ops.
+   * THROWS on a real HealthKit failure so the caller can report it; the
+   * caller (logWorkoutToHealth) is what keeps that from ever failing a
+   * finished workout.
    */
   writeStrengthWorkout(workout: StrengthWorkoutWrite): Promise<boolean>;
 }

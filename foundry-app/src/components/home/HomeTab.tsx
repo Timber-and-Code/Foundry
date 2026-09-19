@@ -110,6 +110,7 @@ function pickWarmupForDay(dayTag?: string | null) {
 function SectionDivider() {
   return (
     <div
+      className="fd-section-divider"
       style={{
         height: 1,
         margin: '4px 0',
@@ -861,6 +862,12 @@ function HomeTab({
         </div>
       </button>
 
+      {/* Wide screens (≥1000px): the Today card becomes the left column and
+          the supporting cards stack on the right. On everything narrower the
+          three wrappers are display:contents, so the phone layout is the
+          same single flex column as before. See .fd-home-* in responsive.css. */}
+      <div className="fd-home-split">
+      <div className="fd-home-pre">
       {/* Deload week: plan the next meso while this one winds down. */}
       {isPlanningWindow(activeWeek) && <NextMesoCard />}
 
@@ -983,6 +990,8 @@ function HomeTab({
         );
       })()}
 
+      </div>
+      <div className="fd-home-main">
       {/* Today Card — THE HERO. Resume CTA wins regardless of rest-state /
           rest-day, because an in-progress workout is the user's #1 thing
           to act on. Falls through to RestStateCard / TodayCard otherwise. */}
@@ -1503,6 +1512,8 @@ function HomeTab({
         </>
       )}
 
+      </div>
+      <div className="fd-home-post">
       {/* ═══ SECTION DIVIDER ═══ */}
       <SectionDivider />
 
@@ -1530,6 +1541,8 @@ function HomeTab({
         profile={profile ?? null}
         onOpenCardio={onOpenCardio}
       />
+      </div>
+      </div>
 
       <div style={{ height: 8 }} />
     </div>

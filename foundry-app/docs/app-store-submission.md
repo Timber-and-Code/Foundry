@@ -81,8 +81,13 @@ readable through RLS as the account itself:
   no load — useful for seeing that progression works on movements that carry
   no weight
 
-Re-seeding is idempotent: the seed deletes this user's sets, sessions, and
-mesocycles first, so it can be re-run to refresh dates before a submission.
+**Keep it current: run `scripts/demo/redate-demo-account.sql` (Supabase SQL
+editor or MCP) right before every submission, and again if review stalls.**
+Once the last session is 7+ days old, a reviewer lands on the "welcome back
+after a break" sheet instead of the app. The script shifts every dated row for
+the demo user forward by whole weeks (weekdays stay aligned) as far as it can
+without dating anything in the future, and is safe to re-run. Last run
+2026-09-18: meso starts 2026-09-07, weeks 1–2 complete, week 3 starts Monday.
 
 ### Notes for the reviewer
 

@@ -104,9 +104,11 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
         style={{
           position: 'fixed',
           bottom: 88,
-          left: '50%',
+          // Centered on the content area — clear of the side rail when it's
+          // showing (--rail-w is 0 everywhere else).
+          left: 'calc(50% + var(--rail-w) / 2)',
           transform: 'translateX(-50%)',
-          width: 'min(calc(100vw - 32px), 448px)',
+          width: 'min(calc(100vw - 32px - var(--rail-w)), 448px)',
           display: 'flex',
           flexDirection: 'column',
           gap: tokens.spacing.xs,

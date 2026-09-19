@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import HammerIcon from '../shared/HammerIcon';
 import SwapMenu from '../workout/SwapMenu';
@@ -6,6 +6,12 @@ import { getExerciseDB, type ExerciseEntry } from '../../data/exerciseDB';
 import { buildSwapGroups, bucketFor } from '../../utils/swapGroups';
 import { useToast } from '../../contexts/ToastContext';
 import { store } from '../../utils/store';
+import { BP_WIDE } from '../../hooks/useMediaQuery';
+
+function isWideNow(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    && window.matchMedia(`(min-width: ${BP_WIDE}px)`).matches;
+}
 
 /**
  * Exercise entry as it lives inside a day's build list. Only the few
@@ -52,7 +58,21 @@ export default function DayAccordion({
   userEquipment,
 }: DayAccordionProps) {
   const { showToast } = useToast();
-  const [expanded, setExpanded] = useState<Set<number>>(() => new Set([0]));
+  // Wide screens lay the days out 2-up, so every day opens by default —
+  // a grid of one open card beside closed ones reads as broken. Phones keep
+  // the single-open accordion.
+  const [expanded, setExpanded] = useState<Set<number>>(() =>
+    isWideNow() ? new Set(days.map((_, i) => i)) : new Set([0]),
+  );
+  // Beat2Preview hands the days over after mount (the program is built
+  // async), so the initializer above sees an empty list. Open them once,
+  // the first time they arrive — wide screens only.
+  const openedAllRef = useRef(days.length > 0);
+  useEffect(() => {
+    if (openedAllRef.current || days.length === 0) return;
+    openedAllRef.current = true;
+    if (isWideNow()) setExpanded(new Set(days.map((_, i) => i)));
+  }, [days]);
   const [swapTarget, setSwapTarget] = useState<{ dayIdx: number; exIdx: number } | null>(null);
   // When set, the next picker selection appends to that day instead of
   // replacing an existing exercise. Used for the "+ Add exercise" CTA on
@@ -200,7 +220,7 @@ export default function DayAccordion({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="fd-grid-2" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {days.map((day, dayIdx) => {
         const isOpen = expanded.has(dayIdx);
         const anchorCount = day.anchors.length;

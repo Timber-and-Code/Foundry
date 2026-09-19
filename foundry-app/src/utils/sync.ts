@@ -4430,6 +4430,7 @@ export async function previewFriendInvite(
  * mirror rows in `user_friendships` (A→B and B→A) so both sides have
  * their own share_level independent of the other. The inviter's row
  * inherits 'full' by default since they haven't had a chance to pick.
+ * Runs as the `accept_friend_invite` RPC — see migration 013.
  */
 export async function acceptFriendInvite(
   code: string,
@@ -4446,47 +4447,19 @@ export async function acceptFriendInvite(
       return { success: false, error: "That's your own code" };
     }
 
-    // Check for existing friendship either direction.
-    const { data: existingRow } = await supabase
-      .from('user_friendships')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .eq('friend_id', preview.inviterUserId)
-      .maybeSingle();
-    if (existingRow) {
-      return { success: true, inviterUserId: preview.inviterUserId };
-    }
-
-    // Viewer's row first — this is the only insert the caller owns. The
-    // inviter's mirror row is inserted via a security-definer RPC (next
-    // step) OR optimistically via a parallel insert; we use the RPC when
-    // available, fall back to letting the inviter see them next time
-    // they listFriends and rely on a future trigger. For now we attempt
-    // both inserts; RLS will block the mirror one silently and we
-    // accept the asymmetry — the inviter's dashboard still shows the
-    // new friend because listFriends reads both directions.
-    const { error: selfErr } = await supabase
-      .from('user_friendships')
-      .insert({
-        user_id: user.id,
-        friend_id: preview.inviterUserId,
-        share_level: shareLevel,
-      });
-    if (selfErr) throw selfErr;
-
-    // Attempt the mirror insert — may be denied by RLS (the inviter's
-    // row is owned by them, not us). Failure here is non-fatal; the
-    // friendship is still one-sided-visible (our row lets them see us).
-    // A full mutual-accept UX would require a SECURITY DEFINER RPC
-    // `accept_friend_invite(code, share_level)`; leaving as a follow-up.
-    await supabase.from('user_friendships').insert({
-      user_id: preview.inviterUserId,
-      friend_id: user.id,
-      share_level: 'full',
+    // Both rows + consuming the one-time code happen server-side in one
+    // statement (migration 013). RLS only lets a client write its OWN row,
+    // so the old client-side mirror insert and invite delete were silently
+    // denied: every accepted invite was one-sided and the code stayed live.
+    const { error: rpcErr } = await supabase.rpc('accept_friend_invite', {
+      p_code: preview.code,
+      p_share_level: shareLevel,
     });
-
-    // One-time invite — consume it so a third person can't piggy-back.
-    await supabase.from('friend_invites').delete().eq('code', preview.code);
+    if (rpcErr) {
+      if (/own code/i.test(rpcErr.message)) return { success: false, error: "That's your own code" };
+      if (/invalid or expired/i.test(rpcErr.message)) return { success: false, error: 'Invalid or expired code' };
+      throw rpcErr;
+    }
 
     return { success: true, inviterUserId: preview.inviterUserId };
   } catch (e) {
@@ -4522,6 +4495,18 @@ export async function listFriends(): Promise<Friend[]> {
     if (friendRows.length === 0) return [];
 
     const friendIds = friendRows.map((r) => r.user_id);
+
+    // My own rows — what I share with each friend (RLS: user_id = me).
+    const { data: myRows } = await supabase
+      .from('user_friendships')
+      .select('friend_id, share_level')
+      .eq('user_id', user.id);
+    const myLevel = new Map(
+      ((myRows as { friend_id: string; share_level: string | null }[] | null) || []).map((r) => [
+        r.friend_id,
+        r.share_level === 'basic' ? 'basic' : 'full',
+      ]),
+    );
 
     // Batch-fetch names + active_meso_ids.
     const { data: profiles } = await supabase
@@ -4592,6 +4577,7 @@ export async function listFriends(): Promise<Friend[]> {
         userId: r.user_id,
         name: profile?.name || 'Friend',
         shareLevel: r.share_level === 'basic' ? 'basic' : 'full',
+        myShareLevel: (myLevel.get(r.user_id) as Friend['myShareLevel'] | undefined) ?? 'full',
         activeMesoId: profile?.active_meso_id ?? null,
         activeMesoName: profile?.active_meso_id
           ? mesoMap.get(profile.active_meso_id) ?? null
@@ -4606,19 +4592,15 @@ export async function listFriends(): Promise<Friend[]> {
 }
 
 /**
- * Remove a friend — deletes the caller's row. A DELETE trigger in
- * migration 004 also drops the mirror row so the friendship is fully
- * cleaned up on both sides.
+ * Remove a friend — both directions, via the `remove_friend` RPC.
  */
 export async function removeFriend(friendUserId: string): Promise<boolean> {
   try {
     const user = await getUser();
     if (!user) return false;
-    const { error } = await supabase
-      .from('user_friendships')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('friend_id', friendUserId);
+    // Server-side so it clears BOTH rows even when the friendship is
+    // one-sided (only their row exists) — RLS would block that delete here.
+    const { error } = await supabase.rpc('remove_friend', { p_friend_id: friendUserId });
     if (error) throw error;
     return true;
   } catch (e) {
@@ -4628,8 +4610,7 @@ export async function removeFriend(friendUserId: string): Promise<boolean> {
 }
 
 /**
- * Update the caller's share_level toward a specific friend. RLS policy
- * restricts updates to rows where user_id = auth.uid().
+ * Set the sharing level of a friendship — applies to both people.
  */
 export async function updateFriendShareLevel(
   friendUserId: string,
@@ -4638,13 +4619,15 @@ export async function updateFriendShareLevel(
   try {
     const user = await getUser();
     if (!user) return false;
-    const { error } = await supabase
-      .from('user_friendships')
-      .update({ share_level: level })
-      .eq('user_id', user.id)
-      .eq('friend_id', friendUserId);
+    // Sharing is mutual: one level per friendship, written to BOTH rows
+    // server-side (migration 014). Also repairs a one-sided friendship from
+    // before 013, where the caller's own row was never created.
+    const { data, error } = await supabase.rpc('set_friend_share_level', {
+      p_friend_id: friendUserId,
+      p_share_level: level,
+    });
     if (error) throw error;
-    return true;
+    return data === true;
   } catch (e) {
     reportSyncFailure('update_friend_share_level', e);
     return false;

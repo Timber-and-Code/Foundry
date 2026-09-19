@@ -162,12 +162,16 @@ export default function MesoHistoryView({
     return out;
   }, [dayIdx, exIdx, exercise.id, currentWeekIdx, mesoWeeks, startDate]);
 
-  // PR row across all weeks except the in-progress current week.
+  // PR row across all weeks except a session still in progress — that's the
+  // number being chased, not a record yet. Once the viewed day is marked done
+  // its sets count; excluding a finished week showed "Best set 190 × 7" next
+  // to a logged 195 × 8, while "This meso" already counted it.
+  const currentDone = store.get(`foundry:done:d${dayIdx}:w${currentWeekIdx}`) === '1';
   const prRef = useMemo<{ weight: number; reps: number } | null>(() => {
     let prW = 0;
     let prR = 0;
     rows.forEach((row) => {
-      if (row.isCurrent) return; // exclude in-progress week
+      if (row.isCurrent && !currentDone) return; // exclude in-progress week
       if (row.bestWeight > prW) {
         prW = row.bestWeight;
         prR = row.bestRepsAtBestWeight;
@@ -176,7 +180,7 @@ export default function MesoHistoryView({
       }
     });
     return prW > 0 ? { weight: prW, reps: prR } : null;
-  }, [rows]);
+  }, [rows, currentDone]);
 
   const hasAnySets = rows.some((r) => r.sets.some((s) => s.weight != null || s.reps != null));
 
@@ -295,13 +299,16 @@ export default function MesoHistoryView({
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
+        // Bottom sheet on phones; centered dialog on regular+ widths
+        // (.fd-abs-sheet in styles/responsive/workout.css).
+        className="fd-abs-sheet"
         style={{
           position: 'absolute',
           left: 0,
           right: 0,
           bottom: 0,
           margin: '0 auto',
-          maxWidth: 480,
+          maxWidth: 'var(--sheet-max)',
           maxHeight: '88vh',
           background: 'var(--bg-card)',
           borderTopLeftRadius: 20,
@@ -325,6 +332,7 @@ export default function MesoHistoryView({
         >
           <div
             aria-hidden="true"
+            className="fd-abs-sheet-handle"
             style={{ width: 40, height: 5, borderRadius: 3, background: 'var(--border)', margin: '0 auto' }}
           />
         </div>
@@ -422,7 +430,7 @@ export default function MesoHistoryView({
                       key: r.weekIdx,
                       label: r.weekIdx === deloadIdx ? 'DL' : `W${r.weekIdx + 1}`,
                       value: r.bestWeight,
-                      highlight: !!prRef && r.bestWeight === prRef.weight && !r.isCurrent,
+                      highlight: !!prRef && r.bestWeight === prRef.weight && (!r.isCurrent || currentDone),
                       muted: r.weekIdx === deloadIdx,
                       current: r.isCurrent,
                     }))}
@@ -462,7 +470,7 @@ export default function MesoHistoryView({
                             .filter((s) => s.weight != null || s.reps != null)
                             .map((s) => {
                               const isPr =
-                                !row.isCurrent &&
+                                (!row.isCurrent || currentDone) &&
                                 !!prRef &&
                                 s.weight === prRef.weight &&
                                 s.reps === prRef.reps &&

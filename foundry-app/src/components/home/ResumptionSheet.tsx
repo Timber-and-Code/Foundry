@@ -144,6 +144,7 @@ export default function ResumptionSheet({
       role="dialog"
       aria-modal="true"
       aria-labelledby="resumption-title"
+      className="fd-center-page"
       style={{
         position: 'fixed',
         inset: 0,
@@ -155,8 +156,10 @@ export default function ResumptionSheet({
       }}
     >
       <div
+        className="fd-center-page-inner"
         style={{
           maxWidth: 520,
+          width: '100%',
           margin: '0 auto',
           padding: '56px 24px 40px',
           boxSizing: 'border-box',

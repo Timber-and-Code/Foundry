@@ -75,7 +75,9 @@ function MobilityProtocolDetail({
   };
 
   return (
-    <div style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 180 }}>
+    // Reading page: capped at the regular column (720) on iPad rather than
+    // stretching across Explore's wide dashboard column.
+    <div className="fd-col" style={{ animation: 'tabFadeIn 0.15s ease-out', paddingBottom: 'calc(180px + var(--tabbar-clear, 0px))' }}>
       <div
         style={{
           display: 'flex',
@@ -329,9 +331,11 @@ function MobilityProtocolDetail({
 
       {/* Sticky bottom CTAs — Start now + Add to schedule */}
       <div
+        className="fd-fixed-col"
         style={{
           position: 'fixed',
-          bottom: 0,
+          // Above the bottom tab bar, not under it — see HomeView tabBarRef.
+          bottom: 'var(--tabbar-clear, 0px)',
           left: 0,
           right: 0,
           padding: '12px 16px 18px',

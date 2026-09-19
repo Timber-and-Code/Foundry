@@ -1,0 +1,37 @@
+/* Responsive overrides — tabs. Conventions: see ../responsive.css header.
+   Wide-only rules live inside min-width media queries and may use !important
+   to beat inline styles; nothing here may change the compact (<700px) layout. */
+
+/* ── Explore ────────────────────────────────────────────────────────────
+   Explore sits in the .fd-wide column (1120 at ≥1000px). Browse lists of
+   short, same-shaped cards go two-up there; reading pages (library,
+   The System, protocol details, sample programs, the cardio designer)
+   cap themselves at the regular column with .fd-col instead. */
+@media (min-width: 1000px) {
+  .fd-explore-tiles {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px !important;
+  }
+  /* 5 tiles: the odd one out closes the grid full-width instead of
+     leaving a hole. */
+  .fd-explore-tiles > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+  .fd-card-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px !important;
+    align-items: stretch;
+  }
+  .fd-card-grid > .fd-span-all { grid-column: 1 / -1; }
+}
+
+/* Sample program, expanded: the day breakdown goes two-up. */
+@media (min-width: 700px) {
+  .fd-sp-days {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fd-sp-days > * { border-bottom: 1px solid var(--border-subtle) !important; }
+  .fd-sp-days > :nth-child(odd) { border-right: 1px solid var(--border-subtle); }
+}

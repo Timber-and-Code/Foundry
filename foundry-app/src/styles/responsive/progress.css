@@ -1,0 +1,128 @@
+/* Responsive overrides — progress. Conventions: see ../responsive.css header.
+   Wide-only rules live inside min-width media queries and may use !important
+   to beat inline styles; nothing here may change the compact (<700px) layout. */
+
+/* ── Progress tab (ProgressView) ─────────────────────────────────────────
+   Two columns on wide screens. This Week: summary + volume | current
+   weights, cardio, analytics. Meso History: sessions, bodyweight, duration,
+   then cardio history + previous mesos | lifts by muscle + e1RM. */
+.fd-pv-a, .fd-pv-b, .fd-pv-c { display: contents; }
+
+@media (min-width: 700px) {
+  .fd-pv-switch { max-width: 440px; margin-left: auto !important; margin-right: auto !important; }
+}
+
+@media (min-width: 1000px) {
+  .fd-pv-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    column-gap: 20px;
+    align-items: start;
+  }
+  .fd-pv-switch { grid-column: 1 / -1; width: 100%; }
+  .fd-pv-a { display: block; grid-column: 1; grid-row: 2; }
+  .fd-pv-b { display: block; grid-column: 2; grid-row: 2 / span 2; }
+  .fd-pv-c { display: block; grid-column: 1; grid-row: 3; }
+  .fd-pv-b > :first-child { margin-top: 0 !important; }
+}
+
+/* Bodyweight chart end-point dot (see ProgressView BwChart). */
+.fd-bw-dot { display: none; }
+@media (min-width: 481px) {
+  .fd-bw-dot-svg { display: none; }
+  .fd-bw-dot {
+    display: block;
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    margin: -4px 0 0 -4px;
+    border-radius: 50%;
+    background: var(--accent);
+    pointer-events: none;
+  }
+}
+
+/* ── Analytics dashboard ─────────────────────────────────────────────────
+   The strength charts are viewBox SVGs that scale with their box — at full
+   tablet width their axis labels rendered ~4x phone size. Tiling them keeps
+   each chart near its designed size. */
+.fd-an-sec, .fd-an-stats, .fd-an-charts { display: contents; }
+
+@media (min-width: 481px) {
+  /* Four stat tiles in one row instead of two rows of two. */
+  .fd-an-stats { display: flex; gap: 8px; }
+  .fd-an-stats > div { display: contents !important; }
+  .fd-an-sec { display: block; }
+  .fd-an-charts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .fd-an-charts > * { margin: 0 !important; }
+}
+
+@media (min-width: 1000px) {
+  .fd-an-body {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas:
+      "stats stats"
+      "vol   pr"
+      "str   str";
+    column-gap: 20px;
+    align-items: start;
+  }
+  .fd-an-stats-sec { grid-area: stats; }
+  .fd-an-vol-sec   { grid-area: vol; }
+  .fd-an-pr-sec    { grid-area: pr; }
+  .fd-an-str-sec   { grid-area: str; }
+  .fd-an-charts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* ── Previous Meso Cycles ──────────────────────────────────────────────── */
+.fd-pm-grid { display: contents; }
+@media (min-width: 700px) {
+  .fd-pm-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .fd-pm-grid > * { margin-bottom: 0 !important; }
+  /* One past meso (the common case for a newer lifter) shouldn't sit in a
+     third-width column beside empty space: let it take the row, at a
+     readable width. */
+  .fd-pm-grid > :only-child { grid-column: 1 / -1; }
+}
+@media (min-width: 1000px) {
+  .fd-pm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* ── End of meso: recap + "What's next" ─────────────────────────────────── */
+@media (min-width: 700px) {
+  /* Strength-gained cards two-up. */
+  .fd-recap-gains {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .fd-recap-gains > .fd-span-all { grid-column: 1 / -1; }
+}
+
+/* ── Plans / pricing ───────────────────────────────────────────────────── */
+@media (min-width: 1000px) {
+  .fd-pricing {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    max-width: 1080px !important;
+  }
+  .fd-pricing > .fd-pricing-full {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 640px;
+    justify-self: center;
+  }
+}

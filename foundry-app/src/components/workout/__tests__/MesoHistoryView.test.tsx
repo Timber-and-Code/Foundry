@@ -156,4 +156,23 @@ describe('MesoHistoryView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close history' }));
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  it('counts the viewed week in Best set once that day is done', () => {
+    localStorage.setItem('foundry:day0:week0', JSON.stringify({ 0: { 0: { weight: 185, reps: 6 } } }));
+    localStorage.setItem('foundry:day0:week1', JSON.stringify({ 0: { 0: { weight: 195, reps: 8 } } }));
+    localStorage.setItem('foundry:done:d0:w1', '1');
+    render(
+      <MesoHistoryView exercise={exercise} dayIdx={0} exIdx={0} currentWeekIdx={1} mesoWeeks={6} onClose={() => {}} />,
+    );
+    expect(screen.getByText('Best set').parentElement).toHaveTextContent('195 × 8');
+  });
+
+  it('still leaves an in-progress session out of Best set', () => {
+    localStorage.setItem('foundry:day0:week0', JSON.stringify({ 0: { 0: { weight: 185, reps: 6 } } }));
+    localStorage.setItem('foundry:day0:week1', JSON.stringify({ 0: { 0: { weight: 195, reps: 8 } } }));
+    render(
+      <MesoHistoryView exercise={exercise} dayIdx={0} exIdx={0} currentWeekIdx={1} mesoWeeks={6} onClose={() => {}} />,
+    );
+    expect(screen.getByText('Best set').parentElement).toHaveTextContent('185 × 6');
+  });
 });

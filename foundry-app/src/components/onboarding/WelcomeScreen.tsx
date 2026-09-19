@@ -39,7 +39,7 @@ export default function WelcomeScreen() {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '64px 24px 48px',
-        maxWidth: 480,
+        maxWidth: 'var(--form-max)',
         margin: '0 auto',
       }}
     >

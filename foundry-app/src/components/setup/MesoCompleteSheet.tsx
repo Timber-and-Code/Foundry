@@ -91,6 +91,7 @@ export default function MesoCompleteSheet({ profile }: MesoCompleteSheetProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="meso-complete-title"
+      className="fd-center-page"
       style={{
         position: 'fixed',
         inset: 0,
@@ -102,8 +103,12 @@ export default function MesoCompleteSheet({ profile }: MesoCompleteSheetProps) {
       }}
     >
       <div
+        className="fd-center-page-inner"
         style={{
-          maxWidth: 480,
+          // 480 on phones; a comfortable form column on wider screens,
+          // vertically centred there (.fd-center-page in responsive.css).
+          maxWidth: 'var(--form-max)',
+          width: '100%',
           margin: '0 auto',
           padding: '56px 24px 40px',
           boxSizing: 'border-box',

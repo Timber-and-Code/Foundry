@@ -16,6 +16,7 @@ interface ExerciseDetailModalProps {
 
 const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({ ex, onClose }) => (
   <div
+    className="fd-sheet-overlay"
     style={{
       position: 'fixed',
       inset: 0,
@@ -29,13 +30,14 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({ ex, onClose }
   >
     <div
       onClick={(e) => e.stopPropagation()}
+      className="fd-sheet-panel"
       style={{
         background: 'var(--bg-card)',
         borderRadius: `${tokens.radius.xl}px ${tokens.radius.xl}px 0 0`,
         border: '1px solid var(--border)',
         borderBottom: 'none',
         width: '100%',
-        maxWidth: 480,
+        maxWidth: 'var(--sheet-max)',
         maxHeight: '80vh',
         display: 'flex',
         flexDirection: 'column',

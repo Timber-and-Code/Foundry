@@ -48,6 +48,9 @@ export default function WorkoutSplash({
       role="dialog"
       aria-modal="true"
       aria-labelledby="workout-splash-title"
+      // Full-screen on phones; on regular+ widths the card is framed and
+      // centered instead of stretching edge to edge (workout.css).
+      className="fd-splash"
       style={{
         position: 'fixed',
         inset: 0,
@@ -59,6 +62,7 @@ export default function WorkoutSplash({
       }}
     >
       <div
+        className="fd-splash-card"
         style={{
           flex: 1,
           border: `2px solid ${phaseColor}`,

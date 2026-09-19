@@ -98,7 +98,8 @@ export default function MesoRecap({ modal, profile, onContinue }: MesoRecapProps
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div
           style={{
-            maxWidth: 480,
+            // 480 on phones; wider on roomy/tablet widths (responsive.css).
+            maxWidth: 'var(--col-max)',
             margin: '0 auto',
             padding: 'calc(28px + env(safe-area-inset-top, 0px)) 20px 20px',
             display: 'flex',
@@ -173,8 +174,8 @@ export default function MesoRecap({ modal, profile, onContinue }: MesoRecapProps
 
           {/* Anchor lifts */}
           {gains.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={eyebrow}>Strength gained</div>
+            <div className="fd-recap-gains" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="fd-span-all" style={eyebrow}>Strength gained</div>
               {gains.map((g) => {
                 const weekly = g.weekly || [];
                 const up = g.delta > 0;

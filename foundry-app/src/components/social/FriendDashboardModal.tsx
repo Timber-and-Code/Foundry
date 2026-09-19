@@ -4,6 +4,8 @@ import { tokens } from '../../styles/tokens';
 import { fetchFriendMesoSummary } from '../../utils/sync';
 import type { MesoMember } from '../../types';
 import type { FriendMesoSummary } from '../../utils/sync';
+import FriendshipControls from './FriendshipControls';
+import type { MesoShareLevel } from '../../types';
 
 /**
  * FriendDashboardModal — aggregate view of a friend's progress on the
@@ -36,6 +38,9 @@ interface FriendDashboardModalProps {
    *  daysPerWeek take precedence. */
   totalWeeks?: number;
   daysPerWeek?: number;
+  /** Set when this person is a followed friend (not just a meso partner):
+   *  shows what the viewer shares with them and Remove friend. */
+  friendship?: { myShareLevel: MesoShareLevel };
 }
 
 function initials(name: string): string {
@@ -67,6 +72,7 @@ export default function FriendDashboardModal({
   mesoId,
   totalWeeks: fallbackTotalWeeks = 5,
   daysPerWeek: fallbackDaysPerWeek = 6,
+  friendship,
 }: FriendDashboardModalProps) {
   const [summary, setSummary] = useState<FriendMesoSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -414,6 +420,16 @@ export default function FriendDashboardModal({
               </div>
             )}
           </>
+        )}
+
+        {friendship && member && (
+          <FriendshipControls
+            key={member.userId}
+            friendId={member.userId}
+            friendName={member.name || 'Friend'}
+            myShareLevel={friendship.myShareLevel}
+            onRemoved={onClose}
+          />
         )}
       </div>
     </Modal>

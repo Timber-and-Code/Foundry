@@ -1,0 +1,82 @@
+/* Responsive overrides — workout. Conventions: see ../responsive.css header.
+   Wide-only rules live inside min-width media queries and may use !important
+   to beat inline styles; nothing here may change the compact (<700px) layout.
+
+   The workout day itself stays ONE column on every width (the route column,
+   720 at regular+). Focus Mode is deliberately one exercise at a time; a
+   multi-column layout would only duplicate the progress strip / overview. */
+
+/* ── Absolutely-positioned bottom sheets (exercise history, reorder) ──────
+   The panel is `position:absolute; left/right/bottom:0; margin:0 auto` inside
+   a fixed overlay. Its width comes from inline maxWidth: var(--sheet-max)
+   (480 phone / 640 roomy). On regular+ it becomes a centered dialog:
+   top:0/bottom:0 + margin:auto + fit-content height centers it vertically
+   WITHOUT touching `transform`, which MesoHistoryView uses for swipe-down. */
+@media (min-width: 700px) {
+  .fd-abs-sheet {
+    top: 0 !important;
+    bottom: 0 !important;
+    margin: auto !important;
+    width: calc(100% - 48px) !important;
+    height: -webkit-fit-content !important;
+    height: fit-content !important;
+    max-height: min(86vh, 900px) !important;
+    border-radius: 20px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55) !important;
+    overflow: hidden;
+  }
+  /* The grab bar is a phone affordance; keep its container's spacing. */
+  .fd-abs-sheet .fd-abs-sheet-handle { visibility: hidden; }
+
+  /* Superset picker keeps its accent top edge as a dialog. */
+  .fd-sheet-panel--accent { border-top: 2px solid var(--accent) !important; }
+}
+
+/* ── Swap exercise picker: full screen on phones → centered dialog ─────── */
+@media (min-width: 700px) {
+  .fd-swap-backdrop {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 299;
+    background: rgba(0, 0, 0, 0.7);
+  }
+  .fd-swap-menu {
+    inset: 0 !important;
+    margin: auto !important;
+    width: min(640px, calc(100vw - 48px)) !important;
+    height: min(88vh, 960px) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+    /* The phone version slides in from the right; as a dialog, fade in. */
+    animation: fdDialogFade 0.18s ease-out !important;
+  }
+  /* The header's safe-area top padding is for a full-screen view under the
+     status bar; a centered dialog never reaches the notch. */
+  .fd-swap-menu > div:first-child { padding-top: 10px !important; }
+}
+@keyframes fdDialogFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Workout splash (Home → Preview): framed, centered card ─────────────── */
+@media (min-width: 700px) {
+  .fd-splash {
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 32px 24px !important;
+    background: rgba(0, 0, 0, 0.82) !important;
+  }
+  .fd-splash-card {
+    flex: 0 1 auto !important;
+    width: 100% !important;
+    max-width: var(--form-max);
+    max-height: min(90vh, 1000px);
+    overflow-y: auto;
+    background: var(--bg-root) !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  }
+}

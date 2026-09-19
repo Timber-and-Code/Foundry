@@ -90,7 +90,7 @@ export default function CardioSetupFlow({
     >
       <div
         style={{
-          maxWidth: 480,
+          maxWidth: 'var(--form-max)',
           margin: '0 auto',
           padding: '24px 16px 80px',
         }}

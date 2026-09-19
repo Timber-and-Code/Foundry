@@ -32,7 +32,7 @@ export default function MicroTour({ onDone, onSkip }: MicroTourProps) {
         background: tokens.colors.bgRoot,
         color: tokens.colors.textPrimary,
         fontFamily: "'Inter', system-ui, sans-serif",
-        maxWidth: 480,
+        maxWidth: 'var(--form-max)',
         margin: '0 auto',
         padding: '20px 24px 32px',
         boxSizing: 'border-box',
