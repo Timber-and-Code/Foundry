@@ -167,16 +167,19 @@ export default function FriendDashboardModal({
             onClick={onClose}
             aria-label="Close"
             style={{
-              background: 'none',
-              border: 'none',
-              fontSize: 20,
-              color: 'var(--text-muted)',
+              width: 44,
+              height: 44,
+              flexShrink: 0,
+              borderRadius: tokens.radius.full,
+              background: 'var(--bg-inset)',
+              border: '1px solid var(--border)',
+              fontSize: 22,
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
-              padding: 4,
               lineHeight: 1,
             }}
           >
-            &times;
+            <span aria-hidden="true">&times;</span>
           </button>
         </div>
 

@@ -67,15 +67,27 @@ export default function Modal({
         background: tokens.colors.overlay,
         backdropFilter: blur ? 'blur(6px)' : undefined,
         display: 'flex',
-        alignItems: 'center',
+        // A dialog taller than the screen must scroll, and its top must stay
+        // reachable. Centring with align-items:center pushed a tall card off
+        // both edges with no scroll — the friend sheet trapped users until a
+        // force-close. The backdrop scrolls; margin:auto on the card centres
+        // it only when it fits.
+        alignItems: 'flex-start',
         justifyContent: 'center',
+        overflowY: 'auto',
+        overscrollBehavior: 'contain',
+        WebkitOverflowScrolling: 'touch',
         padding: tokens.spacing.xl,
+        paddingTop: `calc(${tokens.spacing.xl}px + env(safe-area-inset-top, 0px))`,
+        paddingBottom: `calc(${tokens.spacing.xl}px + env(safe-area-inset-bottom, 0px))`,
       }}
     >
       <div
         ref={contentRef}
         onClick={(e) => e.stopPropagation()}
         style={{
+          margin: 'auto 0',
+          flexShrink: 0,
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
           borderRadius: tokens.radius.xl,
