@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import {
   randomCongrats,
@@ -9,9 +9,7 @@ import {
 } from '../../data/constants';
 import { store } from '../../utils/store';
 import FriendsStrip from '../social/FriendsStrip';
-import ShareCard from './ShareCard';
-import ShareSheet, { type ShareSheetPayload } from './ShareSheet';
-import { captureShareCardPayload } from '../../utils/shareWorkout';
+import ShareStudio from './share/ShareStudio';
 import FriendDashboardModal from '../social/FriendDashboardModal';
 import { getMeso } from '../../data/constants';
 import {
@@ -123,37 +121,11 @@ function WorkoutCompleteModal({
   // by default — beta testers wanted the emotional payoff (quote, totals)
   // forward and the detail behind a tap.
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const shareCardRef = useRef<HTMLDivElement>(null);
-
-  /** Build the payload the ShareSheet hands to each destination tile. The
-   *  sheet calls this once per open; it captures the off-screen ShareCard
-   *  into a PNG file + dataUrl. */
-  const getSharePayload = React.useCallback(async (): Promise<ShareSheetPayload> => {
-    const node = shareCardRef.current;
-    if (!node) throw new Error('ShareCard node missing');
-    const prLine =
-      stats.prs.length > 0
-        ? `🏆 NEW PR: ${stats.prs[0].name} ${stats.prs[0].newBest} lbs\n`
-        : '';
-    const text =
-      `${prLine}Crushed ${dayLabel} — Week ${weekIdx + 1} · ${phase}.\n` +
-      `${stats.sets} sets · ${stats.reps} reps · ${Math.round(stats.volume).toLocaleString()} lbs total.\n\n` +
-      `🔨 thefoundry.coach`;
-    const safeDay = dayLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const captured = await captureShareCardPayload(node, {
-      title: `Crushed ${dayLabel}`,
-      text,
-      fileName: `foundry-${safeDay}-w${weekIdx + 1}.png`,
-    });
-    return {
-      file: captured.file,
-      dataUrl: captured.dataUrl,
-      fileName: captured.fileName,
-      title: captured.title,
-      text: captured.text,
-      url: 'https://thefoundry.coach',
-    };
-  }, [dayLabel, weekIdx, phase, stats]);
+  // Caption for "Copy caption" — the image itself carries the workout.
+  const shareCaption =
+    (stats.prs.length > 0 ? `New PR: ${stats.prs[0].name} ${stats.prs[0].newBest} lb. ` : '') +
+    `${dayLabel}, week ${weekIdx + 1} · ${phase}. ` +
+    `${stats.sets} sets, ${Math.round(stats.volume).toLocaleString()} lb moved.\n\nthefoundry.coach`;
 
   const handleShare = () => setShareSheetOpen(true);
 
@@ -353,6 +325,8 @@ function WorkoutCompleteModal({
                   color: 'var(--text-primary)',
                   lineHeight: 1.2,
                   fontVariantNumeric: 'tabular-nums',
+                  // "1h 2m" wrapped onto two lines in a four-up grid.
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {item.value}
@@ -793,62 +767,12 @@ function WorkoutCompleteModal({
         </div>
       </div>
 
-      {/* Branded share destination sheet — opened by the SHARE button above.
-          Handles capturing the off-screen ShareCard PNG + routing each tile. */}
-      <ShareSheet
+      <ShareStudio
         open={shareSheetOpen}
         onClose={() => setShareSheetOpen(false)}
-        getPayload={getSharePayload}
-        onDone={(outcome) => {
-          // Close on any terminal outcome. Native-share cancellation is
-          // reported as 'cancelled' which keeps the sheet open so the user
-          // can try another destination; anything else closes.
-          if (outcome !== 'cancelled') setShareSheetOpen(false);
-        }}
+        data={{ dayLabel, weekIdx, phase, stats }}
+        caption={shareCaption}
       />
-
-      {/* Off-screen ShareCard — DOM-present so html-to-image can walk it,
-          but pushed far off the visual viewport. aria-hidden + inert to
-          keep it out of the a11y tree / tab order. Card auto-sizes
-          vertically based on how much content the session produced. */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          left: -99999,
-          top: 0,
-          width: 1080,
-          pointerEvents: 'none',
-        }}
-      >
-        <ShareCard
-          ref={shareCardRef}
-          dayLabel={dayLabel}
-          weekIdx={weekIdx}
-          phase={phase}
-          phaseColor={phaseColor}
-          stats={{
-            sets: stats.sets,
-            reps: stats.reps,
-            volume: stats.volume,
-            duration: stats.duration,
-          }}
-          prs={stats.prs.map((pr) => ({
-            name: pr.name,
-            weight: pr.newBest,
-            // Completion stats don't track the rep count that produced the
-            // PR (only newBest/prevBest). Default to 1 for display; future
-            // work: thread the rep count through from session logs.
-            reps: 1,
-          }))}
-          anchorComparison={stats.anchorComparison}
-          isDeload={stats.isDeload}
-          breakdown={stats.breakdown}
-          quote={quote}
-          congratsHeadline={congrats.headline}
-          congratsSub={congrats.sub}
-        />
-      </div>
 
       {/* Friend dashboard — opens when a FriendsStrip avatar is tapped. */}
       {mesoId && (
