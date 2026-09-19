@@ -12,6 +12,7 @@ import './styles/responsive/setup.css';
 import { _setMarkDirty } from './utils/storage';
 import { markDirty, flushDirty } from './utils/sync';
 import { preloadExerciseDBQuietly } from './data/exerciseDB';
+import { playLaunchReveal } from './utils/launchReveal';
 
 // Start loading the exercise DB immediately — it'll be ready by the time
 // components need it (~200ms), but won't block the critical render path.
@@ -70,3 +71,5 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <App />
   </React.StrictMode>
 );
+
+playLaunchReveal();

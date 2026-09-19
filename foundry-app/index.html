@@ -17,8 +17,36 @@
        on WelcomeScreen + IntakeCard. Bebas Neue is display-only, loaded
        on-demand via @font-face. -->
   <link rel="preload" href="/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
+  <!-- Launch veil. Inline so it paints with the very first frame, before any
+       JS: it continues the black native launch screen without a flash, then
+       src/utils/launchReveal.ts plays black → orange forge glow → Home. -->
+  <style>
+    html, body { background: #000; }
+    #launch-veil {
+      position: fixed; inset: 0; z-index: 2147483647; background: #000;
+      pointer-events: none; overflow: hidden;
+    }
+    #launch-veil .glow {
+      position: absolute; left: 50%; bottom: -35vh; width: 170vmax; height: 110vmax;
+      transform: translateX(-50%) scale(0.55); transform-origin: 50% 100%; opacity: 0;
+      background: radial-gradient(closest-side, rgba(255,138,48,0.95), rgba(232,101,26,0.75) 38%, rgba(160,52,10,0.35) 66%, rgba(0,0,0,0) 100%);
+    }
+    #launch-veil.reveal .glow { animation: veil-glow 1000ms cubic-bezier(.22,.8,.26,1) forwards; }
+    #launch-veil.reveal { animation: veil-out 520ms ease-in 520ms forwards; }
+    @keyframes veil-glow {
+      0% { opacity: 0; transform: translateX(-50%) scale(0.55); }
+      45% { opacity: 1; transform: translateX(-50%) scale(1); }
+      100% { opacity: 0.35; transform: translateX(-50%) scale(1.25); }
+    }
+    @keyframes veil-out { to { opacity: 0; visibility: hidden; } }
+    @media (prefers-reduced-motion: reduce) {
+      #launch-veil.reveal .glow { animation: none; }
+      #launch-veil.reveal { animation: veil-out 200ms ease-out forwards; }
+    }
+  </style>
 </head>
 <body>
+  <div id="launch-veil" aria-hidden="true"><div class="glow"></div></div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
