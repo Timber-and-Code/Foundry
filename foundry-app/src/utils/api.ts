@@ -223,7 +223,13 @@ export async function callFoundryAI(
       ? `- Trainee notes (read carefully and let this shape the program): ${goalNote.trim()}`
       : '';
 
-  const exerciseNames = EXERCISE_DB.map(
+  // Only what this lifter can actually do. The list carries no equipment
+  // column, so sending the whole library let the coach pick lifts the lifter
+  // has no kit for — and cost ~30% more input tokens on every call.
+  const usable = expandEquipment(equipment);
+  const pool = EXERCISE_DB.filter((e) => !e.equipment || usable.includes(e.equipment));
+
+  const exerciseNames = pool.map(
     (e) =>
       `${e.id}|${e.name}|${e.tag}|${e.muscle}|${e.anchor ? 'anchor' : 'acc'}|sets:${e.sets}|reps:${e.reps}`
   ).join('\n');
@@ -404,8 +410,6 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
 
     // The weekly coverage rule holds for the coach too (see weeklyCoverage.ts):
     // if it still left a group out, swap a direct lift in for a repeated one.
-    const usable = expandEquipment(equipment);
-    const pool = EXERCISE_DB.filter((e) => !e.equipment || usable.includes(e.equipment));
     const covered = ensureWeeklyCoverage(hydrated as never, pool as never, (e: ExerciseDBEntry) => ({
       id: e.id,
       name: e.name,

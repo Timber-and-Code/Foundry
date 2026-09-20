@@ -19,9 +19,10 @@
 // the prompt, so the endpoint can't be used as a general-purpose model proxy,
 // and a model upgrade is a worker deploy rather than an app release.
 
-const COACH_MODEL = "claude-opus-5";
+// Defaults; override per deploy with COACH_MODEL / COACH_EFFORT in wrangler.toml [vars].
+const DEFAULT_COACH_MODEL = "claude-opus-5";
+const DEFAULT_COACH_EFFORT = "medium";
 const COACH_MAX_TOKENS = 16000;      // thinking + a ~4k-token program, with room
-const COACH_EFFORT = "medium";
 const MAX_PROMPT_CHARS = 120000;     // exercise library (~250 rows) + instructions ≈ 30k
 
 const BREVO_LIST_ID = 2;
@@ -144,10 +145,10 @@ export default {
             "anthropic-beta": "server-side-fallback-2026-07-01",
           },
           body: JSON.stringify({
-            model: COACH_MODEL,
+            model: env.COACH_MODEL || DEFAULT_COACH_MODEL,
             max_tokens: COACH_MAX_TOKENS,
             thinking: { type: "adaptive" },
-            output_config: { effort: COACH_EFFORT },
+            output_config: { effort: env.COACH_EFFORT || DEFAULT_COACH_EFFORT },
             fallbacks: "default",
             messages: [{ role: "user", content: prompt }],
           }),
