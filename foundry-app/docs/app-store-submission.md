@@ -35,10 +35,23 @@ personalisation, or product personalisation.
 | Health & Fitness | **Fitness** | Yes | The training log — workouts, sets, reps, loads |
 | User Content | **Other User Content** | Yes | Session and exercise notes |
 | Diagnostics | **Crash Data** | **No** | Sentry, anonymised |
-| Other Data | **Other Data Types** | Yes | Date of birth and gender, optional onboarding fields |
+| Other Data | **Other Data Types** | Yes | Date of birth (asked at account creation) and gender |
 
 Crash Data is the only one **not** linked to identity — Sentry gets no account
-identifier. Everything else is stored against the user's account by design.
+identifier. **This became true on 2026-09-20:** the app used to call
+`Sentry.setUser({ email, id })` and ran performance tracing (undeclared
+"Performance Data"). Both are gone — errors only, no `setUser`. If either ever
+comes back, this table and `PrivacyInfo.xcprivacy` must change with it.
+Everything else is stored against the user's account by design.
+
+**Third-party AI (guideline 5.1.2(i)).** The optional coach sends program inputs
+(goal, experience, split, schedule, equipment, the lifter's free-text coach
+note, recent top lifts) to Anthropic's Claude via our Cloudflare Worker. Name,
+gender, email and account id are NOT sent (pinned by
+`src/utils/__tests__/api.privacy.test.ts`). The app shows a one-time consent
+sheet before the first send (`CoachConsentSheet`), and declining builds the same
+program without the coach. If App Store Connect asks about third-party AI
+sharing: **yes, with consent, for App Functionality only.**
 
 ### Tracking
 
@@ -100,11 +113,18 @@ Paste something like this into the Notes field:
 > progression and history views are populated.
 >
 > Apple Health is optional and off by default. To review it: Settings → Apple
-> Health → toggle on. iOS will ask two separate permissions — body weight, and
+> Health → toggle on. iOS shows one permission sheet covering body weight and
 > workouts. Completing a workout with the workout permission granted writes a
 > Traditional Strength Training entry to Apple Fitness and contributes active
 > energy to the Move ring. Declining either permission leaves the rest of the
 > app fully functional.
+>
+> The AI coach is optional. Before its first use the app explains that it runs
+> on Anthropic's Claude, lists what is sent, and asks for agreement; "Build
+> without the coach" produces a full program with nothing sent.
+>
+> Privacy Policy and Support are linked from Settings, and the Privacy Policy
+> from every Create Account screen.
 >
 > Account deletion is in Settings → Account → Delete Account.
 

@@ -183,7 +183,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           migratedForUserRef.current = uid;
           if (session?.user) {
-            Sentry.setUser({ email: session.user.email, id: session.user.id });
+            // Deliberately NO Sentry.setUser: the privacy manifest, the App Store
+            // label and the privacy policy all say crash data is not linked to
+            // an account. This used to send the lifter's email and user id.
             // Multi-user safety: if a DIFFERENT user signed in than was
             // last on this device, wipe prior local data before migrate
             // walks it into the new user's Supabase rows.
@@ -222,7 +224,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           pullFromSupabase();
         } else if (event === 'SIGNED_OUT') {
           migratedForUserRef.current = null;
-          Sentry.setUser(null);
         }
       });
       subscription = data.subscription;

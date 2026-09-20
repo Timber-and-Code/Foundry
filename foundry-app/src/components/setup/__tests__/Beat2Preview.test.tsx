@@ -39,7 +39,41 @@ function renderPreview() {
 }
 
 describe('Beat2Preview coach pass', () => {
-  beforeEach(() => aiMock.mockReset());
+  beforeEach(() => {
+    aiMock.mockReset();
+    localStorage.clear();
+    // Most of these are about the pass itself: consent already given.
+    localStorage.setItem('foundry:coach_ai_consent', '1');
+  });
+
+  // The coach is third-party AI (App Review 5.1.2(i)): nothing may be sent
+  // until the lifter has been told what it is and agreed, once.
+  it('asks before the first coach pass, and sends nothing if declined', async () => {
+    localStorage.removeItem('foundry:coach_ai_consent');
+    aiMock.mockResolvedValue({ days: COACHED });
+    renderPreview();
+
+    fireEvent.click(screen.getByRole('button', { name: /coach-tune my program/i }));
+    expect(screen.getByText(/the coach is ai/i)).toBeInTheDocument();
+    expect(screen.getByText(/anthropic/i)).toBeInTheDocument();
+    expect(aiMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /build without the coach/i }));
+    expect(aiMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem('foundry:coach_ai_consent')).toBeNull();
+    expect(screen.getByRole('button', { name: /save program/i })).toBeInTheDocument();
+  });
+
+  it('runs the coach once consent is given, and remembers it', async () => {
+    localStorage.removeItem('foundry:coach_ai_consent');
+    aiMock.mockResolvedValue({ days: COACHED });
+    renderPreview();
+
+    fireEvent.click(screen.getByRole('button', { name: /coach-tune my program/i }));
+    fireEvent.click(screen.getByRole('button', { name: /use the coach/i }));
+    expect(await screen.findByText('Coach Incline Press')).toBeInTheDocument();
+    expect(localStorage.getItem('foundry:coach_ai_consent')).toBe('1');
+  });
 
   it('tunes BEFORE save, shows the coached program, then saves exactly it', async () => {
     aiMock.mockResolvedValue({ days: COACHED });

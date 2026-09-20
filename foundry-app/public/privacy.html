@@ -77,24 +77,27 @@
   <div class="wrap">
     <div class="brand">The Foundry</div>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: April 21, 2026</p>
+    <p class="updated">Last updated: September 20, 2026</p>
 
     <h2>Who we are</h2>
-    <p>The Foundry is a training app developed by Timber &amp; Code Columbus Collective. Contact: <a href="mailto:timberandcode3@gmail.com">timberandcode3@gmail.com</a>.</p>
+    <p>The Foundry is a training app developed by Timber and Code Collective LLC. Contact: <a href="mailto:timberandcode3@gmail.com">timberandcode3@gmail.com</a>.</p>
 
     <h2>What we collect</h2>
     <ul>
       <li><strong>Account info:</strong> email and password (if you create an account). Passwords are hashed by our auth provider — we never see or store plaintext passwords.</li>
+      <li><strong>Profile:</strong> the first name, date of birth, gender, training experience and goal you enter, and a school email address if you tell us you are a student. Date of birth is used to work out your age; gender and experience shape the program we build.</li>
       <li><strong>Training data:</strong> your workouts, sets, reps, weights, exercise history, program configuration, and workout notes. Tied to your account.</li>
       <li><strong>Body metrics:</strong> body weight — the readings you enter in the app, plus readings from Apple Health if you turn that on. See <em>Apple Health (iOS)</em> below.</li>
-      <li><strong>Error reports:</strong> anonymous crash and error data via Sentry, used to fix bugs. No personal identifiers beyond a randomly-generated session ID.</li>
+      <li><strong>Friends:</strong> if you add friends, we store who you are connected to and the sharing level you chose (Full or Basic). Friends see your first name, which days you trained and — on Full — your sets, weights and body-weight trend. Remove a friend at any time and that access ends.</li>
+      <li><strong>Feedback:</strong> messages you send from <strong>Settings → Send feedback</strong>, with your app version and device type.</li>
+      <li><strong>Error reports:</strong> crash and error data via Sentry, used to fix bugs. It is not linked to your account: we do not send your name, email or user ID.</li>
     </ul>
 
     <h2>What we don't collect</h2>
     <ul>
       <li>No advertising identifiers.</li>
       <li>No location data.</li>
-      <li>No contacts, photos, or social-graph data.</li>
+      <li>No access to your contacts or photo library. (Saving a share image to Photos is done by iOS, only when you choose it.)</li>
       <li>No third-party analytics trackers (no Google Analytics, Facebook Pixel, etc.).</li>
     </ul>
 
@@ -102,7 +105,7 @@
     <ul>
       <li><strong>Account + training data:</strong> Supabase (PostgreSQL, US region).</li>
       <li><strong>Static site hosting:</strong> Cloudflare Pages.</li>
-      <li><strong>AI training-plan generation:</strong> The app sends your setup inputs (name, goal, experience, days per week, equipment) to a Cloudflare Worker, which calls Anthropic's Claude API to generate your program. No identifying information beyond what you enter in the setup form is sent.</li>
+      <li><strong>AI coach (optional):</strong> if you choose to use the coach, the app sends your program inputs — goal, experience, split, days per week, session length, equipment, any notes you typed for the coach, and the top weights of your recent main lifts — through our Cloudflare Worker to Anthropic's Claude API, which writes the program. Your name, email and account ID are not included. The app asks before the first time, and you can always build without the coach. Under Anthropic's commercial API terms, these inputs are not used to train their models.</li>
       <li><strong>Error logs:</strong> Sentry (anonymized).</li>
     </ul>
 
@@ -114,7 +117,7 @@
     </ul>
 
     <h2>Apple Health (iOS)</h2>
-    <p>Apple Health integration is off until you turn it on in <strong>Settings → Apple Health</strong> inside the app. Turning it on covers two things, and iOS asks your permission for each separately — you can allow one and refuse the other.</p>
+    <p>Apple Health integration is off until you turn it on in <strong>Settings → Apple Health</strong> inside the app. Turning it on covers body weight and workouts. iOS shows one permission sheet listing each item — you can allow some and refuse others.</p>
     <ul>
       <li><strong>Body weight, read:</strong> we read your most recent body weight so the figure shown in your profile and workout logs stays current without you re-entering it.</li>
       <li><strong>Body weight, written:</strong> when you log a body weight in The Foundry, we save that reading back to Apple Health so it stays in sync with your other health and fitness apps.</li>
@@ -130,6 +133,9 @@
       <li><strong>Deletion:</strong> in-app, go to <strong>Settings → Account → Delete Account</strong> — this permanently deletes your account and all associated training data. You can also email us to request the same.</li>
       <li><strong>Correction:</strong> you can edit all profile and training data from within the app.</li>
     </ul>
+
+    <h2>Not medical advice</h2>
+    <p>The Foundry provides general fitness programming and education. It is not medical advice and is not a substitute for a doctor or physical therapist. Talk to a physician before starting a new training program, and stop if you feel pain.</p>
 
     <h2>Children</h2>
     <p>The Foundry is not intended for users under 13. We do not knowingly collect data from anyone under 13. If we learn we have collected such data, we will delete it.</p>

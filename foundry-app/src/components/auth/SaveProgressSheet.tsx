@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import PrivacyNote from './PrivacyNote';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { tokens } from '../../styles/tokens';
@@ -134,6 +136,9 @@ export default function SaveProgressSheet({
   const ageYoung = age !== null && age < 18;
   const ageSenior = age !== null && age >= 62;
   const ageQualifies = ageYoung || ageSenior;
+  // 1.0 is free on the App Store and nothing can be bought in the app, so it
+  // says nothing about who is "free" — same gate as SettingsView's paid plans.
+  const showTiers = !Capacitor.isNativePlatform();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,6 +147,11 @@ export default function SaveProgressSheet({
     if (mode === 'signup') {
       if (!dob.month || !dob.day || !dob.year) {
         setError('Please enter your full date of birth.');
+        return;
+      }
+      // 13+ app (age rating + privacy policy): don't create the account.
+      if (age !== null && age < 13) {
+        setError('The Foundry is for lifters 13 and older.');
         return;
       }
       if (isStudent && studentEmail.trim() && !isEduEmail(studentEmail)) {
@@ -317,7 +327,7 @@ export default function SaveProgressSheet({
                   ))}
                 </select>
               </div>
-              {ageQualifies && (
+              {showTiers && ageQualifies && (
                 <div
                   style={{
                     fontSize: 12,
@@ -337,7 +347,7 @@ export default function SaveProgressSheet({
               )}
 
               {/* Student checkbox — hidden when user already qualifies by age */}
-              {!ageQualifies && age !== null && (
+              {showTiers && !ageQualifies && age !== null && (
                 <div style={{ marginTop: 4 }}>
                   <button
                     type="button"
@@ -496,6 +506,7 @@ export default function SaveProgressSheet({
               ? mode === 'signup' ? 'Creating account...' : 'Signing in...'
               : mode === 'signup' ? 'Create Account' : 'Sign In'}
           </button>
+          {mode === 'signup' && <PrivacyNote />}
         </form>
 
         {/* Mode toggle */}

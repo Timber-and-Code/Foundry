@@ -147,7 +147,7 @@ export default function CoachMark({ anchorSelector, title, copy, onDismiss }: Co
             marginBottom: title ? 4 : 8,
           }}
         >
-          Foundry Coach Tip
+          Coach Tip
         </div>
         {title && (
           <div

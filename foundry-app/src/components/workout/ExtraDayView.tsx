@@ -17,24 +17,13 @@ import { TAG_ACCENT, getMeso } from '../../data/constants';
 import { useWorkoutTimer, formatElapsed } from '../../hooks/useWorkoutTimer';
 import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import ExerciseCard from './ExerciseCard';
+import SwapMenu from './SwapMenu';
+import { getExerciseDB, findExercise } from '../../data/exerciseDB';
+import { buildAllSwapGroups, bucketFor } from '../../utils/swapGroups';
+import { expandEquipment } from '../../utils/program';
+import { customIdFor, rememberCustomExercise, resolveCustomExercise } from '../../utils/customExercises';
 import NoteReviewSheet from './NoteReviewSheet';
 import type { Profile, TrainingDay, Exercise } from '../../types';
-
-interface SwapModalProps {
-  exercise: Exercise;
-  dayTag: string;
-  profile: Profile;
-  onSwap: (ex: Exercise) => void;
-  onClose: () => void;
-}
-
-interface AddExerciseModalProps {
-  dayTag: string;
-  profile: Profile;
-  currentExerciseIds?: (string | number | undefined)[];
-  onAdd: (ex: Exercise) => void;
-  onClose: () => void;
-}
 
 interface WorkoutCompleteModalProps {
   dayLabel: string;
@@ -47,120 +36,6 @@ interface WorkoutCompleteModalProps {
 }
 
 // Stub modal components (to be fully built out later)
-const SwapModal = ({ exercise: _exercise, dayTag: _dayTag, profile: _profile, onSwap: _onSwap, onClose }: SwapModalProps) => (
-  <div
-    style={{
-      position: 'fixed',
-      inset: 0,
-      background: tokens.colors.overlayLight,
-      zIndex: 100,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}
-    onClick={onClose}
-  >
-    <div
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: tokens.radius.xl,
-        padding: 24,
-        maxWidth: 360,
-        width: '90%',
-        textAlign: 'center',
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div
-        style={{
-          fontSize: 14,
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          marginBottom: 12,
-        }}
-      >
-        Swap Exercise
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-        Exercise swap coming soon
-      </div>
-      <button
-        onClick={onClose}
-        style={{
-          padding: '10px 24px',
-          borderRadius: tokens.radius.md,
-          background: 'var(--bg-inset)',
-          border: '1px solid var(--border)',
-          color: 'var(--text-primary)',
-          cursor: 'pointer',
-          fontSize: 13,
-          fontWeight: 600,
-        }}
-      >
-        Close
-      </button>
-    </div>
-  </div>
-);
-
-const AddExerciseModal = ({ dayTag: _dayTag, profile: _profile, currentExerciseIds: _currentExerciseIds, onAdd: _onAdd, onClose }: AddExerciseModalProps) => (
-  <div
-    style={{
-      position: 'fixed',
-      inset: 0,
-      background: tokens.colors.overlayLight,
-      zIndex: 100,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}
-    onClick={onClose}
-  >
-    <div
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: tokens.radius.xl,
-        padding: 24,
-        maxWidth: 360,
-        width: '90%',
-        textAlign: 'center',
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div
-        style={{
-          fontSize: 14,
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          marginBottom: 12,
-        }}
-      >
-        Add Exercise
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-        Add exercise coming soon
-      </div>
-      <button
-        onClick={onClose}
-        style={{
-          padding: '10px 24px',
-          borderRadius: tokens.radius.md,
-          background: 'var(--bg-inset)',
-          border: '1px solid var(--border)',
-          color: 'var(--text-primary)',
-          cursor: 'pointer',
-          fontSize: 13,
-          fontWeight: 600,
-        }}
-      >
-        Close
-      </button>
-    </div>
-  </div>
-);
-
 const WorkoutCompleteModal = ({ dayLabel, dayTag: _dayTag, gender: _gender, stats, weekIdx: _weekIdx, onDone, onClose }: WorkoutCompleteModalProps) => (
   <div
     style={{
@@ -533,6 +408,17 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     setShowAddExercise(false);
   };
 
+  // The picker hands back an id (library or custom); both handlers want the
+  // exercise itself.
+  const pickExercise = (exId: string) => {
+    const found = findExercise(exId) || resolveCustomExercise(exId);
+    if (!found) return;
+    // A custom lift carries a name and little else.
+    const picked = { sets: 3, reps: '8-12', rest: '2 min', tag: day.tag, equipment: 'other', ...found } as Exercise;
+    if (showAddExercise) handleAddExercise(picked);
+    else handleSwap(picked);
+  };
+
   // ── Complete ─────────────────────────────────────────────────────────────────
   const doComplete = () => {
     setShowPostStrengthPrompt(false);
@@ -608,27 +494,39 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     <div style={{ paddingBottom: 100 }}>
       {/* ── REST TIMER (reuse same state-free pattern — ExtraDayView doesn't use it yet) */}
 
-      {/* ── SWAP MODAL ── */}
-      {swapTarget !== null && (
-        <SwapModal
-          exercise={exercises[swapTarget.exIdx]}
-          dayTag={day.tag}
-          profile={profile}
-          onSwap={handleSwap}
-          onClose={() => setSwapTarget(null)}
-        />
-      )}
-
-      {/* ── ADD EXERCISE MODAL ── */}
-      {showAddExercise && (
-        <AddExerciseModal
-          dayTag={day.tag}
-          profile={profile}
-          currentExerciseIds={exercises.map((e: Exercise) => e.id)}
-          onAdd={handleAddExercise}
-          onClose={() => setShowAddExercise(false)}
-        />
-      )}
+      {/* ── SWAP / ADD — the same picker the programmed days use. These were
+          two "coming soon" stubs wired to live buttons. ── */}
+      <SwapMenu
+        open={swapTarget !== null || showAddExercise}
+        onClose={() => {
+          setSwapTarget(null);
+          setShowAddExercise(false);
+        }}
+        replacingName={
+          showAddExercise ? 'Add exercise' : swapTarget !== null ? exercises[swapTarget.exIdx]?.name || '' : ''
+        }
+        exerciseGroups={buildAllSwapGroups(getExerciseDB())}
+        autoExpandMuscle={
+          !showAddExercise && swapTarget !== null
+            ? bucketFor(exercises[swapTarget.exIdx]?.muscle || '')
+            : undefined
+        }
+        userEquipment={expandEquipment(profile?.equipment)}
+        onSelect={pickExercise}
+        onCustomExercise={(name) => {
+          const trimmed = name.trim();
+          if (!trimmed) return;
+          const id = customIdFor(trimmed);
+          const replacing = swapTarget !== null ? exercises[swapTarget.exIdx] : null;
+          rememberCustomExercise(id, trimmed, replacing?.muscle || 'other');
+          pickExercise(id);
+        }}
+        // An extra day belongs to one date — there is no meso to apply it to.
+        scopePending={null}
+        onScopeMeso={() => {}}
+        onScopeWeek={() => {}}
+        onScopeCancel={() => {}}
+      />
 
       {/* ── BW WEEKLY CHECK-IN ── */}
       {showBwCheckin && (

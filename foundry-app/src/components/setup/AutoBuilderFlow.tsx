@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { tokens } from '../../styles/tokens';
 import { ageFromDob } from '../../utils/store';
@@ -9,6 +9,8 @@ import { GOAL_OPTIONS } from '../../data/constants';
 import FoundryBanner from '../shared/FoundryBanner';
 import { EXPERIENCE_OPTIONS, experienceLabel, experienceTier } from '../../utils/experience';
 import { formatSplitName } from '../../utils/splitLabel';
+import CoachConsentSheet from './CoachConsentSheet';
+import { grantCoachConsent, hasCoachConsent } from '../../utils/coachConsent';
 
 export interface AutoBuilderFlowProps {
   form: {
@@ -102,7 +104,11 @@ export default function AutoBuilderFlow({
     </div>
   );
 
-  const handleAutoSubmit = async () => {
+  // The coach is third-party AI: ask once before the first send. Declining
+  // builds the same program without it.
+  const [consentOpen, setConsentOpen] = useState(false);
+
+  const handleAutoSubmit = async (coach: 'ask' | 'use' | 'skip' = 'ask') => {
     setError('');
     if (!autoForm.split) {
       setError('Select a training split.');
@@ -167,6 +173,14 @@ export default function AutoBuilderFlow({
       sessionDuration: autoForm.sessionDuration || sessMap[experienceTier(autoForm.experience)] || 60,
       autoBuilt: true,
     };
+    if (coach === 'skip') {
+      maybePromptLegBalance(built);
+      return;
+    }
+    if (coach === 'ask' && !hasCoachConsent()) {
+      setConsentOpen(true);
+      return;
+    }
     setAiLoading(true);
     setAiCoachNote('');
     setError('');
@@ -323,7 +337,7 @@ export default function AutoBuilderFlow({
           </button>
         ) : (
           <button
-            onClick={handleAutoSubmit}
+            onClick={() => handleAutoSubmit()}
             disabled={aiLoading}
             className="btn-primary"
             style={{
@@ -956,6 +970,19 @@ export default function AutoBuilderFlow({
       )}
 
       {footerSlot ? createPortal(footer, footerSlot) : footer}
+      <CoachConsentSheet
+        open={consentOpen}
+        onAccept={() => {
+          grantCoachConsent();
+          setConsentOpen(false);
+          void handleAutoSubmit('use');
+        }}
+        onDecline={() => {
+          setConsentOpen(false);
+          void handleAutoSubmit('skip');
+        }}
+        onCancel={() => setConsentOpen(false)}
+      />
     </div>
   );
 }

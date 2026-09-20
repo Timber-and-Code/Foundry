@@ -186,6 +186,19 @@ export default function AboutModal({ open, onClose, onReadLetter }: AboutModalPr
           Made for people who want to train well, not just train a lot.
         </div>
 
+        <p
+          style={{
+            margin: '14px 0 0',
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            lineHeight: 1.55,
+            textAlign: 'center',
+          }}
+        >
+          The Foundry provides general fitness programming, not medical advice. Talk to a physician before
+          starting a new training program, and stop if you feel pain.
+        </p>
+
         <button
           onClick={onClose}
           style={{
