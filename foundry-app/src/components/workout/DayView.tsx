@@ -36,6 +36,7 @@ import {
   pickSetCount,
   saveSetCount,
 } from '../../utils/store';
+import { customIdFor, loadCustomExercises, resolveCustomExercise } from '../../utils/customExercises';
 import { applyPersistedSupersets, newSupersetId } from '../../utils/supersets';
 import { dayDisplayName } from '../../utils/splitLabel';
 import {
@@ -300,7 +301,6 @@ function DayView({
    * and feeding it back through getWeekSets would adjust it twice.
    */
   const programSetsById = useMemo(() => {
-    const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');
     const out = new Map<string, number>();
     (day.exercises || []).forEach((ex: Exercise, i: number) => {
       const programSets = Number(ex.sets ?? 0);
@@ -310,7 +310,7 @@ function DayView({
         return;
       }
       const dbEx = findExercise(ovId);
-      const customEx = !dbEx && ovId.startsWith('custom:') ? customExercises[ovId] : null;
+      const customEx = !dbEx ? resolveCustomExercise(ovId) : null;
       const resolved = dbEx || customEx;
       if (!resolved) return;
       out.set(String(resolved.id), Number(resolved.sets ?? programSets));
@@ -618,7 +618,6 @@ function DayView({
   // Build resolved exercises by applying any saved overrides
   // MUST be declared before prevWeekNotes useMemo — Babel hoists var to undefined otherwise
   const resolveExercises = useCallback(() => {
-    const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');
     // Persisted add/remove-set overrides — applied to whichever exercise
     // ends up in the slot (program default or swap override) so a
     // shortened/extended exercise keeps its set count across re-entry.
@@ -642,7 +641,7 @@ function DayView({
       }
       const dbEx = findExercise(ovId);
       // Check custom exercises if not in DB
-      const customEx = !dbEx && ovId.startsWith('custom:') ? customExercises[ovId] : null;
+      const customEx = !dbEx ? resolveCustomExercise(ovId) : null;
       const resolved = dbEx || customEx;
       if (!resolved) return ex;
       const wu = ex.anchor
@@ -816,8 +815,7 @@ function DayView({
   const appendExercise = useCallback(
     (newExId: string) => {
       const dbEx = findExercise(newExId);
-      const customs = JSON.parse(store.get('foundry:customExercises') || '{}');
-      const customEx = !dbEx && newExId.startsWith('custom:') ? customs[newExId] : null;
+      const customEx = !dbEx ? resolveCustomExercise(newExId) : null;
       const src = dbEx || customEx;
       if (!src) return;
       const next: typeof exercises[number] = {
@@ -862,8 +860,8 @@ function DayView({
     (name: string) => {
       const trimmed = name.trim();
       if (!trimmed) return;
-      const customId = `custom:${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-      const existing = JSON.parse(store.get('foundry:customExercises') || '{}');
+      const customId = customIdFor(trimmed);
+      const existing = loadCustomExercises();
       // Add-exercise path: persist the custom to localStorage with the
       // current day's tag so other views (sync, swap) resolve it later.
       if (addingExercise) {
@@ -921,12 +919,13 @@ function DayView({
         const mesoId = store.get('foundry:active_meso_id');
         if (mesoId) {
           const newDbEx = findExercise(newExId);
-          const customExercises = JSON.parse(store.get('foundry:customExercises') || '{}');
-          const customEx = !newDbEx && newExId.startsWith('custom:') ? customExercises[newExId] : null;
+          const customEx = !newDbEx ? resolveCustomExercise(newExId) : null;
           const resolved = newDbEx || customEx;
           if (resolved) {
             syncExerciseSwapRemote(mesoId, dayIdx, exIdx, {
               id: resolved.id,
+              name: resolved.name,
+              muscle: resolved.muscle,
               sets: resolved.sets,
               reps: resolved.reps,
               progression: resolved.pattern === 'isolation' ? 'reps' : 'weight',

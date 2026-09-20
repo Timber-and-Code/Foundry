@@ -5,7 +5,8 @@ import SwapMenu from '../workout/SwapMenu';
 import { getExerciseDB, type ExerciseEntry } from '../../data/exerciseDB';
 import { buildSwapGroups, bucketFor } from '../../utils/swapGroups';
 import { useToast } from '../../contexts/ToastContext';
-import { store } from '../../utils/store';
+import { customIdFor, isCustomId, rememberCustomExercise, resolveCustomExercise } from '../../utils/customExercises';
+import CustomTag from '../shared/CustomTag';
 import { BP_WIDE } from '../../hooks/useMediaQuery';
 
 function isWideNow(): boolean {
@@ -181,15 +182,9 @@ export default function DayAccordion({
   const handleSwapPick = (newExId: string) => {
     if (!swapTarget && !addTarget) return;
     let entry: DayExercise | null = null;
-    if (newExId.startsWith('custom:')) {
-      // Custom exercise — resolve from localStorage
-      try {
-        const customs = JSON.parse(store.get('foundry:customExercises') || '{}');
-        const record = customs[newExId];
-        if (record?.name) {
-          entry = { id: newExId, name: record.name, muscle: record.muscle || 'other' };
-        }
-      } catch { /* custom parse fallback */ }
+    const custom = resolveCustomExercise(newExId);
+    if (custom) {
+      entry = { id: custom.id, name: custom.name, muscle: custom.muscle || 'other' };
     } else {
       const match = db.find((e) => e.id === newExId);
       if (match) {
@@ -207,17 +202,13 @@ export default function DayAccordion({
     if (!swapTarget && !addTarget) return;
     const trimmed = name.trim();
     if (!trimmed) return;
-    const id = `custom:${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const id = customIdFor(trimmed);
     const dayIdx = swapTarget?.dayIdx ?? addTarget!.dayIdx;
     const fallbackMuscle = swapTarget
       ? days[swapTarget.dayIdx]?.exercises[swapTarget.exIdx]?.muscle || 'other'
       : 'other';
-    // Persist in the same bucket DayView reads from so the ID resolves later.
-    try {
-      const customs = JSON.parse(store.get('foundry:customExercises') || '{}');
-      customs[id] = { name: trimmed, muscle: fallbackMuscle };
-      store.set('foundry:customExercises', JSON.stringify(customs));
-    } catch { /* store persist fallback */ }
+    // Same bucket DayView reads from, so the id resolves later.
+    rememberCustomExercise(id, trimmed, fallbackMuscle);
     const entry = { id, name: trimmed, muscle: fallbackMuscle };
     if (swapTarget) replaceExercise(dayIdx, swapTarget.exIdx, entry);
     else appendExercise(dayIdx, entry);
@@ -396,9 +387,13 @@ export default function DayAccordion({
                             letterSpacing: '0.06em',
                             textTransform: 'uppercase',
                             color: tokens.colors.textMuted,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
                           }}
                         >
-                          {ex.muscle}
+                          {isCustomId(ex.id) && <CustomTag size="sm" />}
+                          {!(isCustomId(ex.id) && (!ex.muscle || ex.muscle === 'other')) && ex.muscle}
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>

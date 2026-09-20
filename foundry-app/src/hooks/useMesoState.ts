@@ -24,6 +24,7 @@ import {
 import { buildWeekRecap } from '../utils/weekRecap';
 import { generateProgram } from '../utils/program';
 import { getTrainedExerciseIds } from '../utils/trainingHistory';
+import { healCustomNames, resolveCustomExercise } from '../utils/customExercises';
 
 export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
   const [profile, setProfile] = useState(loadProfile);
@@ -61,7 +62,13 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       storedParsed.every((d: TrainingDay) => !d.exercises || d.exercises.length === 0);
     let base;
     if (storedParsed && !storedIsPoisoned) {
-      base = storedParsed;
+      // Pulls before migration 015 saved a custom lift's id as its name.
+      // Repair the stored copy, not just this render: the recap, archive
+      // and rebuild paths all read the key directly.
+      base = healCustomNames<TrainingDay>(storedParsed);
+      if (base.some((d: TrainingDay, i: number) => d !== storedParsed[i])) {
+        store.set('foundry:storedProgram', JSON.stringify(base));
+      }
     } else {
       // Don't generate (or cache) until the DB is actually loaded, otherwise
       // we'd just re-poison the storedProgram key.
@@ -80,7 +87,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       const extraIds = (added as Record<string, any>)[dayIdx] || [];
       if (extraIds.length === 0) return day;
       const extraExs = extraIds
-        .map((id: string) => findExercise(id))
+        .map((id: string) => findExercise(id) || resolveCustomExercise(id))
         .filter(Boolean)
         .map((e: Record<string, unknown>) => ({
           id: e.id,
