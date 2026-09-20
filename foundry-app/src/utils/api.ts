@@ -1,3 +1,5 @@
+import { expandEquipment } from './program';
+import { ensureWeeklyCoverage } from './weeklyCoverage';
 import { store } from './store.js';
 import { supabase } from './supabase';
 import type { SplitType } from '../types';
@@ -120,6 +122,16 @@ interface MesoTransition {
  * Call the Foundry AI Worker to generate a personalized training program.
  * Uses Claude AI to create exercise selections and progression based on profile.
  */
+/** Thrown when the coach is called while signed out. */
+export class CoachAuthRequiredError extends Error {
+  constructor() {
+    super('Sign in to use the coach');
+    this.name = 'CoachAuthRequiredError';
+  }
+}
+
+const COACH_TIMEOUT_MS = 120_000;
+
 export async function callFoundryAI(
   { split, daysPerWeek, mesoLength, experience, equipment, name, gender: _gender, goal, goalNote }: CallFoundryAIParams,
   EXERCISE_DB: ExerciseDBEntry[] = []
@@ -258,6 +270,11 @@ ${expGuidance[expKey]}
 - Select exercises appropriate for equipment: ${equipment.join(', ')}
 - Use progressive overload: first week establishes baseline, last week targets PRs
 - Balance muscle groups appropriately across the week
+- Weekly coverage is mandatory: across the week, every one of these groups gets at least one exercise whose PRIMARY muscle is that group — Chest, Back/Lats, Shoulders, Triceps, Biceps, Quads, Hamstrings/Glutes, Calves. A compound that only hits a group secondarily (bench press for triceps, rows for biceps) does not count. If slots are tight, drop a second exercise for an already-covered group before leaving a group out
+- Use ONLY ids from the AVAILABLE EXERCISES list, copied exactly
+- Day "tag" must be one of PUSH, PULL, LEGS, UPPER, LOWER, FULL — UPPER/LOWER for an Upper/Lower split, FULL for Full Body, PUSH/PULL/LEGS only for those splits
+- The app works in pounds only: any load, jump or percentage you mention (in notes or coachNote) is in lb, never kg
+- Keep each day's "note" to 1–2 sentences and "coachNote" under 120 words
 - Identify 1–2 antagonist superset pairs per day where appropriate. Classic pairs: bench press + row, OHP + lat pulldown, curl + tricep pushdown, leg extension + leg curl, chest fly + rear delt fly. Only pair accessories — never pair two anchor/compound lifts. Mark the PRIMARY exercise in each pair with "supersetWith": <index of partner in this day's exercises array (0-based)>. Only the primary (lower index) exercise carries this field.
 ${goalBlock}${goalNoteBlock ? '\n' + goalNoteBlock : ''}${mesoTransitionBlock ? '\n' + mesoTransitionBlock : ''}
 
@@ -291,34 +308,29 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
   const workerUrl =
     import.meta.env.VITE_FOUNDRY_AI_WORKER_URL || 'https://foundry-ai.timberandcode3.workers.dev';
 
-  // Prefer Supabase JWT; fall back to legacy shared key if not signed in
-  let authHeader: Record<string, string> | undefined;
+  // The coach needs a signed-in lifter: the worker verifies this Supabase
+  // session token (a shared app key in a client bundle protects nothing).
+  let token: string | undefined;
   try {
     const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
-    if (token) {
-      authHeader = { Authorization: `Bearer ${token}` };
-    }
+    token = data?.session?.access_token;
   } catch (_) {
-    // ignore — fallback below
+    // treated as signed out below
   }
-  if (!authHeader) {
-    const appKey = import.meta.env.VITE_FOUNDRY_APP_KEY || '';
-    authHeader = { 'X-Foundry-Key': appKey };
-  }
+  if (!token) throw new CoachAuthRequiredError();
 
+  // The model thinks before it answers; a full program takes well over the
+  // old 15s ceiling, which aborted every successful build.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), COACH_TIMEOUT_MS);
 
   try {
+    // Only the prompt crosses the wire — the worker pins model, token ceiling
+    // and effort, so this endpoint can't be driven as a general model proxy.
     const response = await fetch(workerUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ prompt }),
       signal: controller.signal,
     });
 
@@ -390,7 +402,28 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
       }),
     }));
 
-    return { days: hydrated, coachNote: parsed.coachNote || '' };
+    // The weekly coverage rule holds for the coach too (see weeklyCoverage.ts):
+    // if it still left a group out, swap a direct lift in for a repeated one.
+    const usable = expandEquipment(equipment);
+    const pool = EXERCISE_DB.filter((e) => !e.equipment || usable.includes(e.equipment));
+    const covered = ensureWeeklyCoverage(hydrated as never, pool as never, (e: ExerciseDBEntry) => ({
+      id: e.id,
+      name: e.name,
+      muscle: e.muscle,
+      muscles: e.muscles || [e.muscle],
+      equipment: e.equipment || equipment[0] || 'barbell',
+      tag: e.tag,
+      anchor: false,
+      sets: clampSets(Number(e.sets) || norms.accSets, false),
+      reps: clampReps(e.reps),
+      rest: e.rest || '90 sec',
+      warmup: '1 feeler set',
+      progression: 'reps',
+      description: e.description || '',
+      videoUrl: e.videoUrl || '',
+    }) as never) as unknown as HydratedDay[];
+
+    return { days: covered, coachNote: parsed.coachNote || '' };
   } catch (error) {
     clearTimeout(timeout);
     throw error;

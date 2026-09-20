@@ -23,7 +23,7 @@ const STANDARD = [day('Upper A', [ex('bb_flat_bench', 'Standard Bench', { anchor
 const COACHED = [day('Upper A', [ex('db_incline', 'Coach Incline Press', { anchor: true, sets: 5, reps: '5-8' })])];
 
 vi.mock('../../../utils/program', () => ({ generateProgram: vi.fn(() => STANDARD) }));
-vi.mock('../../../utils/api', () => ({ callFoundryAI: aiMock }));
+vi.mock('../../../utils/api', () => ({ callFoundryAI: aiMock, CoachAuthRequiredError: class extends Error {} }));
 vi.mock('../../../utils/trainingHistory', () => ({ getTrainedExerciseIds: () => new Set() }));
 vi.mock('../../../data/exerciseDB', () => ({ getExerciseDB: () => [], useExerciseDB: () => [] }));
 vi.mock('../../../contexts/ToastContext', () => ({ useToast: () => ({ showToast: vi.fn() }) }));

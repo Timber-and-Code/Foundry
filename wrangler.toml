@@ -1,10 +1,18 @@
 name = "foundry-ai"
 main = "worker.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2026-09-01"
+workers_dev = true
 
 [vars]
-# Non-secret vars can go here. API key is set via: wrangler secret put ANTHROPIC_API_KEY
+# Public values (the same ones shipped in the web bundle). Secrets are set with
+# `wrangler secret put`: ANTHROPIC_API_KEY, BREVO_API_KEY.
+SUPABASE_URL = "https://iwresyrdyalwkowyxxwr.supabase.co"
 
-[[routes]]
-# Cloudflare will assign a workers.dev subdomain automatically on first deploy.
-# You can also add a custom domain here later.
+# Per-user ceiling on coach builds — each one is a paid model call.
+[[ratelimits]]
+name = "COACH_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 6
+  period = 60

@@ -1,7 +1,7 @@
 import React from 'react';
 import { tokens } from '../../styles/tokens';
 import { ageFromDob } from '../../utils/store';
-import { callFoundryAI } from '../../utils/api';
+import { callFoundryAI, CoachAuthRequiredError } from '../../utils/api';
 import { getExerciseDB } from '../../data/exerciseDB';
 import EquipmentPicker from './EquipmentPicker';
 import { GOAL_OPTIONS } from '../../data/constants';
@@ -174,7 +174,9 @@ export default function AutoBuilderFlow({
       setAiLoading(false);
       const isTimeout = err instanceof DOMException && err.name === 'AbortError';
       setError(
-        isTimeout
+        err instanceof CoachAuthRequiredError
+          ? 'Sign in to have the coach build your program — using a program built from your selections instead.'
+          : isTimeout
           ? 'The Foundry took too long to respond — using a program built from your selections instead.'
           : "Couldn't reach The Foundry — using a program built from your selections instead."
       );
