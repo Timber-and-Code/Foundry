@@ -1,19 +1,43 @@
 # 2.15.8 — build 1
 
-Two fixes on top of 2.15.7.
+The builder pass: what the app builds, how you review it, and a coach that
+actually runs.
 
-- **Leaving the app mid-build no longer loses your meso build.** iOS often
-  reloads an app that has been in the background, and the builder kept its
-  progress only in memory — so stepping away (most visibly while planning
-  the next meso during the deload) threw away your split, equipment,
-  hand-picked exercises and swaps. The builder now saves as you go and
-  reopens on the step you left: "Picked up where you left off." Cleared when
-  you finish or back out.
+## Building a meso
+- **Every major muscle group, every week.** The builder could structurally
+  drop a group — Upper/Lower 4-day at 60 min left out triceps in every
+  single build. A final pass now swaps a direct exercise in for a repeated
+  accessory. Anchors are never touched; hand-built and coached programs are
+  left exactly as made.
+- **The AI coach works.** It had been rejected by our own server on every
+  request since launch, so every "coach-tuned" program was silently the
+  standard build. Fixed, and it now takes about 20 seconds. Sign-in required.
+- **First-year lifters were given the advanced exercise pool.** "Under 1
+  year" was stored in a form the builder didn't recognise. Fixed.
+- **Quick Build no longer hides its questions.** Split cards are compact; a
+  footer always shows Split / Schedule / Level / Equipment and one button
+  that is always the next thing to do. **Experience level can be changed.**
+- **Your Program review:** full exercise names, one SWAP per row. Reorder and
+  remove live behind **Edit list**.
+- **Leaving the app mid-build no longer loses it.** The builder saves as you
+  go and reopens where you left: "Picked up where you left off."
+
+## Custom exercises
+- Always show the name you typed, with a small **CUSTOM** tag — never
+  `custom:cable-y-raise`. The name now travels with the program, so other
+  devices and people sharing your meso see it too. Existing ones repair
+  themselves.
+
+## Everywhere
+- **The banner and tab bar stay pinned.** They used to slide with the page
+  when it rubber-banded at the top or bottom. (Native change.)
 - **Friend sheet** (from 2.15.7 build 2): tapping a friend opened a sheet too
-  tall to scroll or close. Dialogs now scroll; bigger close button.
+  tall to scroll or close. Dialogs scroll now; bigger close button.
 
-Everything from 2.15.7 is included: launch fade, new workout sharing, iPad /
-Pro Max / iPhone Duo layouts, Apple Health fix, friends remove + mutual sharing.
+Everything from 2.15.7 is included.
 
-1247 tests passing, typecheck + lint clean. Web-layer only since 2.15.7.
-Not yet verified on device.
+---
+
+1271 tests passing, typecheck clean. Native change: WebView bounce off.
+Server: migration 015 applied; coach worker deployed. Not yet verified on
+device.
