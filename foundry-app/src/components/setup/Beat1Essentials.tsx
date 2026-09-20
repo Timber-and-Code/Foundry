@@ -78,6 +78,8 @@ export default function Beat1Essentials({ initial, onContinue }: Beat1Props) {
         maxWidth: 'var(--form-max)',
         margin: '0 auto',
         padding: '28px 24px 32px',
+        // The page owns its safe area (ios.contentInset is 'never').
+        paddingTop: 'calc(28px + env(safe-area-inset-top, 0px))',
         boxSizing: 'border-box',
       }}
     >

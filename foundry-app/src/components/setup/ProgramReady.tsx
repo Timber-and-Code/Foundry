@@ -49,6 +49,8 @@ export default function ProgramReady({ profile, onContinue }: ProgramReadyProps)
         alignItems: 'stretch',
         justifyContent: 'center',
         padding: '32px 24px',
+        paddingTop: 'calc(32px + env(safe-area-inset-top, 0px))',
+        paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
         maxWidth: 'var(--form-max)',
         margin: '0 auto',
         gap: 36,

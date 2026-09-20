@@ -187,6 +187,8 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
             minHeight: '100vh',
             background: tokens.colors.bgRoot,
             padding: '48px 24px 32px',
+        // The page owns its safe area (ios.contentInset is 'never').
+        paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))',
             overflow: 'hidden',
           }}
         >
@@ -437,6 +439,8 @@ export default function OnboardingFlow({ onDone }: OnboardingFlowProps) {
               flexDirection: 'column',
               justifyContent: 'space-between',
               padding: '60px 24px 40px',
+        // The page owns its safe area (ios.contentInset is 'never').
+        paddingTop: 'calc(60px + env(safe-area-inset-top, 0px))',
               ...slideStyle,
             }}
           >

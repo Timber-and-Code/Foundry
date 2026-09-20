@@ -215,14 +215,16 @@ export default function AutoBuilderFlow({
     } catch (err: unknown) {
       setAiLoading(false);
       const isTimeout = err instanceof DOMException && err.name === 'AbortError';
-      setError(
+      // Carried on the profile to the review screen, which is where the
+      // lifter lands next — an error set here is cleared on the way there,
+      // so a failed coach pass used to be completely silent.
+      const coachError =
         err instanceof CoachAuthRequiredError
-          ? 'Sign in to have the coach build your program — using a program built from your selections instead.'
+          ? 'Sign in to have the coach build your program.'
           : isTimeout
-          ? 'The Foundry took too long to respond — using a program built from your selections instead.'
-          : "Couldn't reach The Foundry — using a program built from your selections instead."
-      );
-      maybePromptLegBalance(built);
+          ? 'The coach took too long to respond.'
+          : "The coach couldn't be reached.";
+      maybePromptLegBalance({ ...built, coachError });
     }
   };
 

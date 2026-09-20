@@ -35,6 +35,8 @@ export default function MicroTour({ onDone, onSkip }: MicroTourProps) {
         maxWidth: 'var(--form-max)',
         margin: '0 auto',
         padding: '20px 24px 32px',
+        // The page owns its safe area (ios.contentInset is 'never').
+        paddingTop: 'calc(20px + env(safe-area-inset-top, 0px))',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',

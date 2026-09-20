@@ -452,6 +452,9 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           flexDirection: 'column',
           animation: 'slideInRight 0.22s cubic-bezier(0.22,1,0.36,1)',
           overflowY: 'auto',
+          // Full-height panel: keep the close button out of the status bar.
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
         {/* ── Close button ── */}

@@ -219,6 +219,8 @@ export default function Beat2Preview({ beat1, saved, onPersist, onSave, onEditEs
         maxWidth: 'var(--wide-max)',
         margin: '0 auto',
         padding: '20px 20px 120px',
+        // The page owns its safe area (ios.contentInset is 'never').
+        paddingTop: 'calc(20px + env(safe-area-inset-top, 0px))',
         boxSizing: 'border-box',
       }}
     >
@@ -397,7 +399,7 @@ export default function Beat2Preview({ beat1, saved, onPersist, onSave, onEditEs
         disabled={busy || days.length === 0}
         style={{
           position: 'fixed',
-          bottom: 16,
+          bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'calc(100% - 40px)',

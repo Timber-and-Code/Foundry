@@ -59,6 +59,8 @@ export default function WorkoutSplash({
         display: 'flex',
         flexDirection: 'column',
         padding: 16,
+        paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))',
+        paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
       }}
     >
       <div
