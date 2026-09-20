@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { store, isEduEmail } from '../../utils/store';
 import FoundryBanner from '../shared/FoundryBanner';
@@ -6,7 +6,7 @@ import AutoBuilderFlow from './AutoBuilderFlow';
 import ManualBuilderFlow from './ManualBuilderFlow';
 import CardioSetupFlow from './CardioSetupFlow';
 import Beat1Essentials, { type Beat1Values } from './Beat1Essentials';
-import Beat2Preview from './Beat2Preview';
+import Beat2Preview, { type Beat2Saved } from './Beat2Preview';
 import ProgramReady from './ProgramReady';
 import ProgramReview from './ProgramReview';
 import { generateProgram } from '../../utils/program';
@@ -14,6 +14,8 @@ import { getExerciseDB } from '../../data/exerciseDB';
 import { getTrainedExerciseIds } from '../../utils/trainingHistory';
 import { trainedIdsIncludingCurrent } from '../../utils/nextMeso';
 import { loadProfile } from '../../utils/store';
+import { loadSetupSession, saveSetupSession, clearSetupSession } from '../../utils/setupSession';
+import { emit } from '../../utils/events';
 import type { Profile, TrainingDay } from '../../types';
 
 /**
@@ -55,7 +57,22 @@ interface SetupPageProps {
   onCancel?: () => void;
 }
 
-export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupPageProps) {
+export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', onCancel: onCancelProp }: SetupPageProps) {
+  // Progress saved from an earlier visit — iOS reloads a backgrounded web
+  // view, which used to throw the whole build away. See utils/setupSession.
+  const [restored] = useState(() => loadSetupSession(mode)?.state ?? null);
+  const r = <T,>(key: string, fallback: T): T =>
+    restored && restored[key] !== undefined && restored[key] !== null ? (restored[key] as T) : fallback;
+  const onComplete = (p: Profile) => {
+    clearSetupSession();
+    onCompleteProp(p);
+  };
+  const onCancel = onCancelProp
+    ? () => {
+        clearSetupSession();
+        onCancelProp();
+      }
+    : undefined;
   // Both non-'new' modes build on top of a meso that is still live.
   const planningNext = mode !== 'new';
   const startsNow = mode === 'after-meso';
@@ -104,14 +121,15 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
   // `step` stays as a constant for the few remaining `step === 2` guards
   // until the surrounding render tree is simplified further.
   const [step] = useState(2);
-  const [pathMode, setPathMode] = useState<string | null>(null);
-  const [manualExStep, setManualExStep] = useState(false);
-  const [manualPairStep, setManualPairStep] = useState(false);
-  const [dayExercises, setDayExercises] = useState<Record<number, string[]>>({});
-  const [dayPairs, setDayPairs] = useState<Record<number, [number, number][]>>({});
-  const [cardioDays, setCardioDays] = useState<Set<number>>(new Set());
+  const [pathMode, setPathMode] = useState<string | null>(() => r<string | null>('pathMode', null));
+  const [manualExStep, setManualExStep] = useState(() => r('manualExStep', false));
+  const [manualPairStep, setManualPairStep] = useState(() => r('manualPairStep', false));
+  const [dayExercises, setDayExercises] = useState<Record<number, string[]>>(() => r('dayExercises', {}));
+  const [dayPairs, setDayPairs] = useState<Record<number, [number, number][]>>(() => r('dayPairs', {}));
+  const [cardioDays, setCardioDays] = useState<Set<number>>(() => new Set(r<number[]>('cardioDays', [])));
   const [error, setError] = useState('');
   const [form, setForm] = useState(() => {
+    if (restored?.form) return restored.form as never;
     let saved: Record<string, unknown> = {};
     try {
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
@@ -188,13 +206,14 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
   const [aiLoading, setAiLoading] = useState(false);
   const [, setAiCoachNote] = useState('');
   const [legBalancePrompt, setLegBalancePrompt] = useState<Profile | null>(null);
-  const [showCardioStep, setShowCardioStep] = useState(false);
-  const [pendingProfile, setPendingProfile] = useState<Profile | null>(null);
+  const [showCardioStep, setShowCardioStep] = useState(() => r('showCardioStep', false));
+  const [pendingProfile, setPendingProfile] = useState<Profile | null>(() => r<Profile | null>('pendingProfile', null));
   // Every meso is reviewed day by day before it exists — see ProgramReview.
-  const [review, setReview] = useState<{ profile: Profile; program: TrainingDay[] } | null>(null);
+  const [review, setReview] = useState<{ profile: Profile; program: TrainingDay[] } | null>(() => r('review', null));
 
   // Auto-builder specific state
   const [autoForm, setAutoForm] = useState(() => {
+    if (restored?.autoForm) return restored.autoForm as never;
     let saved: Record<string, unknown> = {};
     try {
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
@@ -470,9 +489,31 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
   // Phase 2 v2 state machine (Beat 1 → Beat 2 → ProgramReady)
   // ════════════════════════════════════════════════════════
   const [setupV2] = useState<boolean>(() => !planningNext && shouldUseSetupV2());
-  const [v2Step, setV2Step] = useState<V2Step>('beat1');
-  const [beat1Values, setBeat1Values] = useState<Beat1Values | null>(null);
-  const [v2Profile, setV2Profile] = useState<Profile | null>(null);
+  const [v2Step, setV2Step] = useState<V2Step>(() => r<V2Step>('v2Step', 'beat1'));
+  const [beat1Values, setBeat1Values] = useState<Beat1Values | null>(() => r<Beat1Values | null>('beat1Values', null));
+  const [v2Profile, setV2Profile] = useState<Profile | null>(() => r<Profile | null>('v2Profile', null));
+  const beat2Saved = useRef<Beat2Saved | null>(r<Beat2Saved | null>('beat2', null));
+
+  // Save as the lifter goes. Cheap (a few KB) and only while setup is open.
+  const persist = () =>
+    saveSetupSession(mode, {
+      pathMode, manualExStep, manualPairStep, dayExercises, dayPairs,
+      cardioDays: [...cardioDays], form, autoForm, review, pendingProfile, showCardioStep,
+      v2Step, beat1Values, v2Profile, beat2: beat2Saved.current,
+    });
+  useEffect(persist, [
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    mode, pathMode, manualExStep, manualPairStep, dayExercises, dayPairs, cardioDays, form, autoForm,
+    review, pendingProfile, showCardioStep, v2Step, beat1Values, v2Profile,
+  ]);
+
+  const announced = useRef(false);
+  useEffect(() => {
+    if (announced.current || !restored) return;
+    announced.current = true;
+    const hasProgress = restored.pathMode != null || restored.review || restored.showCardioStep || (restored.v2Step && restored.v2Step !== 'beat1');
+    if (hasProgress) emit('foundry:toast', { message: 'Picked up where you left off.', type: 'success' });
+  }, [restored]);
 
   if (setupV2) {
     if (v2Step === 'beat1') {
@@ -490,12 +531,18 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
       return (
         <Beat2Preview
           beat1={beat1Values}
+          saved={beat2Saved.current}
+          onPersist={(b) => {
+            beat2Saved.current = b;
+            persist();
+          }}
           onSave={(p) => {
             setV2Profile(p);
             setV2Step('ready');
             window.scrollTo(0, 0);
           }}
           onEditEssentials={() => {
+            beat2Saved.current = null;
             setV2Step('beat1');
             window.scrollTo(0, 0);
           }}
@@ -523,6 +570,7 @@ export default function SetupPage({ onComplete, mode = 'new', onCancel }: SetupP
     return (
       <ProgramReview
         program={review.program}
+        onEdit={(program) => setReview((cur) => (cur ? { ...cur, program } : cur))}
         userEquipment={Array.isArray(review.profile.equipment) ? review.profile.equipment : undefined}
         subtitle={startsNow ? 'NEXT MESO' : planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'}
         onBack={() => {

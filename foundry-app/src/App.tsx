@@ -35,6 +35,7 @@ import {
   trainedIdsIncludingCurrent,
 } from './utils/nextMeso';
 import { buildWeekRecap } from './utils/weekRecap';
+import { loadSetupSession } from './utils/setupSession';
 import { formatSplitName } from './utils/splitLabel';
 import { runDayDataV2Migration } from './utils/dayDataV2Migration';
 import { repairDriftedSplitType } from './utils/splitTypeRepair';
@@ -220,11 +221,14 @@ function App() {
   // which auto-saves a generic profile when a sample program is selected.
   // Building the NEXT meso during the deload. Renders SetupPage in draft
   // mode in place of the app; nothing live changes until it's started.
-  const [planningNextMeso, setPlanningNextMeso] = useState(false);
+  // Both reopen on launch when a build was interrupted — iOS reloads a
+  // backgrounded web view, and the saved session (utils/setupSession) puts
+  // the lifter back on the step they left.
+  const [planningNextMeso, setPlanningNextMeso] = useState(() => loadSetupSession('plan-next') !== null);
   // Same builder, opened from the end-of-meso sheet (Repeat / Build new).
   // The finished meso stays live underneath until the new one is started —
   // in memory only, so closing the app mid-setup lands back on the sheet.
-  const [buildingAfterMeso, setBuildingAfterMeso] = useState(false);
+  const [buildingAfterMeso, setBuildingAfterMeso] = useState(() => loadSetupSession('after-meso') !== null);
   const [showSetup, setShowSetup] = useState(
     () => !!store.get('foundry:onboarded') && !store.get('foundry:profile'),
   );

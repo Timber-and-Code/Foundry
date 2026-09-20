@@ -112,7 +112,7 @@ export function migrateKeys(): void {
 // that don't exist (foundry:completedSets:, foundry:setLog:, …) while the
 // real ones survived. There should be exactly one of these.
 const MESO_SESSION_KEY_RE =
-  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$|active_session$|next_meso_draft$)/;
+  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$|active_session$|next_meso_draft$|setup_session$)/;
 
 // `next_meso_draft` rides along on purpose: a plan made during THIS meso's
 // deload belongs to it. Every caller here is a meso ending by some other
