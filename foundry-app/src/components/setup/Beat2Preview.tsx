@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import PhaseBar from '../shared/PhaseBar';
 import { generateProgram } from '../../utils/program';
@@ -16,8 +16,21 @@ import DayAccordion, { type DayBuild } from './DayAccordion';
 import { formatSplitName } from '../../utils/splitLabel';
 import { toDayBuilds, hydrateDayBuilds } from './dayBuilds';
 
+/** What the preview needs to come back exactly as it was left. */
+export interface Beat2Saved {
+  split: SplitType;
+  length: MesoLength;
+  session: SessionLength;
+  days: DayBuild[];
+  source?: TrainingDay[];
+  tuned: boolean;
+}
+
 interface Beat2Props {
   beat1: Beat1Values;
+  /** Restored state from an interrupted setup (see utils/setupSession). */
+  saved?: Beat2Saved | null;
+  onPersist?: (state: Beat2Saved) => void;
   onSave: (profile: Profile) => void;
   onEditEssentials: () => void;
 }
@@ -48,10 +61,10 @@ const SESSION_DURATION: Record<SessionLength, number> = {
  * run at save time and overwrite the reviewed days with its own.) Changing
  * split / length / session drops the tuning, since it no longer matches.
  */
-export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2Props) {
-  const [split, setSplit] = useState<SplitType>('upper_lower');
-  const [length, setLength] = useState<MesoLength>(6);
-  const [session, setSession] = useState<SessionLength>('standard');
+export default function Beat2Preview({ beat1, saved, onPersist, onSave, onEditEssentials }: Beat2Props) {
+  const [split, setSplit] = useState<SplitType>(saved?.split ?? 'upper_lower');
+  const [length, setLength] = useState<MesoLength>(saved?.length ?? 6);
+  const [session, setSession] = useState<SessionLength>(saved?.session ?? 'standard');
   // One-open-at-a-time: clicking any bar collapses the others. Null = all closed.
   const [openBar, setOpenBar] = useState<'split' | 'session' | 'length' | null>(null);
   const [saveError, setSaveError] = useState('');
@@ -89,12 +102,19 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
   );
 
   // Deterministic preview — fast, offline-safe. Recomputed on any change.
-  const [days, setDays] = useState<DayBuild[]>([]);
+  const [days, setDays] = useState<DayBuild[]>(saved?.days ?? []);
   // The program `days` was made from — carries each lift's prescription
   // through to the saved program. Coach-tuned days replace it.
-  const [source, setSource] = useState<TrainingDay[] | undefined>(undefined);
-  const [tune, setTune] = useState<'idle' | 'tuning' | 'tuned' | 'failed'>('idle');
+  const [source, setSource] = useState<TrainingDay[] | undefined>(saved?.source);
+  const [tune, setTune] = useState<'idle' | 'tuning' | 'tuned' | 'failed'>(saved?.tuned ? 'tuned' : 'idle');
+  // Restored from an interrupted setup: keep that exact program (swaps,
+  // coach tuning) instead of rolling a new one on mount.
+  const skipFirstBuild = useRef(!!saved && saved.days.length > 0);
   useEffect(() => {
+    if (skipFirstBuild.current) {
+      skipFirstBuild.current = false;
+      return;
+    }
     setTune('idle');
     setSaveError('');
     if (split === 'custom') {
@@ -130,6 +150,13 @@ export default function Beat2Preview({ beat1, onSave, onEditEssentials }: Beat2P
       setDays([]);
     }
   }, [profileDraft, split, beat1.workoutDays]);
+
+  useEffect(() => {
+    if (tune === 'tuning') return;
+    onPersist?.({ split, length, session, days, source, tuned: tune === 'tuned' });
+    // onPersist is a fresh closure each render; the state is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [split, length, session, days, source, tune]);
 
   const handleSave = () => {
     onSave({

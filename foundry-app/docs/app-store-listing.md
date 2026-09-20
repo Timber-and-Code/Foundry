@@ -97,7 +97,13 @@ Comma-separated, no spaces. Don't repeat words already in the name or subtitle (
 
 ## Copyright
 
-**2026 Timber & Code** (confirm the legal entity name)
+**2026 Timber and Code Collective LLC**
+
+The developer company, confirmed by the owner 2026-09-18. The app's name
+stays "The Foundry Fitness". Note: the App Store's *seller* line shows the
+Apple Developer account holder. The account appears to be an individual
+enrollment, so the seller will read as the owner's personal name until the
+account is converted to an organization (needs the LLC's D-U-N-S number).
 
 ## App Review information (ready to paste)
 
@@ -116,6 +122,6 @@ Comma-separated, no spaces. Don't repeat words already in the name or subtitle (
 ## Open questions for the owner
 
 1. App name: keep "The Foundry Fitness"?
-2. Legal entity for the copyright line.
+2. ~~Legal entity for the copyright line~~ — Timber and Code Collective LLC.
 3. Review contact person and phone.
 4. Is 1.0 free? The description makes no pricing claims either way.

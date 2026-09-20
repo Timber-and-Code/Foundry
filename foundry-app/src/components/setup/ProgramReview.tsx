@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import FoundryBanner from '../shared/FoundryBanner';
-import DayAccordion from './DayAccordion';
+import DayAccordion, { type DayBuild } from './DayAccordion';
 import { toDayBuilds, hydrateDayBuilds } from './dayBuilds';
 import { getExerciseDB } from '../../data/exerciseDB';
 import type { TrainingDay } from '../../types';
@@ -11,6 +11,8 @@ interface ProgramReviewProps {
   program: TrainingDay[];
   userEquipment?: string[];
   subtitle: string;
+  /** Every edit, as a full program — lets the caller save progress. */
+  onEdit?: (program: TrainingDay[]) => void;
   /** Receives the exact program to install, edits included. */
   onConfirm: (program: TrainingDay[]) => void;
   onBack: () => void;
@@ -23,8 +25,16 @@ interface ProgramReviewProps {
  * `aiDays`, which generateProgram returns verbatim (it would otherwise
  * reshuffle).
  */
-export default function ProgramReview({ program, userEquipment, subtitle, onConfirm, onBack }: ProgramReviewProps) {
-  const [days, setDays] = useState(() => toDayBuilds(program));
+export default function ProgramReview({ program, userEquipment, subtitle, onEdit, onConfirm, onBack }: ProgramReviewProps) {
+  const [days, setDaysState] = useState(() => toDayBuilds(program));
+  const setDays = (next: DayBuild[]) => {
+    setDaysState(next);
+    // A day emptied mid-edit would be dropped by hydration and shift the
+    // rest; only report complete programs.
+    if (onEdit && next.every((d) => d.exercises.length > 0)) {
+      onEdit(hydrateDayBuilds(next, getExerciseDB() as never, program));
+    }
+  };
   const empty = days.some((d) => d.exercises.length === 0);
 
   return (
