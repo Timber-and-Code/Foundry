@@ -150,7 +150,9 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
       // "no profile" and drops the lifter on the empty shell. Onboarding sets
       // it for a first meso; a returning lifter's form never had it.
       experience:
-        (saved.experience as string) || tp?.experience || current.experience || 'intermediate',
+        // The live profile first: the builder can change experience, and the
+        // onboarding answer would otherwise win it back on the next meso.
+        current.experience || (saved.experience as string) || tp?.experience || 'intermediate',
       name: (saved.name as string) || tp?.name || '',
       age: saved.age ? String(saved.age) : tp?.age ? String(tp.age) : '',
       gender: (saved.gender as string) || tp?.gender || '',
@@ -211,6 +213,15 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
   // Every meso is reviewed day by day before it exists — see ProgramReview.
   const [review, setReview] = useState<{ profile: Profile; program: TrainingDay[] } | null>(() => r('review', null));
 
+  // The frame's scroller (the window no longer scrolls) and the pinned
+  // footer slot. Step changes call window.scrollTo(0, 0) all over this flow;
+  // this is what actually returns the new step to the top now.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [footerSlot, setFooterSlot] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo?.(0, 0);
+  }, [pathMode, manualExStep, manualPairStep]);
+
   // Auto-builder specific state
   const [autoForm, setAutoForm] = useState(() => {
     if (restored?.autoForm) return restored.autoForm as never;
@@ -219,7 +230,7 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
     } catch { /* JSON parse fallback */ }
     return {
-      experience: (saved.experience as string) || null as string | null,
+      experience: (loadProfile()?.experience || (saved.experience as string) || null) as string | null,
       split: null as string | null,
       daysPerWeek: null as number | null,
       mesoLength: null as number | null,
@@ -595,8 +606,8 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
   return (
     <>
       <div
+        className="fd-setup-frame"
         style={{
-          minHeight: '100vh',
           background: 'var(--bg-root)',
           display: 'flex',
           flexDirection: 'column',
@@ -607,7 +618,14 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
         }}
       >
         {/* Foundry Banner */}
-        <FoundryBanner subtitle={startsNow ? 'NEXT MESO' : planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'} />
+        {/* flex: none — the banner clips its overflow, so as a flex child it
+            would otherwise be squashed to make room for the scroller. */}
+        <div style={{ flex: 'none' }}>
+          <FoundryBanner subtitle={startsNow ? 'NEXT MESO' : planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'} />
+        </div>
+        {/* Everything between the banner and the builder's footer scrolls
+            here — see .fd-setup-frame. */}
+        <div ref={scrollRef} className="fd-setup-scroll">
         {/* Meso 2+ continuation banner */}
         <div className="fd-form">
         {(() => {
@@ -665,7 +683,7 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
         </div>
 
         {/* Content */}
-        <div className="fd-form" style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="fd-form">
           <Header />
 
 
@@ -835,6 +853,7 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
               setError={setError}
               maybePromptLegBalance={maybePromptLegBalance}
               planningNext={planningNext}
+              footerSlot={footerSlot}
             />
           )}
 
@@ -869,6 +888,9 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
             />
           )}
         </div>
+        </div>
+        {/* Pinned under the scroller; the Quick Build footer portals in. */}
+        <div ref={setFooterSlot} className="fd-form" style={{ flex: 'none' }} />
       </div>
 
       {/* ── 5-Day PPL Leg Balance Prompt ── */}

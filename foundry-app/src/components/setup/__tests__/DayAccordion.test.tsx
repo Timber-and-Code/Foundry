@@ -124,6 +124,8 @@ describe('DayAccordion', () => {
     const onDaysChange = vi.fn();
     render(<DayAccordion days={days} onDaysChange={onDaysChange} />);
     // Remove exercise at index 1 (Incline DB Press) — unanchored.
+    // ↑ ↓ × live behind the day's Reorder / remove toggle.
+    fireEvent.click(screen.getAllByRole('button', { name: /edit list/i })[0]);
     fireEvent.click(screen.getByLabelText(/remove incline db press/i));
     const next = onDaysChange.mock.calls[0][0] as DayBuild[];
     expect(next[0].exercises.map((e) => e.id)).toEqual(['bb_flat_bench', 'tri_push']);
@@ -137,6 +139,8 @@ describe('DayAccordion', () => {
     const onDaysChange = vi.fn();
     render(<DayAccordion days={days} onDaysChange={onDaysChange} />);
     // Move exercise 0 down → swaps with index 1.
+    // ↑ ↓ × live behind the day's Reorder / remove toggle.
+    fireEvent.click(screen.getAllByRole('button', { name: /edit list/i })[0]);
     fireEvent.click(screen.getByLabelText(/move flat barbell bench press down/i));
     const next = onDaysChange.mock.calls[0][0] as DayBuild[];
     expect(next[0].exercises[0].id).toBe('db_press');

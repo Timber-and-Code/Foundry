@@ -5,7 +5,8 @@ import SwapMenu from '../workout/SwapMenu';
 import { getExerciseDB, type ExerciseEntry } from '../../data/exerciseDB';
 import { buildSwapGroups, bucketFor } from '../../utils/swapGroups';
 import { useToast } from '../../contexts/ToastContext';
-import { store } from '../../utils/store';
+import { customIdFor, isCustomId, rememberCustomExercise, resolveCustomExercise } from '../../utils/customExercises';
+import CustomTag from '../shared/CustomTag';
 import { BP_WIDE } from '../../hooks/useMediaQuery';
 
 function isWideNow(): boolean {
@@ -78,6 +79,11 @@ export default function DayAccordion({
   // replacing an existing exercise. Used for the "+ Add exercise" CTA on
   // every day (essential for custom-split days that start empty).
   const [addTarget, setAddTarget] = useState<{ dayIdx: number } | null>(null);
+  // Reading and swapping are the job of this list; reordering and removing
+  // are occasional. One day at a time can be in "edit" mode, which trades
+  // the row's SWAP button for ↑ ↓ ×. Four controls on every row left no
+  // room for the exercise name on a phone.
+  const [editingDay, setEditingDay] = useState<number | null>(null);
 
   const db = getExerciseDB();
 
@@ -176,15 +182,9 @@ export default function DayAccordion({
   const handleSwapPick = (newExId: string) => {
     if (!swapTarget && !addTarget) return;
     let entry: DayExercise | null = null;
-    if (newExId.startsWith('custom:')) {
-      // Custom exercise — resolve from localStorage
-      try {
-        const customs = JSON.parse(store.get('foundry:customExercises') || '{}');
-        const record = customs[newExId];
-        if (record?.name) {
-          entry = { id: newExId, name: record.name, muscle: record.muscle || 'other' };
-        }
-      } catch { /* custom parse fallback */ }
+    const custom = resolveCustomExercise(newExId);
+    if (custom) {
+      entry = { id: custom.id, name: custom.name, muscle: custom.muscle || 'other' };
     } else {
       const match = db.find((e) => e.id === newExId);
       if (match) {
@@ -202,17 +202,13 @@ export default function DayAccordion({
     if (!swapTarget && !addTarget) return;
     const trimmed = name.trim();
     if (!trimmed) return;
-    const id = `custom:${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const id = customIdFor(trimmed);
     const dayIdx = swapTarget?.dayIdx ?? addTarget!.dayIdx;
     const fallbackMuscle = swapTarget
       ? days[swapTarget.dayIdx]?.exercises[swapTarget.exIdx]?.muscle || 'other'
       : 'other';
-    // Persist in the same bucket DayView reads from so the ID resolves later.
-    try {
-      const customs = JSON.parse(store.get('foundry:customExercises') || '{}');
-      customs[id] = { name: trimmed, muscle: fallbackMuscle };
-      store.set('foundry:customExercises', JSON.stringify(customs));
-    } catch { /* store persist fallback */ }
+    // Same bucket DayView reads from, so the id resolves later.
+    rememberCustomExercise(id, trimmed, fallbackMuscle);
     const entry = { id, name: trimmed, muscle: fallbackMuscle };
     if (swapTarget) replaceExercise(dayIdx, swapTarget.exIdx, entry);
     else appendExercise(dayIdx, entry);
@@ -343,7 +339,7 @@ export default function DayAccordion({
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 6,
+                        gap: 10,
                         padding: '10px 12px',
                         background: 'var(--bg-inset)',
                         borderRadius: tokens.radius.sm,
@@ -374,28 +370,35 @@ export default function DayAccordion({
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div
                           style={{
-                            fontSize: 13,
+                            fontSize: 15,
                             fontWeight: 600,
+                            lineHeight: 1.25,
                             color: tokens.colors.textPrimary,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
+                            overflowWrap: 'anywhere',
                           }}
                         >
                           {ex.name}
                         </div>
                         <div
                           style={{
-                            fontSize: 10,
+                            marginTop: 2,
+                            fontSize: 11,
                             fontWeight: 700,
                             letterSpacing: '0.06em',
                             textTransform: 'uppercase',
                             color: tokens.colors.textMuted,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
                           }}
                         >
-                          {ex.muscle}
+                          {isCustomId(ex.id) && <CustomTag size="sm" />}
+                          {!(isCustomId(ex.id) && (!ex.muscle || ex.muscle === 'other')) && ex.muscle}
                         </div>
                       </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {editingDay === dayIdx ? (
+                        <>
                       <button
                         type="button"
                         onClick={() => moveExercise(dayIdx, exIdx, -1)}
@@ -416,30 +419,36 @@ export default function DayAccordion({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setSwapTarget({ dayIdx, exIdx })}
-                        aria-label={`Swap ${ex.name}`}
-                        style={swapBtnStyle}
-                      >
-                        SWAP
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => removeExercise(dayIdx, exIdx)}
                         aria-label={`Remove ${ex.name}`}
                         style={iconBtnStyle(false)}
                       >
                         <span aria-hidden="true">×</span>
                       </button>
+                        </>
+                      ) : (
+                      <button
+                        type="button"
+                        onClick={() => setSwapTarget({ dayIdx, exIdx })}
+                        aria-label={`Swap ${ex.name}`}
+                        style={swapBtnStyle}
+                      >
+                        SWAP
+                      </button>
+                      )}
+                      </div>
                     </div>
                   );
                 })}
                 {/* Always present so users can fill an empty day (custom
                     splits start with zero exercises) or extend any day. */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button
                   type="button"
                   onClick={() => setAddTarget({ dayIdx })}
                   style={{
-                    marginTop: 4,
+                    flex: 1,
+                    minHeight: 44,
                     padding: '10px 12px',
                     borderRadius: tokens.radius.sm,
                     background: 'transparent',
@@ -454,6 +463,30 @@ export default function DayAccordion({
                 >
                   + Add exercise
                 </button>
+                {day.exercises.length > 0 && (
+                  <button
+                    type="button"
+                    aria-pressed={editingDay === dayIdx}
+                    onClick={() => setEditingDay(editingDay === dayIdx ? null : dayIdx)}
+                    style={{
+                      flex: 1,
+                      minHeight: 44,
+                      padding: '10px 12px',
+                      borderRadius: tokens.radius.sm,
+                      background: editingDay === dayIdx ? tokens.colors.accentMuted : 'transparent',
+                      border: `1px solid ${editingDay === dayIdx ? tokens.colors.accent : 'rgba(255,255,255,0.12)'}`,
+                      color: editingDay === dayIdx ? tokens.colors.accent : tokens.colors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: 800,
+                      letterSpacing: '0.06em',
+                      cursor: 'pointer',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {editingDay === dayIdx ? 'Done' : 'Edit list'}
+                  </button>
+                )}
+                </div>
               </div>
             )}
           </div>
@@ -480,13 +513,13 @@ export default function DayAccordion({
 
 function iconBtnStyle(disabled: boolean): React.CSSProperties {
   return {
-    width: 28,
-    height: 28,
+    width: 36,
+    height: 36,
     borderRadius: tokens.radius.sm,
     background: 'transparent',
     border: '1px solid rgba(255,255,255,0.08)',
     color: disabled ? tokens.colors.textDim : tokens.colors.textMuted,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 700,
     cursor: disabled ? 'not-allowed' : 'pointer',
     display: 'flex',
@@ -499,13 +532,13 @@ function iconBtnStyle(disabled: boolean): React.CSSProperties {
 }
 
 const swapBtnStyle: React.CSSProperties = {
-  height: 28,
-  padding: '0 10px',
+  height: 36,
+  padding: '0 14px',
   borderRadius: tokens.radius.sm,
   background: 'transparent',
   border: `1px solid ${tokens.colors.accentBorder}`,
   color: tokens.colors.accent,
-  fontSize: 10,
+  fontSize: 11,
   fontWeight: 800,
   letterSpacing: '0.08em',
   cursor: 'pointer',

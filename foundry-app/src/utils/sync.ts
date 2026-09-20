@@ -3,6 +3,7 @@ import { supabase } from './supabase.js';
 import { store, wipeMesoSessionData } from './storage.js';
 import { emit } from './events';
 import { hasLoggedWork, isLegacyTwin } from './archiveRules';
+import { customRowFields, exerciseDisplayName, isCustomId, rememberCustomExercise } from './customExercises';
 import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData, CardioPreset, ArchiveEntry } from '../types';
 // validateDayData + validateProfile are imported by other modules; sync.ts
 // will use them again once workouts/readiness chunks migrate to the
@@ -338,6 +339,9 @@ interface SupabaseTrainingDayExerciseRow {
   is_warmup: boolean;
   is_anchor: boolean;
   modifier: string | null;
+  /** Typed name of a `custom:` exercise; null for library lifts. */
+  custom_name: string | null;
+  custom_muscle: string | null;
 }
 
 // Parse the app's rep-range string ("6-10", "8", "12-15") into min/max integers.
@@ -507,6 +511,7 @@ export async function ensureTrainingStructureRemote(
           is_warmup: false,
           is_anchor: !!e.anchor,
           modifier: typeof e.modifier === 'string' ? e.modifier : null,
+          ...customRowFields(e),
         });
       });
     });
@@ -554,7 +559,7 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
     // program and make the tde_id cache below ambiguous.
     const { data: tdeRowsRaw, error: tdeError } = await supabase
       .from('training_day_exercises')
-      .select('id, training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier, created_at, user_id')
+      .select('id, training_day_id, exercise_id, sort_order, sets, rep_min, rep_max, progression, is_warmup, is_anchor, modifier, custom_name, custom_muscle, created_at, user_id')
       .in('training_day_id', dayIds)
       .is('replaced_at', null)
       .order('sort_order', { ascending: true });
@@ -639,6 +644,8 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
       is_warmup: boolean;
       is_anchor: boolean;
       modifier: string | null;
+      custom_name?: string | null;
+      custom_muscle?: string | null;
     };
     const exercisesByDay = new Map<string, TdeRow[]>();
     (tdeRows as TdeRow[]).forEach((row) => {
@@ -654,10 +661,15 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
         const dbEx = dbById.get(row.exercise_id) || {};
         const repRange =
           row.rep_min === row.rep_max ? String(row.rep_min) : `${row.rep_min}-${row.rep_max}`;
+        // A custom lift has no library entry: its name rides on the row.
+        // Keep it on this device too, so swaps and overrides resolve it.
+        if (isCustomId(row.exercise_id) && row.custom_name) {
+          rememberCustomExercise(row.exercise_id, row.custom_name, row.custom_muscle || undefined);
+        }
         return {
           id: row.exercise_id,
-          name: (dbEx.name as string) || row.exercise_id,
-          muscle: (dbEx.muscle as string) || '',
+          name: exerciseDisplayName(row.exercise_id, (dbEx.name as string) || row.custom_name),
+          muscle: (dbEx.muscle as string) || row.custom_muscle || '',
           muscles: (dbEx.muscles as string[]) || [],
           equipment: (dbEx.equipment as string) || '',
           tag: (dbEx.tag as string) || '',
@@ -1774,6 +1786,8 @@ export async function syncExerciseSwapRemote(
   exIdx: number,
   newExercise: {
     id: unknown;
+    name?: unknown;
+    muscle?: unknown;
     sets?: unknown;
     reps?: unknown;
     progression?: unknown;
@@ -1878,6 +1892,7 @@ export async function syncExerciseSwapRemote(
         is_warmup: outgoing ? !!outgoing.is_warmup : false,
         is_anchor: !!newExercise.anchor,
         modifier: outgoing ? outgoing.modifier : null,
+        ...customRowFields(newExercise),
       });
     if (insertError) throw insertError;
 
@@ -2040,6 +2055,7 @@ export async function syncDayExercisesRemote(
         is_warmup: outgoing ? !!outgoing.is_warmup : false,
         is_anchor: !!ex.anchor,
         modifier: typeof ex.modifier === 'string' ? ex.modifier : (outgoing?.modifier ?? null),
+        ...customRowFields({ ...ex, id: exerciseIds[exIdx] }),
       };
     });
 
@@ -4069,7 +4085,7 @@ export async function fetchFriendWorkout(
     for (const [exId, sets] of byExercise) {
       const dbEx = (EXERCISE_DB as unknown as Record<string, { name?: string; muscle?: string }>)[exId];
       exercises.push({
-        name: dbEx?.name || exId,
+        name: exerciseDisplayName(exId, dbEx?.name),
         muscle: dbEx?.muscle || '',
         sets: sets.map((s) => ({
           weight: s.weight_lbs ?? '',
@@ -4311,7 +4327,7 @@ export async function fetchFriendMesoSummary(
 
     const prs = Array.from(prMap.entries())
       .map(([exerciseId, pr]) => ({
-        exerciseName: exerciseMap.get(exerciseId) || exerciseId,
+        exerciseName: exerciseDisplayName(exerciseId, exerciseMap.get(exerciseId)),
         weight: pr.weight,
         reps: pr.reps,
         weekIdx: pr.weekIdx,

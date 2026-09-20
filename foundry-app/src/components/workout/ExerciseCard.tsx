@@ -19,6 +19,8 @@ import { haptic } from '../../utils/helpers';
 import { findLastMesoWeight } from '../../utils/progressAggregation';
 import { getMeso } from '../../data/constants';
 import { useExerciseProgression } from '../../hooks/useExerciseProgression';
+import { isCustomId } from '../../utils/customExercises';
+import CustomTag from '../shared/CustomTag';
 import type { Exercise, DayData } from '../../types';
 import type { WarmupStep, WarmupDetail } from '../../utils/training';
 
@@ -578,6 +580,7 @@ function ExerciseCard({
             >
               {exercise.name}
             </h2>
+            {isCustomId(exercise.id) && <CustomTag />}
             {exercise.anchor && (
               <span data-coach="anchor-hammer" style={{ display: 'inline-flex', flexShrink: 0 }}>
                 <HammerIcon size={20} />
@@ -784,6 +787,7 @@ function ExerciseCard({
               >
                 {exercise.name}
               </span>
+              {isCustomId(exercise.id) && <CustomTag size="sm" />}
               {exercise.anchor && (
                 <span data-coach="anchor-hammer" style={{ display: 'inline-flex' }}>
                   <HammerIcon size={16} style={{ marginTop: 1 }} />

@@ -1,4 +1,6 @@
 import { shuffle } from './training';
+import { ensureWeeklyCoverage } from './weeklyCoverage';
+import { experienceTier } from './experience';
 import type { Exercise, Profile, TrainingDay } from '../types';
 
 // Internal shape of EXERCISE_DB entries — extends public Exercise with DB-only fields
@@ -96,8 +98,33 @@ export function generateProgram(
   EXERCISE_DB: DbExercise[] = [],
   options: GenerateProgramOptions = {},
 ): TrainingDay[] {
-  // AI-built or custom days take priority
+  // Approved, coach-built and hand-built programs are returned verbatim.
   if (profile?.aiDays && profile.aiDays.length > 0) return profile.aiDays;
+  const handBuilt =
+    !!profile?.manualDayExercises && Object.keys(profile.manualDayExercises).length > 0;
+
+  let ctx: BuildContext | null = null;
+  const days = buildProgram(profile, EXERCISE_DB, options, (c) => {
+    ctx = c;
+  });
+  if (handBuilt || !ctx) return days;
+  // Every generated program trains each major muscle group directly at
+  // least once a week — see weeklyCoverage.ts.
+  const { available, toEx } = ctx as BuildContext;
+  return ensureWeeklyCoverage(days, available, (e) => toEx(e, false), shuffle);
+}
+
+interface BuildContext {
+  available: DbExercise[];
+  toEx: (e: DbExercise, isAnchor: boolean) => Exercise;
+}
+
+function buildProgram(
+  profile: Profile,
+  EXERCISE_DB: DbExercise[],
+  options: GenerateProgramOptions,
+  onContext: (ctx: BuildContext) => void,
+): TrainingDay[] {
 
   const trainedIds = new Set<string>(options.trainedIds || []);
   const isTrained = (e: DbExercise): boolean => e.id != null && trainedIds.has(String(e.id));
@@ -112,8 +139,8 @@ export function generateProgram(
   const exCount =
     Number(duration) <= 30 ? 3 : Number(duration) <= 45 ? 4 : Number(duration) <= 60 ? 5 : Number(duration) <= 75 ? 6 : 7;
 
-  const experience = profile?.experience || 'intermediate';
-  const maxDiff = experience === 'beginner' ? 1 : experience === 'intermediate' ? 2 : 3;
+  const tier = experienceTier(profile?.experience);
+  const maxDiff = tier === 'beginner' ? 1 : tier === 'intermediate' ? 2 : 3;
 
   const available = EXERCISE_DB.filter(
     (e) => equipment.includes(e.equipment as string) && (e.diff ?? 0) <= maxDiff
@@ -178,6 +205,8 @@ export function generateProgram(
       bw: !!e.bw,
     };
   }
+
+  onContext({ available, toEx });
 
   function buildDay(
     pool: DbExercise[],

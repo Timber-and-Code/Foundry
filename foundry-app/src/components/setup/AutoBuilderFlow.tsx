@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { tokens } from '../../styles/tokens';
 import { ageFromDob } from '../../utils/store';
-import { callFoundryAI } from '../../utils/api';
+import { callFoundryAI, CoachAuthRequiredError } from '../../utils/api';
+import { getExerciseDB } from '../../data/exerciseDB';
 import EquipmentPicker from './EquipmentPicker';
 import { GOAL_OPTIONS } from '../../data/constants';
 import FoundryBanner from '../shared/FoundryBanner';
+import { EXPERIENCE_OPTIONS, experienceLabel, experienceTier } from '../../utils/experience';
+import { formatSplitName } from '../../utils/splitLabel';
 
 export interface AutoBuilderFlowProps {
   form: {
@@ -40,6 +44,9 @@ export interface AutoBuilderFlowProps {
   maybePromptLegBalance: (built: any) => void;
   /** Planning the next meso: no start date (it starts when it's started) and no "Start Training". */
   planningNext?: boolean;
+  /** SetupPage's pinned slot under its scroller. Without one (tests,
+   *  standalone) the footer falls back to sticking inside the form. */
+  footerSlot?: HTMLElement | null;
 }
 
 export default function AutoBuilderFlow({
@@ -58,7 +65,43 @@ export default function AutoBuilderFlow({
   setError,
   maybePromptLegBalance,
   planningNext = false,
+  footerSlot = null,
 }: AutoBuilderFlowProps) {
+  // The form is one long page and the split cards alone fill a phone
+  // screen. The footer names the next unanswered question and takes you to
+  // it, so nothing below the fold can be missed.
+  const splitRef = useRef<HTMLDivElement>(null);
+  const scheduleRef = useRef<HTMLDivElement>(null);
+  const levelRef = useRef<HTMLDivElement>(null);
+  const equipRef = useRef<HTMLDivElement>(null);
+  const steps = [
+    { key: 'split', label: 'Split', ref: splitRef, missing: !autoForm.split ? 'Training split' : '' },
+    {
+      key: 'schedule',
+      label: 'Schedule',
+      ref: scheduleRef,
+      missing: !autoForm.daysPerWeek ? 'Days per week' : !autoForm.mesoLength ? 'Meso length' : '',
+    },
+    { key: 'level', label: 'Level', ref: levelRef, missing: !autoForm.experience ? 'Experience level' : '' },
+    { key: 'equipment', label: 'Equipment', ref: equipRef, missing: autoForm.equipment.length === 0 ? 'Equipment' : '' },
+  ];
+  const nextStep = steps.find((st) => st.missing);
+  const goTo = (ref: React.RefObject<HTMLDivElement | null>) =>
+    ref.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  const eyebrow = (n: number) => (
+    <div
+      style={{
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: '0.08em',
+        color: 'var(--accent)',
+        marginBottom: 6,
+      }}
+    >
+      QUESTION {n} OF 4
+    </div>
+  );
+
   const handleAutoSubmit = async () => {
     setError('');
     if (!autoForm.split) {
@@ -78,7 +121,7 @@ export default function AutoBuilderFlow({
       return;
     }
 
-    const sessMap: Record<string, number> = { beginner: 60, intermediate: 75, experienced: 90 };
+    const sessMap: Record<string, number> = { beginner: 60, intermediate: 75, advanced: 90 };
     const daysMap: Record<string, Record<number, number[]>> = {
       ppl: {
         2: [1, 4],
@@ -121,7 +164,7 @@ export default function AutoBuilderFlow({
       daysPerWeek: autoForm.daysPerWeek,
       workoutDays,
       mesoLength: autoForm.mesoLength,
-      sessionDuration: autoForm.sessionDuration || sessMap[autoForm.experience || ''] || 60,
+      sessionDuration: autoForm.sessionDuration || sessMap[experienceTier(autoForm.experience)] || 60,
       autoBuilt: true,
     };
     setAiLoading(true);
@@ -139,7 +182,9 @@ export default function AutoBuilderFlow({
         gender: form.gender,
         goal: form.goal || '',
         goalNote: form.goalNote || '',
-      });
+        // Without the library the coach is shown an EMPTY "available
+        // exercises" list and has to invent ids that match nothing in the app.
+      }, getExerciseDB() as Parameters<typeof callFoundryAI>[1]);
 
       const aiBuilt = {
         name: form.name,
@@ -158,7 +203,7 @@ export default function AutoBuilderFlow({
         daysPerWeek: autoForm.daysPerWeek,
         workoutDays,
         mesoLength: autoForm.mesoLength,
-        sessionDuration: autoForm.sessionDuration || sessMap[autoForm.experience || ''] || 60,
+        sessionDuration: autoForm.sessionDuration || sessMap[experienceTier(autoForm.experience)] || 60,
         autoBuilt: true,
         aiDays: result.days,
         aiCoachNote: result.coachNote,
@@ -171,7 +216,9 @@ export default function AutoBuilderFlow({
       setAiLoading(false);
       const isTimeout = err instanceof DOMException && err.name === 'AbortError';
       setError(
-        isTimeout
+        err instanceof CoachAuthRequiredError
+          ? 'Sign in to have the coach build your program — using a program built from your selections instead.'
+          : isTimeout
           ? 'The Foundry took too long to respond — using a program built from your selections instead.'
           : "Couldn't reach The Foundry — using a program built from your selections instead."
       );
@@ -179,8 +226,127 @@ export default function AutoBuilderFlow({
     }
   };
 
+  // Always on screen: where you are, and one button that is always the
+  // next thing to do.
+  const footer = (
+      <div
+        style={{
+          // Pinned: in SetupPage's slot it sits outside the scroller. The
+          // sticky fallback is for a standalone render.
+          position: footerSlot ? 'relative' : 'sticky',
+          bottom: 0,
+          zIndex: 5,
+          margin: footerSlot ? 0 : '0 -20px',
+          padding: '12px 20px calc(14px + env(safe-area-inset-bottom, 0px))',
+          background: 'var(--bg-root)',
+          borderTop: '1px solid var(--border)',
+        }}
+      >
+        <div
+          role="group"
+          aria-label="Questions"
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 10 }}
+        >
+          {steps.map((st) => {
+            const done = !st.missing;
+            return (
+              <button
+                key={st.key}
+                type="button"
+                onClick={() => goTo(st.ref)}
+                aria-label={`${st.label}: ${done ? 'done' : 'not answered'}`}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '4px 0 2px',
+                  minHeight: 32,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  // Buttons centre their content vertically; a label that
+                  // wrapped would lift its bar out of line with the others.
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-start',
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    height: 4,
+                    borderRadius: 2,
+                    background: done ? 'var(--accent)' : 'var(--border)',
+                    marginBottom: 6,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    // Fixed box: the ✓ glyph is taller than the caps.
+                    display: 'block',
+                    height: 14,
+                    lineHeight: '14px',
+                    overflow: 'hidden',
+                    color: done ? 'var(--text-primary)' : 'var(--text-muted)',
+                  }}
+                >
+                  {done && <span aria-hidden="true">✓ </span>}
+                  {st.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {nextStep ? (
+          <button
+            type="button"
+            onClick={() => goTo(nextStep.ref)}
+            style={{
+              width: '100%',
+              padding: '16px',
+              borderRadius: tokens.radius.md,
+              cursor: 'pointer',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--accent)',
+              color: 'var(--accent)',
+              fontSize: 15,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+            }}
+          >
+            Next: {nextStep.missing} <span aria-hidden="true">↓</span>
+          </button>
+        ) : (
+          <button
+            onClick={handleAutoSubmit}
+            disabled={aiLoading}
+            className="btn-primary"
+            style={{
+              width: '100%',
+              padding: '16px',
+              borderRadius: tokens.radius.md,
+              cursor: aiLoading ? 'not-allowed' : 'pointer',
+              background: 'var(--btn-primary-bg)',
+              border: '1px solid var(--btn-primary-border)',
+              color: 'var(--btn-primary-text)',
+              fontSize: 15,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+              boxShadow: '0 4px 24px rgba(var(--accent-rgb),0.35)',
+              opacity: aiLoading ? 0.7 : 1,
+            }}
+          >
+            {aiLoading ? 'Building...' : <>Build My Meso <span aria-hidden="true">→</span></>}
+          </button>
+        )}
+      </div>
+  );
+
   return (
-    <div style={{ padding: '24px 20px 40px' }}>
+    <div style={{ padding: footerSlot ? '24px 20px 24px' : '24px 20px 0' }}>
       {/* AI Loading overlay */}
       {aiLoading && (
         <div
@@ -237,18 +403,8 @@ export default function AutoBuilderFlow({
       )}
 
       {/* Q1: Training Split */}
-      <div style={sec}>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            color: 'var(--accent)',
-            marginBottom: 6,
-          }}
-        >
-          QUESTION 1 OF 3
-        </div>
+      <div ref={splitRef} style={{ ...sec, scrollMarginTop: 12 }}>
+        {eyebrow(1)}
         <label
           style={{
             ...sLabel,
@@ -276,34 +432,45 @@ export default function AutoBuilderFlow({
               'FULL BODY',
               'Every session',
               'Push + pull + legs every workout. High frequency, great for beginners and time-constrained schedules. Each muscle trained 2-3×/week.',
+              'Push, pull and legs every workout.',
             ],
             [
               'upper_lower',
               'UPPER / LOWER',
               '2-session rotation',
               'Upper body and lower body alternate. Each area trained 2× per week. Excellent balance of frequency and recovery.',
+              'Upper and lower days alternate.',
             ],
             [
               'ppl',
               'PUSH / PULL / LEGS',
               'Classic 3-way split',
               'Chest-shoulders-triceps, back-biceps, legs. The gold standard for hypertrophy. Each muscle hit 1-2×/week on 3-6 days.',
+              'Chest/shoulders/triceps · back/biceps · legs.',
             ],
             [
               'push_pull',
               'PUSH / PULL',
               '4-day split',
               'Push and pull alternate with legs integrated into each session. No dedicated leg day, 4 days per week.',
+              'Push and pull days, legs folded into both.',
             ],
-          ].map(([val, label, badge, desc]) => {
+          ].map(([val, label, badge, desc, short]) => {
             const sel = autoForm.split === val;
             return (
               <button
                 key={val}
-                onClick={() => setAuto('split', val)}
+                aria-pressed={sel}
+                onClick={() => {
+                  const first = !autoForm.split;
+                  setAuto('split', val);
+                  // First pick: bring the next question up. Changing your
+                  // mind later shouldn't move the page under your thumb.
+                  if (first) setTimeout(() => goTo(scheduleRef), 180);
+                }}
                 className="btn-card"
                 style={{
-                  padding: '18px 16px',
+                  padding: sel ? '16px 16px' : '14px 16px',
                   borderRadius: tokens.radius.lg,
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -317,7 +484,7 @@ export default function AutoBuilderFlow({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
-                    marginBottom: 6,
+                    marginBottom: sel ? 6 : 0,
                   }}
                 >
                   {sel && (
@@ -359,16 +526,21 @@ export default function AutoBuilderFlow({
                     {badge}
                   </span>
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.55,
-                    paddingLeft: sel ? 18 : 0,
-                  }}
-                >
-                  {desc}
-                </div>
+                {/* Only the chosen card opens up: four full descriptions filled
+                    the whole first screen and hid every question below. */}
+                {(
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.5,
+                      paddingLeft: sel ? 18 : 0,
+                      marginTop: sel ? 0 : 4,
+                    }}
+                  >
+                    {sel ? desc : short}
+                  </div>
+                )}
               </button>
             );
           })}
@@ -376,18 +548,8 @@ export default function AutoBuilderFlow({
       </div>
 
       {/* Q2: Days/week + Meso length */}
-      <div style={sec}>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            color: 'var(--accent)',
-            marginBottom: 6,
-          }}
-        >
-          QUESTION 2 OF 3
-        </div>
+      <div ref={scheduleRef} style={{ ...sec, scrollMarginTop: 12 }}>
+        {eyebrow(2)}
         <label
           style={{
             ...sLabel,
@@ -550,7 +712,8 @@ export default function AutoBuilderFlow({
               [75, '75m'],
               [90, '90m'],
             ] as [number, string][]).map(([n, label]) => {
-              const defaultDur = autoForm.experience === 'beginner' ? 60 : autoForm.experience === 'experienced' ? 90 : 75;
+              const tier = experienceTier(autoForm.experience);
+              const defaultDur = tier === 'beginner' ? 60 : tier === 'advanced' ? 90 : 75;
               const sel = (autoForm.sessionDuration || defaultDur) === n;
               return (
                 <button
@@ -582,64 +745,70 @@ export default function AutoBuilderFlow({
         </div>
       </div>
 
-      {/* Experience — pre-filled from onboarding, shown read-only */}
-      {autoForm.experience && (
-        <div style={sec}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              color: 'var(--accent)',
-              marginBottom: 6,
-            }}
-          >
-            QUESTION 3 OF 3
-          </div>
-          <label
-            style={{
-              ...sLabel,
-              fontSize: 15,
-              letterSpacing: '0.01em',
-              color: 'var(--text-primary)',
-            }}
-          >
-            Experience level
-          </label>
-          <div
-            style={{
-              marginTop: 10,
-              padding: '14px 16px',
-              borderRadius: tokens.radius.lg,
-              background: 'rgba(var(--accent-rgb),0.08)',
-              border: '1px solid var(--accent)44',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-              }}
-            >
-              {autoForm.experience === 'new'
-                ? 'Under 1 year'
-                : autoForm.experience === 'intermediate'
-                  ? '1–3 years'
-                  : '3+ years'}
-            </span>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              set during onboarding
-            </span>
-          </div>
+      {/* Experience — pre-filled, and changeable: a lifter two years in
+          shouldn't be stuck with what they said on day one. It sets which
+          exercises are in play and the default session length. */}
+      <div ref={levelRef} style={{ ...sec, scrollMarginTop: 12 }}>
+        {eyebrow(3)}
+        <label
+          id="auto-exp-label"
+          style={{
+            ...sLabel,
+            fontSize: 15,
+            letterSpacing: '0.01em',
+            color: 'var(--text-primary)',
+          }}
+        >
+          Experience level
+        </label>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, marginBottom: 12 }}>
+          How long you&rsquo;ve been lifting consistently. Update it as you grow.
         </div>
-      )}
+        <div
+          role="group"
+          aria-labelledby="auto-exp-label"
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}
+        >
+          {EXPERIENCE_OPTIONS.map((o) => {
+            const sel = !!autoForm.experience && experienceTier(autoForm.experience) === o.tier;
+            return (
+              <button
+                key={o.value}
+                aria-pressed={sel}
+                onClick={() => setAuto('experience', o.value)}
+                className="btn-toggle"
+                style={{
+                  padding: '12px 4px',
+                  borderRadius: tokens.radius.md,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  background: sel ? 'rgba(var(--accent-rgb),0.14)' : 'var(--bg-card)',
+                  border: `1px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: sel ? 'var(--accent)' : 'var(--text-primary)',
+                  }}
+                >
+                  {o.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {autoForm.experience && (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+            {EXPERIENCE_OPTIONS.find((o) => o.tier === experienceTier(autoForm.experience))!.hint}
+          </div>
+        )}
+      </div>
 
       {/* Equipment */}
-      <div style={sec}>
+      <div ref={equipRef} style={{ ...sec, scrollMarginTop: 12 }}>
+        {eyebrow(4)}
         <label
           style={{
             ...sLabel,
@@ -648,7 +817,7 @@ export default function AutoBuilderFlow({
             color: 'var(--text-primary)',
           }}
         >
-          Available equipment *
+          Available equipment
         </label>
         <EquipmentPicker
           selected={autoForm.equipment}
@@ -713,18 +882,13 @@ export default function AutoBuilderFlow({
               {[
                 [
                   'Split',
-                  ({
-                    ppl: 'Push · Pull · Legs',
-                    upper_lower: 'Upper / Lower',
-                    full_body: 'Full Body',
-                  } as Record<string, string>)[autoForm.split],
+                  formatSplitName(autoForm.split),
                 ],
                 ['Length', `${autoForm.mesoLength}-week meso`],
                 ['Frequency', `${autoForm.daysPerWeek} days/week`],
                 [
                   'Level',
-                  autoForm.experience.charAt(0).toUpperCase() +
-                    autoForm.experience.slice(1),
+                  experienceLabel(autoForm.experience),
                 ],
               ].map(([k, v]) => (
                 <div
@@ -789,27 +953,7 @@ export default function AutoBuilderFlow({
         </div>
       )}
 
-      <button
-        onClick={handleAutoSubmit}
-        disabled={aiLoading}
-        className="btn-primary"
-        style={{
-          width: '100%',
-          padding: '16px',
-          borderRadius: tokens.radius.md,
-          cursor: aiLoading ? 'not-allowed' : 'pointer',
-          background: 'var(--btn-primary-bg)',
-          border: '1px solid var(--btn-primary-border)',
-          color: 'var(--btn-primary-text)',
-          fontSize: 15,
-          fontWeight: 800,
-          letterSpacing: '0.04em',
-          boxShadow: '0 4px 24px rgba(var(--accent-rgb),0.35)',
-          opacity: aiLoading ? 0.7 : 1,
-        }}
-      >
-        {aiLoading ? 'Building...' : 'Build My Meso →'}
-      </button>
+      {footerSlot ? createPortal(footer, footerSlot) : footer}
     </div>
   );
 }

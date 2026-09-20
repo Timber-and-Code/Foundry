@@ -5,7 +5,7 @@ import { generateProgram } from '../../utils/program';
 import { getTrainedExerciseIds } from '../../utils/trainingHistory';
 import { getExerciseDB } from '../../data/exerciseDB';
 import { store } from '../../utils/store';
-import { callFoundryAI } from '../../utils/api';
+import { callFoundryAI, CoachAuthRequiredError } from '../../utils/api';
 import type { Beat1Values } from './Beat1Essentials';
 import type { Profile, TrainingDay } from '../../types';
 import { SplitBody, type SplitType } from './SplitSheet';
@@ -194,7 +194,9 @@ export default function Beat2Preview({ beat1, saved, onPersist, onSave, onEditEs
       const isTimeout = err instanceof DOMException && err.name === 'AbortError';
       setTune('failed');
       setSaveError(
-        isTimeout
+        err instanceof CoachAuthRequiredError
+          ? 'The coach needs a free account. Save this build now — once you create an account, the coach can tune your next meso.'
+          : isTimeout
           ? 'The coach pass timed out. This is the standard build — save it, or try the coach again.'
           : "The coach pass isn't available right now. This is the standard build — save it, or try the coach again.",
       );

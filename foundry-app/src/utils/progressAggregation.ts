@@ -26,6 +26,7 @@ import type {
 } from '../types';
 import type { ExerciseEntry } from '../data/exerciseDB';
 import { isEndedEarly, weeksReached } from './archiveRules';
+import { healCustomNames } from './customExercises';
 
 // ─── Public display shapes ──────────────────────────────────────────────────
 
@@ -202,6 +203,8 @@ export function aggregateLiftsByMuscle(
   totalWeeks: number,
   weekData: (dayIdx: number, weekIdx: number) => DayData,
 ): MuscleLiftAggregate[] {
+  // Archived programs can still carry a custom lift's id as its name.
+  activeDays = healCustomNames(activeDays);
   // muscle → exerciseKey → entry
   const byMuscle = new Map<string, Map<string, MuscleLiftEntry>>();
 
