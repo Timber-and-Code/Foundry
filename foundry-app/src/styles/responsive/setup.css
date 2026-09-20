@@ -29,3 +29,20 @@
     margin-right: auto !important;
   }
 }
+
+/* Setup frame: banner pinned on top, builder footer pinned below, only the
+   questions between them scroll. The document itself never scrolls, so iOS
+   rubber-banding can't drag the banner or the footer with it. vh first for
+   iOS < 15.4, which has no dvh. */
+.fd-setup-frame {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.fd-setup-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}

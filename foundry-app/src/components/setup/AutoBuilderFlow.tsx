@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { tokens } from '../../styles/tokens';
 import { ageFromDob } from '../../utils/store';
 import { callFoundryAI, CoachAuthRequiredError } from '../../utils/api';
@@ -43,6 +44,9 @@ export interface AutoBuilderFlowProps {
   maybePromptLegBalance: (built: any) => void;
   /** Planning the next meso: no start date (it starts when it's started) and no "Start Training". */
   planningNext?: boolean;
+  /** SetupPage's pinned slot under its scroller. Without one (tests,
+   *  standalone) the footer falls back to sticking inside the form. */
+  footerSlot?: HTMLElement | null;
 }
 
 export default function AutoBuilderFlow({
@@ -61,6 +65,7 @@ export default function AutoBuilderFlow({
   setError,
   maybePromptLegBalance,
   planningNext = false,
+  footerSlot = null,
 }: AutoBuilderFlowProps) {
   // The form is one long page and the split cards alone fill a phone
   // screen. The footer names the next unanswered question and takes you to
@@ -221,8 +226,127 @@ export default function AutoBuilderFlow({
     }
   };
 
+  // Always on screen: where you are, and one button that is always the
+  // next thing to do.
+  const footer = (
+      <div
+        style={{
+          // Pinned: in SetupPage's slot it sits outside the scroller. The
+          // sticky fallback is for a standalone render.
+          position: footerSlot ? 'relative' : 'sticky',
+          bottom: 0,
+          zIndex: 5,
+          margin: footerSlot ? 0 : '0 -20px',
+          padding: '12px 20px calc(14px + env(safe-area-inset-bottom, 0px))',
+          background: 'var(--bg-root)',
+          borderTop: '1px solid var(--border)',
+        }}
+      >
+        <div
+          role="group"
+          aria-label="Questions"
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 10 }}
+        >
+          {steps.map((st) => {
+            const done = !st.missing;
+            return (
+              <button
+                key={st.key}
+                type="button"
+                onClick={() => goTo(st.ref)}
+                aria-label={`${st.label}: ${done ? 'done' : 'not answered'}`}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '4px 0 2px',
+                  minHeight: 32,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  // Buttons centre their content vertically; a label that
+                  // wrapped would lift its bar out of line with the others.
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-start',
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    height: 4,
+                    borderRadius: 2,
+                    background: done ? 'var(--accent)' : 'var(--border)',
+                    marginBottom: 6,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    // Fixed box: the ✓ glyph is taller than the caps.
+                    display: 'block',
+                    height: 14,
+                    lineHeight: '14px',
+                    overflow: 'hidden',
+                    color: done ? 'var(--text-primary)' : 'var(--text-muted)',
+                  }}
+                >
+                  {done && <span aria-hidden="true">✓ </span>}
+                  {st.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {nextStep ? (
+          <button
+            type="button"
+            onClick={() => goTo(nextStep.ref)}
+            style={{
+              width: '100%',
+              padding: '16px',
+              borderRadius: tokens.radius.md,
+              cursor: 'pointer',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--accent)',
+              color: 'var(--accent)',
+              fontSize: 15,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+            }}
+          >
+            Next: {nextStep.missing} <span aria-hidden="true">↓</span>
+          </button>
+        ) : (
+          <button
+            onClick={handleAutoSubmit}
+            disabled={aiLoading}
+            className="btn-primary"
+            style={{
+              width: '100%',
+              padding: '16px',
+              borderRadius: tokens.radius.md,
+              cursor: aiLoading ? 'not-allowed' : 'pointer',
+              background: 'var(--btn-primary-bg)',
+              border: '1px solid var(--btn-primary-border)',
+              color: 'var(--btn-primary-text)',
+              fontSize: 15,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+              boxShadow: '0 4px 24px rgba(var(--accent-rgb),0.35)',
+              opacity: aiLoading ? 0.7 : 1,
+            }}
+          >
+            {aiLoading ? 'Building...' : <>Build My Meso <span aria-hidden="true">→</span></>}
+          </button>
+        )}
+      </div>
+  );
+
   return (
-    <div style={{ padding: '24px 20px 0' }}>
+    <div style={{ padding: footerSlot ? '24px 20px 24px' : '24px 20px 0' }}>
       {/* AI Loading overlay */}
       {aiLoading && (
         <div
@@ -829,121 +953,7 @@ export default function AutoBuilderFlow({
         </div>
       )}
 
-      {/* Always on screen: where you are, and one button that is always
-          the next thing to do. */}
-      <div
-        style={{
-          position: 'sticky',
-          bottom: 0,
-          zIndex: 5,
-          margin: '0 -20px',
-          padding: '28px 20px calc(14px + env(safe-area-inset-bottom, 0px))',
-          // Fades in over 18px, then solid — form text must not show
-          // through behind the progress bars.
-          background: 'linear-gradient(to bottom, transparent, var(--bg-root) 18px)',
-        }}
-      >
-        <div
-          role="group"
-          aria-label="Questions"
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 10 }}
-        >
-          {steps.map((st) => {
-            const done = !st.missing;
-            return (
-              <button
-                key={st.key}
-                type="button"
-                onClick={() => goTo(st.ref)}
-                aria-label={`${st.label}: ${done ? 'done' : 'not answered'}`}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '4px 0 2px',
-                  minHeight: 32,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  // Buttons centre their content vertically; a label that
-                  // wrapped would lift its bar out of line with the others.
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-start',
-                  minWidth: 0,
-                }}
-              >
-                <div
-                  style={{
-                    height: 4,
-                    borderRadius: 2,
-                    background: done ? 'var(--accent)' : 'var(--border)',
-                    marginBottom: 6,
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    letterSpacing: '0.05em',
-                    textTransform: 'uppercase',
-                    whiteSpace: 'nowrap',
-                    // Fixed box: the ✓ glyph is taller than the caps.
-                    display: 'block',
-                    height: 14,
-                    lineHeight: '14px',
-                    overflow: 'hidden',
-                    color: done ? 'var(--text-primary)' : 'var(--text-muted)',
-                  }}
-                >
-                  {done && <span aria-hidden="true">✓ </span>}
-                  {st.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {nextStep ? (
-          <button
-            type="button"
-            onClick={() => goTo(nextStep.ref)}
-            style={{
-              width: '100%',
-              padding: '16px',
-              borderRadius: tokens.radius.md,
-              cursor: 'pointer',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--accent)',
-              color: 'var(--accent)',
-              fontSize: 15,
-              fontWeight: 800,
-              letterSpacing: '0.04em',
-            }}
-          >
-            Next: {nextStep.missing} <span aria-hidden="true">↓</span>
-          </button>
-        ) : (
-          <button
-            onClick={handleAutoSubmit}
-            disabled={aiLoading}
-            className="btn-primary"
-            style={{
-              width: '100%',
-              padding: '16px',
-              borderRadius: tokens.radius.md,
-              cursor: aiLoading ? 'not-allowed' : 'pointer',
-              background: 'var(--btn-primary-bg)',
-              border: '1px solid var(--btn-primary-border)',
-              color: 'var(--btn-primary-text)',
-              fontSize: 15,
-              fontWeight: 800,
-              letterSpacing: '0.04em',
-              boxShadow: '0 4px 24px rgba(var(--accent-rgb),0.35)',
-              opacity: aiLoading ? 0.7 : 1,
-            }}
-          >
-            {aiLoading ? 'Building...' : <>Build My Meso <span aria-hidden="true">→</span></>}
-          </button>
-        )}
-      </div>
+      {footerSlot ? createPortal(footer, footerSlot) : footer}
     </div>
   );
 }
