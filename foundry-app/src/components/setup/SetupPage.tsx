@@ -150,7 +150,9 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
       // "no profile" and drops the lifter on the empty shell. Onboarding sets
       // it for a first meso; a returning lifter's form never had it.
       experience:
-        (saved.experience as string) || tp?.experience || current.experience || 'intermediate',
+        // The live profile first: the builder can change experience, and the
+        // onboarding answer would otherwise win it back on the next meso.
+        current.experience || (saved.experience as string) || tp?.experience || 'intermediate',
       name: (saved.name as string) || tp?.name || '',
       age: saved.age ? String(saved.age) : tp?.age ? String(tp.age) : '',
       gender: (saved.gender as string) || tp?.gender || '',
@@ -219,7 +221,7 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
       saved = JSON.parse(store.get('foundry:onboarding_data') || '{}');
     } catch { /* JSON parse fallback */ }
     return {
-      experience: (saved.experience as string) || null as string | null,
+      experience: (loadProfile()?.experience || (saved.experience as string) || null) as string | null,
       split: null as string | null,
       daysPerWeek: null as number | null,
       mesoLength: null as number | null,
@@ -665,7 +667,10 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
         </div>
 
         {/* Content */}
-        <div className="fd-form" style={{ flex: 1, overflowY: 'auto' }}>
+        {/* No overflow here: the WINDOW scrolls (the shell is min-height, so
+            this never scrolled anyway) and an overflow ancestor would stop
+            the builder's footer from sticking. */}
+        <div className="fd-form" style={{ flex: 1 }}>
           <Header />
 
 

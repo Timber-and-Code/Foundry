@@ -1,5 +1,6 @@
 import { shuffle } from './training';
 import { ensureWeeklyCoverage } from './weeklyCoverage';
+import { experienceTier } from './experience';
 import type { Exercise, Profile, TrainingDay } from '../types';
 
 // Internal shape of EXERCISE_DB entries — extends public Exercise with DB-only fields
@@ -138,8 +139,8 @@ function buildProgram(
   const exCount =
     Number(duration) <= 30 ? 3 : Number(duration) <= 45 ? 4 : Number(duration) <= 60 ? 5 : Number(duration) <= 75 ? 6 : 7;
 
-  const experience = profile?.experience || 'intermediate';
-  const maxDiff = experience === 'beginner' ? 1 : experience === 'intermediate' ? 2 : 3;
+  const tier = experienceTier(profile?.experience);
+  const maxDiff = tier === 'beginner' ? 1 : tier === 'intermediate' ? 2 : 3;
 
   const available = EXERCISE_DB.filter(
     (e) => equipment.includes(e.equipment as string) && (e.diff ?? 0) <= maxDiff
