@@ -341,9 +341,15 @@ export default function DayAccordion({
                     <div
                       key={`${ex.id}-${exIdx}`}
                       style={{
+                        // Name first, controls after — and the controls WRAP
+                        // to their own line when there isn't room. On a phone
+                        // four buttons used to share the row with the name
+                        // and cut it to "DB Overhead …": unreadable on the one
+                        // screen whose job is reading the exercises.
                         display: 'flex',
+                        flexWrap: 'wrap',
                         alignItems: 'center',
-                        gap: 6,
+                        gap: '8px 6px',
                         padding: '10px 12px',
                         background: 'var(--bg-inset)',
                         borderRadius: tokens.radius.sm,
@@ -371,22 +377,22 @@ export default function DayAccordion({
                       >
                         <HammerIcon size={14} />
                       </button>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                         <div
                           style={{
-                            fontSize: 13,
+                            fontSize: 15,
                             fontWeight: 600,
+                            lineHeight: 1.25,
                             color: tokens.colors.textPrimary,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
+                            overflowWrap: 'anywhere',
                           }}
                         >
                           {ex.name}
                         </div>
                         <div
                           style={{
-                            fontSize: 10,
+                            marginTop: 2,
+                            fontSize: 11,
                             fontWeight: 700,
                             letterSpacing: '0.06em',
                             textTransform: 'uppercase',
@@ -396,6 +402,7 @@ export default function DayAccordion({
                           {ex.muscle}
                         </div>
                       </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
                       <button
                         type="button"
                         onClick={() => moveExercise(dayIdx, exIdx, -1)}
@@ -430,6 +437,7 @@ export default function DayAccordion({
                       >
                         <span aria-hidden="true">×</span>
                       </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -480,13 +488,13 @@ export default function DayAccordion({
 
 function iconBtnStyle(disabled: boolean): React.CSSProperties {
   return {
-    width: 28,
-    height: 28,
+    width: 36,
+    height: 36,
     borderRadius: tokens.radius.sm,
     background: 'transparent',
     border: '1px solid rgba(255,255,255,0.08)',
     color: disabled ? tokens.colors.textDim : tokens.colors.textMuted,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 700,
     cursor: disabled ? 'not-allowed' : 'pointer',
     display: 'flex',
@@ -499,13 +507,13 @@ function iconBtnStyle(disabled: boolean): React.CSSProperties {
 }
 
 const swapBtnStyle: React.CSSProperties = {
-  height: 28,
-  padding: '0 10px',
+  height: 36,
+  padding: '0 14px',
   borderRadius: tokens.radius.sm,
   background: 'transparent',
   border: `1px solid ${tokens.colors.accentBorder}`,
   color: tokens.colors.accent,
-  fontSize: 10,
+  fontSize: 11,
   fontWeight: 800,
   letterSpacing: '0.08em',
   cursor: 'pointer',
