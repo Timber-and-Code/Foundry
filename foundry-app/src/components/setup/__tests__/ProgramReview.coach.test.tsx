@@ -1,12 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { ToastProvider } from '../../../contexts/ToastContext';
 import ProgramReview from '../ProgramReview';
 import type { TrainingDay } from '../../../types';
 
 const program = [
   { dayNum: 1, label: 'Full Body A', tag: 'FULL', exercises: [{ id: 'bb_flat_bench', name: 'Barbell Flat Bench Press', muscle: 'Chest', sets: 3, reps: '6-10' }] },
 ] as unknown as TrainingDay[];
+
+const render = (ui: ReactElement) => rtlRender(<ToastProvider>{ui}</ToastProvider>);
 
 const base = { program, subtitle: 'NEXT MESO', onConfirm: vi.fn(), onBack: vi.fn() };
 
