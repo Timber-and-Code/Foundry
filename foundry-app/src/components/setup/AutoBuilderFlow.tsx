@@ -2,6 +2,7 @@ import React from 'react';
 import { tokens } from '../../styles/tokens';
 import { ageFromDob } from '../../utils/store';
 import { callFoundryAI } from '../../utils/api';
+import { getExerciseDB } from '../../data/exerciseDB';
 import EquipmentPicker from './EquipmentPicker';
 import { GOAL_OPTIONS } from '../../data/constants';
 import FoundryBanner from '../shared/FoundryBanner';
@@ -139,7 +140,9 @@ export default function AutoBuilderFlow({
         gender: form.gender,
         goal: form.goal || '',
         goalNote: form.goalNote || '',
-      });
+        // Without the library the coach is shown an EMPTY "available
+        // exercises" list and has to invent ids that match nothing in the app.
+      }, getExerciseDB() as Parameters<typeof callFoundryAI>[1]);
 
       const aiBuilt = {
         name: form.name,
