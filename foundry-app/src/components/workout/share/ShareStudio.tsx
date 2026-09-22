@@ -29,7 +29,7 @@ interface ShareStudioProps {
  * screen doesn't duplicate it with brand tiles.
  */
 export default function ShareStudio({ open, onClose, data, caption }: ShareStudioProps) {
-  const templates = availableTemplates(data.stats);
+  const templates = availableTemplates(data.stats, data.quote);
   const [template, setTemplate] = useState<ShareTemplate>(templates[0]);
   const [busy, setBusy] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
@@ -39,7 +39,7 @@ export default function ShareStudio({ open, onClose, data, caption }: ShareStudi
   const native = Capacitor.isNativePlatform();
 
   useEffect(() => {
-    if (open) setTemplate(availableTemplates(data.stats)[0]);
+    if (open) setTemplate(availableTemplates(data.stats, data.quote)[0]);
   }, [open, data.stats]);
 
   // Fit the 1080 × 1920 card into whatever space the stage has.

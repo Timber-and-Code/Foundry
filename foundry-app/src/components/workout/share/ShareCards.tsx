@@ -16,13 +16,16 @@ import type { WorkoutCompleteStats } from '../WorkoutCompleteModal';
  * interactive elements.
  */
 
-export type ShareTemplate = 'session' | 'pr' | 'progress';
+export type ShareTemplate = 'session' | 'pr' | 'progress' | 'quote';
 
 export interface ShareCardData {
   dayLabel: string;
   weekIdx: number;
   phase: string;
   stats: WorkoutCompleteStats;
+  /** The quote shown on the complete screen for this session — the Quote
+   *  card uses the same one, so what you read is what you share. */
+  quote?: { text: string; author: string } | null;
 }
 
 export const CARD_W = 1080;
@@ -36,12 +39,17 @@ const MUTED = '#9C9184';
 const UP = '#6FCB8B';
 
 /** Which templates this session can fill. Session always; PR only with a PR;
- *  Progress only with a real week-over-week comparison (not in a deload). */
-export function availableTemplates(stats: WorkoutCompleteStats): ShareTemplate[] {
+ *  Progress only with a real week-over-week comparison (not in a deload);
+ *  Quote whenever the session carries one. */
+export function availableTemplates(
+  stats: WorkoutCompleteStats,
+  quote?: ShareCardData['quote'],
+): ShareTemplate[] {
   const out: ShareTemplate[] = [];
   if (stats.prs.length > 0) out.push('pr');
   out.push('session');
   if (!stats.isDeload && stats.anchorComparison.some((a) => a.prev > 0)) out.push('progress');
+  if (quote?.text) out.push('quote');
   return out;
 }
 
@@ -49,6 +57,7 @@ export const TEMPLATE_LABEL: Record<ShareTemplate, string> = {
   pr: 'PR',
   session: 'Session',
   progress: 'Progress',
+  quote: 'Quote',
 };
 
 const fmt = (n: number) => (Number.isInteger(n) ? n.toLocaleString('en-US') : n.toLocaleString('en-US', { maximumFractionDigits: 1 }));
@@ -60,18 +69,37 @@ function fmtDuration(secs: number | null): string | null {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}` : `${m} min`;
 }
 
-/** Heaviest working set per exercise, e.g. "225 × 5". */
-function topSets(stats: WorkoutCompleteStats, limit: number) {
+/**
+ * Working sets × heaviest working set per exercise, e.g. "4 × 225 × 5" —
+ * the same sets × weight × reps order the app's own LAST WK chip and
+ * history note use. In session order, every lift with a working set: the
+ * card used to keep four and drop the rest, which read as "I did four
+ * exercises", and showed the top set alone, which read as one set.
+ */
+export function topSets(stats: WorkoutCompleteStats) {
   return (stats.breakdown ?? [])
     .map((ex) => {
       const working = ex.sets.filter((s) => !s.warmup && s.reps > 0);
       if (working.length === 0) return null;
       const top = working.reduce((a, b) => (b.weight > a.weight || (b.weight === a.weight && b.reps > a.reps) ? b : a));
-      return { name: ex.name, anchor: !!ex.anchor, text: top.weight > 0 ? `${fmt(top.weight)} × ${top.reps}` : `${top.reps} reps` };
+      const set = top.weight > 0 ? `${fmt(top.weight)} × ${top.reps}` : `${top.reps} reps`;
+      return { name: ex.name, anchor: !!ex.anchor, sets: working.length, text: `${working.length} × ${set}` };
     })
-    .filter((x): x is { name: string; anchor: boolean; text: string } => x !== null)
-    .sort((a, b) => Number(b.anchor) - Number(a.anchor))
-    .slice(0, limit);
+    .filter((x): x is { name: string; anchor: boolean; sets: number; text: string } => x !== null);
+}
+
+/**
+ * Vertical room the session card has for its lift list, after the header,
+ * day label, hero number and stat row. Rows scale down to fit the count:
+ * up to five lifts render full size, six at ~90%, eight at ~65%, twelve at ~50%.
+ */
+const LIST_BUDGET = 600;
+const ROW_H = 80;
+const ROW_GAP = 36;
+export function listScale(count: number): number {
+  if (count <= 0) return 1;
+  const natural = count * ROW_H + (count - 1) * ROW_GAP;
+  return Math.max(0.5, Math.min(1, LIST_BUDGET / natural));
 }
 
 function Frame({ children, eyebrow }: { children: React.ReactNode; eyebrow: string }) {
@@ -113,14 +141,16 @@ function Frame({ children, eyebrow }: { children: React.ReactNode; eyebrow: stri
         }}
       />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 26 }}>
-        <img src="/icon-512.png" alt="" width={104} height={104} style={{ width: 104, height: 104, borderRadius: 24 }} />
+        {/* The forged F — the same file as the App Store icon. /icon-512.png is
+            the old PWA glyph and no longer the brand. */}
+        <img src="/foundry-f.png" alt="" width={120} height={120} style={{ width: 120, height: 120, borderRadius: 26, objectFit: 'cover' }} />
         <div style={{ fontFamily: DISPLAY, fontSize: 60, letterSpacing: '0.14em', lineHeight: 1 }}>THE FOUNDRY</div>
       </div>
       <div
         style={{
           position: 'relative',
-          marginTop: 120,
-          fontSize: 34,
+          marginTop: 88,
+          fontSize: 42,
           fontWeight: 800,
           letterSpacing: '0.2em',
           color: ORANGE,
@@ -180,16 +210,24 @@ function sessionStats(stats: WorkoutCompleteStats) {
   return items;
 }
 
-function ListRows({ rows }: { rows: { name: string; right: string; rightColor?: string; sub?: string }[] }) {
+function ListRows({
+  rows,
+  scale = 1,
+}: {
+  rows: { name: string; right: string; rightColor?: string; sub?: string }[];
+  /** Shrinks every row uniformly so a long session still fits the frame. */
+  scale?: number;
+}) {
+  const px = (n: number) => Math.round(n * scale);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: px(ROW_GAP) }}>
       {rows.map((r) => (
         <div key={r.name} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 30 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 48, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 560 }}>{r.name}</div>
-            {r.sub && <div style={{ marginTop: 8, fontSize: 34, color: MUTED, fontWeight: 600 }}>{r.sub}</div>}
+            <div style={{ fontSize: px(48), fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 520 }}>{r.name}</div>
+            {r.sub && <div style={{ marginTop: px(8), fontSize: px(34), color: MUTED, fontWeight: 600 }}>{r.sub}</div>}
           </div>
-          <div style={{ fontFamily: DISPLAY, fontSize: 80, lineHeight: 1, color: r.rightColor ?? CREAM, whiteSpace: 'nowrap' }}>{r.right}</div>
+          <div style={{ fontFamily: DISPLAY, fontSize: px(ROW_H), lineHeight: 1, color: r.rightColor ?? CREAM, whiteSpace: 'nowrap' }}>{r.right}</div>
         </div>
       ))}
     </div>
@@ -198,22 +236,25 @@ function ListRows({ rows }: { rows: { name: string; right: string; rightColor?: 
 
 function SessionCard({ data }: { data: ShareCardData }) {
   const { stats } = data;
-  const lifts = topSets(stats, 4);
+  // Every lift, so the card reads as the whole session. The day label and
+  // hero number gave up a little height to make room; the week/phase line
+  // above them grew.
+  const lifts = topSets(stats);
   return (
     <Frame eyebrow={`Week ${data.weekIdx + 1} · ${data.phase}`}>
-      <div style={{ marginTop: 18, fontFamily: DISPLAY, fontSize: 190, lineHeight: 0.9, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+      <div style={{ marginTop: 16, fontFamily: DISPLAY, fontSize: 150, lineHeight: 0.9, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
         {data.dayLabel}
       </div>
-      <div style={{ marginTop: 70, display: 'flex', alignItems: 'baseline', gap: 24 }}>
-        <div style={{ fontFamily: DISPLAY, fontSize: 250, lineHeight: 0.85, color: ORANGE }}>{fmt(Math.round(stats.volume))}</div>
+      <div style={{ marginTop: 48, display: 'flex', alignItems: 'baseline', gap: 24 }}>
+        <div style={{ fontFamily: DISPLAY, fontSize: 220, lineHeight: 0.85, color: ORANGE }}>{fmt(Math.round(stats.volume))}</div>
         <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '0.16em', color: MUTED }}>LB<br />MOVED</div>
       </div>
-      <div style={{ marginTop: 70 }}>
+      <div style={{ marginTop: 48 }}>
         <StatRow items={sessionStats(stats)} />
       </div>
       {lifts.length > 0 && (
-        <div style={{ marginTop: 70 }}>
-          <ListRows rows={lifts.map((l) => ({ name: l.name, right: l.text }))} />
+        <div style={{ marginTop: 52 }}>
+          <ListRows rows={lifts.map((l) => ({ name: l.name, right: l.text }))} scale={listScale(lifts.length)} />
         </div>
       )}
     </Frame>
@@ -302,12 +343,44 @@ function ProgressCard({ data }: { data: ShareCardData }) {
   );
 }
 
+export /**
+ * The session's quote, always attributed. Type size steps down with length
+ * so a 130-character line still sits in the frame; the session's stat row
+ * anchors the bottom so the image still says what was done.
+ */
+function QuoteCard({ data }: { data: ShareCardData }) {
+  const q = data.quote!;
+  const len = q.text.length;
+  // Short lines earn big type; a 130-character line steps down to fit.
+  const size = len <= 45 ? 112 : len <= 70 ? 96 : len <= 100 ? 78 : 66;
+  return (
+    <Frame eyebrow={`${data.dayLabel} · Week ${data.weekIdx + 1}`}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingBottom: 60 }}>
+        <div aria-hidden="true" style={{ fontFamily: 'Georgia, serif', fontSize: 340, lineHeight: 0.5, height: 96, color: ORANGE, opacity: 0.5, marginLeft: -12, marginBottom: 8 }}>
+          “
+        </div>
+        <div style={{ fontSize: size, fontWeight: 700, lineHeight: 1.18, letterSpacing: '-0.01em', textWrap: 'balance' as never }}>
+          {q.text}
+        </div>
+        <div style={{ marginTop: 56, fontFamily: DISPLAY, fontSize: 56, letterSpacing: '0.08em', color: ORANGE, textTransform: 'uppercase' }}>
+          — {q.author}
+        </div>
+      </div>
+      <div style={{ marginBottom: 80 }}>
+        <StatRow items={sessionStats(data.stats)} />
+      </div>
+    </Frame>
+  );
+}
+
 export const ShareCardView = React.forwardRef<HTMLDivElement, { template: ShareTemplate; data: ShareCardData }>(
   function ShareCardView({ template, data }, ref) {
     return (
       <div ref={ref} style={{ width: CARD_W, height: CARD_H }}>
         {template === 'pr' && data.stats.prs.length > 0 ? (
           <PrCard data={data} />
+        ) : template === 'quote' && data.quote?.text ? (
+          <QuoteCard data={data} />
         ) : template === 'progress' ? (
           <ProgressCard data={data} />
         ) : (

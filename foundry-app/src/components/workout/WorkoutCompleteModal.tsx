@@ -770,7 +770,7 @@ function WorkoutCompleteModal({
       <ShareStudio
         open={shareSheetOpen}
         onClose={() => setShareSheetOpen(false)}
-        data={{ dayLabel, weekIdx, phase, stats }}
+        data={{ dayLabel, weekIdx, phase, stats, quote }}
         caption={shareCaption}
       />
 
