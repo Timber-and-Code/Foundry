@@ -91,8 +91,10 @@ describe('WorkoutCompleteModal — share', () => {
   it('offers only the templates the session can fill', () => {
     renderModal();
     openStudio();
-    // Session only: no PR, no week-over-week comparison → no switcher at all.
-    expect(screen.queryByRole('radiogroup', { name: /image style/i })).not.toBeInTheDocument();
+    // No PR, no week-over-week comparison → Session plus the session's quote,
+    // which every workout has.
+    const radios = screen.getAllByRole('radio');
+    expect(radios.map((r) => r.textContent)).toEqual(['Session', 'Quote']);
   });
 
   it('leads with the PR image when there is a PR', () => {
@@ -105,7 +107,7 @@ describe('WorkoutCompleteModal — share', () => {
     });
     openStudio();
     const radios = screen.getAllByRole('radio');
-    expect(radios.map((r) => r.textContent)).toEqual(['PR', 'Session', 'Progress']);
+    expect(radios.map((r) => r.textContent)).toEqual(['PR', 'Session', 'Progress', 'Quote']);
     expect(radios[0]).toHaveAttribute('aria-checked', 'true');
   });
 

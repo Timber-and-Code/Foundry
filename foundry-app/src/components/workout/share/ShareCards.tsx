@@ -16,13 +16,16 @@ import type { WorkoutCompleteStats } from '../WorkoutCompleteModal';
  * interactive elements.
  */
 
-export type ShareTemplate = 'session' | 'pr' | 'progress';
+export type ShareTemplate = 'session' | 'pr' | 'progress' | 'quote';
 
 export interface ShareCardData {
   dayLabel: string;
   weekIdx: number;
   phase: string;
   stats: WorkoutCompleteStats;
+  /** The quote shown on the complete screen for this session — the Quote
+   *  card uses the same one, so what you read is what you share. */
+  quote?: { text: string; author: string } | null;
 }
 
 export const CARD_W = 1080;
@@ -36,12 +39,17 @@ const MUTED = '#9C9184';
 const UP = '#6FCB8B';
 
 /** Which templates this session can fill. Session always; PR only with a PR;
- *  Progress only with a real week-over-week comparison (not in a deload). */
-export function availableTemplates(stats: WorkoutCompleteStats): ShareTemplate[] {
+ *  Progress only with a real week-over-week comparison (not in a deload);
+ *  Quote whenever the session carries one. */
+export function availableTemplates(
+  stats: WorkoutCompleteStats,
+  quote?: ShareCardData['quote'],
+): ShareTemplate[] {
   const out: ShareTemplate[] = [];
   if (stats.prs.length > 0) out.push('pr');
   out.push('session');
   if (!stats.isDeload && stats.anchorComparison.some((a) => a.prev > 0)) out.push('progress');
+  if (quote?.text) out.push('quote');
   return out;
 }
 
@@ -49,6 +57,7 @@ export const TEMPLATE_LABEL: Record<ShareTemplate, string> = {
   pr: 'PR',
   session: 'Session',
   progress: 'Progress',
+  quote: 'Quote',
 };
 
 const fmt = (n: number) => (Number.isInteger(n) ? n.toLocaleString('en-US') : n.toLocaleString('en-US', { maximumFractionDigits: 1 }));
@@ -334,12 +343,44 @@ function ProgressCard({ data }: { data: ShareCardData }) {
   );
 }
 
+export /**
+ * The session's quote, always attributed. Type size steps down with length
+ * so a 130-character line still sits in the frame; the session's stat row
+ * anchors the bottom so the image still says what was done.
+ */
+function QuoteCard({ data }: { data: ShareCardData }) {
+  const q = data.quote!;
+  const len = q.text.length;
+  // Short lines earn big type; a 130-character line steps down to fit.
+  const size = len <= 45 ? 112 : len <= 70 ? 96 : len <= 100 ? 78 : 66;
+  return (
+    <Frame eyebrow={`${data.dayLabel} · Week ${data.weekIdx + 1}`}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingBottom: 60 }}>
+        <div aria-hidden="true" style={{ fontFamily: 'Georgia, serif', fontSize: 340, lineHeight: 0.5, height: 96, color: ORANGE, opacity: 0.5, marginLeft: -12, marginBottom: 8 }}>
+          “
+        </div>
+        <div style={{ fontSize: size, fontWeight: 700, lineHeight: 1.18, letterSpacing: '-0.01em', textWrap: 'balance' as never }}>
+          {q.text}
+        </div>
+        <div style={{ marginTop: 56, fontFamily: DISPLAY, fontSize: 56, letterSpacing: '0.08em', color: ORANGE, textTransform: 'uppercase' }}>
+          — {q.author}
+        </div>
+      </div>
+      <div style={{ marginBottom: 80 }}>
+        <StatRow items={sessionStats(data.stats)} />
+      </div>
+    </Frame>
+  );
+}
+
 export const ShareCardView = React.forwardRef<HTMLDivElement, { template: ShareTemplate; data: ShareCardData }>(
   function ShareCardView({ template, data }, ref) {
     return (
       <div ref={ref} style={{ width: CARD_W, height: CARD_H }}>
         {template === 'pr' && data.stats.prs.length > 0 ? (
           <PrCard data={data} />
+        ) : template === 'quote' && data.quote?.text ? (
+          <QuoteCard data={data} />
         ) : template === 'progress' ? (
           <ProgressCard data={data} />
         ) : (
