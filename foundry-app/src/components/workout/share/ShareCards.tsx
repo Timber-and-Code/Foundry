@@ -76,7 +76,7 @@ export function topSets(stats: WorkoutCompleteStats) {
       const set = top.weight > 0 ? `${fmt(top.weight)} × ${top.reps}` : `${top.reps} reps`;
       return { name: ex.name, anchor: !!ex.anchor, sets: working.length, text: `${working.length} × ${set}` };
     })
-    .filter((x): x is { name: string; anchor: boolean; text: string } => x !== null);
+    .filter((x): x is { name: string; anchor: boolean; sets: number; text: string } => x !== null);
 }
 
 /**
