@@ -1,5 +1,6 @@
 import React, { Suspense, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { supabase } from '../../utils/supabase';
 import { tokens } from '../../styles/tokens';
 import { useAuth } from '../../contexts/AuthContext';
 import { store, resolveAccountTier, resetMeso } from '../../utils/store';
@@ -18,8 +19,6 @@ const AccountSection = React.lazy(() => import('../auth/UserMenu'));
 const AboutModal = React.lazy(() => import('./AboutModal'));
 const HealthSection = React.lazy(() => import('./HealthSection'));
 
-const FOUNDRY_AI_WORKER_URL = import.meta.env.VITE_FOUNDRY_AI_WORKER_URL;
-const FOUNDRY_APP_KEY = import.meta.env.VITE_FOUNDRY_APP_KEY;
 const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 
 
@@ -242,7 +241,7 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
   };
 
   const handleDeleteAllFoundryData = () => {
-    if (!window.confirm('Delete ALL Foundry data on this device? This wipes your profile, active meso, and all workout history from this device.')) return;
+    if (!window.confirm('Delete ALL of your data in The Foundry on this device? This wipes your profile, active meso, and all workout history from this device.')) return;
     if (!window.confirm('Are you REALLY sure? You\'ll also be signed out. Your Supabase account and its data are preserved — signing in again will restore everything.')) return;
     if (!window.confirm('Last chance. This cannot be undone without signing back in. Continue?')) return;
     deleteAllFoundryData();
@@ -369,26 +368,19 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
     if (!feedbackMsg.trim()) return;
     setFeedbackStatus('sending');
     try {
-      const res = await fetch(FOUNDRY_AI_WORKER_URL + '/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Foundry-Key': FOUNDRY_APP_KEY,
-        },
-        body: JSON.stringify({
-          message: feedbackMsg.trim(),
-          appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'unknown',
-          device: navigator.userAgent,
-        }),
+      // Straight into an insert-only table (migration 017). This used to POST
+      // to a worker route that never existed, so it failed for everyone.
+      const { error } = await supabase.from('feedback').insert({
+        user_id: user?.id ?? null,
+        message: feedbackMsg.trim().slice(0, 4000),
+        app_version: String(APP_VERSION || 'unknown').slice(0, 40),
+        platform: Capacitor.getPlatform(),
+        device: navigator.userAgent.slice(0, 400),
       });
-      const data = await res.json();
-      if (data.success) {
-        setFeedbackStatus('sent');
-        setFeedbackMsg('');
-        setTimeout(() => { setShowFeedback(false); setFeedbackStatus(''); }, 2000);
-      } else {
-        setFeedbackStatus('error');
-      }
+      if (error) throw error;
+      setFeedbackStatus('sent');
+      setFeedbackMsg('');
+      setTimeout(() => { setShowFeedback(false); setFeedbackStatus(''); }, 2000);
     } catch {
       setFeedbackStatus('error');
     }
@@ -452,6 +444,9 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
           flexDirection: 'column',
           animation: 'slideInRight 0.22s cubic-bezier(0.22,1,0.36,1)',
           overflowY: 'auto',
+          // Full-height panel: keep the close button out of the status bar.
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
         {/* ── Close button ── */}
@@ -955,6 +950,28 @@ export function ProfileDrawer({ saved, onClose, onSave }: ProfileDrawerProps) {
               <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Send feedback</span>
               <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>Write</span>
             </button>
+            {/* App Review 5.1.1(i): the policy has to be reachable in the app. */}
+            {([
+              ['Support', 'https://thefoundry.coach/support'],
+              ['Privacy Policy', 'https://thefoundry.coach/privacy'],
+            ] as const).map(([label, href]) => (
+              <a
+                key={href}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  ...fieldRowStyle,
+                  cursor: 'pointer',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-inset)',
+                  textDecoration: 'none',
+                }}
+              >
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{label}</span>
+                <span aria-hidden="true" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>↗</span>
+              </a>
+            ))}
           </div>
 
           {/* Data — collapsed by default */}

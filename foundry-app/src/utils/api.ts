@@ -133,7 +133,10 @@ export class CoachAuthRequiredError extends Error {
 const COACH_TIMEOUT_MS = 120_000;
 
 export async function callFoundryAI(
-  { split, daysPerWeek, mesoLength, experience, equipment, name, gender: _gender, goal, goalNote }: CallFoundryAIParams,
+  // `name` and `gender` are deliberately NOT sent: the coach doesn't need to
+  // know who you are to write a program (App Review 5.1.2(i), and the policy
+  // says so).
+  { split, daysPerWeek, mesoLength, experience, equipment, name: _name, gender: _gender, goal, goalNote }: CallFoundryAIParams,
   EXERCISE_DB: ExerciseDBEntry[] = []
 ): Promise<FoundryAIResult> {
   const splitLabels: Record<string, string> = {
@@ -265,7 +268,7 @@ MESO 2 CONTEXT (this is a continuation — apply these rules):
 
   const prompt = `You are an elite personal trainer with 40 years of experience designing mesocycle programs using progressive overload and linear periodization principles. You specialize in hypertrophy and strength development.
 
-Design a complete ${mesoLength}-week mesocycle for a ${expLabels[expKey]} trainee named ${name || 'the user'} using a ${splitLabels[split] || split} split, training ${daysPerWeek} days per week.
+Design a complete ${mesoLength}-week mesocycle for a ${expLabels[expKey]} trainee using a ${splitLabels[split] || split} split, training ${daysPerWeek} days per week.
 
 AVAILABLE EXERCISES (id|name|tag|muscle|type|sets|reps):
 ${exerciseNames}

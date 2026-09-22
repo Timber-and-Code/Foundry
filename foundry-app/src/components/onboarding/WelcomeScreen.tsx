@@ -39,6 +39,8 @@ export default function WelcomeScreen() {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '64px 24px 48px',
+        // The page owns its safe area (ios.contentInset is 'never').
+        paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))',
         maxWidth: 'var(--form-max)',
         margin: '0 auto',
       }}

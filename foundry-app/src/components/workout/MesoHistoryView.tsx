@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { tokens } from '../../styles/tokens';
 import { loadDayWeek, findPrevSlotForExercise, loadArchive } from '../../utils/store';
 import { store } from '../../utils/store';
-import { findLastMesoWeight } from '../../utils/progressAggregation';
+import { findPrevMesoHistory } from '../../utils/progressAggregation';
 import WeekBars from '../shared/WeekBars';
 import type { Exercise, WorkoutSet } from '../../types';
 
@@ -184,13 +184,19 @@ export default function MesoHistoryView({
 
   const hasAnySets = rows.some((r) => r.sets.some((s) => s.weight != null || s.reps != null));
 
-  // Cross-meso reference — the weight last used for this exercise in a
-  // previous (possibly unfinished) meso. Matched by `_exId`; pre-stamping
-  // archives simply return null and the row is omitted.
-  const lastMeso = useMemo(
-    () => findLastMesoWeight(loadArchive(), exercise.id),
-    [exercise.id],
-  );
+  // The previous meso's full log for this exercise — every week it was
+  // trained, deload marked, plus the reference week (its last hard week).
+  // This is what the first weeks of a new block train off, so it gets the
+  // same week-by-week treatment as the current meso rather than a footnote.
+  // Matched by `_exId`; pre-stamping archives return null and the section
+  // is omitted.
+  const prevMeso = useMemo(() => {
+    try {
+      return findPrevMesoHistory(loadArchive(), exercise.id);
+    } catch {
+      return null;
+    }
+  }, [exercise.id]);
 
   // Focus management + escape close + body scroll lock.
   useEffect(() => {
@@ -518,29 +524,80 @@ export default function MesoHistoryView({
             </>
           )}
 
-          {/* Cross-meso reference — last weight used in a previous meso,
-              including unfinished ones. Omitted when no archived meso has
-              matchable data for this exercise. */}
-          {lastMeso && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: 10,
-                padding: '12px',
-                borderRadius: tokens.radius.md,
-                border: '1px solid var(--border)',
-                background: 'var(--bg-surface)',
-              }}
-            >
-              <span style={{ ...eyebrow, color: 'var(--amber)' }}>Last meso</span>
-              <span style={{ fontFamily: bebas, fontSize: 20, letterSpacing: '0.03em', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                {fmtNumber(lastMeso.weight)} × {lastMeso.reps}
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                week {lastMeso.weekIdx + 1}
-                {lastMeso.mesosAgo > 1 ? ` · ${lastMeso.mesosAgo} mesos back` : ''}
-              </span>
+          {/* Previous meso — the full week-by-week log for this lift from the
+              most recent archived meso that has it. Newest week first to
+              match the section above. The reference week (last hard week)
+              is highlighted; the deload is muted. Omitted when no archived
+              meso has matchable data. */}
+          {prevMeso && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                <span style={{ ...eyebrow, color: 'var(--amber)' }}>
+                  {prevMeso.mesosAgo > 1 ? `${prevMeso.mesosAgo} mesos back` : 'Last meso'}
+                </span>
+                {prevMeso.name && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {prevMeso.name}
+                  </span>
+                )}
+              </div>
+              {[...prevMeso.weeks].reverse().map((wk) => {
+                const isRef = wk.weekIdx === prevMeso.reference.weekIdx;
+                return (
+                  <div
+                    key={`prev-${wk.weekIdx}`}
+                    data-testid={`prev-meso-week-${wk.weekIdx}`}
+                    style={{
+                      display: 'flex',
+                      gap: 12,
+                      padding: '12px 12px',
+                      borderRadius: tokens.radius.md,
+                      background: 'var(--bg-surface)',
+                      border: `1px solid ${isRef ? 'rgba(242,154,82,0.45)' : 'var(--border)'}`,
+                      opacity: wk.isDeload && !isRef ? 0.7 : 1,
+                    }}
+                  >
+                    <div style={{ width: 58, flexShrink: 0 }}>
+                      <div style={{ fontFamily: bebas, fontSize: 22, lineHeight: 1, letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
+                        WK {wk.weekIdx + 1}
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 4, color: isRef ? 'var(--amber)' : 'var(--text-muted)' }}>
+                        {wk.isDeload ? 'Deload' : isRef ? 'Train off' : ''}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 6, alignContent: 'center' }}>
+                      {wk.sets.map((s, i) => (
+                        <span
+                          key={i}
+                          title={`Set ${i + 1}${s.warmup ? ' (warmup)' : ''}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            padding: '6px 10px',
+                            borderRadius: 999,
+                            fontSize: 13,
+                            fontWeight: 700,
+                            fontVariantNumeric: 'tabular-nums',
+                            color: s.warmup ? 'var(--text-muted)' : 'var(--text-primary)',
+                            background: 'var(--bg-card)',
+                            border: s.warmup ? '1px dashed var(--border)' : '1px solid var(--border)',
+                          }}
+                        >
+                          {s.warmup && <span style={{ fontSize: 10, letterSpacing: '0.08em' }}>WU</span>}
+                          {s.weight != null && s.reps != null
+                            ? `${fmtNumber(s.weight)} × ${s.reps}`
+                            : s.reps != null
+                              ? `${s.reps} reps`
+                              : s.weight != null
+                                ? `${fmtNumber(s.weight)} lb`
+                                : '—'}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

@@ -503,73 +503,182 @@ function aggregateArchiveByMuscle(
  * first (newest) is meso #N, the next is #N-1, etc. This is a display
  * convenience — the source of truth remains `id`.
  */
+/** One logged set from an archived meso, already coerced to numbers. */
+export interface PrevMesoSet {
+  weight: number | null;
+  reps: number | null;
+  warmup: boolean;
+}
+
+/** One week of an archived meso in which the exercise was logged. */
+export interface PrevMesoWeek {
+  /** 0-based week index within the archived meso. */
+  weekIdx: number;
+  /** True when this was the meso's programmed deload week. */
+  isDeload: boolean;
+  /** Every set logged for the exercise that week, in set order. */
+  sets: PrevMesoSet[];
+  /** Working (non-warmup) sets with a real weight and reps. */
+  workingSets: number;
+  /** Heaviest working weight that week. */
+  bestWeight: number;
+  /** Best reps at that heaviest weight. */
+  bestReps: number;
+}
+
 /** Result of a cross-meso "last weight" lookup. */
 export interface LastMesoWeight {
-  /** Top working-set weight from the most recent week with logged data. */
+  /** Top working-set weight from the reference week. */
   weight: number;
   /** Best reps at that weight. */
   reps: number;
+  /** Working sets logged in the reference week — what "3 × 80 × 6" reads from. */
+  setsCount: number;
   /** 0-based week index within the archived meso the sets came from. */
   weekIdx: number;
+  /** True when the only week with data was the deload — the number is light on purpose. */
+  isDeload: boolean;
   /** How many mesos back the match was found (1 = the meso right before this one). */
   mesosAgo: number;
   /** ISO timestamp the source meso was archived at, when recorded. */
   archivedAt?: string;
 }
 
+/** Everything a previous meso holds for one exercise. */
+export interface PrevMesoHistory {
+  /** The archived meso's display name, when it has one. */
+  name?: string;
+  /** How many mesos back (1 = the meso right before this one). */
+  mesosAgo: number;
+  archivedAt?: string;
+  /** Weeks with logged sets for the exercise, oldest first. */
+  weeks: PrevMesoWeek[];
+  /** The week to train off — see `findLastMesoWeight`. */
+  reference: LastMesoWeight;
+}
+
 /**
- * Find the weight the lifter last used for `exId` in a previous meso.
+ * The deload's 0-based week index for an archived meso. `profile.mesoLength`
+ * is the working-week count and the one field both archive shapes agree on:
+ * the local writer stores `mesoWeeks = mesoLength + 1`, the remote rebuild
+ * stores `mesoWeeks = weeks_count` (working weeks only). Null when unknown.
+ */
+function archiveDeloadIdx(rec: ArchiveRecordShape): number | null {
+  const len = Number(rec.profile?.mesoLength);
+  if (Number.isFinite(len) && len > 0) return len;
+  const wks = Number(rec.mesoWeeks);
+  return Number.isFinite(wks) && wks > 0 ? wks - 1 : null;
+}
+
+function summariseSlice(slice: Record<string, WorkoutSet>): Omit<PrevMesoWeek, 'weekIdx' | 'isDeload'> {
+  const sets: PrevMesoSet[] = [];
+  let workingSets = 0;
+  let bestWeight = 0;
+  let bestReps = 0;
+  const keys = Object.keys(slice).sort((a, b) => Number(a) - Number(b));
+  for (const k of keys) {
+    const s = slice[k];
+    if (!s) continue;
+    const w = setWeight(s);
+    const r = setReps(s);
+    const weight = isFinite(w) && w > 0 ? w : null;
+    const reps = isFinite(r) && r > 0 ? r : null;
+    if (weight == null && reps == null) continue;
+    const warmup = !!s.warmup;
+    sets.push({ weight, reps, warmup });
+    if (warmup || weight == null || reps == null) continue;
+    workingSets += 1;
+    if (weight > bestWeight || (weight === bestWeight && reps > bestReps)) {
+      bestWeight = weight;
+      bestReps = reps;
+    }
+  }
+  return { sets, workingSets, bestWeight, bestReps };
+}
+
+/**
+ * Everything the most recent previous meso holds for `exId`: every week it
+ * was logged, plus the week to train off.
  *
- * Walks the archive newest-first, and within each meso walks weeks
- * LATEST-first, returning the top working set from the most recent week
- * with any logged data for the exercise. An unfinished meso works fine —
- * whatever week they stopped at is the week that answers "what did I
- * last lift". Matching is by `_exId` (stamped on every set write); mesos
- * archived before stamping (pre 2026-04-29) can't be matched and are
- * skipped rather than guessed at by slot position.
+ * Walks the archive newest-first and returns the first meso with a working
+ * set for the exercise. Matching is by `_exId` (stamped on every set
+ * write); mesos archived before stamping (pre 2026-04-29) can't be matched
+ * and are skipped rather than guessed at by slot position.
+ *
+ * The reference week is the LAST NON-DELOAD week with a working set. The
+ * deload is light by prescription — week 1's load tapered, reps at the
+ * range floor — so handing it to the next meso as "what you lifted" sold
+ * every lift short by a deload's worth. Only when the deload is the sole
+ * week with data (a lift swapped in during the taper) does it stand in,
+ * flagged `isDeload` so the UI can say so. An unfinished meso works fine:
+ * whatever week they stopped at is the last hard week.
  *
  * Returns null when no archived meso has logged sets for the exercise.
  */
-export function findLastMesoWeight(
+export function findPrevMesoHistory(
   archive: ArchiveEntry[],
   exId: string | number | undefined,
-): LastMesoWeight | null {
+): PrevMesoHistory | null {
   const idStr = exId == null ? null : String(exId);
   if (!idStr) return null;
   for (let i = 0; i < archive.length; i++) {
     const rec = archive[i] as unknown as ArchiveRecordShape;
     if (!rec?.sessions?.length) continue;
-    // Latest week first; the archive writer walks (d, w) in order, so sort
-    // rather than trust insertion order.
-    const sessions = [...rec.sessions].sort((a, b) => b.w - a.w || b.d - a.d);
+    const deloadIdx = archiveDeloadIdx(rec);
+    const byWeek = new Map<number, PrevMesoWeek>();
+    // The archive writer walks (d, w) in order, so sort rather than trust
+    // insertion order. A lift that appears on two days in one week (rare,
+    // but a swap can do it) keeps the heavier day.
+    const sessions = [...rec.sessions].sort((a, b) => a.w - b.w || a.d - b.d);
     for (const session of sessions) {
       if (!session?.data) continue;
       const slice = findSliceByExId(session.data, idStr);
       if (!slice) continue;
-      let weight = 0;
-      let reps = 0;
-      for (const s of Object.values(slice)) {
-        if (!s || s.warmup) continue;
-        const w = setWeight(s);
-        const r = setReps(s);
-        if (!isFinite(w) || w <= 0 || !isFinite(r) || r <= 0) continue;
-        if (w > weight || (w === weight && r > reps)) {
-          weight = w;
-          reps = r;
-        }
-      }
-      if (weight > 0) {
-        return {
-          weight,
-          reps,
-          weekIdx: session.w,
-          mesosAgo: i + 1,
-          archivedAt: rec.archivedAt,
-        };
-      }
+      const summary = summariseSlice(slice);
+      if (summary.sets.length === 0) continue;
+      const prev = byWeek.get(session.w);
+      if (prev && prev.bestWeight >= summary.bestWeight) continue;
+      byWeek.set(session.w, {
+        weekIdx: session.w,
+        isDeload: deloadIdx != null && session.w === deloadIdx,
+        ...summary,
+      });
     }
+    const weeks = [...byWeek.values()].sort((a, b) => a.weekIdx - b.weekIdx);
+    const worked = weeks.filter((w) => w.workingSets > 0);
+    if (worked.length === 0) continue;
+    const hard = worked.filter((w) => !w.isDeload);
+    const ref = (hard.length ? hard : worked)[hard.length ? hard.length - 1 : worked.length - 1];
+    const name = typeof (rec as { name?: unknown }).name === 'string' ? (rec as { name?: string }).name : undefined;
+    return {
+      name,
+      mesosAgo: i + 1,
+      archivedAt: rec.archivedAt,
+      weeks,
+      reference: {
+        weight: ref.bestWeight,
+        reps: ref.bestReps,
+        setsCount: ref.workingSets,
+        weekIdx: ref.weekIdx,
+        isDeload: ref.isDeload,
+        mesosAgo: i + 1,
+        archivedAt: rec.archivedAt,
+      },
+    };
   }
   return null;
+}
+
+/**
+ * The weight the lifter should train off for `exId` from a previous meso:
+ * the reference week of `findPrevMesoHistory`, or null when nothing is
+ * archived for the exercise.
+ */
+export function findLastMesoWeight(
+  archive: ArchiveEntry[],
+  exId: string | number | undefined,
+): LastMesoWeight | null {
+  return findPrevMesoHistory(archive, exId)?.reference ?? null;
 }
 
 /**

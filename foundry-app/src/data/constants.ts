@@ -645,7 +645,7 @@ export const MOBILITY_PROTOCOLS: readonly MobilityProtocol[] = [
   // ── TARGETED ───────────────────────────────────────────────────────────────
   {
     id: 'shoulder_rehab',
-    name: 'Shoulder Rehab & Prevention',
+    name: 'Shoulder Prehab',
     duration: '15 min',
     category: 'targeted',
     description: 'Prehab circuit for chronically cranky shoulders. Good every 2–3 days if you press heavy.',

@@ -175,4 +175,61 @@ describe('MesoHistoryView', () => {
     );
     expect(screen.getByText('Best set').parentElement).toHaveTextContent('185 × 6');
   });
+
+  // The previous meso is history too — and at week 1 of a new block it is
+  // the only history there is. Every logged week renders, deload marked,
+  // the last hard week flagged as the one to train off. `foundry:archive`
+  // is read through the store barrel, so seeding localStorage is enough.
+  it('lists the previous meso week by week under the current meso', () => {
+    localStorage.setItem(
+      'foundry:archive',
+      JSON.stringify([
+        {
+          id: 'aug',
+          name: '6 Week FB — August 3, 2026',
+          archivedAt: '2026-09-18T00:00:00Z',
+          profile: { mesoLength: 6 },
+          mesoWeeks: 7,
+          sessions: [
+            { d: 0, w: 0, data: { 0: { 0: { _exId: 'pullups_bw', weight: 45, reps: 8, warmup: true }, 1: { _exId: 'pullups_bw', weight: 70, reps: 6 } } } },
+            { d: 0, w: 5, data: { 0: { 0: { _exId: 'pullups_bw', weight: 80, reps: 6 }, 1: { _exId: 'pullups_bw', weight: 80, reps: 5 } } } },
+            { d: 0, w: 6, data: { 0: { 0: { _exId: 'pullups_bw', weight: 70, reps: 4 } } } },
+          ],
+        },
+      ]),
+    );
+    render(
+      <MesoHistoryView exercise={exercise} dayIdx={0} exIdx={0} currentWeekIdx={0} mesoWeeks={7} onClose={() => {}} />,
+    );
+    // Empty current meso still shows the previous one.
+    expect(screen.getByText('No sets logged yet')).toBeInTheDocument();
+    expect(screen.getByText('Last meso')).toBeInTheDocument();
+    expect(screen.getByText('6 Week FB — August 3, 2026')).toBeInTheDocument();
+    // Newest week first; deload marked; reference week flagged.
+    const rows = [6, 5, 0].map((w) => screen.getByTestId(`prev-meso-week-${w}`));
+    expect(rows[0]).toHaveTextContent('WK 7');
+    expect(rows[0]).toHaveTextContent('Deload');
+    expect(rows[0]).toHaveTextContent('70 × 4');
+    expect(rows[1]).toHaveTextContent('WK 6');
+    expect(rows[1]).toHaveTextContent('Train off');
+    expect(rows[1]).toHaveTextContent('80 × 6');
+    expect(rows[1]).toHaveTextContent('80 × 5');
+    expect(rows[2]).toHaveTextContent('WU');
+    expect(rows[2]).toHaveTextContent('45 × 8');
+    expect(rows[2]).toHaveTextContent('70 × 6');
+    // Only one week is the one to train off.
+    expect(screen.getAllByText('Train off')).toHaveLength(1);
+  });
+
+  it('omits the previous-meso section when the archive has nothing for this lift', () => {
+    localStorage.setItem(
+      'foundry:archive',
+      JSON.stringify([{ id: 'x', profile: { mesoLength: 6 }, sessions: [{ d: 0, w: 2, data: { 0: { 0: { _exId: 'other', weight: 100, reps: 5 } } } }] }]),
+    );
+    render(
+      <MesoHistoryView exercise={exercise} dayIdx={0} exIdx={0} currentWeekIdx={0} mesoWeeks={7} onClose={() => {}} />,
+    );
+    expect(screen.queryByText('Last meso')).toBeNull();
+    expect(screen.queryByText('Train off')).toBeNull();
+  });
 });

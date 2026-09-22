@@ -3,6 +3,7 @@ import { tokens } from '../../styles/tokens';
 import { store, isEduEmail } from '../../utils/store';
 import FoundryBanner from '../shared/FoundryBanner';
 import AutoBuilderFlow from './AutoBuilderFlow';
+import type { CoachOutcome } from './ProgramReview';
 import ManualBuilderFlow from './ManualBuilderFlow';
 import CardioSetupFlow from './CardioSetupFlow';
 import Beat1Essentials, { type Beat1Values } from './Beat1Essentials';
@@ -211,7 +212,7 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
   const [showCardioStep, setShowCardioStep] = useState(() => r('showCardioStep', false));
   const [pendingProfile, setPendingProfile] = useState<Profile | null>(() => r<Profile | null>('pendingProfile', null));
   // Every meso is reviewed day by day before it exists — see ProgramReview.
-  const [review, setReview] = useState<{ profile: Profile; program: TrainingDay[] } | null>(() => r('review', null));
+  const [review, setReview] = useState<{ profile: Profile; program: TrainingDay[]; coach?: CoachOutcome } | null>(() => r('review', null));
 
   // The frame's scroller (the window no longer scrolls) and the pinned
   // footer slot. Step changes call window.scrollTo(0, 0) all over this flow;
@@ -241,8 +242,16 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
 
   // ── Shared callbacks ─────────────────────────────────────────────────────
   const maybePromptCardio = (built: Profile) => {
+    // How the coach pass went, for the review screen. Transient: it never
+    // reaches the saved profile.
+    const { coachError, ...rest } = built as Profile & { coachError?: string };
+    const coach: CoachOutcome | undefined = coachError
+      ? { status: 'failed', reason: coachError }
+      : Array.isArray(rest.aiDays) && rest.aiDays.length > 0 && rest.autoBuilt
+        ? { status: 'tuned', note: (rest as { aiCoachNote?: string }).aiCoachNote }
+        : undefined;
     // Inject student verification + birthdate into profile
-    const enriched = { ...built };
+    const enriched = { ...rest } as Profile;
     if (isStudent && studentEmail && isEduEmail(studentEmail)) {
       enriched.isStudent = true;
       enriched.studentEmail = studentEmail.trim().toLowerCase();
@@ -267,7 +276,7 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
       return;
     }
     setError('');
-    setReview({ profile: enriched, program });
+    setReview({ profile: enriched, program, coach });
     window.scrollTo(0, 0);
   };
   const maybePromptLegBalance = (built: Profile) => {
@@ -581,6 +590,8 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
     return (
       <ProgramReview
         program={review.program}
+        coach={review.coach}
+        goal={review.profile.goal}
         onEdit={(program) => setReview((cur) => (cur ? { ...cur, program } : cur))}
         userEquipment={Array.isArray(review.profile.equipment) ? review.profile.equipment : undefined}
         subtitle={startsNow ? 'NEXT MESO' : planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'}

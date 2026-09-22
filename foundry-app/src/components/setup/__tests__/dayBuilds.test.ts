@@ -22,20 +22,25 @@ const program = [
   },
 ] as unknown as TrainingDay[];
 
-const DB = [{ id: 'cable_row', name: 'Cable Row', muscle: 'Back', reps: '8-12', rest: '2 min' }];
+// The library's `reps` is a hint the generator never used; a swapped-in lift
+// gets the goal's range for its pattern (see repsForGoal), so '8-12' here
+// must NOT reach the program.
+const DB = [{ id: 'cable_row', name: 'Cable Row', muscle: 'Back', pattern: 'pull', reps: '8-12', rest: '2 min' }];
 
 describe('hydrateDayBuilds with the original program', () => {
   it('round-trips an untouched program unchanged', () => {
     expect(hydrateDayBuilds(toDayBuilds(program), DB, program)).toEqual(program);
   });
 
-  it('keeps untouched lifts verbatim and fills a swapped-in one from the DB', () => {
+  it('keeps untouched lifts verbatim and fills a swapped-in one from the DB, reps from the goal', () => {
     const days = toDayBuilds(program);
     days[0].exercises[1] = { id: 'cable_row', name: 'Cable Row', muscle: 'Back' };
-    const [day] = hydrateDayBuilds(days, DB, program);
+    const [day] = hydrateDayBuilds(days, DB, program, 'build_strength');
     expect(day.note).toBe('keep me');
     expect(day.exercises[0]).toEqual(program[0].exercises[0]);
-    expect(day.exercises[1]).toMatchObject({ id: 'cable_row', name: 'Cable Row', reps: '8-12', anchor: false });
+    expect(day.exercises[1]).toMatchObject({ id: 'cable_row', name: 'Cable Row', reps: '4-6', rest: '2 min', anchor: false });
+    // No goal → hypertrophy range for a compound.
+    expect(hydrateDayBuilds(days, DB, program)[0].exercises[1].reps).toBe('6-10');
   });
 
   it('applies an anchor toggle to a kept lift without touching the rest of it', () => {

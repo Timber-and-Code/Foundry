@@ -93,6 +93,8 @@ export default function CardioSetupFlow({
           maxWidth: 'var(--form-max)',
           margin: '0 auto',
           padding: '24px 16px 80px',
+        // The page owns its safe area (ios.contentInset is 'never').
+        paddingTop: 'calc(24px + env(safe-area-inset-top, 0px))',
         }}
       >
         {/* Header */}

@@ -24,8 +24,10 @@ Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
   enabled: import.meta.env.PROD,
-  integrations: [Sentry.browserTracingIntegration()],
-  tracesSampleRate: 0.2,
+  // Errors only. Performance tracing is "Performance Data" to Apple and is
+  // declared nowhere (manifest, label, policy) — so it is not collected.
+  tracesSampleRate: 0,
+  sendDefaultPii: false,
 });
 
 // Wire dirty-tracking and online flush

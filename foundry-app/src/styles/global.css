@@ -27,12 +27,11 @@
    in index.html, which is what enables the FoundryBanner's safe-area
    extension into the status-bar inset. */
 html { background: var(--bg-root); }
-/* The page scrolls as a whole, with the banner stuck to the top and the tab
-   bar fixed to the bottom. When the document rubber-bands, iOS drags both
-   along with it — they visibly slide instead of staying pinned. No document
-   overscroll, no slide. (iOS 16+; MainViewController turns the WebView's
-   bounce off for iOS 15.) Inner scrollers — sheets, pickers — keep their own
-   bounce. */
+/* Browsers and the installed PWA: no document rubber-band, which would drag
+   the sticky banner and the fixed tab bar along with it. (In the iOS app
+   Capacitor already turns the WebView's bounce off — the sliding there was
+   `ios.contentInset`, see capacitor.config.json.) Inner scrollers — sheets,
+   pickers — keep their own bounce. */
 html, body { overscroll-behavior-y: none; }
 /* Global font-feature-settings:
    - tnum: tabular numerals — keeps numeric columns (ExerciseCard weight/reps,

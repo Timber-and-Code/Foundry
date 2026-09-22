@@ -24,6 +24,8 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>The Foundry saves your workout share image to your photo library when you choose Save Image.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>The Foundry reads your body weight from Apple Health so the weight shown in your profile and workout logs stays current without you re-entering it.</string>
 	<key>NSHealthUpdateUsageDescription</key>

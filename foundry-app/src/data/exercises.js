@@ -566,7 +566,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 3,
-    reps: '12',
+    reps: '10-12',
     rest: '60-90 sec',
     warmup: '1 light feeler set',
     description:
@@ -1021,7 +1021,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 3,
-    reps: '15',
+    reps: '12-15',
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
@@ -1041,7 +1041,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 3,
-    reps: '15',
+    reps: '12-15',
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
@@ -1183,7 +1183,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 3,
-    reps: '12',
+    reps: '10-12',
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
@@ -1203,7 +1203,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 3,
-    reps: '12',
+    reps: '10-12',
     rest: '60 sec',
     warmup: '1 light feeler set',
     description:
@@ -1632,7 +1632,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 3,
-    reps: '12',
+    reps: '10-12',
     rest: '90 sec',
     warmup: '1 feeler set',
     description:
@@ -1797,7 +1797,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 4,
-    reps: '15',
+    reps: '12-15',
     rest: '60 sec',
     warmup: '10 bodyweight calf raises',
     description:
@@ -1817,7 +1817,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 4,
-    reps: '15',
+    reps: '12-15',
     rest: '60 sec',
     warmup: '10 bodyweight seated raises',
     description:
@@ -1838,7 +1838,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 4,
-    reps: '15 ea.',
+    reps: '12-15 ea.',
     rest: '60 sec',
     warmup: '10 bodyweight calf raises each leg',
     description:
@@ -2394,7 +2394,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 2,
     sets: 3,
-    reps: '8 ea.',
+    reps: '8-10 ea.',
     rest: '2 min',
     warmup: '1 feeler set',
     description:
@@ -2414,7 +2414,7 @@ export const EXERCISE_DB = [
     anchor: false,
     diff: 1,
     sets: 3,
-    reps: '10 ea.',
+    reps: '8-10 ea.',
     rest: '90 sec',
     warmup: '10 bodyweight reverse lunges each side',
     description:
@@ -2462,7 +2462,7 @@ export const EXERCISE_DB = [
     diff: 2,
     bw: true,
     sets: 4,
-    reps: '5',
+    reps: '3-5',
     rest: '2 min',
     warmup: '3 low box jumps at reduced height',
     description:

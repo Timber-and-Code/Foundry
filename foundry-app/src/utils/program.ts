@@ -80,6 +80,32 @@ export function expandEquipment(profEq: unknown): string[] {
   ));
 }
 
+/**
+ * The rep range a lift gets under a training goal. This is the ONE rule —
+ * the generator uses it for every slot, and every swap/add path must too,
+ * or the swapped-in lift arrives with whatever bare number the exercise
+ * library happened to carry ("15" for face pulls next to "10-15" for
+ * everything else). The library's `reps` is a legacy hint, never a
+ * prescription.
+ *
+ * Compounds: strength 4-6, hypertrophy 6-10, lose fat 8-12, fitness 8-15.
+ * Isolations: strength 6-10, hypertrophy 10-15, lose fat 12-18, fitness 12-20.
+ */
+export function repsForGoal(
+  goal: string | null | undefined,
+  e: { pattern?: string | null },
+): string {
+  const goalId = goal || '';
+  const isCompound = ['push', 'pull', 'squat', 'hinge'].includes(e.pattern ?? '');
+  if (goalId === 'build_strength') return isCompound ? '4-6' : '6-10';
+  if (goalId === 'lose_fat') return isCompound ? '8-12' : '12-18';
+  if (goalId === 'general_fitness' || goalId === 'improve_fitness' || goalId === 'sport_conditioning') {
+    return isCompound ? '8-15' : '12-20';
+  }
+  // build_muscle — pure hypertrophy ranges
+  return isCompound ? '6-10' : '10-15';
+}
+
 export interface GenerateProgramOptions {
   /**
    * Exercise ids the lifter already has logged work for — see
@@ -146,30 +172,14 @@ function buildProgram(
     (e) => equipment.includes(e.equipment as string) && (e.diff ?? 0) <= maxDiff
   );
 
-  // Goal-based rep range suggestions
-  // Compounds: strength=4-6, hypertrophy=6-10, lose_fat=8-12, fitness=8-15
-  // Isolations: strength=6-10, hypertrophy=10-15, lose_fat=12-18, fitness=12-20
-  //
   // Pure Strength (profile.goal === 'build_strength') is the strictest tier —
-  // anchors drop to 3-6 and accessories shed one set (floor 2) to keep total
+  // anchors drop to 4-6 and accessories shed one set (floor 2) to keep total
   // volume sustainable under heavy loading. Matched to the IntakeCard
   // "Pure Strength" pill; muscle+strength bias users stay on the standard
   // hypertrophy ranges.
   const goalId = profile?.goal || '';
   const isPureStrength = goalId === 'build_strength';
-  const isLoseFat = goalId === 'lose_fat';
-  const isFitness =
-    goalId === 'general_fitness' ||
-    goalId === 'improve_fitness' ||
-    goalId === 'sport_conditioning';
-  function goalReps(e: DbExercise): string {
-    const isCompound = ['push', 'pull', 'squat', 'hinge'].includes(e.pattern ?? '');
-    if (isPureStrength) return isCompound ? '4-6' : '6-10';
-    if (isLoseFat) return isCompound ? '8-12' : '12-18';
-    if (isFitness) return isCompound ? '8-15' : '12-20';
-    // build_muscle — pure hypertrophy ranges
-    return isCompound ? '6-10' : '10-15';
-  }
+  const goalReps = (e: DbExercise): string => repsForGoal(goalId, e);
 
   function toEx(e: DbExercise, isAnchor: boolean): Exercise {
     const wu = isAnchor

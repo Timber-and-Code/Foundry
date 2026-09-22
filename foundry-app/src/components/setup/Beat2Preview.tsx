@@ -12,6 +12,8 @@ import { SplitBody, type SplitType } from './SplitSheet';
 import { MesoLengthBody, type MesoLength } from './MesoLengthSheet';
 import { SessionLengthBody, type SessionLength } from './SessionLengthSheet';
 import AccordionBar from './AccordionBar';
+import CoachConsentSheet from './CoachConsentSheet';
+import { grantCoachConsent, hasCoachConsent } from '../../utils/coachConsent';
 import DayAccordion, { type DayBuild } from './DayAccordion';
 import { formatSplitName } from '../../utils/splitLabel';
 import { toDayBuilds, hydrateDayBuilds } from './dayBuilds';
@@ -162,9 +164,16 @@ export default function Beat2Preview({ beat1, saved, onPersist, onSave, onEditEs
     onSave({
       ...(profileDraft as Profile),
       // Exactly the program on screen — coach-tuned or not, edits included.
-      aiDays: hydrateDayBuilds(days, getExerciseDB() as never, source),
+      aiDays: hydrateDayBuilds(days, getExerciseDB() as never, source, goal),
       autoBuilt: split !== 'custom',
     });
+  };
+
+  // The coach is third-party AI: ask once before the first send.
+  const [consentOpen, setConsentOpen] = useState(false);
+  const requestTune = () => {
+    if (hasCoachConsent()) void handleTune();
+    else setConsentOpen(true);
   };
 
   const handleTune = async () => {
@@ -219,6 +228,8 @@ export default function Beat2Preview({ beat1, saved, onPersist, onSave, onEditEs
         maxWidth: 'var(--wide-max)',
         margin: '0 auto',
         padding: '20px 20px 120px',
+        // The page owns its safe area (ios.contentInset is 'never').
+        paddingTop: 'calc(20px + env(safe-area-inset-top, 0px))',
         boxSizing: 'border-box',
       }}
     >
@@ -354,6 +365,21 @@ export default function Beat2Preview({ beat1, saved, onPersist, onSave, onEditEs
         />
       </div>
 
+      <CoachConsentSheet
+        open={consentOpen}
+        onAccept={() => {
+          grantCoachConsent();
+          setConsentOpen(false);
+          void handleTune();
+        }}
+        onDecline={() => {
+          // Nothing is sent. The button becomes "Save program".
+          setConsentOpen(false);
+          setTune('failed');
+        }}
+        onCancel={() => setConsentOpen(false)}
+      />
+
       {saveError && (
         <div
           style={{
@@ -393,11 +419,11 @@ export default function Beat2Preview({ beat1, saved, onPersist, onSave, onEditEs
 
       <button
         type="button"
-        onClick={needsTune ? handleTune : handleSave}
+        onClick={needsTune ? requestTune : handleSave}
         disabled={busy || days.length === 0}
         style={{
           position: 'fixed',
-          bottom: 16,
+          bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'calc(100% - 40px)',

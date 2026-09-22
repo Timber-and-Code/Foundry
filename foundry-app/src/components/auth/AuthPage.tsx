@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import PrivacyNote from './PrivacyNote';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -412,6 +413,7 @@ export default function AuthPage() {
             <Button type="submit" fullWidth disabled={loading} style={{ marginTop: 4 }}>
               {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </Button>
+            {mode !== 'login' && <PrivacyNote />}
           </form>
 
           {mode === 'login' && (

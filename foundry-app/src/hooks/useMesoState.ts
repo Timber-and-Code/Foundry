@@ -22,7 +22,7 @@ import {
   archiveCurrentMeso,
 } from '../utils/store';
 import { buildWeekRecap } from '../utils/weekRecap';
-import { generateProgram } from '../utils/program';
+import { generateProgram, repsForGoal } from '../utils/program';
 import { getTrainedExerciseIds } from '../utils/trainingHistory';
 import { healCustomNames, resolveCustomExercise } from '../utils/customExercises';
 
@@ -98,7 +98,7 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
           tag: e.tag,
           anchor: false,
           sets: e.sets,
-          reps: e.reps,
+          reps: repsForGoal(profile.goal, e as { pattern?: string }),
           rest: e.rest,
           warmup: '1 feeler set',
           progression: e.pattern === 'isolation' ? 'reps' : 'weight',

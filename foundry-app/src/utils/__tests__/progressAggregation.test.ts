@@ -8,6 +8,7 @@ import {
   aggregateLiftsByMuscle,
   aggregatePreviousMesos,
   findLastMesoWeight,
+  findPrevMesoHistory,
   normaliseMuscle,
   epleyE1RM,
 } from '../progressAggregation';
@@ -459,5 +460,77 @@ describe('findLastMesoWeight', () => {
       ]),
     ];
     expect(findLastMesoWeight(archive, 'bench_bb')).toBeNull();
+  });
+
+  // The user's real September 2026 shape: DB bench peaked at 80 in the last
+  // hard week, the deload dropped it to 70, and the new meso handed back 70
+  // labelled "1 set". The reference is the last HARD week, with its real
+  // set count.
+  const sets = (w: number, reps: number[], exId = 'db_flat_bench') =>
+    Object.fromEntries(reps.map((r, i) => [i, { weight: String(w), reps: String(r), _exId: exId }]));
+  // Local archive shape: profile.mesoLength = 6 working weeks, deload = week idx 6.
+  const mkLocal = (sessions: unknown[]) =>
+    ({ id: 'aug', profile: { mesoLength: 6 }, mesoWeeks: 7, mesoDays: 4, sessions }) as unknown as ArchiveEntry;
+  // Remote rebuild shape: mesoWeeks = weeks_count (working weeks), profile.mesoLength the same.
+  const mkRemote = (sessions: unknown[]) =>
+    ({ id: 'aug', name: '6 Week FB — August 3, 2026', profile: { mesoLength: 6 }, mesoWeeks: 6, mesoDays: 4, sessions }) as unknown as ArchiveEntry;
+
+  it('skips the deload and reports the last hard week with its set count', () => {
+    for (const mk of [mkLocal, mkRemote]) {
+      const archive = [
+        mk([
+          { d: 2, w: 4, data: { 1: sets(80, [6, 6, 2, 4]) } },
+          { d: 2, w: 5, data: { 1: sets(80, [6, 6, 4, 5]) } },
+          { d: 2, w: 6, data: { 1: sets(70, [4, 4]) } }, // deload
+        ]),
+      ];
+      const hit = findLastMesoWeight(archive, 'db_flat_bench')!;
+      expect(hit.weight).toBe(80);
+      expect(hit.reps).toBe(6);
+      expect(hit.setsCount).toBe(4);
+      expect(hit.weekIdx).toBe(5);
+      expect(hit.isDeload).toBe(false);
+    }
+  });
+
+  it('falls back to the deload, flagged, when it is the only week with data', () => {
+    const archive = [
+      mkLocal([{ d: 2, w: 6, data: { 1: sets(70, [4, 4]) } }]),
+    ];
+    const hit = findLastMesoWeight(archive, 'db_flat_bench')!;
+    expect(hit.weight).toBe(70);
+    expect(hit.setsCount).toBe(2);
+    expect(hit.isDeload).toBe(true);
+  });
+
+  it('findPrevMesoHistory returns every logged week oldest-first, deload marked', () => {
+    const archive = [
+      mkRemote([
+        { d: 2, w: 6, data: { 1: sets(70, [4, 4]) } },
+        { d: 2, w: 0, data: { 1: { ...sets(70, [6, 6, 6]), 3: { weight: '45', reps: '8', warmup: true, _exId: 'db_flat_bench' } } } },
+        { d: 2, w: 5, data: { 1: sets(80, [6, 6, 4, 5]) } },
+        { d: 0, w: 5, data: { 0: sets(200, [5, 5], 'bb_back_squat') } },
+      ]),
+    ];
+    const h = findPrevMesoHistory(archive, 'db_flat_bench')!;
+    expect(h.name).toBe('6 Week FB — August 3, 2026');
+    expect(h.mesosAgo).toBe(1);
+    expect(h.weeks.map((w) => w.weekIdx)).toEqual([0, 5, 6]);
+    expect(h.weeks.map((w) => w.isDeload)).toEqual([false, false, true]);
+    // Warmups are kept in the set list but never counted as work.
+    expect(h.weeks[0].sets).toHaveLength(4);
+    expect(h.weeks[0].workingSets).toBe(3);
+    expect(h.weeks[0].sets[3].warmup).toBe(true);
+    expect(h.reference.weekIdx).toBe(5);
+    expect(h.reference.setsCount).toBe(4);
+  });
+
+  it('a slice with only warmups is not history', () => {
+    const archive = [
+      mkLocal([
+        { d: 0, w: 3, data: { 0: { 0: { weight: '95', reps: '10', warmup: true, _exId: 'bench_bb' } } } },
+      ]),
+    ];
+    expect(findPrevMesoHistory(archive, 'bench_bb')).toBeNull();
   });
 });

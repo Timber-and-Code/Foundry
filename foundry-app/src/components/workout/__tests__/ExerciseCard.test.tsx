@@ -440,7 +440,7 @@ describe('ExerciseCard', () => {
         })}
       />,
     );
-    expect(screen.getByText(/Last meso: 185 lbs × 8/)).toBeInTheDocument();
+    expect(screen.getByText(/Last meso, wk 3: 1 × 185 lbs × 8/)).toBeInTheDocument();
   });
 
   it('still shows it on week 1', () => {
@@ -450,7 +450,7 @@ describe('ExerciseCard', () => {
         {...defaultProps({ weekIdx: 0, exercise: makeExercise({ id: 'bench_id' }) })}
       />,
     );
-    expect(screen.getByText(/Last meso: 185 lbs × 8/)).toBeInTheDocument();
+    expect(screen.getByText(/Last meso, wk 3: 1 × 185 lbs × 8/)).toBeInTheDocument();
   });
 
   it('names how many mesos back the reference is', () => {
@@ -470,7 +470,7 @@ describe('ExerciseCard', () => {
         {...defaultProps({ weekIdx: 2, exercise: makeExercise({ id: 'bench_id' }) })}
       />,
     );
-    expect(screen.getByText(/3 mesos ago: 155 lbs × 10/)).toBeInTheDocument();
+    expect(screen.getByText(/3 mesos ago, wk 2: 1 × 155 lbs × 10/)).toBeInTheDocument();
   });
 
   it('yields to same-meso history rather than competing with it', () => {
@@ -486,7 +486,7 @@ describe('ExerciseCard', () => {
         {...defaultProps({ weekIdx: 3, exercise: makeExercise({ id: 'bench_id' }) })}
       />,
     );
-    expect(screen.queryByText(/Last meso:/)).toBeNull();
+    expect(screen.queryByText(/Last meso,/)).toBeNull();
   });
 
   it('shows nothing when the archive has no match for this exercise', () => {
@@ -496,8 +496,74 @@ describe('ExerciseCard', () => {
         {...defaultProps({ weekIdx: 3, exercise: makeExercise({ id: 'bench_id' }) })}
       />,
     );
-    expect(screen.queryByText(/Last meso:/)).toBeNull();
-    expect(screen.queryByText(/mesos ago:/)).toBeNull();
+    expect(screen.queryByText(/Last meso,/)).toBeNull();
+    expect(screen.queryByText(/mesos ago,/)).toBeNull();
+  });
+
+  // Week 1 of a new meso, the user's real September 2026 case: DB bench
+  // peaked at 80 × 4 sets in the last hard week and the deload dropped it
+  // to 70 × 2 sets. The chip used to read "LAST WK 1-70×4" — the deload
+  // weight, a fabricated set count, and a label that was untrue.
+  const augustMeso = [
+    {
+      id: 'aug',
+      archivedAt: '2026-09-18T00:00:00Z',
+      profile: { mesoLength: 6 },
+      mesoWeeks: 7,
+      sessions: [
+        { d: 2, w: 4, data: { 1: { 0: { _exId: 'bench_id', weight: 80, reps: 6 }, 1: { _exId: 'bench_id', weight: 80, reps: 6 } } } },
+        { d: 2, w: 5, data: { 1: {
+          0: { _exId: 'bench_id', weight: 80, reps: 6 },
+          1: { _exId: 'bench_id', weight: 80, reps: 6 },
+          2: { _exId: 'bench_id', weight: 80, reps: 4 },
+          3: { _exId: 'bench_id', weight: 80, reps: 5 },
+        } } },
+        { d: 2, w: 6, data: { 1: { 0: { _exId: 'bench_id', weight: 70, reps: 4 }, 1: { _exId: 'bench_id', weight: 70, reps: 4 } } } },
+      ],
+    },
+  ];
+
+  it('at week 1 of a new meso the chip shows the last HARD week, real set count, labelled LAST MESO', () => {
+    mocks.loadArchive.mockReturnValue(augustMeso);
+    render(
+      <ExerciseCard
+        {...defaultProps({ weekIdx: 0, exercise: makeExercise({ id: 'bench_id' }) })}
+      />,
+    );
+    expect(screen.getByText('4-80×6')).toBeInTheDocument();
+    expect(screen.getByText('LAST MESO')).toBeInTheDocument();
+    expect(screen.queryByText('LAST WK')).toBeNull();
+    expect(screen.queryByText(/70/)).toBeNull();
+    expect(screen.getByText(/Last meso, wk 6: 4 × 80 lbs × 6/)).toBeInTheDocument();
+  });
+
+  it('falls back to the deload only when it is the sole week with data, and says so', () => {
+    mocks.loadArchive.mockReturnValue([
+      { ...augustMeso[0], sessions: [augustMeso[0].sessions[2]] },
+    ]);
+    render(
+      <ExerciseCard
+        {...defaultProps({ weekIdx: 0, exercise: makeExercise({ id: 'bench_id' }) })}
+      />,
+    );
+    expect(screen.getByText('2-70×4')).toBeInTheDocument();
+    expect(screen.getByText(/Last meso, wk 7 \(deload\): 2 × 70 lbs × 4/)).toBeInTheDocument();
+  });
+
+  it('keeps the LAST WK label when the number is from this meso', () => {
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({ 0: { 1: { _exId: 'bench_id', weight: 200, reps: 6 } } }),
+    );
+    mocks.loadArchive.mockReturnValue(augustMeso);
+    render(
+      <ExerciseCard
+        {...defaultProps({ weekIdx: 1, exercise: makeExercise({ id: 'bench_id' }) })}
+      />,
+    );
+    expect(screen.getByText('LAST WK')).toBeInTheDocument();
+    expect(screen.getByText('1-200×6')).toBeInTheDocument();
+    expect(screen.queryByText('LAST MESO')).toBeNull();
   });
 });
 
