@@ -20,7 +20,7 @@ import ExerciseCard from './ExerciseCard';
 import SwapMenu from './SwapMenu';
 import { getExerciseDB, findExercise } from '../../data/exerciseDB';
 import { buildAllSwapGroups, bucketFor } from '../../utils/swapGroups';
-import { expandEquipment } from '../../utils/program';
+import { expandEquipment, repsForGoal } from '../../utils/program';
 import { customIdFor, rememberCustomExercise, resolveCustomExercise } from '../../utils/customExercises';
 import NoteReviewSheet from './NoteReviewSheet';
 import type { Profile, TrainingDay, Exercise } from '../../types';
@@ -352,7 +352,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       tag: newDbEx.tag,
       anchor: oldEx.anchor,
       sets: newDbEx.sets,
-      reps: newDbEx.reps,
+      reps: repsForGoal(profile?.goal, newDbEx),
       rest: newDbEx.rest,
       warmup: oldEx.anchor ? newDbEx.warmup : newDbEx.warmup || '1 feeler set',
       progression: newDbEx.pattern === 'isolation' ? 'reps' : 'weight',
@@ -392,7 +392,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
       tag: dbEx.tag,
       anchor: false,
       sets: dbEx.sets,
-      reps: dbEx.reps,
+      reps: repsForGoal(profile?.goal, dbEx),
       rest: dbEx.rest,
       warmup: '1 feeler set',
       progression: dbEx.pattern === 'isolation' ? 'reps' : 'weight',
@@ -414,7 +414,7 @@ function ExtraDayView({ dateStr, onBack, profile, onProfileUpdate, activeDays }:
     const found = findExercise(exId) || resolveCustomExercise(exId);
     if (!found) return;
     // A custom lift carries a name and little else.
-    const picked = { sets: 3, reps: '8-12', rest: '2 min', tag: day.tag, equipment: 'other', ...found } as Exercise;
+    const picked = { sets: 3, rest: '2 min', tag: day.tag, equipment: 'other', ...found } as Exercise;
     if (showAddExercise) handleAddExercise(picked);
     else handleSwap(picked);
   };

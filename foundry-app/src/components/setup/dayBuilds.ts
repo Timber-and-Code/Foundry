@@ -5,6 +5,7 @@
  * the lifter approved.
  */
 import type { Exercise, TrainingDay } from '../../types';
+import { repsForGoal } from '../../utils/program';
 import type { DayBuild } from './DayAccordion';
 
 /**
@@ -41,6 +42,8 @@ export function hydrateDayBuilds(
   days: DayBuild[],
   dbNow: { [k: string]: unknown }[],
   original?: TrainingDay[],
+  /** Training goal — picks the rep range for lifts added in the review. */
+  goal?: string | null,
 ): TrainingDay[] {
   return days
     .map((d, i): TrainingDay => {
@@ -63,7 +66,7 @@ export function hydrateDayBuilds(
             tag: String(match.tag || d.tag || 'FULL'),
             anchor: isAnchor,
             sets: isAnchor ? 4 : 3,
-            reps: typeof match.reps === 'string' ? match.reps : '6-12',
+            reps: repsForGoal(goal, { pattern: typeof match.pattern === 'string' ? match.pattern : null }),
             rest: typeof match.rest === 'string' ? match.rest : isAnchor ? '3 min' : '2 min',
             warmup: isAnchor ? 'Full protocol' : '1 feeler set',
             progression: match.pattern === 'isolation' ? 'reps' : 'weight',

@@ -591,6 +591,7 @@ export default function SetupPage({ onComplete: onCompleteProp, mode = 'new', on
       <ProgramReview
         program={review.program}
         coach={review.coach}
+        goal={review.profile.goal}
         onEdit={(program) => setReview((cur) => (cur ? { ...cur, program } : cur))}
         userEquipment={Array.isArray(review.profile.equipment) ? review.profile.equipment : undefined}
         subtitle={startsNow ? 'NEXT MESO' : planningNext ? 'PLAN NEXT MESO' : 'MESOCYCLE SETUP'}

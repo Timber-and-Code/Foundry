@@ -164,7 +164,7 @@ export default function Beat2Preview({ beat1, saved, onPersist, onSave, onEditEs
     onSave({
       ...(profileDraft as Profile),
       // Exactly the program on screen — coach-tuned or not, edits included.
-      aiDays: hydrateDayBuilds(days, getExerciseDB() as never, source),
+      aiDays: hydrateDayBuilds(days, getExerciseDB() as never, source, goal),
       autoBuilt: split !== 'custom',
     });
   };

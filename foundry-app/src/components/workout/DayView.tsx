@@ -77,7 +77,7 @@ import SupersetGroup from './SupersetGroup';
 import SupersetRoundView from './SupersetRoundView';
 import SupersetPickerSheet from './SupersetPickerSheet';
 import { buildAllSwapGroups, bucketFor } from '../../utils/swapGroups';
-import { expandEquipment } from '../../utils/program';
+import { expandEquipment, repsForGoal } from '../../utils/program';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
 /**
@@ -663,7 +663,10 @@ function DayView({
           (w) => getWeekSets(Number(resolved.sets ?? day.exercises[i]?.sets ?? 0), w, totalWeeks),
           totalWeeks,
         ),
-        reps: resolved.reps || ex.reps,
+        // The goal's range for THIS lift's pattern — never the library's bare
+        // number, and not the outgoing lift's range either (a compound
+        // swapped for an isolation moves from 6-10 to 10-15).
+        reps: repsForGoal(profile?.goal, resolved),
         rest: resolved.rest || ex.rest,
         warmup: wu,
         progression: resolved.pattern === 'isolation' ? 'reps' : 'weight',
@@ -827,7 +830,7 @@ function DayView({
         tag: src.tag || day?.tag || 'FULL',
         anchor: false,
         sets: src.sets || 3,
-        reps: src.reps || '8-12',
+        reps: repsForGoal(profile?.goal, src),
         rest: src.rest || '2 min',
         warmup: src.warmup || '1 feeler set',
         progression: src.pattern === 'isolation' ? 'reps' : 'weight',
@@ -927,7 +930,7 @@ function DayView({
               name: resolved.name,
               muscle: resolved.muscle,
               sets: resolved.sets,
-              reps: resolved.reps,
+              reps: repsForGoal(profile?.goal, resolved),
               progression: resolved.pattern === 'isolation' ? 'reps' : 'weight',
               anchor: exercises[exIdx]?.anchor,
             });

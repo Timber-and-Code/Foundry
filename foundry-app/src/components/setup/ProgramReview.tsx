@@ -21,6 +21,8 @@ interface ProgramReviewProps {
   onEdit?: (program: TrainingDay[]) => void;
   /** Receives the exact program to install, edits included. */
   onConfirm: (program: TrainingDay[]) => void;
+  /** Training goal — sets the rep range for lifts swapped in here. */
+  goal?: string | null;
   onBack: () => void;
 }
 
@@ -31,14 +33,14 @@ interface ProgramReviewProps {
  * `aiDays`, which generateProgram returns verbatim (it would otherwise
  * reshuffle).
  */
-export default function ProgramReview({ program, userEquipment, coach, subtitle, onEdit, onConfirm, onBack }: ProgramReviewProps) {
+export default function ProgramReview({ program, userEquipment, coach, subtitle, onEdit, onConfirm, onBack, goal }: ProgramReviewProps) {
   const [days, setDaysState] = useState(() => toDayBuilds(program));
   const setDays = (next: DayBuild[]) => {
     setDaysState(next);
     // A day emptied mid-edit would be dropped by hydration and shift the
     // rest; only report complete programs.
     if (onEdit && next.every((d) => d.exercises.length > 0)) {
-      onEdit(hydrateDayBuilds(next, getExerciseDB() as never, program));
+      onEdit(hydrateDayBuilds(next, getExerciseDB() as never, program, goal));
     }
   };
   const empty = days.some((d) => d.exercises.length === 0);
@@ -153,7 +155,7 @@ export default function ProgramReview({ program, userEquipment, coach, subtitle,
           type="button"
           className="fd-setup-cta"
           disabled={empty}
-          onClick={() => onConfirm(hydrateDayBuilds(days, getExerciseDB() as never, program))}
+          onClick={() => onConfirm(hydrateDayBuilds(days, getExerciseDB() as never, program, goal))}
           style={{
             width: '100%',
             marginTop: 24,

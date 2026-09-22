@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { tokens } from '../../styles/tokens';
 import SetRow from './SetRow';
 import MesoHistoryView from './MesoHistoryView';
-import { store } from '../../utils/store';
+import { store, loadArchive } from '../../utils/store';
+import { findLastMesoWeight } from '../../utils/progressAggregation';
 import { haptic } from '../../utils/helpers';
 import { getMeso } from '../../data/constants';
 import { useExerciseProgression } from '../../hooks/useExerciseProgression';
@@ -196,9 +197,21 @@ export default function SupersetRoundView({
         bestR = r;
       }
     });
-    if (setsCount === 0 || bestW === 0 || bestR === 0) return '';
-    const wTrim = Number.isInteger(bestW) ? String(bestW) : bestW.toFixed(1).replace(/\.0$/, '');
-    return `${setsCount}-${wTrim}×${bestR}`;
+    const fmt = (count: number, w: number, r: number): string => {
+      const wTrim = Number.isInteger(w) ? String(w) : w.toFixed(1).replace(/\.0$/, '');
+      return `${count}-${wTrim}×${r}`;
+    };
+    if (setsCount > 0 && bestW > 0 && bestR > 0) return fmt(setsCount, bestW, bestR);
+    // Nothing in this meso — the previous meso's reference week (its last
+    // hard week, not the deload), labelled so it can't pass for last week.
+    try {
+      const hit = findLastMesoWeight(loadArchive(), exercises[exIdx]?.id);
+      if (hit) {
+        const when = hit.mesosAgo <= 1 ? 'Last meso' : 'Prev meso';
+        return `${when} · ${fmt(hit.setsCount, hit.weight, hit.reps)}`;
+      }
+    } catch { /* archive read fallback */ }
+    return '';
   };
 
   // Per-exercise rep-min derivation — used to flag missed rows (reps <
