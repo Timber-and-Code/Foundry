@@ -70,9 +70,9 @@ function fmtDuration(secs: number | null): string | null {
 }
 
 /**
- * Working sets × heaviest working set per exercise, e.g. "4 × 225 × 5" —
- * the same sets × weight × reps order the app's own LAST WK chip and
- * history note use. In session order, every lift with a working set: the
+ * Working sets and heaviest working set per exercise, e.g. "4-225×5" —
+ * exactly the app's LAST WK chip format (sets-weight×reps). In session
+ * order, every lift with a working set: the
  * card used to keep four and drop the rest, which read as "I did four
  * exercises", and showed the top set alone, which read as one set.
  */
@@ -82,8 +82,8 @@ export function topSets(stats: WorkoutCompleteStats) {
       const working = ex.sets.filter((s) => !s.warmup && s.reps > 0);
       if (working.length === 0) return null;
       const top = working.reduce((a, b) => (b.weight > a.weight || (b.weight === a.weight && b.reps > a.reps) ? b : a));
-      const set = top.weight > 0 ? `${fmt(top.weight)} × ${top.reps}` : `${top.reps} reps`;
-      return { name: ex.name, anchor: !!ex.anchor, sets: working.length, text: `${working.length} × ${set}` };
+      const set = top.weight > 0 ? `${fmt(top.weight)}×${top.reps}` : `BW×${top.reps}`;
+      return { name: ex.name, anchor: !!ex.anchor, sets: working.length, text: `${working.length}-${set}` };
     })
     .filter((x): x is { name: string; anchor: boolean; sets: number; text: string } => x !== null);
 }
