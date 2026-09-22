@@ -40,6 +40,12 @@ export interface MuscleLiftEntry {
   current: number;
   /** Best e1RM observed across all weeks in this meso (Epley). 0 if no sets. */
   pr: number;
+  /**
+   * Total lb moved this meso: Σ weight × reps over every working set, all
+   * weeks. The meaningful number from week 1, when start → current is still
+   * 0 lb.
+   */
+  volume: number;
 }
 
 /** Current-meso aggregate, grouped by muscle for the Meso History sub-tab. */
@@ -154,6 +160,20 @@ function bestE1RMInSlice(slice: Record<string, WorkoutSet> | undefined): number 
   return best;
 }
 
+/** Σ weight × reps over the working sets of one exercise slice. 0 if none. */
+function sliceVolume(slice: Record<string, WorkoutSet> | undefined): number {
+  if (!slice) return 0;
+  let total = 0;
+  for (const s of Object.values(slice)) {
+    if (!s || s.warmup) continue;
+    const w = setWeight(s);
+    const r = setReps(s);
+    if (!isFinite(w) || w <= 0 || !isFinite(r) || r <= 0) continue;
+    total += w * r;
+  }
+  return total;
+}
+
 /** Find a slice in DayData whose sets carry `_exId === id`. */
 function findSliceByExId(
   data: DayData,
@@ -226,6 +246,7 @@ export function aggregateLiftsByMuscle(
       let startW = NaN;
       let currentW = NaN;
       let pr = 0;
+      let volume = 0;
       let anyData = false;
 
       for (let w = 0; w < totalWeeks; w++) {
@@ -251,6 +272,7 @@ export function aggregateLiftsByMuscle(
         const top = topWorkingWeight(slice);
         const e1 = bestE1RMInSlice(slice);
         if (e1 > pr) pr = e1;
+        volume += sliceVolume(slice);
         if (isFinite(top) && top > 0) {
           anyData = true;
           if (w === 0 || !isFinite(startW)) {
@@ -275,14 +297,16 @@ export function aggregateLiftsByMuscle(
       const current = isFinite(currentW) ? currentW : 0;
       const prRounded = Math.round(pr);
       if (!existing) {
-        muscleMap.set(key, { name: ex.name, start, current, pr: prRounded });
+        muscleMap.set(key, { name: ex.name, start, current, pr: prRounded, volume });
       } else {
-        // Same exercise appears on a later day too — merge by max.
+        // Same exercise appears on a later day too — merge by max; the
+        // tonnage adds up, since both days' sets were lifted.
         muscleMap.set(key, {
           name: ex.name,
           start: existing.start || start,
           current: Math.max(existing.current, current),
           pr: Math.max(existing.pr, prRounded),
+          volume: existing.volume + volume,
         });
       }
     }

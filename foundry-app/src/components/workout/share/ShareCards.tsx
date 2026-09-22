@@ -367,6 +367,11 @@ function QuoteCard({ data }: { data: ShareCardData }) {
         </div>
       </div>
       <div style={{ marginBottom: 80 }}>
+        {/* The session's tonnage, so the quote still says what was done. */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 22, marginBottom: 40 }}>
+          <div style={{ fontFamily: DISPLAY, fontSize: 150, lineHeight: 0.85, color: ORANGE }}>{fmt(Math.round(data.stats.volume))}</div>
+          <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '0.16em', color: MUTED }}>LB MOVED</div>
+        </div>
         <StatRow items={sessionStats(data.stats)} />
       </div>
     </Frame>
