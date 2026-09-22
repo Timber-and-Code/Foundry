@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react';
 import { store } from './storage';
 import { validateDayData } from './validate';
+import { resolveExerciseSlice } from './exerciseSlice';
 import {
   syncWorkoutToSupabase,
   syncCardioSessionToSupabase,
@@ -127,52 +128,15 @@ export function loadDayWeek(dayIdx: number, weekIdx: number): DayData {
  * without null checks.
  */
 // The `_exId` stamp on a set, or null when absent/blank (legacy data).
-function stampOf(set: unknown): string | null {
-  if (!set || typeof set !== 'object') return null;
-  const stamp = (set as Record<string, unknown>)._exId;
-  return typeof stamp === 'string' && stamp.length > 0 ? stamp : null;
-}
-
 export function findPrevSlotForExercise(
   data: DayData,
   exId: string | number | undefined,
   fallbackExIdx: number,
 ): Record<string, Record<string, unknown>> {
-  const idStr = exId == null ? null : String(exId);
-  if (idStr) {
-    for (const slice of Object.values(data)) {
-      if (!slice || typeof slice !== 'object') continue;
-      const sets = slice as unknown as Record<string, Record<string, unknown>>;
-      const entries = Object.entries(sets);
-      if (!entries.some(([, s]) => stampOf(s) === idStr)) continue;
-      // A swap leaves the outgoing exercise's sets in the slot, and logging
-      // against the new one appends alongside them — so a matching slice is
-      // not necessarily a PURE slice. Returning it whole would hand this
-      // exercise the other one's weights. Filter when that has happened;
-      // return as-is otherwise so legacy unstamped data still reads.
-      const hasForeign = entries.some(([, s]) => {
-        const stamp = stampOf(s);
-        return stamp != null && stamp !== idStr;
-      });
-      if (!hasForeign) return sets;
-      return Object.fromEntries(entries.filter(([, s]) => stampOf(s) === idStr));
-    }
-  }
-  const fallback =
-    (data[fallbackExIdx] as unknown as Record<string, Record<string, unknown>>) || {};
-  // The positional fallback is only trustworthy for legacy (unstamped)
-  // data. A slice stamped as a DIFFERENT exercise belongs to that exercise
-  // — post-swap leftovers or an un-healed reorder — and returning it would
-  // display another lift's numbers. No data beats wrong data.
-  if (idStr) {
-    for (const set of Object.values(fallback)) {
-      const stamp = (set as Record<string, unknown> | null)?._exId;
-      if (typeof stamp === 'string' && stamp.length > 0 && stamp !== idStr) {
-        return {};
-      }
-    }
-  }
-  return fallback;
+  // One rule for every reader — see utils/exerciseSlice: stamp first, the
+  // positional slot only when unstamped, {} when the slot belongs to
+  // another lift (no data beats wrong data).
+  return (resolveExerciseSlice(data, exId, fallbackExIdx) as unknown as Record<string, Record<string, unknown>>) || {};
 }
 
 /**

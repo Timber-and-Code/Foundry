@@ -18,8 +18,9 @@ import {
 } from '../../utils/store';
 import { loadCardioSession } from '../../utils/persistence';
 import { calcMuscleSetsByTag } from '../../utils/analyticsData';
-import { aggregateLiftsByMuscle } from '../../utils/progressAggregation';
-import type { TrainingDay, Exercise, BodyWeightEntry, WorkoutSet, CardioSession } from '../../types';
+import { aggregateLiftsByMuscle, topWorkingWeight } from '../../utils/progressAggregation';
+import { resolveExerciseSlice } from '../../utils/exerciseSlice';
+import type { TrainingDay, Exercise, BodyWeightEntry, CardioSession } from '../../types';
 import VolumeLandmarksCard from './VolumeLandmarksCard';
 import MuscleLiftCard from './MuscleLiftCard';
 import EmptyState from '../ui/EmptyState';
@@ -825,7 +826,9 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
           activeDays.forEach((day: TrainingDay, dayIdx: number) => {
             day.exercises.forEach((ex: Exercise, exIdx: number) => {
               if (!ex.anchor) return;
-              const pts = loadSparklineData(dayIdx, exIdx);
+              // Every week of THIS meso (the default was 7 — an 8-week
+              // meso lost its last two), resolved by the lift's _exId.
+              const pts = loadSparklineData(dayIdx, exIdx, getMeso().totalWeeks, ex.id);
               if (!pts.length) return;
               const best = pts.reduce((a, b) => (b.e1rm > a.e1rm ? b : a), pts[0]);
               const latest = pts[pts.length - 1];
@@ -1034,13 +1037,15 @@ function ProgressView({ currentWeek, completedDays, activeDays, goTo }: Progress
         {activeDays.map((day, dayIdx) => {
           const accent = (TAG_ACCENT as Record<string, string>)[day.tag || ''];
           const dayLifts = day.exercises.map((ex: Exercise, exIdx: number) => {
+            // Most recent week with a working set for THIS lift — resolved
+            // by its _exId stamp, not the slot, so a reorder or swap does
+            // not show another lift's weight here. Top working set, warmups
+            // excluded (it used to take the first set with any weight).
             let weight: string | number = '';
             for (let w = currentWeek; w >= 0; w--) {
-              const wd = loadDayWeek(dayIdx, w);
-              const exData = wd[exIdx] || {};
-              const sw = (Object.values(exData) as WorkoutSet[]).find((sv) => sv && sv.weight && sv.weight !== '');
-              if (sw) {
-                weight = (sw as unknown as Record<string, string | number>).weight;
+              const top = topWorkingWeight(resolveExerciseSlice(loadDayWeek(dayIdx, w), ex.id, exIdx));
+              if (isFinite(top) && top > 0) {
+                weight = top;
                 break;
               }
             }

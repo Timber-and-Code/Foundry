@@ -117,6 +117,11 @@ describe('aggregateLiftsByMuscle', () => {
     expect(bench.current).toBe(215);
     // PR e1RM = max over all weeks. Best = 215 * (1 + 6/30) = 258.
     expect(bench.pr).toBe(258);
+    // Tonnage = Σ weight × reps over working sets, all weeks; the 135×5
+    // warmup stays out. 1200 + 1000 + 1260 + 1230 + 1290.
+    expect(bench.volume).toBe(5980);
+    const shoulders = out.find((m) => m.muscle === 'Shoulders');
+    expect(shoulders!.lifts[0].volume).toBe(95 * 8);
   });
 
   it('skips warmup sets when computing top working weight', () => {

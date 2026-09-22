@@ -24,12 +24,13 @@ import {
   loadDayWeekWithCarryover,
 } from '../../utils/store';
 import { dayHasLoggedWork } from '../../utils/regenerateDays';
+import { resolveExerciseSlice } from '../../utils/exerciseSlice';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
 import HomeCardioCard from './HomeCardioCard';
 import { useActiveSession } from '../../contexts/ActiveSessionContext';
 import { useRestTimer } from '../../contexts/RestTimerContext';
-import type { Profile, TrainingDay, Exercise, CardioScheduleSlot } from '../../types';
+import type { Profile, TrainingDay, Exercise, CardioScheduleSlot, DayData } from '../../types';
 
 // ── Prescription helper (#11) ─────────────────────────────────────────────
 // Returns the suggested weight for an upcoming exercise on the given
@@ -1328,11 +1329,18 @@ function HomeTab({
           </button>
           <div style={{ padding: '6px 0 2px' }}>
             {preview.map((ex: Exercise, ei: number) => {
-              const prevData = lastWeekData[ei];
-              const prevSets = prevData
-                ? (Object.values(prevData) as Record<string, unknown>[]).filter((s) => s && s.weight && parseFloat(String(s.weight)) > 0)
+              // Last week's sets for THIS lift, by _exId stamp — the slot
+              // may have held another exercise before a reorder or swap.
+              const prevData = resolveExerciseSlice(lastWeekData as DayData, ex.id, ei);
+              // Heaviest WORKING set — the pill used to show set 0's
+              // weight, which is the feeler when one was logged.
+              const prevLoads = prevData
+                ? Object.values(prevData)
+                    .filter((s) => s && !s.warmup)
+                    .map((s) => parseFloat(String(s.weight)))
+                    .filter((w) => isFinite(w) && w > 0)
                 : [];
-              const prevWeight = prevSets.length > 0 ? (prevSets[0] as Record<string, unknown>).weight : null;
+              const prevWeight = prevLoads.length > 0 ? Math.max(...prevLoads) : null;
               const ovId = store.get(`foundry:exov:d${showDayIdx}:ex${ei}`) || null;
               const dbEx = ovId ? findExercise(ovId) : null;
               // #11: full prescription on the today/next-session card. The

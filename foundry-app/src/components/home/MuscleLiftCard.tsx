@@ -22,8 +22,11 @@ interface MuscleLiftCardProps {
 }
 
 function MuscleLiftCardInner({ muscle, lifts, open, onToggle, accent }: MuscleLiftCardProps) {
-  const totalDelta = lifts.reduce((sum, l) => sum + (l.current - l.start), 0);
-  const totalDeltaRounded = Math.round(totalDelta);
+  // Header number is the meso's tonnage for this muscle — it means
+  // something from the first session. The start → current delta sat here
+  // before and read "0 total lb" all through week 1; it lives on each lift
+  // row now.
+  const totalVolume = Math.round(lifts.reduce((sum, l) => sum + (l.volume || 0), 0));
   const cardLabelId = `muscle-card-${muscle.replace(/\s+/g, '-').toLowerCase()}`;
 
   return (
@@ -77,13 +80,12 @@ function MuscleLiftCardInner({ muscle, lifts, open, onToggle, accent }: MuscleLi
             style={{
               fontFamily: "'Bebas Neue', 'Inter', system-ui, sans-serif",
               fontSize: 18,
-              color: totalDeltaRounded > 0 ? accent : 'var(--text-secondary)',
+              color: totalVolume > 0 ? accent : 'var(--text-secondary)',
               fontVariantNumeric: 'tabular-nums',
               lineHeight: 1,
             }}
           >
-            {totalDeltaRounded > 0 ? '+' : ''}
-            {totalDeltaRounded}
+            {totalVolume.toLocaleString('en-US')}
           </div>
           <div
             style={{
@@ -93,7 +95,7 @@ function MuscleLiftCardInner({ muscle, lifts, open, onToggle, accent }: MuscleLi
               textTransform: 'uppercase',
             }}
           >
-            total lb
+            lb moved
           </div>
         </div>
         <span

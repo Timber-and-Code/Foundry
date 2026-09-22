@@ -27,6 +27,7 @@ import type {
 import type { ExerciseEntry } from '../data/exerciseDB';
 import { isEndedEarly, weeksReached } from './archiveRules';
 import { healCustomNames } from './customExercises';
+import { findSliceByExId, resolveExerciseSlice } from './exerciseSlice';
 
 // ─── Public display shapes ──────────────────────────────────────────────────
 
@@ -40,6 +41,12 @@ export interface MuscleLiftEntry {
   current: number;
   /** Best e1RM observed across all weeks in this meso (Epley). 0 if no sets. */
   pr: number;
+  /**
+   * Total lb moved this meso: Σ weight × reps over every working set, all
+   * weeks. The meaningful number from week 1, when start → current is still
+   * 0 lb.
+   */
+  volume: number;
 }
 
 /** Current-meso aggregate, grouped by muscle for the Meso History sub-tab. */
@@ -126,7 +133,7 @@ function setReps(s: WorkoutSet | undefined): number {
  * slice has no non-warmup sets with both a positive weight and positive
  * reps logged.
  */
-function topWorkingWeight(slice: Record<string, WorkoutSet> | undefined): number {
+export function topWorkingWeight(slice: Record<string, WorkoutSet> | undefined): number {
   if (!slice) return NaN;
   let best = -Infinity;
   for (const s of Object.values(slice)) {
@@ -154,34 +161,18 @@ function bestE1RMInSlice(slice: Record<string, WorkoutSet> | undefined): number 
   return best;
 }
 
-/** Find a slice in DayData whose sets carry `_exId === id`. */
-function findSliceByExId(
-  data: DayData,
-  id: string | undefined,
-): Record<string, WorkoutSet> | undefined {
-  if (!id) return undefined;
-  const stampOf = (set: unknown): string | null => {
-    if (!set || typeof set !== 'object') return null;
-    const stamp = (set as Record<string, unknown>)._exId;
-    return typeof stamp === 'string' && stamp.length > 0 ? stamp : null;
-  };
-  for (const slice of Object.values(data)) {
-    if (!slice) continue;
-    const entries = Object.entries(slice);
-    if (!entries.some(([, s]) => stampOf(s) === id)) continue;
-    // Mixed slice (swap left the old exercise's sets behind and new ones
-    // were logged alongside): keep only this exercise's sets, or its
-    // start/current/PR inherit the other lift's numbers.
-    const hasForeign = entries.some(([, s]) => {
-      const stamp = stampOf(s);
-      return stamp != null && stamp !== id;
-    });
-    if (!hasForeign) return slice as Record<string, WorkoutSet>;
-    return Object.fromEntries(
-      entries.filter(([, s]) => stampOf(s) === id),
-    ) as Record<string, WorkoutSet>;
+/** Σ weight × reps over the working sets of one exercise slice. 0 if none. */
+function sliceVolume(slice: Record<string, WorkoutSet> | undefined): number {
+  if (!slice) return 0;
+  let total = 0;
+  for (const s of Object.values(slice)) {
+    if (!s || s.warmup) continue;
+    const w = setWeight(s);
+    const r = setReps(s);
+    if (!isFinite(w) || w <= 0 || !isFinite(r) || r <= 0) continue;
+    total += w * r;
   }
-  return undefined;
+  return total;
 }
 
 // ─── Public: current meso aggregation ───────────────────────────────────────
@@ -226,31 +217,18 @@ export function aggregateLiftsByMuscle(
       let startW = NaN;
       let currentW = NaN;
       let pr = 0;
+      let volume = 0;
       let anyData = false;
 
       for (let w = 0; w < totalWeeks; w++) {
         const wd = weekData(d, w) || {};
-        // Prefer the slice whose sets carry _exId === ex.id (survives
-        // reorder/superset shifts between weeks); fall back to positional
-        // only when the positional slice is unstamped — a slice stamped as
-        // a different exercise is that exercise's data (post-swap
-        // leftovers) and would poison this lift's start/current/PR.
-        let slice: Record<string, WorkoutSet> | undefined;
-        if (ex.id != null) slice = findSliceByExId(wd, String(ex.id));
-        if (!slice) {
-          const positional = (wd[exIdx] as Record<string, WorkoutSet> | undefined) || undefined;
-          const stampedAsOther =
-            ex.id != null &&
-            positional &&
-            Object.values(positional).some((s) => {
-              const stamp = (s as unknown as Record<string, unknown>)?._exId;
-              return typeof stamp === 'string' && stamp.length > 0 && stamp !== String(ex.id);
-            });
-          if (!stampedAsOther) slice = positional;
-        }
+        // By _exId stamp (survives reorder/superset shifts and swaps);
+        // positional only when unstamped. See utils/exerciseSlice.
+        const slice = resolveExerciseSlice(wd, ex.id, exIdx);
         const top = topWorkingWeight(slice);
         const e1 = bestE1RMInSlice(slice);
         if (e1 > pr) pr = e1;
+        volume += sliceVolume(slice);
         if (isFinite(top) && top > 0) {
           anyData = true;
           if (w === 0 || !isFinite(startW)) {
@@ -275,14 +253,16 @@ export function aggregateLiftsByMuscle(
       const current = isFinite(currentW) ? currentW : 0;
       const prRounded = Math.round(pr);
       if (!existing) {
-        muscleMap.set(key, { name: ex.name, start, current, pr: prRounded });
+        muscleMap.set(key, { name: ex.name, start, current, pr: prRounded, volume });
       } else {
-        // Same exercise appears on a later day too — merge by max.
+        // Same exercise appears on a later day too — merge by max; the
+        // tonnage adds up, since both days' sets were lifted.
         muscleMap.set(key, {
           name: ex.name,
           start: existing.start || start,
           current: Math.max(existing.current, current),
           pr: Math.max(existing.pr, prRounded),
+          volume: existing.volume + volume,
         });
       }
     }

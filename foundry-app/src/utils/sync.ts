@@ -4,6 +4,7 @@ import { store, wipeMesoSessionData } from './storage.js';
 import { emit } from './events';
 import { hasLoggedWork, isLegacyTwin } from './archiveRules';
 import { customRowFields, exerciseDisplayName, isCustomId, rememberCustomExercise } from './customExercises';
+import { dayTagFromLabel } from './dayTag';
 import type { Profile, ReadinessEntry, DayData, MesoMember, FriendWorkoutData, CardioPreset, ArchiveEntry } from '../types';
 // validateDayData + validateProfile are imported by other modules; sync.ts
 // will use them again once workouts/readiness chunks migrate to the
@@ -688,7 +689,10 @@ async function pullTrainingStructure(mesoId: string, _userId?: string): Promise<
       return {
         dayNum: td.day_index + 1,
         label: td.label,
-        tag: (exercises[0]?.tag as string) || '',
+        // The label names the split ("Full Body B" → FULL). The first
+        // exercise's tag is only a fallback: on a full-body day that opens
+        // with squats it says LEGS.
+        tag: dayTagFromLabel(td.label) || (exercises[0]?.tag as string) || '',
         muscles: '',
         note: '',
         cardio: null,
@@ -1441,11 +1445,26 @@ export function mergeArchiveEntries<T extends { id: string; archivedAt?: string 
 // in memory, not round trips.
 async function pullMesoArchive(userId: string, activeMesoId: string | null): Promise<void> {
   try {
-    const { data: mesoRows, error: mesoError } = await supabase
+    // Mesos this user trained in: their own AND the shared ones they joined
+    // as a member. A member's sessions and sets carry their own user_id, so
+    // the shared meso is their history too — filtering on ownership left a
+    // member's new meso with nothing to train off.
+    const { data: memberRows, error: memberError } = await supabase
+      .from('mesocycle_members')
+      .select('mesocycle_id')
+      .eq('user_id', userId);
+    if (memberError) throw memberError;
+    const memberIds = ((memberRows || []) as { mesocycle_id: string }[])
+      .map((r) => r.mesocycle_id)
+      .filter((id) => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id));
+
+    const mesoQuery = supabase
       .from('mesocycles')
-      .select('id, name, status, weeks_count, days_per_week, split_type, started_at, completed_at, created_at, updated_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .select('id, name, status, weeks_count, days_per_week, split_type, started_at, completed_at, created_at, updated_at');
+    const { data: mesoRows, error: mesoError } = await (memberIds.length > 0
+      ? mesoQuery.or(`user_id.eq.${userId},id.in.(${memberIds.join(',')})`)
+      : mesoQuery.eq('user_id', userId)
+    ).order('created_at', { ascending: false });
 
     if (mesoError) throw mesoError;
 

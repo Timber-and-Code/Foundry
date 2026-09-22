@@ -8,11 +8,11 @@ import MuscleLiftCard from '../MuscleLiftCard';
 
 describe('MuscleLiftCard', () => {
   const lifts = [
-    { name: 'Bench Press', start: 200, current: 220, pr: 260 },
-    { name: 'Incline DB Press', start: 70, current: 85, pr: 90 },
+    { name: 'Bench Press', start: 200, current: 220, pr: 260, volume: 9800 },
+    { name: 'Incline DB Press', start: 70, current: 85, pr: 90, volume: 3650 },
   ];
 
-  it('renders the muscle heading + lift count + total delta when collapsed', () => {
+  it('renders the muscle heading + lift count + lb moved when collapsed', () => {
     render(
       <MuscleLiftCard
         muscle="Chest"
@@ -24,8 +24,11 @@ describe('MuscleLiftCard', () => {
     );
     expect(screen.getByText('Chest')).toBeInTheDocument();
     expect(screen.getByText('2 lifts')).toBeInTheDocument();
-    // Total delta = (220-200) + (85-70) = 20 + 15 = 35
-    expect(screen.getByText('+35')).toBeInTheDocument();
+    // Tonnage this meso = 9,800 + 3,650. The header used to sum the
+    // start → current deltas, which is 0 lb all through week 1.
+    expect(screen.getByText('13,450')).toBeInTheDocument();
+    expect(screen.getByText('lb moved')).toBeInTheDocument();
+    expect(screen.queryByText('+35')).not.toBeInTheDocument();
     // Individual lifts are NOT visible when collapsed.
     expect(screen.queryByText('Bench Press')).not.toBeInTheDocument();
   });
