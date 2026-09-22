@@ -60,8 +60,12 @@ function fmtDuration(secs: number | null): string | null {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}` : `${m} min`;
 }
 
-/** Heaviest working set per exercise, e.g. "225 × 5". */
-function topSets(stats: WorkoutCompleteStats, limit: number) {
+/**
+ * Heaviest working set per exercise, e.g. "225 × 5", in session order.
+ * Every lift with a working set is included — the card used to keep four
+ * and drop the rest, which read as "I did four exercises".
+ */
+export function topSets(stats: WorkoutCompleteStats) {
   return (stats.breakdown ?? [])
     .map((ex) => {
       const working = ex.sets.filter((s) => !s.warmup && s.reps > 0);
@@ -69,9 +73,21 @@ function topSets(stats: WorkoutCompleteStats, limit: number) {
       const top = working.reduce((a, b) => (b.weight > a.weight || (b.weight === a.weight && b.reps > a.reps) ? b : a));
       return { name: ex.name, anchor: !!ex.anchor, text: top.weight > 0 ? `${fmt(top.weight)} × ${top.reps}` : `${top.reps} reps` };
     })
-    .filter((x): x is { name: string; anchor: boolean; text: string } => x !== null)
-    .sort((a, b) => Number(b.anchor) - Number(a.anchor))
-    .slice(0, limit);
+    .filter((x): x is { name: string; anchor: boolean; text: string } => x !== null);
+}
+
+/**
+ * Vertical room the session card has for its lift list, after the header,
+ * day label, hero number and stat row. Rows scale down to fit the count:
+ * up to five lifts render full size, six at ~90%, eight at ~65%, twelve at ~50%.
+ */
+const LIST_BUDGET = 600;
+const ROW_H = 80;
+const ROW_GAP = 36;
+export function listScale(count: number): number {
+  if (count <= 0) return 1;
+  const natural = count * ROW_H + (count - 1) * ROW_GAP;
+  return Math.max(0.5, Math.min(1, LIST_BUDGET / natural));
 }
 
 function Frame({ children, eyebrow }: { children: React.ReactNode; eyebrow: string }) {
@@ -119,8 +135,8 @@ function Frame({ children, eyebrow }: { children: React.ReactNode; eyebrow: stri
       <div
         style={{
           position: 'relative',
-          marginTop: 120,
-          fontSize: 34,
+          marginTop: 88,
+          fontSize: 42,
           fontWeight: 800,
           letterSpacing: '0.2em',
           color: ORANGE,
@@ -180,16 +196,24 @@ function sessionStats(stats: WorkoutCompleteStats) {
   return items;
 }
 
-function ListRows({ rows }: { rows: { name: string; right: string; rightColor?: string; sub?: string }[] }) {
+function ListRows({
+  rows,
+  scale = 1,
+}: {
+  rows: { name: string; right: string; rightColor?: string; sub?: string }[];
+  /** Shrinks every row uniformly so a long session still fits the frame. */
+  scale?: number;
+}) {
+  const px = (n: number) => Math.round(n * scale);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: px(ROW_GAP) }}>
       {rows.map((r) => (
         <div key={r.name} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 30 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 48, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 560 }}>{r.name}</div>
-            {r.sub && <div style={{ marginTop: 8, fontSize: 34, color: MUTED, fontWeight: 600 }}>{r.sub}</div>}
+            <div style={{ fontSize: px(48), fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 600 }}>{r.name}</div>
+            {r.sub && <div style={{ marginTop: px(8), fontSize: px(34), color: MUTED, fontWeight: 600 }}>{r.sub}</div>}
           </div>
-          <div style={{ fontFamily: DISPLAY, fontSize: 80, lineHeight: 1, color: r.rightColor ?? CREAM, whiteSpace: 'nowrap' }}>{r.right}</div>
+          <div style={{ fontFamily: DISPLAY, fontSize: px(ROW_H), lineHeight: 1, color: r.rightColor ?? CREAM, whiteSpace: 'nowrap' }}>{r.right}</div>
         </div>
       ))}
     </div>
@@ -198,22 +222,25 @@ function ListRows({ rows }: { rows: { name: string; right: string; rightColor?: 
 
 function SessionCard({ data }: { data: ShareCardData }) {
   const { stats } = data;
-  const lifts = topSets(stats, 4);
+  // Every lift, so the card reads as the whole session. The day label and
+  // hero number gave up a little height to make room; the week/phase line
+  // above them grew.
+  const lifts = topSets(stats);
   return (
     <Frame eyebrow={`Week ${data.weekIdx + 1} · ${data.phase}`}>
-      <div style={{ marginTop: 18, fontFamily: DISPLAY, fontSize: 190, lineHeight: 0.9, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+      <div style={{ marginTop: 16, fontFamily: DISPLAY, fontSize: 150, lineHeight: 0.9, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
         {data.dayLabel}
       </div>
-      <div style={{ marginTop: 70, display: 'flex', alignItems: 'baseline', gap: 24 }}>
-        <div style={{ fontFamily: DISPLAY, fontSize: 250, lineHeight: 0.85, color: ORANGE }}>{fmt(Math.round(stats.volume))}</div>
+      <div style={{ marginTop: 48, display: 'flex', alignItems: 'baseline', gap: 24 }}>
+        <div style={{ fontFamily: DISPLAY, fontSize: 220, lineHeight: 0.85, color: ORANGE }}>{fmt(Math.round(stats.volume))}</div>
         <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '0.16em', color: MUTED }}>LB<br />MOVED</div>
       </div>
-      <div style={{ marginTop: 70 }}>
+      <div style={{ marginTop: 48 }}>
         <StatRow items={sessionStats(stats)} />
       </div>
       {lifts.length > 0 && (
-        <div style={{ marginTop: 70 }}>
-          <ListRows rows={lifts.map((l) => ({ name: l.name, right: l.text }))} />
+        <div style={{ marginTop: 52 }}>
+          <ListRows rows={lifts.map((l) => ({ name: l.name, right: l.text }))} scale={listScale(lifts.length)} />
         </div>
       )}
     </Frame>
