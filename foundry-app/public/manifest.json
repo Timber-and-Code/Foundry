@@ -1,7 +1,7 @@
 {
   "name": "The Foundry",
   "short_name": "Foundry",
-  "description": "Premium hypertrophy training — periodized mesocycles, auto-progression, and coaching intelligence.",
+  "description": "Premium hypertrophy training \u2014 periodized mesocycles, auto-progression, and coaching intelligence.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -22,14 +22,10 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
-    },
-    {
-      "src": "/icon-512.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

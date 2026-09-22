@@ -21,11 +21,13 @@ const stats = (n: number) =>
   }) as unknown as WorkoutCompleteStats;
 
 describe('share card lift list', () => {
-  it('includes every lift, in session order, with its top working set', () => {
+  it('includes every lift, in session order, with set count and top working set', () => {
     const rows = topSets(stats(7));
     expect(rows).toHaveLength(7);
     expect(rows.map((r) => r.name)).toEqual(['Lift 1', 'Lift 2', 'Lift 3', 'Lift 4', 'Lift 5', 'Lift 6', 'Lift 7']);
-    expect(rows[0].text).toBe('100 × 8');
+    // sets × weight × reps — two working sets, warmup excluded.
+    expect(rows[0].sets).toBe(2);
+    expect(rows[0].text).toBe('2 × 100 × 8');
   });
 
   it('drops a lift with only warmups', () => {

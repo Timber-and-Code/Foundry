@@ -61,9 +61,11 @@ function fmtDuration(secs: number | null): string | null {
 }
 
 /**
- * Heaviest working set per exercise, e.g. "225 × 5", in session order.
- * Every lift with a working set is included — the card used to keep four
- * and drop the rest, which read as "I did four exercises".
+ * Working sets × heaviest working set per exercise, e.g. "4 × 225 × 5" —
+ * the same sets × weight × reps order the app's own LAST WK chip and
+ * history note use. In session order, every lift with a working set: the
+ * card used to keep four and drop the rest, which read as "I did four
+ * exercises", and showed the top set alone, which read as one set.
  */
 export function topSets(stats: WorkoutCompleteStats) {
   return (stats.breakdown ?? [])
@@ -71,7 +73,8 @@ export function topSets(stats: WorkoutCompleteStats) {
       const working = ex.sets.filter((s) => !s.warmup && s.reps > 0);
       if (working.length === 0) return null;
       const top = working.reduce((a, b) => (b.weight > a.weight || (b.weight === a.weight && b.reps > a.reps) ? b : a));
-      return { name: ex.name, anchor: !!ex.anchor, text: top.weight > 0 ? `${fmt(top.weight)} × ${top.reps}` : `${top.reps} reps` };
+      const set = top.weight > 0 ? `${fmt(top.weight)} × ${top.reps}` : `${top.reps} reps`;
+      return { name: ex.name, anchor: !!ex.anchor, sets: working.length, text: `${working.length} × ${set}` };
     })
     .filter((x): x is { name: string; anchor: boolean; text: string } => x !== null);
 }
@@ -212,7 +215,7 @@ function ListRows({
       {rows.map((r) => (
         <div key={r.name} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 30 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: px(48), fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 600 }}>{r.name}</div>
+            <div style={{ fontSize: px(48), fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 520 }}>{r.name}</div>
             {r.sub && <div style={{ marginTop: px(8), fontSize: px(34), color: MUTED, fontWeight: 600 }}>{r.sub}</div>}
           </div>
           <div style={{ fontFamily: DISPLAY, fontSize: px(ROW_H), lineHeight: 1, color: r.rightColor ?? CREAM, whiteSpace: 'nowrap' }}>{r.right}</div>
