@@ -5,7 +5,7 @@ The share image, plus the brand icons.
 ## Share image
 - **Every lift is on the Session card.** It kept four and dropped the rest,
   so a six-exercise session shared as four. Every lift with a working set
-  is listed now, in session order, as **sets × weight × reps** (`4 × 225 × 6`)
+  is listed now, in session order, as **sets-weight×reps** (`4-225×6`)
   — the same order as the LAST WK chip. The day label and hero number gave
   up a little height to pay for it, the week/phase line grew, and rows
   scale to the count: five at full size, six at about 90%, eight at about
