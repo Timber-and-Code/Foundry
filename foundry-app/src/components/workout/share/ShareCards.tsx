@@ -129,7 +129,9 @@ function Frame({ children, eyebrow }: { children: React.ReactNode; eyebrow: stri
         }}
       />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 26 }}>
-        <img src="/icon-512.png" alt="" width={104} height={104} style={{ width: 104, height: 104, borderRadius: 24 }} />
+        {/* The forged F — the same file as the App Store icon. /icon-512.png is
+            the old PWA glyph and no longer the brand. */}
+        <img src="/foundry-f.png" alt="" width={120} height={120} style={{ width: 120, height: 120, borderRadius: 26, objectFit: 'cover' }} />
         <div style={{ fontFamily: DISPLAY, fontSize: 60, letterSpacing: '0.14em', lineHeight: 1 }}>THE FOUNDRY</div>
       </div>
       <div
