@@ -42,9 +42,12 @@ export function buildWeekRecap(weekIdx: number, completed: Set<string>): WeekCom
     try {
       const wd = JSON.parse(raw);
       day.exercises.forEach((ex: Exercise, exIdx: number) => {
-        const exData = wd[exIdx] || {};
+        // By _exId stamp (slot fallback for legacy data), same as the
+        // meso recap below: positional reads credited another lift's sets
+        // to this one after a reorder or swap.
+        const exData = findPrevSlotForExercise(wd, ex.id, exIdx);
         let thisBest = 0;
-        Object.values(exData as Record<string, WorkoutSet>).forEach((s) => {
+        Object.values(exData as unknown as Record<string, WorkoutSet>).forEach((s) => {
           if (!s || !s.reps || s.reps === '' || s.repsSuggested) return;
           totalSets++;
           const w = parseFloat(String(s.weight || 0));
@@ -60,7 +63,7 @@ export function buildWeekRecap(weekIdx: number, completed: Set<string>): WeekCom
           if (!pr) continue;
           try {
             const pwd = JSON.parse(pr);
-            Object.values(pwd[exIdx] as Record<string, WorkoutSet> || {}).forEach((s) => {
+            Object.values(findPrevSlotForExercise(pwd, ex.id, exIdx) as unknown as Record<string, WorkoutSet>).forEach((s) => {
               if (!s || !s.reps) return;
               const w = parseFloat(String(s.weight || 0));
               const r = parseInt(String(s.reps));

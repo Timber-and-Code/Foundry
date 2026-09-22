@@ -2,6 +2,7 @@ import { store } from './storage';
 import { validateDayData } from './validate';
 import { getMeso } from '../data/constants';
 import { loadSessionDuration, loadSparklineData } from './training';
+import { resolveExerciseSlice } from './exerciseSlice';
 import { tokens } from '../styles/tokens';
 import type { TrainingDay, Exercise, WorkoutSet, DayData } from '../types';
 
@@ -86,7 +87,9 @@ export function calcMuscleSetsByTag(
       const raw = store.get(`foundry:day${dayIdx}:week${w}`);
       const wd: DayData = raw ? validateDayData(JSON.parse(raw)) : {};
       day.exercises.forEach((ex: Exercise, exIdx: number) => {
-        const exData = wd[exIdx] || {};
+        // By _exId stamp, so a reordered or swapped lift's sets count
+        // toward ITS muscle, not whatever sits in the slot today.
+        const exData = resolveExerciseSlice(wd, ex.id, exIdx) || {};
         const filledSets = Object.values(exData).filter(
           (s: WorkoutSet) => s && s.reps && s.reps !== '',
         ).length;
@@ -192,7 +195,7 @@ export function buildPRTimeline(
   activeDays.forEach((day, dayIdx) => {
     day.exercises.forEach((ex, exIdx) => {
       if (!ex.anchor) return;
-      const pts = loadSparklineData(dayIdx, exIdx, mesoWeeks + 1);
+      const pts = loadSparklineData(dayIdx, exIdx, mesoWeeks + 1, ex.id);
       if (pts.length < 2) return;
 
       let bestSoFar = 0;
@@ -234,7 +237,7 @@ export function loadAnchorCharts(activeDays: TrainingDay[]): AnchorChartData[] {
   activeDays.forEach((day, dayIdx) => {
     day.exercises.forEach((ex, exIdx) => {
       if (!ex.anchor) return;
-      const pts = loadSparklineData(dayIdx, exIdx, meso.totalWeeks);
+      const pts = loadSparklineData(dayIdx, exIdx, meso.totalWeeks, ex.id);
       if (!pts.length) return;
       const best = pts.reduce((a, b) => (b.e1rm > a.e1rm ? b : a), pts[0]);
       const latest = pts[pts.length - 1];

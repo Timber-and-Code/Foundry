@@ -1,5 +1,6 @@
 import { store } from './storage';
 import { validateProfile } from './validate';
+import { resolveExerciseSlice } from './exerciseSlice';
 import { loadMobilitySession } from './persistence';
 import { syncProfileToSupabase, syncBodyWeightToSupabase, syncMesocycleToSupabase, ensureTrainingStructureRemote } from './sync';
 import type {
@@ -7,6 +8,7 @@ import type {
   Exercise,
   BodyWeightEntry,
   WorkoutDaysHistoryEntry,
+  DayData,
 } from '../types';
 
 // ─── WARMUP TYPES ────────────────────────────────────────────────────────────
@@ -382,6 +384,12 @@ export function loadSparklineData(
   dayIdx: number,
   exIdx: number,
   mesoWeeks: number = 7,
+  /**
+   * The exercise's id. With it, each week's sets are resolved by their
+   * `_exId` stamp, so a reorder or swap mid-meso does not graft another
+   * lift's weeks onto this one. Without it, the slot is read positionally.
+   */
+  exId?: string | number | null,
 ): SparklinePoint[] {
   const weeks = mesoWeeks;
   const pts: SparklinePoint[] = [];
@@ -389,13 +397,14 @@ export function loadSparklineData(
     const raw = store.get(`foundry:day${dayIdx}:week${w}`);
     if (!raw) continue;
     try {
-      const exData = (JSON.parse(raw) as Record<string, Record<string, { warmup?: boolean; weight?: string; reps?: string }>>)[exIdx] || {};
+      const wd = JSON.parse(raw) as DayData;
+      const exData = (exId != null ? resolveExerciseSlice(wd, exId, exIdx) : wd[exIdx]) || {};
       let bestWeight = 0,
         bestReps = 0;
       Object.values(exData).forEach((s) => {
         if (!s || s.warmup) return;
-        const wt = parseFloat(s.weight || '0') || 0;
-        const rp = parseInt(s.reps || '0') || 0;
+        const wt = parseFloat(String(s.weight ?? '0')) || 0;
+        const rp = parseInt(String(s.reps ?? '0')) || 0;
         if (wt > bestWeight) {
           bestWeight = wt;
           bestReps = rp;

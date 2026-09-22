@@ -1,13 +1,14 @@
 import { store, wipeMesoSessionData } from './storage';
 import { getReadinessScore } from './analytics';
 import { validateArchive } from './validate';
+import { resolveExerciseSlice } from './exerciseSlice';
 import {
   archiveMesocycleRemote,
   detachActiveMesoRemote,
   completeMesocycleRemote,
 } from './sync';
 import { isEmptyMeso, type ArchiveStatus } from './archiveRules';
-import type { Profile, ArchiveEntry, Exercise, TrainingDay } from '../types';
+import type { Profile, ArchiveEntry, Exercise, TrainingDay, DayData } from '../types';
 
 // ─── ARCHIVE HELPERS ─────────────────────────────────────────────────────────
 
@@ -195,8 +196,10 @@ export function buildMesoTransition(profile: Profile, prog: TrainingDay[]): Meso
         const raw = store.get(`foundry:day${d}:week${w}`);
         if (!raw) continue;
         try {
-          const wd = JSON.parse(raw) as Record<string, Record<string, { weight?: string | number }>>;
-          Object.values(wd[exIdx] || {}).forEach((s) => {
+          const wd = JSON.parse(raw) as DayData;
+          // By _exId stamp: the anchor's own sets, not whatever sat in
+          // the slot that week.
+          Object.values(resolveExerciseSlice(wd, ex.id, exIdx) || {}).forEach((s) => {
             const wVal = parseFloat(String(s?.weight || 0));
             if (wVal > peakWeight) peakWeight = wVal;
           });
