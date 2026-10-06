@@ -4,6 +4,7 @@ import Sheet from '../ui/Sheet';
 import { CARDIO_WORKOUTS, MOBILITY_PROTOCOLS, TAG_ACCENT } from '../../data/constants';
 import { store, loadCardioSession, isSkipped, setSkipped } from '../../utils/store';
 import { syncSkippedToSupabase } from '../../utils/sync';
+import { sessionHasLoggedWork, completeLeftOpenSession } from '../../utils/leftOpen';
 import type { Profile, TrainingDay } from '../../types';
 
 export interface DayActionSheetProps {
@@ -337,6 +338,23 @@ function DayActionSheet(props: DayActionSheetProps) {
                   onClick={() => {
                     setSkipped(dIdx, wIdx, false);
                     void syncSkippedToSupabase(dIdx, wIdx, false);
+                    onSkipChanged?.();
+                    onClose();
+                  }}
+                />
+              );
+            }
+            // A session with logged work is never skipped. The way out is to
+            // close it with what was logged (dated the day it was trained)
+            // or to finish it from Home.
+            if (sessionHasLoggedWork(dIdx, wIdx)) {
+              return (
+                <ActionButton
+                  key={`complete-${sk}`}
+                  label="Mark complete as logged"
+                  description="This session has logged sets, so it can't be skipped. Record it as done with what you logged, or finish it from Home."
+                  onClick={() => {
+                    completeLeftOpenSession(dIdx, wIdx, sessionLabel);
                     onSkipChanged?.();
                     onClose();
                   }}

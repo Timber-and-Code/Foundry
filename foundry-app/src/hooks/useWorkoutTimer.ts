@@ -19,9 +19,11 @@ export function useWorkoutTimer(opts: {
 
   // A single lifting session plausibly spans hours, not days. A persisted
   // start older than this is a leftover from an abandoned session (e.g. the
-  // user fell off mid-workout for a layoff) — re-anchor to "now" instead of
-  // restoring it and reporting a multi-week elapsed/duration (the "1700 hrs"
-  // bug). Logged sets are untouched; only the clock restarts.
+  // user fell off mid-workout for a layoff) — re-anchor the on-screen clock
+  // to "now" instead of reporting a multi-week elapsed/duration (the
+  // "1700 hrs" bug). Logged sets are untouched, and so is the STORED start:
+  // it is the record of when the session really began, which the left-open
+  // rule (utils/leftOpen) and the Supabase session row both depend on.
   const STALE_SESSION_START_MS = 12 * 60 * 60 * 1000;
 
   const sessionStartRef = useRef<number | null>(null);
@@ -40,11 +42,9 @@ export function useWorkoutTimer(opts: {
     if (savedStart && !isDone && !isLocked) {
       const parsed = parseInt(savedStart, 10);
       if (Number.isFinite(parsed) && Date.now() - parsed > STALE_SESSION_START_MS) {
-        // Stale leftover from an abandoned sitting — restart the clock and
-        // drop the (equally stale) strength-end stamp.
-        const now = Date.now();
-        sessionStartRef.current = now;
-        store.set(startKey, String(now));
+        // Stale leftover from an abandoned sitting — restart the on-screen
+        // clock only, and drop the (equally stale) strength-end stamp.
+        sessionStartRef.current = Date.now();
         store.set(strengthEndKey, '');
         return;
       }

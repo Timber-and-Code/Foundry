@@ -26,6 +26,15 @@ vi.mock('../../../utils/sync', () => ({
   syncSkippedToSupabase: mockSyncSkipped,
 }));
 
+const { mockHasWork, mockCompleteLeftOpen } = vi.hoisted(() => ({
+  mockHasWork: vi.fn((_d: number, _w: number): boolean => false),
+  mockCompleteLeftOpen: vi.fn(),
+}));
+vi.mock('../../../utils/leftOpen', () => ({
+  sessionHasLoggedWork: mockHasWork,
+  completeLeftOpenSession: mockCompleteLeftOpen,
+}));
+
 vi.mock('../../../data/constants', () => ({
   CARDIO_WORKOUTS: [
     { id: 'easy_walk', label: 'Easy Walk', description: 'A walk.', category: 'Endurance' },
@@ -72,6 +81,7 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     onAddWorkout: vi.fn(),
     onMoveSession: vi.fn(),
     onViewNotes: vi.fn(),
+    onSkipChanged: vi.fn(),
     ...overrides,
   };
 }
@@ -80,6 +90,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockStoreGet.mockReturnValue(null);
   mockLoadCardioSession.mockReturnValue(null);
+  mockHasWork.mockReturnValue(false);
 });
 
 describe('DayActionSheet', () => {
@@ -127,6 +138,24 @@ describe('DayActionSheet', () => {
     expect(screen.queryByText('Add additional workout')).toBeNull();
     expect(screen.getByText('Add additional cardio')).toBeDefined();
     expect(screen.queryByText('Move this workout')).toBeNull();
+  });
+
+  it('a session with logged work offers Mark complete as logged instead of Skip', () => {
+    mockHasWork.mockImplementation((d, w) => d === 0 && w === 1);
+    const props = makeProps({ sessionEntry: '0:1' });
+    render(<DayActionSheet {...props} />);
+    expect(screen.queryByText('Skip this workout')).toBeNull();
+    fireEvent.click(screen.getByText('Mark complete as logged'));
+    expect(mockCompleteLeftOpen).toHaveBeenCalledWith(0, 1, 'Push Day');
+    expect(props.onSkipChanged).toHaveBeenCalled();
+    expect(props.onClose).toHaveBeenCalled();
+  });
+
+  it('a session with no logged work still offers Skip', () => {
+    mockHasWork.mockReturnValue(false);
+    const props = makeProps({ sessionEntry: '0:1' });
+    render(<DayActionSheet {...props} />);
+    expect(screen.getByText('Skip this workout')).toBeDefined();
   });
 
   it('completed session shows View + recap action, no move', () => {

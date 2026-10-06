@@ -40,6 +40,9 @@ interface FoundryEventMap {
   // App renders MesoConflictSheet, which runs the deferred pull chain
   // after the user chooses.
   'foundry:meso-conflict': void;
+  // A session was closed out from outside DayView (left-open card, Schedule).
+  // useMesoState runs the same completion handler DayView's Finish does.
+  'foundry:session-completed': { dayIdx: number; weekIdx: number };
 }
 
 type EventName = keyof FoundryEventMap;

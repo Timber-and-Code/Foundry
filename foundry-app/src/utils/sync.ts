@@ -1351,6 +1351,13 @@ async function pullWorkoutHistory(mesoId: string, userId: string): Promise<void>
           localStorage.setItem(`foundry:done:d${session.day_number}:w${session.week_number}`, '1');
           if (session.completed_at) {
             const d = new Date(session.completed_at);
+            // Local stamp wins when present: rows written before the flush
+            // fix carry started_at here, and the device that finished the
+            // session knows the real time.
+            const atKey = `foundry:completedAt:d${session.day_number}:w${session.week_number}`;
+            if (!localStorage.getItem(atKey) && !Number.isNaN(d.getTime())) {
+              localStorage.setItem(atKey, d.toISOString());
+            }
             const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             localStorage.setItem(
               `foundry:completedDate:d${session.day_number}:w${session.week_number}`,
@@ -3492,12 +3499,20 @@ export async function flushWorkoutDayWeekKey(
   const isDone = localStorage.getItem(`foundry:done:d${dayIdx}:w${weekIdx}`) === '1';
   const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
 
+  // The real completion time, written by markComplete. This flush runs
+  // after every debounced set write — including the one right after
+  // Finish — and used to re-upsert completed_at = started_at, so every
+  // finished session on the server read as a zero-length workout.
+  const completedAtIso = localStorage.getItem(`foundry:completedAt:d${dayIdx}:w${weekIdx}`);
+  const completedAt = isDone
+    ? completedAtIso
+      || (sessionStart ? new Date(parseInt(sessionStart, 10)).toISOString() : null)
+    : null;
+
   await upsertWorkoutSessionRemote(dayIdx, weekIdx, {
     sessionId,
     startedAt: sessionStart ? new Date(parseInt(sessionStart, 10)).toISOString() : null,
-    completedAt: isDone && sessionStart
-      ? new Date(parseInt(sessionStart, 10)).toISOString()
-      : null,
+    completedAt,
     isComplete: isDone,
   });
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { TrainingDay } from '../types';
 import type { WeekCompleteModalData } from '../components/WeekCompleteModal';
 import { on, emit } from '../utils/events';
@@ -165,6 +165,17 @@ export function useMesoState({ setView, setOnboarded }: UseMesoStateParams) {
       }
     }
   };
+
+  // A session closed out away from DayView (the left-open card on Home, the
+  // Schedule sheet) must run the same completion path Finish does — week
+  // recap, week roll-over, onboarding beats — not just flip a flag.
+  const handleCompleteRef = useRef(handleComplete);
+  handleCompleteRef.current = handleComplete;
+  useEffect(() => {
+    return on('foundry:session-completed', ({ dayIdx, weekIdx }) => {
+      handleCompleteRef.current(dayIdx, weekIdx);
+    });
+  }, []);
 
   const handleReset = () => {
     archiveCurrentMeso(profile, { generateProgram, EXERCISE_DB: getExerciseDB(), status: 'abandoned' });

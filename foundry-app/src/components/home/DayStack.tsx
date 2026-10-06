@@ -2,6 +2,7 @@ import React from 'react';
 import { tokens } from '../../styles/tokens';
 import { store, loadCardioSession, isSkipped, setSkipped } from '../../utils/store';
 import { syncSkippedToSupabase } from '../../utils/sync';
+import { sessionHasLoggedWork, completeLeftOpenSession } from '../../utils/leftOpen';
 import { CARDIO_WORKOUTS } from '../../data/constants';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
@@ -189,14 +190,26 @@ function DayStack({
                     accent
                     onClick={() => onMoveSession(sk)}
                   />
-                  <ActionChip
-                    label={skipped ? 'UNSKIP' : 'SKIP'}
-                    onClick={() => {
-                      setSkipped(dIdx, wIdx, !skipped);
-                      void syncSkippedToSupabase(dIdx, wIdx, !skipped);
-                      onSkipChanged();
-                    }}
-                  />
+                  {/* A session with logged work is never skipped — it is
+                      closed out with what was logged instead. */}
+                  {!skipped && sessionHasLoggedWork(dIdx, wIdx) ? (
+                    <ActionChip
+                      label="MARK DONE"
+                      onClick={() => {
+                        completeLeftOpenSession(dIdx, wIdx, day?.label as string | undefined);
+                        onSkipChanged();
+                      }}
+                    />
+                  ) : (
+                    <ActionChip
+                      label={skipped ? 'UNSKIP' : 'SKIP'}
+                      onClick={() => {
+                        setSkipped(dIdx, wIdx, !skipped);
+                        void syncSkippedToSupabase(dIdx, wIdx, !skipped);
+                        onSkipChanged();
+                      }}
+                    />
+                  )}
                 </>
               )}
             </div>

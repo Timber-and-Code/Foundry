@@ -38,7 +38,7 @@ describe('useWorkoutTimer stale-start re-anchoring', () => {
     expect(result.current.sessionStartRef.current).toBe(twentyMinAgo);
   });
 
-  it('re-anchors a start older than 12h to now', () => {
+  it('re-anchors the on-screen clock for a start older than 12h, but keeps the stored start', () => {
     const fiveWeeksAgo = Date.now() - 5 * 7 * 24 * 3600 * 1000;
     localStorage.setItem(START_KEY, String(fiveWeeksAgo));
     localStorage.setItem(END_KEY, String(fiveWeeksAgo + 3600 * 1000));
@@ -47,8 +47,9 @@ describe('useWorkoutTimer stale-start re-anchoring', () => {
     const restored = result.current.sessionStartRef.current!;
     // Restarted the clock for this sitting…
     expect(restored).toBeGreaterThanOrEqual(before);
-    // …persisted the new anchor…
-    expect(parseInt(localStorage.getItem(START_KEY)!, 10)).toBe(restored);
+    // …left the stored start alone — it records when the session really
+    // began, and the left-open rule and the Supabase row depend on it…
+    expect(localStorage.getItem(START_KEY)).toBe(String(fiveWeeksAgo));
     // …and dropped the equally-stale strength-end stamp.
     expect(localStorage.getItem(END_KEY)).toBe('');
     expect(result.current.strengthEndRef.current).toBeNull();

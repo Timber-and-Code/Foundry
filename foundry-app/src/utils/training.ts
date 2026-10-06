@@ -9,6 +9,7 @@ import type {
   BodyWeightEntry,
   WorkoutDaysHistoryEntry,
   DayData,
+  WorkoutSet,
 } from '../types';
 
 // ─── WARMUP TYPES ────────────────────────────────────────────────────────────
@@ -451,11 +452,34 @@ export function loadCompleted(
   return done;
 }
 
-export function markComplete(dayIdx: number, weekIdx: number): void {
+export const completedAtKey = (dayIdx: number, weekIdx: number): string =>
+  `foundry:completedAt:d${dayIdx}:w${weekIdx}`;
+
+export function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Record a session as complete, dated `at`.
+ *
+ * `at` is WHEN THE TRAINING HAPPENED, not when the button was tapped — a
+ * session left open on Thursday and closed out on Monday is Thursday's
+ * work. Without `at`, an existing stamp is kept (the App-level complete
+ * handler runs after the completion flow has already dated the session)
+ * and a first-time call falls back to now.
+ */
+export function markComplete(dayIdx: number, weekIdx: number, at?: Date): void {
   store.set(`foundry:done:d${dayIdx}:w${weekIdx}`, '1');
-  const today = new Date();
-  const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  store.set(`foundry:completedDate:d${dayIdx}:w${weekIdx}`, dateStr);
+  const existing = store.get(completedAtKey(dayIdx, weekIdx));
+  const existingMs = existing ? Date.parse(existing) : NaN;
+  const when =
+    at && Number.isFinite(at.getTime())
+      ? at
+      : Number.isFinite(existingMs)
+        ? new Date(existingMs)
+        : new Date();
+  store.set(completedAtKey(dayIdx, weekIdx), when.toISOString());
+  store.set(`foundry:completedDate:d${dayIdx}:w${weekIdx}`, localDateStr(when));
 }
 
 export function loadProfile(): Profile | null {
@@ -484,15 +508,48 @@ export function isSkipped(dayIdx: number, weekIdx: number): boolean {
   return store.get(`foundry:skip:d${dayIdx}:w${weekIdx}`) === '1';
 }
 
-export function setSkipped(dayIdx: number, weekIdx: number, val: boolean): void {
-  if (val) store.set(`foundry:skip:d${dayIdx}:w${weekIdx}`, '1');
-  else {
+/**
+ * Does this one session (day + week) hold logged work? A confirmed working
+ * set, or a working set with both a weight and reps entered. Warmups and
+ * carried-over suggestions do not count.
+ */
+export function sessionHasLoggedWork(dayIdx: number, weekIdx: number): boolean {
+  const raw = store.get(`foundry:day${dayIdx}:week${weekIdx}`);
+  if (!raw) return false;
+  try {
+    const data = JSON.parse(raw) as Record<string, Record<string, WorkoutSet>>;
+    for (const slice of Object.values(data || {})) {
+      for (const set of Object.values(slice || {})) {
+        if (!set || set.warmup) continue;
+        if (set.confirmed) return true;
+        if (Number(set.reps) > 0 && Number(set.weight) > 0) return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+/**
+ * A session with logged work is never skipped. Skipping hides the day from
+ * completion rate, Lifts by Muscle and the PR timeline while the set readers
+ * keep showing its weights — the app would disagree with itself about whether
+ * the lifter trained. Such a session gets finished, or marked complete as
+ * logged; it cannot be crossed off. Returns false when the skip was refused.
+ */
+export function setSkipped(dayIdx: number, weekIdx: number, val: boolean): boolean {
+  if (val) {
+    if (sessionHasLoggedWork(dayIdx, weekIdx)) return false;
+    store.set(`foundry:skip:d${dayIdx}:w${weekIdx}`, '1');
+  } else {
     try {
       localStorage.removeItem(`foundry:skip:d${dayIdx}:w${weekIdx}`);
     } catch (e) {
       console.warn('[Foundry]', 'Failed to remove skip key', e);
     }
   }
+  return true;
 }
 
 export function getWorkoutDaysForWeek(

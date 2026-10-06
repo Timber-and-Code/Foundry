@@ -433,6 +433,50 @@ describe('flushWorkoutDayWeekKey exercise identity', () => {
     await flushWorkoutDayWeekKey(0, 1, () => 'bench');
     expect(pushedExerciseIds().sort()).toEqual(['bench', 'ohp']);
   });
+
+  it('pushes the real completion time, not the start, for a finished session', async () => {
+    // Regression: every flush after Finish re-upserted completed_at =
+    // started_at, so each finished session on the server read as a
+    // zero-length workout with the wrong completion time.
+    localStorage.setItem('foundry:active_meso_id', 'meso-1');
+    localStorage.setItem('foundry:td_ids:meso-1', JSON.stringify({ '0': 'td-0' }));
+    localStorage.setItem(
+      'foundry:day0:week1',
+      JSON.stringify({ 0: { 0: { id: 'set-1', weight: '100', reps: '8' } } }),
+    );
+    const start = new Date('2026-10-01T10:23:00.000Z').getTime();
+    localStorage.setItem('foundry:sessionStart:d0:w1', String(start));
+    localStorage.setItem('foundry:done:d0:w1', '1');
+    localStorage.setItem('foundry:completedAt:d0:w1', '2026-10-01T11:07:00.000Z');
+
+    await flushWorkoutDayWeekKey(0, 1, () => 'bench');
+    const sessionRow = mockUpsert.mock.calls
+      .map((c) => c[0] as Record<string, unknown>)
+      .find((r) => 'is_complete' in r);
+    expect(sessionRow).toMatchObject({
+      is_complete: true,
+      started_at: '2026-10-01T10:23:00.000Z',
+      completed_at: '2026-10-01T11:07:00.000Z',
+    });
+  });
+
+  it('falls back to the start for a finished session with no completion stamp (legacy)', async () => {
+    localStorage.setItem('foundry:active_meso_id', 'meso-1');
+    localStorage.setItem('foundry:td_ids:meso-1', JSON.stringify({ '0': 'td-0' }));
+    localStorage.setItem(
+      'foundry:day0:week1',
+      JSON.stringify({ 0: { 0: { id: 'set-1', weight: '100', reps: '8' } } }),
+    );
+    const start = new Date('2026-10-01T10:23:00.000Z').getTime();
+    localStorage.setItem('foundry:sessionStart:d0:w1', String(start));
+    localStorage.setItem('foundry:done:d0:w1', '1');
+
+    await flushWorkoutDayWeekKey(0, 1, () => 'bench');
+    const sessionRow = mockUpsert.mock.calls
+      .map((c) => c[0] as Record<string, unknown>)
+      .find((r) => 'is_complete' in r);
+    expect(sessionRow).toMatchObject({ is_complete: true, completed_at: '2026-10-01T10:23:00.000Z' });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

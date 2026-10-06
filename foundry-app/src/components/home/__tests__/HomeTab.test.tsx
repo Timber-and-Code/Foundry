@@ -102,6 +102,17 @@ vi.mock('../../../utils/events', () => ({
   on: vi.fn(() => () => {}),
 }));
 
+const { mockFindLeftOpen, mockCompleteLeftOpen, mockSessionHasLoggedWork } = vi.hoisted(() => ({
+  mockFindLeftOpen: vi.fn((): unknown[] => []),
+  mockCompleteLeftOpen: vi.fn(),
+  mockSessionHasLoggedWork: vi.fn((_d: number, _w: number): boolean => false),
+}));
+vi.mock('../../../utils/leftOpen', () => ({
+  findLeftOpenSessions: mockFindLeftOpen,
+  completeLeftOpenSession: mockCompleteLeftOpen,
+  sessionHasLoggedWork: mockSessionHasLoggedWork,
+}));
+
 vi.mock('../../../styles/tokens', () => ({
   tokens: {
     colors: {
@@ -216,6 +227,68 @@ beforeEach(() => {
   mockIsSkipped.mockReturnValue(false);
   mockLoadDayWeek.mockReturnValue({});
   mockLoadDayWeekWithCarryover.mockReturnValue({});
+  mockFindLeftOpen.mockReturnValue([]);
+  mockSessionHasLoggedWork.mockReturnValue(false);
+});
+
+// ── Left-open sessions ────────────────────────────────────────────────────
+// A session started on an earlier day, worked, never finished. Home offers
+// exactly two ways out and never Skip.
+describe('HomeTab left-open session', () => {
+  function todayProps() {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    mockBuildSessionDateMap.mockReturnValue({ [todayStr]: '0:0' });
+    return makeProps({
+      profile: {
+        name: 'Alex',
+        experience: 'intermediate',
+        startDate: todayStr,
+        cardioSchedule: [],
+        splitType: 'PPL',
+        daysPerWeek: 3,
+        weight: 180,
+        workoutDays: [today.getDay()],
+        mesoLength: 6,
+      },
+    });
+  }
+
+  it('reads LEFT OPEN with the logged-set count, offers Log the rest + Mark complete, no Skip', () => {
+    const thu = new Date(2026, 9, 1, 11, 4);
+    mockFindLeftOpen.mockReturnValue([
+      { dayIdx: 0, weekIdx: 0, startedAt: thu.getTime() - 40 * 60_000, trainedAt: thu.toISOString(), setsDone: 2, totalSets: 3, label: 'Push Day' },
+    ]);
+    mockSessionHasLoggedWork.mockImplementation((d, w) => d === 0 && w === 0);
+    const props = todayProps();
+    render(<HomeTab {...props} />);
+
+    expect(screen.getByText('LEFT OPEN')).toBeDefined();
+    expect(screen.getByText('· THU, OCT 1')).toBeDefined();
+    expect(screen.getByText(/2 of 3 sets logged/)).toBeDefined();
+    expect(screen.getByText(/Log the rest/)).toBeDefined();
+    expect(screen.queryByText('TODAY')).toBeNull();
+    expect(screen.queryByText(/Skip Today|^Skip$/)).toBeNull();
+    expect(screen.queryByLabelText("Preview today's workout")).toBeNull();
+
+    fireEvent.click(screen.getByText('Mark complete as logged'));
+    expect(mockCompleteLeftOpen).toHaveBeenCalledWith(0, 0, 'Push Day');
+  });
+
+  it('a same-day session with logged work loses Skip and reads Continue', () => {
+    mockSessionHasLoggedWork.mockImplementation((d, w) => d === 0 && w === 0);
+    render(<HomeTab {...todayProps()} />);
+    expect(screen.getByText('TODAY')).toBeDefined();
+    expect(screen.getByText(/Continue/)).toBeDefined();
+    expect(screen.queryByText(/Skip Today|^Skip$/)).toBeNull();
+    expect(screen.getByLabelText("Preview today's workout")).toBeDefined();
+  });
+
+  it('an ordinary today keeps Start and Skip Today', () => {
+    render(<HomeTab {...todayProps()} />);
+    expect(screen.getByText(/Start/)).toBeDefined();
+    expect(screen.getByText('Skip Today')).toBeDefined();
+  });
 });
 
 describe('HomeTab', () => {

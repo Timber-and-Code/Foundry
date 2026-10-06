@@ -3,7 +3,10 @@ import {
   store,
   detectSessionPRs,
   findPrevSlotForExercise,
+  markComplete,
+  localDateStr,
 } from '../utils/store';
+import { leftOpenKey } from '../utils/leftOpen';
 import { getMeso } from '../data/constants';
 import {
   upsertWorkoutSessionRemote,
@@ -143,9 +146,30 @@ export function useCompletionFlow({
       });
     }
 
-    const rawDurationSecs = sessionStartRef.current
-      ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
-      : elapsedSecs > 0 ? elapsedSecs : null;
+    // A session left open on an earlier day (utils/leftOpen) is closed out
+    // as THAT day's work: dated when the lifter trained, timed from the
+    // stored start to the last logged write, posted to Health the same way.
+    // The on-screen timer was re-anchored on restore and says nothing
+    // about the real session.
+    const leftOpenIso = store.get(leftOpenKey(dayIdx, weekIdx));
+    const leftOpenMs = leftOpenIso ? Date.parse(leftOpenIso) : NaN;
+    const leftOpen = Number.isFinite(leftOpenMs);
+    const now = new Date();
+    const completedAt = leftOpen ? new Date(leftOpenMs) : now;
+    const storedStartRaw = store.get(`foundry:sessionStart:d${dayIdx}:w${weekIdx}`);
+    const storedStart = storedStartRaw ? parseInt(storedStartRaw, 10) : NaN;
+    const healthStartMs = leftOpen
+      ? (Number.isFinite(storedStart) ? storedStart : null)
+      : sessionStartRef.current ?? null;
+    const healthElapsedSecs = leftOpen
+      ? Math.max(0, Math.floor((completedAt.getTime() - (healthStartMs ?? completedAt.getTime())) / 1000))
+      : elapsedSecs;
+
+    const rawDurationSecs = leftOpen
+      ? healthElapsedSecs
+      : sessionStartRef.current
+        ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
+        : elapsedSecs > 0 ? elapsedSecs : null;
     // Safety clamp: a duration beyond 24h means the start stamp was stale
     // (abandoned pre-layoff session). Omit the TIME stat rather than report
     // "1700 hrs" — useWorkoutTimer re-anchors these on restore, but guard
@@ -168,8 +192,7 @@ export function useCompletionFlow({
       breakdown,
     });
 
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const dateStr = localDateStr(completedAt);
     const completionData = {
       date: dateStr,
       dayIdx,
@@ -180,15 +203,16 @@ export function useCompletionFlow({
         data: weekData[i] || {},
       })),
       sessionNote,
-      duration: elapsedSecs,
-      completedAt: Date.now(),
+      duration: leftOpen ? healthElapsedSecs : elapsedSecs,
+      completedAt: completedAt.getTime(),
     };
-    store.set(`foundry:done:d${dayIdx}:w${weekIdx}`, '1');
+    markComplete(dayIdx, weekIdx, completedAt);
+    store.remove(leftOpenKey(dayIdx, weekIdx));
     store.set(`foundry:sessionNote:d${dayIdx}:w${weekIdx}`, sessionNote);
     const sessionId = getOrCreateWorkoutSessionId(dayIdx, weekIdx);
     upsertWorkoutSessionRemote(dayIdx, weekIdx, {
       sessionId,
-      completedAt: now.toISOString(),
+      completedAt: completedAt.toISOString(),
       isComplete: true,
     });
 
@@ -197,9 +221,9 @@ export function useCompletionFlow({
     // awaited: a slow or refused Health write must not hold up the
     // completion modal, and it self-guards against writing twice.
     void logWorkoutToHealth({
-      startMs: sessionStartRef.current ?? null,
-      endMs: now.getTime(),
-      elapsedSecs,
+      startMs: healthStartMs,
+      endMs: completedAt.getTime(),
+      elapsedSecs: healthElapsedSecs,
       dayIdx,
       weekIdx,
       dayLabel,
