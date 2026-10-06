@@ -14,6 +14,7 @@ import { getExerciseDB, findExercise } from '../../data/exerciseDB';
 
 // Utils
 import { emit } from '../../utils/events';
+import { noteLeftOpen } from '../../utils/leftOpen';
 import {
   store,
   loadDayWeek,
@@ -506,6 +507,17 @@ function DayView({
       performStopWorkout();
     }
   }, [weekData, performStopWorkout]);
+
+  // A session started on an earlier day and never finished is LEFT OPEN
+  // (utils/leftOpen). Stamp when the training really happened before the
+  // lifter can confirm a set — that write would move the day's timestamp to
+  // today and the completion would be dated wrong. Home normally does this
+  // first; this covers a direct route into the day.
+  useEffect(() => {
+    if (isDone || isLocked) return;
+    noteLeftOpen(dayIdx, weekIdx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayIdx, weekIdx]);
 
   // Backfill the active-session context when DayView mounts on a workout
   // that's already in progress (started in a prior page load — workoutStarted

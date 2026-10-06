@@ -818,7 +818,18 @@ function HomeView({
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={() => {
-                  setSkipped(showSkipConfirm.dayIdx, showSkipConfirm.weekIdx, true);
+                  // setSkipped refuses a session with logged work — the
+                  // controls that open this dialog already hide for one,
+                  // so this is the backstop, not the rule's home.
+                  const skipped = setSkipped(showSkipConfirm.dayIdx, showSkipConfirm.weekIdx, true);
+                  if (!skipped) {
+                    emit('foundry:toast', {
+                      message: 'This session has logged sets. Finish it, or mark it complete as logged.',
+                      type: 'warning',
+                    });
+                    setShowSkipConfirm(null);
+                    return;
+                  }
                   void syncSkippedToSupabase(
                     showSkipConfirm.dayIdx,
                     showSkipConfirm.weekIdx,

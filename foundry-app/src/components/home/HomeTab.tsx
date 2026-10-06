@@ -25,6 +25,11 @@ import {
 } from '../../utils/store';
 import { dayHasLoggedWork } from '../../utils/regenerateDays';
 import { resolveExerciseSlice } from '../../utils/exerciseSlice';
+import {
+  findLeftOpenSessions,
+  completeLeftOpenSession,
+  sessionHasLoggedWork,
+} from '../../utils/leftOpen';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
 import HomeCardioCard from './HomeCardioCard';
@@ -492,23 +497,25 @@ function RestStateCard({
                       Rebuild
                     </button>
                   )}
-                  <button
-                    onClick={() => setShowSkipConfirm({ dayIdx: nextDayIdxForCollapse, weekIdx: activeWeek })}
-                    style={{
-                      flex: 1,
-                      background: 'transparent',
-                      border: '1px solid var(--border)',
-                      borderRadius: tokens.radius.md,
-                      color: 'var(--text-muted)',
-                      fontSize: 14,
-                      fontWeight: 700,
-                      letterSpacing: '0.04em',
-                      padding: '8px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Skip
-                  </button>
+                  {!sessionHasLoggedWork(nextDayIdxForCollapse, activeWeek) && (
+                    <button
+                      onClick={() => setShowSkipConfirm({ dayIdx: nextDayIdxForCollapse, weekIdx: activeWeek })}
+                      style={{
+                        flex: 1,
+                        background: 'transparent',
+                        border: '1px solid var(--border)',
+                        borderRadius: tokens.radius.md,
+                        color: 'var(--text-muted)',
+                        fontSize: 14,
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                        padding: '8px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Skip
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -698,6 +705,27 @@ function HomeTab({
     ? (TAG_ACCENT as Record<string, any>)[showDay.tag || ''] || 'var(--accent)'
     : nextDayAccent;
   const isToday = isCalendarWorkoutDay && !calendarSessionDone;
+
+  // Left-open sessions (utils/leftOpen): started on an earlier day, worked,
+  // never finished. The scan also drops accidental starts and clears
+  // contradictory skips. Re-scans when completion changes, so closing one
+  // out from this card clears it.
+  const leftOpenSessions = React.useMemo(
+    () => findLeftOpenSessions(activeDays, getMeso().totalWeeks),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeDays, completedDays],
+  );
+  const showDayLeftOpen =
+    showDayIdx >= 0
+      ? leftOpenSessions.find((s) => s.dayIdx === showDayIdx && s.weekIdx === showDayWeek) ?? null
+      : null;
+  // Rule: a session with logged work is never skipped, so it gets no Skip.
+  const showDayHasWork = showDayIdx >= 0 && sessionHasLoggedWork(showDayIdx, showDayWeek);
+  const leftOpenDateLabel = showDayLeftOpen
+    ? new Date(showDayLeftOpen.trainedAt)
+        .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        .toUpperCase()
+    : '';
 
   const preview = showDay?.exercises || [];
   const lastWeekData: Record<string, any> = (() => {
@@ -1280,10 +1308,14 @@ function HomeTab({
           >
             <div style={{ textAlign: 'left' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                <div style={{ fontSize: 14, color: 'var(--phase-accum)', fontWeight: 700, letterSpacing: '0.06em' }}>
-                  {isToday ? 'TODAY' : 'NEXT SESSION'}
+                <div style={{ fontSize: 14, color: showDayLeftOpen ? 'var(--accent)' : 'var(--phase-accum)', fontWeight: 700, letterSpacing: '0.06em' }}>
+                  {showDayLeftOpen ? 'LEFT OPEN' : isToday ? 'TODAY' : 'NEXT SESSION'}
                 </div>
-                {isToday && (
+                {showDayLeftOpen ? (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em' }}>
+                    · {leftOpenDateLabel}
+                  </div>
+                ) : isToday && (
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em' }}>
                     · {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}
                   </div>
@@ -1303,6 +1335,11 @@ function HomeTab({
               </div>
               <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 2 }}>
                 Week {showDayWeek + 1} · Day {showDayIdx + 1}
+                {showDayLeftOpen && (
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
+                    {' '}· {showDayLeftOpen.setsDone} of {showDayLeftOpen.totalSets} sets logged
+                  </span>
+                )}
               </div>
             </div>
             <div
@@ -1319,12 +1356,14 @@ function HomeTab({
                 padding: '8px 16px',
               }}
             >
-              {/* Continue-vs-Start logic moved upstream — this branch only
-                  renders when there's no active lifting session, so the
-                  pill is always Start now. Outline-orange treatment matches
-                  the REORDER button in Focus Mode (cooler than a filled
-                  orange chip). */}
-              Start <span aria-hidden="true">→</span>
+              {/* This branch only renders when there's no active lifting
+                  session. A left-open session (earlier day, sets logged,
+                  never finished) reads "Log the rest"; a same-day session
+                  that fell off the active bar but has logged sets reads
+                  "Continue"; everything else is Start. Outline-orange
+                  matches the REORDER button in Focus Mode. */}
+              {showDayLeftOpen ? 'Log the rest' : showDayHasWork ? 'Continue' : 'Start'}{' '}
+              <span aria-hidden="true">→</span>
             </div>
           </button>
           <div style={{ padding: '6px 0 2px' }}>
@@ -1382,7 +1421,43 @@ function HomeTab({
               );
             })}
           </div>
-          {isToday && (
+          {showDayLeftOpen && (
+            // A left-open session has exactly two ways out — log the rest
+            // (the card itself) or close it out with what was logged. No
+            // Preview, no Rebuild, and never Skip: a day with logged work
+            // is never skipped.
+            <div
+              style={{
+                borderTop: '1px solid var(--border-subtle)',
+                padding: '8px 12px',
+                display: 'flex',
+                gap: 8,
+              }}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  completeLeftOpenSession(showDayIdx, showDayWeek, showDay?.label as string | undefined);
+                }}
+                aria-label={`Mark ${showDay?.label || 'this session'} complete as logged`}
+                style={{
+                  flex: 1,
+                  background: 'transparent',
+                  border: '1px solid var(--accent-border, rgba(232,101,26,0.3))',
+                  borderRadius: tokens.radius.md,
+                  color: 'var(--accent)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  padding: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                Mark complete as logged
+              </button>
+            </div>
+          )}
+          {isToday && !showDayLeftOpen && (
             <div
               style={{
                 borderTop: '1px solid var(--border-subtle)',
@@ -1441,26 +1516,30 @@ function HomeTab({
                   Rebuild
                 </button>
               )}
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowSkipConfirm({ dayIdx: showDayIdx, weekIdx: showDayWeek }); }}
-                style={{
-                  flex: 1,
-                  background: 'transparent',
-                  border: '1px solid var(--border)',
-                  borderRadius: tokens.radius.md,
-                  color: 'var(--text-muted)',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  padding: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                {/* "Skip Today" when it's one of two, "Skip" when three share
-                    the row — at 14px bold the long label wraps on a 320px
-                    screen. */}
-                {onRebuildDay && !dayHasLoggedWork(showDayIdx) ? 'Skip' : 'Skip Today'}
-              </button>
+              {/* A session with logged work is never skipped — the control
+                  goes away, not just the confirm. */}
+              {!showDayHasWork && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowSkipConfirm({ dayIdx: showDayIdx, weekIdx: showDayWeek }); }}
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: tokens.radius.md,
+                    color: 'var(--text-muted)',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    padding: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {/* "Skip Today" when it's one of two, "Skip" when three share
+                      the row — at 14px bold the long label wraps on a 320px
+                      screen. */}
+                  {onRebuildDay && !dayHasLoggedWork(showDayIdx) ? 'Skip' : 'Skip Today'}
+                </button>
+              )}
             </div>
           )}
         </div>
