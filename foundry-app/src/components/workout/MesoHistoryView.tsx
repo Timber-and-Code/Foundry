@@ -3,6 +3,7 @@ import { tokens } from '../../styles/tokens';
 import { loadDayWeek, findPrevSlotForExercise, loadArchive } from '../../utils/store';
 import { store } from '../../utils/store';
 import { findPrevMesoHistory } from '../../utils/progressAggregation';
+import { isLoggedSet } from '../../utils/loggedSet';
 import WeekBars from '../shared/WeekBars';
 import type { Exercise, WorkoutSet } from '../../types';
 
@@ -30,12 +31,10 @@ interface SetRow {
   weight: number | null;
   reps: number | null;
   warmup: boolean;
-  confirmed: boolean;
 }
 
 interface WeekRow {
   weekIdx: number;
-  isCurrent: boolean;
   dateLabel: string | null;
   sets: SetRow[];
   /** Heaviest weight logged that week (across non-warmup sets). */
@@ -85,11 +84,14 @@ export default function MesoHistoryView({
     }
   }, []);
 
-  // Gather rows: walk current week down to week 1, load sets from
-  // localStorage. Skips weeks beyond mesoWeeks.
+  // Gather rows: walk from the week BEFORE the viewed one down to week 1.
+  // The viewed week is the workout, not history — every row of it is
+  // either in progress or a carry-over suggestion the first save of any set
+  // persisted alongside real work, and showing it here read as "this is
+  // what you did". Skips weeks beyond mesoWeeks.
   const rows = useMemo<WeekRow[]>(() => {
     const out: WeekRow[] = [];
-    const upperBound = Math.min(currentWeekIdx, Math.max(0, mesoWeeks - 1));
+    const upperBound = Math.min(currentWeekIdx - 1, Math.max(0, mesoWeeks - 1));
     for (let w = upperBound; w >= 0; w--) {
       const data = loadDayWeek(dayIdx, w);
       // Match the exercise by identity (`_exId` stamped on every set by
@@ -109,7 +111,9 @@ export default function MesoHistoryView({
       let bestRepsAtBestWeight = 0;
       setKeys.forEach((k) => {
         const s = slice[k] as WorkoutSet | undefined;
-        if (!s) return;
+        // Confirmed sets only. A suggested or typed-but-unticked row is not
+        // a lift (see utils/loggedSet).
+        if (!isLoggedSet(s)) return;
         const wRaw = s.weight;
         const rRaw = s.reps;
         const wNum = wRaw === undefined || wRaw === null || String(wRaw).trim() === ''
@@ -119,13 +123,11 @@ export default function MesoHistoryView({
           ? null
           : parseInt(String(rRaw), 10);
         const warmup = !!s.warmup;
-        const confirmed = !!s.confirmed;
         sets.push({
           setIdx: Number(k),
           weight: Number.isFinite(wNum as number) ? (wNum as number) : null,
           reps: Number.isFinite(rNum as number) ? (rNum as number) : null,
           warmup,
-          confirmed,
         });
         if (warmup) return;
         if (wNum != null && rNum != null && wNum > 0 && rNum > 0) {
@@ -152,7 +154,6 @@ export default function MesoHistoryView({
 
       out.push({
         weekIdx: w,
-        isCurrent: w === currentWeekIdx,
         dateLabel,
         sets,
         bestWeight,
@@ -162,16 +163,13 @@ export default function MesoHistoryView({
     return out;
   }, [dayIdx, exIdx, exercise.id, currentWeekIdx, mesoWeeks, startDate]);
 
-  // PR row across all weeks except a session still in progress — that's the
-  // number being chased, not a record yet. Once the viewed day is marked done
-  // its sets count; excluding a finished week showed "Best set 190 × 7" next
-  // to a logged 195 × 8, while "This meso" already counted it.
-  const currentDone = store.get(`foundry:done:d${dayIdx}:w${currentWeekIdx}`) === '1';
+  // PR row across every listed week. All of them are earlier than the one
+  // being viewed and hold confirmed sets only, so there is no in-progress
+  // number to keep out.
   const prRef = useMemo<{ weight: number; reps: number } | null>(() => {
     let prW = 0;
     let prR = 0;
     rows.forEach((row) => {
-      if (row.isCurrent && !currentDone) return; // exclude in-progress week
       if (row.bestWeight > prW) {
         prW = row.bestWeight;
         prR = row.bestRepsAtBestWeight;
@@ -180,7 +178,7 @@ export default function MesoHistoryView({
       }
     });
     return prW > 0 ? { weight: prW, reps: prR } : null;
-  }, [rows, currentDone]);
+  }, [rows]);
 
   const hasAnySets = rows.some((r) => r.sets.some((s) => s.weight != null || s.reps != null));
 
@@ -436,9 +434,8 @@ export default function MesoHistoryView({
                       key: r.weekIdx,
                       label: r.weekIdx === deloadIdx ? 'DL' : `W${r.weekIdx + 1}`,
                       value: r.bestWeight,
-                      highlight: !!prRef && r.bestWeight === prRef.weight && (!r.isCurrent || currentDone),
+                      highlight: !!prRef && r.bestWeight === prRef.weight,
                       muted: r.weekIdx === deloadIdx,
-                      current: r.isCurrent,
                     }))}
                   />
                 </div>
@@ -457,15 +454,15 @@ export default function MesoHistoryView({
                         padding: '12px 12px',
                         borderRadius: tokens.radius.md,
                         background: 'var(--bg-surface)',
-                        border: `1px solid ${row.isCurrent ? 'rgba(var(--accent-rgb),0.35)' : 'var(--border)'}`,
+                        border: '1px solid var(--border)',
                       }}
                     >
                       <div style={{ width: 58, flexShrink: 0 }}>
                         <div style={{ fontFamily: bebas, fontSize: 22, lineHeight: 1, letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
                           WK {row.weekIdx + 1}
                         </div>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 4, color: row.isCurrent ? 'var(--accent)' : 'var(--text-muted)' }}>
-                          {row.isCurrent ? 'Today' : isDeload ? 'Deload' : row.dateLabel?.replace(/^\w+,\s*/, '') ?? ''}
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 4, color: 'var(--text-muted)' }}>
+                          {isDeload ? 'Deload' : row.dateLabel?.replace(/^\w+,\s*/, '') ?? ''}
                         </div>
                       </div>
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 6, alignContent: 'center' }}>
@@ -476,7 +473,6 @@ export default function MesoHistoryView({
                             .filter((s) => s.weight != null || s.reps != null)
                             .map((s) => {
                               const isPr =
-                                (!row.isCurrent || currentDone) &&
                                 !!prRef &&
                                 s.weight === prRef.weight &&
                                 s.reps === prRef.reps &&

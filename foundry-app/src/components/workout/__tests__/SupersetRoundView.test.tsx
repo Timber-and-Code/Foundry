@@ -40,6 +40,7 @@ vi.mock('../../../data/constants', () => ({
   PHASE_COLOR: {},
   TAG_ACCENT: {},
   getMeso: mocks.getMeso,
+  getWeekPhase: vi.fn(() => []),
 }));
 
 vi.mock('../../../styles/tokens', () => ({
@@ -191,7 +192,7 @@ describe('SupersetRoundView', () => {
     // Seed prior week so prevWeekRaw memo picks up 30-lb set 0.
     localStorage.setItem(
       'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: 30, reps: 12 } } }),
+      JSON.stringify({ 0: { 0: { confirmed: true, weight: 30, reps: 12 } } }),
     );
     render(
       <SupersetRoundView
@@ -213,9 +214,9 @@ describe('SupersetRoundView', () => {
       'foundry:day0:week0',
       JSON.stringify({
         1: {
-          0: { weight: 30, reps: 12 },
-          1: { weight: 30, reps: 11 },
-          2: { weight: 30, reps: 10 },
+          0: { confirmed: true, weight: 30, reps: 12 },
+          1: { confirmed: true, weight: 30, reps: 11 },
+          2: { confirmed: true, weight: 30, reps: 10 },
         },
       }),
     );
@@ -237,7 +238,7 @@ describe('SupersetRoundView', () => {
   it('does NOT render progression / stall chips on week 0', () => {
     localStorage.setItem(
       'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: 30, reps: 12 } } }),
+      JSON.stringify({ 0: { 0: { confirmed: true, weight: 30, reps: 12 } } }),
     );
     render(
       <SupersetRoundView
@@ -254,7 +255,7 @@ describe('SupersetRoundView', () => {
   it('does NOT render progression chip after the user edits set 0 (no suggestion flag)', () => {
     localStorage.setItem(
       'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: 30, reps: 12 } } }),
+      JSON.stringify({ 0: { 0: { confirmed: true, weight: 30, reps: 12 } } }),
     );
     render(
       <SupersetRoundView

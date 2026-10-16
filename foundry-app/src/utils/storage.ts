@@ -101,9 +101,10 @@ export function migrateKeys(): void {
 // program, plus per-meso bookkeeping (tde id maps, re-entry deload flags,
 // resumption-handled marker), the active-session bar blob (it points at a
 // day/week that stops existing), and the `foundry:ts:` sync mirrors of the
-// day blobs. Deliberately NOT matched: `foundry:cardio:session:*` (dated
-// cross-meso logs), `foundry:setcount` (per-exercise preference),
-// `foundry:archive`, `foundry:meso_transition`,
+// day blobs, and the per-week set-count choices (a choice is about one
+// (day, week) of THIS meso; left behind, the next meso read it as its own).
+// Deliberately NOT matched: `foundry:cardio:session:*` (dated cross-meso
+// logs), `foundry:archive`, `foundry:meso_transition`,
 // `foundry:resumption_archive:*`.
 //
 // Lives here, at the bottom of the dependency graph, because BOTH archive.ts
@@ -112,7 +113,7 @@ export function migrateKeys(): void {
 // that don't exist (foundry:completedSets:, foundry:setLog:, …) while the
 // real ones survived. There should be exactly one of these.
 const MESO_SESSION_KEY_RE =
-  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|exov:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$|active_session$|next_meso_draft$|setup_session$)/;
+  /^foundry:(ts:foundry:)?(day\d+:week\d+$|day_v2:|notes:d|exnotes:|done:d|completedDate:d|cardio:d\d+:w\d+$|skip:d|sessionStart:d|strengthEnd:d|completedAt:d|leftOpenAt:d|exov:d|setcount:d|ws_id:|tde_ids:|reentry_deload:|resumption_handled$|active_session$|next_meso_draft$|setup_session$)/;
 
 // `next_meso_draft` rides along on purpose: a plan made during THIS meso's
 // deload belongs to it. Every caller here is a meso ending by some other

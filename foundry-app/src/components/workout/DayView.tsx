@@ -251,7 +251,7 @@ function DayView({
 
   const isDone = completedDays.has(`${dayIdx}:${weekIdx}`);
 
-  // Week-adjusted day: injects MEV→MAV→MRV set progression into every exercise.
+  // Week-adjusted day: injects the phase-driven set schedule into every exercise.
   // Must be computed before useState initializers that consume ex.sets.
   const weekDay = {
     ...day,
@@ -265,7 +265,7 @@ function DayView({
   // with the lifter's add/remove-set delta applied. Carryover needs LAST
   // week's number to judge "did you complete the work", and `weekDay` above
   // only carries this week's — they diverge every time getWeekSets steps
-  // MEV→MAV→MRV, and again whenever the lifter trims or adds a set.
+  // between phases, and again whenever the lifter trims or adds a set.
   const setCountWeeks = loadSetCountWeeks(dayIdx, weekIdx);
   const prevSetsFor = (exIdx: number, week: number): number => {
     const ex = day.exercises[exIdx];
@@ -275,7 +275,6 @@ function DayView({
       ex.id,
       week,
       (w) => getWeekSets(Number(ex.sets ?? 0), w, getMeso().totalWeeks),
-      getMeso().totalWeeks,
     );
   };
 
@@ -325,7 +324,7 @@ function DayView({
     const programSets = programSetsById.get(exId);
     if (programSets == null) return undefined;
     const totalWeeks = getMeso().totalWeeks;
-    return { baseFor: (w: number) => getWeekSets(programSets, w, totalWeeks), totalWeeks };
+    return { baseFor: (w: number) => getWeekSets(programSets, w, totalWeeks) };
   };
 
   // Compute active week from completedDays (first week not fully done)
@@ -647,7 +646,6 @@ function DayView({
           ex.id,
           weekIdx,
           (w) => getWeekSets(programSets, w, totalWeeks),
-          totalWeeks,
         );
         return c !== Number(ex.sets) ? ({ ...ex, sets: c } as Exercise) : ex;
       }
@@ -673,7 +671,6 @@ function DayView({
           resolved.id,
           weekIdx,
           (w) => getWeekSets(Number(resolved.sets ?? day.exercises[i]?.sets ?? 0), w, totalWeeks),
-          totalWeeks,
         ),
         // The goal's range for THIS lift's pattern — never the library's bare
         // number, and not the outgoing lift's range either (a compound

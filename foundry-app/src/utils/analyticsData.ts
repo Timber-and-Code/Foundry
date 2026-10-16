@@ -2,6 +2,7 @@ import { store } from './storage';
 import { validateDayData } from './validate';
 import { getMeso } from '../data/constants';
 import { loadSessionDuration, loadSparklineData } from './training';
+import { isLoggedSet } from './loggedSet';
 import { resolveExerciseSlice } from './exerciseSlice';
 import { tokens } from '../styles/tokens';
 import type { TrainingDay, Exercise, WorkoutSet, DayData } from '../types';
@@ -91,7 +92,7 @@ export function calcMuscleSetsByTag(
         // toward ITS muscle, not whatever sits in the slot today.
         const exData = resolveExerciseSlice(wd, ex.id, exIdx) || {};
         const filledSets = Object.values(exData).filter(
-          (s: WorkoutSet) => s && s.reps && s.reps !== '',
+          (s: WorkoutSet) => isLoggedSet(s) && s.reps && s.reps !== '',
         ).length;
         if (filledSets === 0) return;
         const cat = sessionTagToCategory(day.tag, ex.tag) || 'OTHER';

@@ -2,6 +2,7 @@ import { store, wipeMesoSessionData } from './storage';
 import { getReadinessScore } from './analytics';
 import { validateArchive } from './validate';
 import { resolveExerciseSlice } from './exerciseSlice';
+import { isLoggedSet } from './loggedSet';
 import {
   archiveMesocycleRemote,
   detachActiveMesoRemote,
@@ -200,7 +201,8 @@ export function buildMesoTransition(profile: Profile, prog: TrainingDay[]): Meso
           // By _exId stamp: the anchor's own sets, not whatever sat in
           // the slot that week.
           Object.values(resolveExerciseSlice(wd, ex.id, exIdx) || {}).forEach((s) => {
-            const wVal = parseFloat(String(s?.weight || 0));
+            if (!isLoggedSet(s)) return;
+            const wVal = parseFloat(String(s.weight || 0));
             if (wVal > peakWeight) peakWeight = wVal;
           });
         } catch (e) {

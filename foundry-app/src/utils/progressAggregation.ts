@@ -27,6 +27,7 @@ import type {
 import type { ExerciseEntry } from '../data/exerciseDB';
 import { isEndedEarly, weeksReached } from './archiveRules';
 import { healCustomNames } from './customExercises';
+import { isLoggedSet } from './loggedSet';
 import { findSliceByExId, resolveExerciseSlice } from './exerciseSlice';
 
 // ─── Public display shapes ──────────────────────────────────────────────────
@@ -137,7 +138,7 @@ export function topWorkingWeight(slice: Record<string, WorkoutSet> | undefined):
   if (!slice) return NaN;
   let best = -Infinity;
   for (const s of Object.values(slice)) {
-    if (!s || s.warmup) continue;
+    if (!isLoggedSet(s) || s.warmup) continue;
     const w = setWeight(s);
     const r = setReps(s);
     if (!isFinite(w) || w <= 0 || !isFinite(r) || r <= 0) continue;
@@ -154,7 +155,7 @@ function bestE1RMInSlice(slice: Record<string, WorkoutSet> | undefined): number 
   if (!slice) return 0;
   let best = 0;
   for (const s of Object.values(slice)) {
-    if (!s || s.warmup) continue;
+    if (!isLoggedSet(s) || s.warmup) continue;
     const e = epleyE1RM(s.weight, s.reps);
     if (e > best) best = e;
   }
@@ -166,7 +167,7 @@ function sliceVolume(slice: Record<string, WorkoutSet> | undefined): number {
   if (!slice) return 0;
   let total = 0;
   for (const s of Object.values(slice)) {
-    if (!s || s.warmup) continue;
+    if (!isLoggedSet(s) || s.warmup) continue;
     const w = setWeight(s);
     const r = setReps(s);
     if (!isFinite(w) || w <= 0 || !isFinite(r) || r <= 0) continue;
@@ -558,7 +559,7 @@ function summariseSlice(slice: Record<string, WorkoutSet>): Omit<PrevMesoWeek, '
   const keys = Object.keys(slice).sort((a, b) => Number(a) - Number(b));
   for (const k of keys) {
     const s = slice[k];
-    if (!s) continue;
+    if (!isLoggedSet(s)) continue;
     const w = setWeight(s);
     const r = setReps(s);
     const weight = isFinite(w) && w > 0 ? w : null;
@@ -689,7 +690,7 @@ export function collectTrainedExerciseIds(archive: ArchiveEntry[]): Set<string> 
       for (const slice of Object.values(session.data as DayData)) {
         if (!slice) continue;
         for (const set of Object.values(slice)) {
-          if (!set || set.warmup) continue;
+          if (!isLoggedSet(set) || set.warmup) continue;
           const stamp = (set as unknown as Record<string, unknown>)._exId;
           if (typeof stamp !== 'string' || stamp.length === 0) continue;
           const w = setWeight(set);
@@ -740,7 +741,7 @@ export function summarizeLifetime(archive: ArchiveEntry[]): LifetimeSummary {
       for (const slice of Object.values(session.data as DayData)) {
         if (!slice) continue;
         for (const set of Object.values(slice)) {
-          if (!set || set.warmup) continue;
+          if (!isLoggedSet(set) || set.warmup) continue;
           const w = setWeight(set);
           const r = setReps(set);
           if ((isFinite(w) && w > 0) || (isFinite(r) && r > 0)) cycleSets++;

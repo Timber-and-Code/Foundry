@@ -21,7 +21,7 @@ const CARDS: CardDef[] = [
   {
     key: 'repeat',
     title: 'Repeat this meso',
-    body: 'Run it back with progressive overload. Anchor lifts start heavier because you did the work.',
+    body: 'Run it back with progressive overload. Every lift starts where your last hard week left off.',
   },
   {
     key: 'new',

@@ -836,9 +836,9 @@ export function buildMesoConfig(
           'Accumulation',
           'Match weights, refine technique. Add weight where it feels easy.',
         ],
-        [2, '1 RIR', 'Intensification', 'Push closer to failure. +5 lbs on anchors.'],
+        [2, '1 RIR', 'Intensification', 'Push closer to failure. Weight moves on every lift you topped out last week.'],
         [3, '0-1 RIR', 'Peak', 'PR attempts on anchors. Maximum effort week.'],
-        [null, 'N/A', 'DELOAD', '50-60% of peak weight. 2 sets only. Zero failure. Recover.'],
+        [null, 'N/A', 'DELOAD', 'Week 1\'s weights, tapered to 90% by the last day. 2 sets. Zero failure. Recover.'],
       ],
     },
     6: {
@@ -846,11 +846,11 @@ export function buildMesoConfig(
       mesoRows: [
         [0, '3 RIR', 'Establish', 'Establish your baseline. Find a challenging but manageable working weight — no rep targets this week.'],
         [1, '2-3 RIR', 'Accumulation', 'Match weights with better technique. Small adds if easy.'],
-        [2, '2 RIR', 'Intensification', '+5 lbs anchors. Push closer to failure on accessories.'],
-        [3, '1-2 RIR', 'Intensification', '+5 lbs anchors again. Accessories +2.5-5 lbs.'],
-        [4, '1 RIR', 'Peak', '+5 lbs. One rep from failure. Push hard.'],
+        [2, '2 RIR', 'Intensification', 'Weight moves on every lift you topped out last week. Push accessories closer to failure.'],
+        [3, '1-2 RIR', 'Intensification', 'Same rule, heavier bar. Accessories chase the top of the range.'],
+        [4, '1 RIR', 'Peak', 'One rep from failure. Push hard.'],
         [5, '0-1 RIR', 'Peak', 'PR attempts on anchors. Max effort week.'],
-        [null, 'N/A', 'DELOAD', '50-60% of W6 weight. 2 sets only. Zero failure. Recover.'],
+        [null, 'N/A', 'DELOAD', 'Week 1\'s weights, tapered to 90% by the last day. 2 sets. Zero failure. Recover.'],
       ],
     },
     8: {
@@ -858,18 +858,18 @@ export function buildMesoConfig(
       mesoRows: [
         [0, '4 RIR', 'Establish', 'Establish your baseline. Find a challenging but manageable working weight — no rep targets this week.'],
         [1, '3 RIR', 'Accumulation', 'Small weight adds. Stay far from failure.'],
-        [2, '2-3 RIR', 'Accumulation', '+2.5-5 lbs. Volume is the goal this block.'],
+        [2, '2-3 RIR', 'Accumulation', 'Extra set this week. Volume is the goal this block.'],
         [
           3,
           '2 RIR',
           'Intensification',
-          'Transition week. +5 lbs on anchors. Technique stays tight.',
+          'Transition week. The extra set comes off; the loads climb. Technique stays tight.',
         ],
-        [4, '1-2 RIR', 'Intensification', '+5 lbs. Push accessories near failure.'],
+        [4, '1-2 RIR', 'Intensification', 'Push accessories near failure.'],
         [5, '1-2 RIR', 'Intensification', 'Hold or add small. Fatigue management.'],
         [6, '1 RIR', 'Peak', 'One rep from failure. PR setup week.'],
         [7, '0-1 RIR', 'Peak', 'PR attempts on all anchors. Max effort.'],
-        [null, 'N/A', 'DELOAD', '50-60% of peak weight. 2 sets only. Zero failure. Recover.'],
+        [null, 'N/A', 'DELOAD', 'Week 1\'s weights, tapered to 90% by the last day. 2 sets. Zero failure. Recover.'],
       ],
     },
     10: {
@@ -888,15 +888,15 @@ export function buildMesoConfig(
       mesoRows: [
         [0, '4 RIR', 'Establish', 'Establish your baseline. Find a challenging but manageable working weight — no rep targets this week.'],
         [1, '3-4 RIR', 'Accumulation', 'Small adds on anchors. Build work capacity.'],
-        [2, '3 RIR', 'Accumulation', '+2.5-5 lbs across the board.'],
+        [2, '3 RIR', 'Accumulation', 'Extra set this week. Build the volume base.'],
         [3, '2-3 RIR', 'Accumulation', 'Final accumulation push. High volume.'],
-        [4, '2 RIR', 'Intensification', 'Transition to heavier loads. +5 lbs anchors.'],
-        [5, '1-2 RIR', 'Intensification', '+5 lbs. Accessories follow suit.'],
+        [4, '2 RIR', 'Intensification', 'Transition to heavier loads. The extra set comes off.'],
+        [5, '1-2 RIR', 'Intensification', 'Heavier where you earned it. Accessories follow suit.'],
         [6, '1-2 RIR', 'Intensification', 'Hold or small adds. Manage fatigue.'],
         [7, '1 RIR', 'Peak', 'One rep from failure. PR prep.'],
         [8, '0-1 RIR', 'Peak', 'Near-limit loads. Set up the PR week.'],
         [9, '0 RIR', 'Peak', 'Max effort. PR attempts on all anchors.'],
-        [null, 'N/A', 'DELOAD', '50-60% of peak weight. 2 sets only. Zero failure. Recover.'],
+        [null, 'N/A', 'DELOAD', 'Week 1\'s weights, tapered to 90% by the last day. 2 sets. Zero failure. Recover.'],
       ],
     },
     12: {
@@ -917,11 +917,11 @@ export function buildMesoConfig(
       mesoRows: [
         [0, '4 RIR', 'Establish', 'Establish your baseline. Find a challenging but manageable working weight — no rep targets this week.'],
         [1, '4 RIR', 'Accumulation', 'Refine technique. Small adds only if very easy.'],
-        [2, '3 RIR', 'Accumulation', '+2.5 lbs. Build the volume base.'],
-        [3, '3 RIR', 'Accumulation', '+2.5-5 lbs. Final volume block push.'],
-        [4, '2-3 RIR', 'Intensification', 'Transition. +5 lbs anchors. Technique stays tight.'],
-        [5, '2 RIR', 'Intensification', '+5 lbs across. Push accessories toward failure.'],
-        [6, '2 RIR', 'Intensification', 'Hold or +2.5 lbs. Fatigue management block.'],
+        [2, '3 RIR', 'Accumulation', 'Extra set this week. Build the volume base.'],
+        [3, '3 RIR', 'Accumulation', 'Final volume block push.'],
+        [4, '2-3 RIR', 'Intensification', 'Transition. The extra set comes off. Technique stays tight.'],
+        [5, '2 RIR', 'Intensification', 'Heavier where you earned it. Push accessories toward failure.'],
+        [6, '2 RIR', 'Intensification', 'Hold. Fatigue management block.'],
         [
           7,
           '1-2 RIR',
@@ -932,22 +932,25 @@ export function buildMesoConfig(
         [9, '0-1 RIR', 'Peak', 'Near-limit. Lock in the numbers.'],
         [10, '0-1 RIR', 'Peak', 'Set your stage. Final prep.'],
         [11, '0 RIR', 'Peak', 'Max effort. PR attempts on all anchors.'],
-        [null, 'N/A', 'DELOAD', '50-60% of peak weight. 2 sets only. Zero failure. Recover.'],
+        [null, 'N/A', 'DELOAD', 'Week 1\'s weights, tapered to 90% by the last day. 2 sets. Zero failure. Recover.'],
       ],
     },
   };
   const cfg = configs[mesoLen] || configs[6];
+  // Target labels on the workout card. Both progression types run the same
+  // double-progression rule in persistence.computeCarryoverForOneExercise:
+  // +1 rep toward the top of the range at the same weight, and the weight
+  // moves the week after every working set at the top weight hits the top
+  // of the range. The labels describe that rule — no fixed-pound promises.
   const pw = Array.from({ length: mesoLen }, (_, i) => {
     if (i === 0) return 'Establish';
     if (i === mesoLen - 1) return 'PR attempt';
-    if (i < Math.ceil(mesoLen * 0.4)) return '+ 2.5 lbs';
-    return '+5 lbs';
+    return 'Top of range → add weight';
   });
   const pr = Array.from({ length: mesoLen }, (_, i) => {
     if (i === 0) return 'Establish';
     if (i === mesoLen - 1) return 'Max reps / PR';
-    if (i === Math.floor(mesoLen / 2)) return '↑ weight';
-    return '+1-2 reps';
+    return '+1 rep toward the top';
   });
   const weekPhases = cfg.mesoRows.filter((r) => r[0] !== null).map((r) => r[2]);
   weekPhases.push('Deload');

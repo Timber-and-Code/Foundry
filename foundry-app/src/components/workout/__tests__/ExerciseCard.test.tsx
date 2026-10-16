@@ -220,9 +220,9 @@ describe('ExerciseCard', () => {
       'foundry:day0:week0',
       JSON.stringify({
         0: {
-          0: { weight: 30, reps: 12 },
-          1: { weight: 30, reps: 11 },
-          2: { weight: 30, reps: 10 },
+          0: { confirmed: true, weight: 30, reps: 12 },
+          1: { confirmed: true, weight: 30, reps: 11 },
+          2: { confirmed: true, weight: 30, reps: 10 },
         },
       }),
     );
@@ -241,7 +241,7 @@ describe('ExerciseCard', () => {
   it('opens the history modal when LAST WK chip is tapped (#2)', () => {
     localStorage.setItem(
       'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: 30, reps: 10 } } }),
+      JSON.stringify({ 0: { 0: { confirmed: true, weight: 30, reps: 10 } } }),
     );
     render(
       <ExerciseCard
@@ -425,7 +425,7 @@ describe('ExerciseCard', () => {
       id: 'meso-1',
       archivedAt: '2026-05-20T00:00:00Z',
       sessions: [
-        { d: 0, w: 2, data: { 0: { 1: { _exId: exId, weight, reps } } } },
+        { d: 0, w: 2, data: { 0: { 1: { _exId: exId, confirmed: true, weight, reps } } } },
       ],
     },
   ];
@@ -462,7 +462,7 @@ describe('ExerciseCard', () => {
       {
         id: 'm1',
         archivedAt: '2026-05-01T00:00:00Z',
-        sessions: [{ d: 0, w: 1, data: { 0: { 1: { _exId: 'bench_id', weight: 155, reps: 10 } } } }],
+        sessions: [{ d: 0, w: 1, data: { 0: { 1: { _exId: 'bench_id', confirmed: true, weight: 155, reps: 10 } } } }],
       },
     ]);
     render(
@@ -478,7 +478,7 @@ describe('ExerciseCard', () => {
     // actually matters — compete with a months-old figure.
     localStorage.setItem(
       'foundry:day0:week2',
-      JSON.stringify({ 0: { 1: { _exId: 'bench_id', weight: 200, reps: 6 } } }),
+      JSON.stringify({ 0: { 1: { _exId: 'bench_id', confirmed: true, weight: 200, reps: 6 } } }),
     );
     mocks.loadArchive.mockReturnValue(archiveWith('bench_id', 185, 8));
     render(
@@ -511,14 +511,14 @@ describe('ExerciseCard', () => {
       profile: { mesoLength: 6 },
       mesoWeeks: 7,
       sessions: [
-        { d: 2, w: 4, data: { 1: { 0: { _exId: 'bench_id', weight: 80, reps: 6 }, 1: { _exId: 'bench_id', weight: 80, reps: 6 } } } },
+        { d: 2, w: 4, data: { 1: { 0: { _exId: 'bench_id', confirmed: true, weight: 80, reps: 6 }, 1: { _exId: 'bench_id', confirmed: true, weight: 80, reps: 6 } } } },
         { d: 2, w: 5, data: { 1: {
-          0: { _exId: 'bench_id', weight: 80, reps: 6 },
-          1: { _exId: 'bench_id', weight: 80, reps: 6 },
-          2: { _exId: 'bench_id', weight: 80, reps: 4 },
-          3: { _exId: 'bench_id', weight: 80, reps: 5 },
+          0: { _exId: 'bench_id', confirmed: true, weight: 80, reps: 6 },
+          1: { _exId: 'bench_id', confirmed: true, weight: 80, reps: 6 },
+          2: { _exId: 'bench_id', confirmed: true, weight: 80, reps: 4 },
+          3: { _exId: 'bench_id', confirmed: true, weight: 80, reps: 5 },
         } } },
-        { d: 2, w: 6, data: { 1: { 0: { _exId: 'bench_id', weight: 70, reps: 4 }, 1: { _exId: 'bench_id', weight: 70, reps: 4 } } } },
+        { d: 2, w: 6, data: { 1: { 0: { _exId: 'bench_id', confirmed: true, weight: 70, reps: 4 }, 1: { _exId: 'bench_id', confirmed: true, weight: 70, reps: 4 } } } },
       ],
     },
   ];
@@ -553,7 +553,7 @@ describe('ExerciseCard', () => {
   it('keeps the LAST WK label when the number is from this meso', () => {
     localStorage.setItem(
       'foundry:day0:week0',
-      JSON.stringify({ 0: { 1: { _exId: 'bench_id', weight: 200, reps: 6 } } }),
+      JSON.stringify({ 0: { 1: { _exId: 'bench_id', confirmed: true, weight: 200, reps: 6 } } }),
     );
     mocks.loadArchive.mockReturnValue(augustMeso);
     render(

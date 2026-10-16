@@ -271,9 +271,9 @@ function MesoOverviewContent({ activeDays: _activeDays, currentWeek }: { activeD
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
-            { label: 'MEV', desc: 'Minimum Effective Volume — early weeks build baseline with fewer sets', color: 'var(--phase-accum)' },
-            { label: 'MAV', desc: 'Maximum Adaptive Volume — mid-meso sweet spot for growth stimulus', color: 'var(--phase-intens)' },
-            { label: 'MRV', desc: 'Maximum Recoverable Volume — peak weeks push volume to the limit', color: 'var(--phase-peak)' },
+            { label: 'EST', desc: 'Establish — one set under the program while you find the working weights', color: 'var(--phase-accum)' },
+            { label: 'ACC', desc: 'Accumulate — base sets, then one over from the second week of the block. Volume peaks here.', color: 'var(--phase-intens)' },
+            { label: 'INT', desc: 'Intensify and Peak — back to base sets. Load and effort climb, not volume. Deload is 2 sets.', color: 'var(--phase-peak)' },
           ].map(({ label, desc, color }) => (
             <div key={label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <div

@@ -3,6 +3,8 @@ import { validateProfile } from './validate';
 import { resolveExerciseSlice } from './exerciseSlice';
 import { loadMobilitySession } from './persistence';
 import { syncProfileToSupabase, syncBodyWeightToSupabase, syncMesocycleToSupabase, ensureTrainingStructureRemote } from './sync';
+import { buildMesoConfig } from '../data/constants';
+import { isLoggedSet } from './loggedSet';
 import type {
   Profile,
   Exercise,
@@ -35,19 +37,46 @@ export interface SparklinePoint {
 
 // ─── FUNCTIONS ───────────────────────────────────────────────────────────────
 
+// Phase labels per TOTAL week count (work weeks + deload), memoised: this is
+// called per exercise per render on Home and in the workout.
+const phaseCache = new Map<number, string[]>();
+function phasesForTotalWeeks(totalWeeks: number): string[] {
+  let phases = phaseCache.get(totalWeeks);
+  if (!phases) {
+    // Days and split don't influence the phase table.
+    phases = buildMesoConfig(totalWeeks - 1, 6, 'ppl').phases;
+    phaseCache.set(totalWeeks, phases);
+  }
+  return phases;
+}
+
 /**
- * Adjust base sets according to training phase.
- * Deload weeks always get 2 sets.
- * Early weeks (MEV phase) get reduced sets.
- * Peak weeks (MRV approach) get extra sets.
+ * The program's set count for one exercise in one week.
+ *
+ * Volume follows the phase table — the same one the lifter sees on the
+ * meso overview — not a split of the working weeks into thirds:
+ *
+ *   Establish        base − 1   find the working weights, nothing to prove
+ *   Accumulation     base, then base + 1 from the block's second week on —
+ *                               volume climbs here and peaks here
+ *   Intensification  base       the extra set comes off as load goes up
+ *   Peak             base       intensity is the variable, 0–1 RIR
+ *   Deload           2
+ *
+ * A 4- or 6-week meso has a one-week Accumulation block and never reaches
+ * base + 1; 8 weeks and up do. Before this, the thirds rule put the extra
+ * set in the Peak weeks and ran Accumulation one set UNDER the program —
+ * the opposite of what the phases promise.
+ *
+ * `mesoLength` is the TOTAL week count (`getMeso().totalWeeks`).
  */
 export function getWeekSets(baseSets: number, weekIdx: number, mesoLength: number): number {
   if (weekIdx >= mesoLength - 1) return 2; // deload — always 2
-  const workingWeeks = mesoLength - 1;
-  const third = Math.floor(workingWeeks / 3);
-  if (weekIdx < third) return Math.max(2, baseSets - 1); // MEV phase
-  if (weekIdx < workingWeeks - third) return baseSets; // MAV phase
-  return baseSets + 1; // MRV approach
+  const phases = phasesForTotalWeeks(mesoLength);
+  const phase = phases[weekIdx];
+  if (phase === 'Establish') return Math.max(2, baseSets - 1);
+  if (phase === 'Accumulation' && phases[weekIdx - 1] === 'Accumulation') return baseSets + 1;
+  return baseSets;
 }
 
 /**
@@ -403,7 +432,7 @@ export function loadSparklineData(
       let bestWeight = 0,
         bestReps = 0;
       Object.values(exData).forEach((s) => {
-        if (!s || s.warmup) return;
+        if (!isLoggedSet(s) || s.warmup) return;
         const wt = parseFloat(String(s.weight ?? '0')) || 0;
         const rp = parseInt(String(s.reps ?? '0')) || 0;
         if (wt > bestWeight) {
@@ -520,9 +549,8 @@ export function sessionHasLoggedWork(dayIdx: number, weekIdx: number): boolean {
     const data = JSON.parse(raw) as Record<string, Record<string, WorkoutSet>>;
     for (const slice of Object.values(data || {})) {
       for (const set of Object.values(slice || {})) {
-        if (!set || set.warmup) continue;
-        if (set.confirmed) return true;
-        if (Number(set.reps) > 0 && Number(set.weight) > 0) return true;
+        if (!isLoggedSet(set) || set.warmup) continue;
+        return true;
       }
     }
   } catch {

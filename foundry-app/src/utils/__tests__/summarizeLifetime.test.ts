@@ -16,7 +16,7 @@ const meso = (
 ): unknown => ({ id, sessions, ...extra });
 
 const set = (weight: number | undefined, reps: number | undefined, warmup = false) =>
-  ({ _exId: 'x', weight, reps, warmup });
+  ({ _exId: 'x', weight, reps, warmup, confirmed: true });
 
 describe('summarizeLifetime', () => {
   it('totals cycles, completed sessions and working sets', () => {

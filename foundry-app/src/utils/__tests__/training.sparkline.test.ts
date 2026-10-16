@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { loadSparklineData } from '../training';
 
-const set = (id: string, weight: number, reps: number) => ({ weight: String(weight), reps: String(reps), _exId: id });
+const set = (id: string, weight: number, reps: number) => ({ weight: String(weight), reps: String(reps), confirmed: true, _exId: id });
 
 describe('loadSparklineData by exercise id', () => {
   beforeEach(() => localStorage.clear());
