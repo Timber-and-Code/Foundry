@@ -40,6 +40,7 @@ vi.mock('../../../data/constants', () => ({
   PHASE_COLOR: {},
   TAG_ACCENT: {},
   getMeso: mocks.getMeso,
+  getWeekPhase: vi.fn(() => []),
 }));
 
 vi.mock('../../../styles/tokens', () => ({

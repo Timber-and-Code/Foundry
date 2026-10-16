@@ -36,7 +36,7 @@ const LEARN_CARDS = [
       },
       {
         heading: 'Linear means one direction',
-        body: 'In linear periodization, one variable moves in a single direction across the training block. In The Foundry, both volume (sets per muscle group) and intensity (how close to failure you train) increase week over week. Week 1 is your easiest week. The final working week before deload is your hardest.',
+        body: 'In linear periodization, one variable moves in a single direction across the training block. The Foundry runs two blocks back to back: volume climbs through Establish and Accumulation (one set under the program, then the program, then one over), and from Intensification on the extra set comes off while the RIR target drops and the loads climb. Week 1 is your easiest week. The final working week before deload is your hardest.',
       },
       {
         heading: 'Why this works',
@@ -63,11 +63,11 @@ const LEARN_CARDS = [
       },
       {
         heading: 'How The Foundry applies it',
-        body: "The app tracks two forms of overload simultaneously: load progression (weights increase when you complete all prescribed reps) and volume progression (working sets per muscle group increase across mesocycle phases). You don't have to think about it — the app tracks whether you hit your reps and tells you what to do next week.",
+        body: "The app tracks two forms of overload simultaneously: load progression (the weight goes up the week after you log every working set and every set at your top weight hits the top of the rep range) and volume progression (the set count follows the phase: one under the program to establish, one over at the peak of accumulation, back to the program when the loads climb). You don't have to think about it — the app tracks whether you hit your reps and tells you what to do next week.",
       },
       {
         heading: 'Weight carry-forward logic',
-        body: "At the start of each new week, The Foundry pulls your weights from the previous week. If you hit the top of your prescribed rep range on every working set, it nudges the weight up: +5 lbs for barbells, +2.5 lbs for everything else. If you didn't reach the top of the range on any set, the weight stays the same — grind out those reps first. Bodyweight exercises never get a load increase — volume drives overload there.",
+        body: "At the start of each new week, The Foundry pulls your weights from the previous week. If you logged every working set and every set at your top weight hit the top of the rep range, it nudges the weight up: +5 lbs for barbells, +5 lbs for dumbbells from 25 lbs up and +2.5 lbs below that, and +5 lbs on machines and cables (+2.5 lbs once your experience is set to advanced). Otherwise the weight holds and the suggestion asks for one more rep at that weight — grind out those reps first. Bodyweight exercises never get a load increase; reps drive overload there. Week 1 of a new meso starts from the last hard week of the previous one.",
       },
       {
         heading: "Why you can't skip the easy weeks",
@@ -75,7 +75,7 @@ const LEARN_CARDS = [
       },
       {
         heading: 'The reps-in-reserve anchor',
-        body: "Progressive overload isn't just about load — it's about effort. The Foundry uses RIR (Reps In Reserve) to control how close to failure you train each week. As the meso progresses, RIR targets drop: you train harder, closer to your limit. This means overload happens at both the weight level and the effort level simultaneously.",
+        body: "Progressive overload isn't just about load — it's about effort. The Foundry shows an RIR (Reps In Reserve) target for each week, and as the meso progresses it drops: you train harder, closer to your limit. It's a target you hold yourself to — the app doesn't log RIR per set — but it is what makes the same rep range mean more work in week 6 than in week 2.",
       },
     ],
   },

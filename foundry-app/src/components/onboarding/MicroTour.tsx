@@ -209,9 +209,8 @@ export default function MicroTour({ onDone, onSkip }: MicroTourProps) {
                   lineHeight: 1.6,
                 }}
               >
-                Hit all reps? Next week adds weight. Miss reps? Same weight, chase the reps
-                back. Stall twice? The Foundry deloads you. You just log sets — the math is
-                ours.
+                Hit the top of the range on every set? Next week adds weight. Miss? Same
+                weight, one more rep. You just log sets — the math is ours.
               </div>
             </div>
             <ProgressionSVG />

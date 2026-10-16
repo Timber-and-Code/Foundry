@@ -20,7 +20,7 @@ const STANZAS: { h: string; b: string }[] = [
   },
   {
     h: 'The tools that do the heavy lifting',
-    b: "Auto-firing rest timer. Phase-aware intensity targets. Meso-to-meso carryover. Profile-level progression rules. The stuff you'd otherwise track in a notebook.",
+    b: "Auto-firing rest timer. Phase-aware RIR targets and set counts. Meso-to-meso carryover. Profile-level progression rules. The stuff you'd otherwise track in a notebook.",
   },
   {
     h: 'Your training record, archived',

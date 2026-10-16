@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { tokens } from '../../styles/tokens';
 
 // Data
-import { getProgTargets } from '../../data/constants';
+import { getProgTargets, getWeekPhase } from '../../data/constants';
 
 // Utils
 import {
@@ -146,14 +146,16 @@ function ExerciseCard({
     const n = parseInt(first, 10);
     return Number.isFinite(n) ? n : 0;
   }, [exercise.reps]);
+  // Colour follows the week's phase, whatever the meso length.
+  const goalPhase = getWeekPhase()[weekIdx];
   const goalColor =
-    weekIdx < 2
-      ? 'var(--text-muted)'
-      : weekIdx < 4
-        ? 'var(--phase-accum)'
-        : weekIdx < 5
-          ? 'var(--phase-intens)'
-          : 'var(--danger)';
+    goalPhase === 'Peak'
+      ? 'var(--danger)'
+      : goalPhase === 'Intensification'
+        ? 'var(--phase-intens)'
+        : goalPhase === 'Accumulation'
+          ? 'var(--phase-accum)'
+          : 'var(--text-muted)';
   const [showHowTo, setShowHowTo] = useState(false);
   const [showWarmupModal, setShowWarmupModal] = useState(false);
   // Per-set RPE prompt removed 2026-04-29 — RPE moved to end-of-workout breath card.
