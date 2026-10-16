@@ -1,7 +1,8 @@
 import * as Sentry from '@sentry/react';
 import { store } from './storage';
-import { validateDayData } from './validate';
+import { validateDayData, validateArchive } from './validate';
 import { resolveExerciseSlice } from './exerciseSlice';
+import { findLastMesoWeight } from './progressAggregation';
 import {
   syncWorkoutToSupabase,
   syncCardioSessionToSupabase,
@@ -423,6 +424,57 @@ function computeCarryoverForOneExercise(
 }
 
 /**
+ * Week 1 of a new meso starts where the last hard week of the previous one
+ * left off.
+ *
+ * There is no previous week to carry from, and week 1 used to open blank
+ * while the meso-complete sheet promised that lifts "start heavier because
+ * you did the work". The reference is `findLastMesoWeight`: the top working
+ * set of the last NON-deload week with confirmed sets for this exercise id,
+ * from the most recent archived meso that has one — the same number the
+ * card's LAST MESO chip shows.
+ *
+ * Prescription: that weight, reps at the bottom of this lift's range. Week
+ * 1 is Establish (3–4 RIR), so the lifter re-finds the groove at a known
+ * load rather than guessing, and the usual rule takes over from week 2. Not
+ * a bump — `suggested` stays false, so no "+5 lbs" banner — and
+ * `repsSuggested` is set like every other carry-over row so nothing counts
+ * as done until the lifter confirms it.
+ *
+ * Lifts with no archived LOADED reference (first meso, a new exercise, an
+ * unloaded bodyweight lift, an archive from before `_exId` stamping) open
+ * blank, exactly as before — the reference is a weight, and
+ * `findLastMesoWeight` has none for reps-only work.
+ */
+function seedWeekOneFromArchive(day: TrainingDay): DayData {
+  let archive: ReturnType<typeof validateArchive> = [];
+  try {
+    const raw = store.get('foundry:archive');
+    archive = raw ? validateArchive(JSON.parse(raw)) : [];
+  } catch {
+    return {};
+  }
+  if (!archive.length) return {};
+  const out: DayData = {};
+  (day.exercises || []).forEach((ex, exIdx) => {
+    if (!ex || ex.cardio || ex.id == null) return;
+    const n = Number(ex.sets) || 0;
+    if (n <= 0) return;
+    const ref = findLastMesoWeight(archive, ex.id);
+    if (!ref || !(ref.weight > 0)) return;
+    const rangeMin = parseInt(String(ex.reps ?? '').split('-')[0], 10) || 0;
+    const weight = String(ref.weight);
+    const reps = rangeMin > 0 ? String(rangeMin) : String(ref.reps || '');
+    const slice: Record<string, WorkoutSet> = {};
+    for (let s = 0; s < n; s++) {
+      slice[s] = { weight, reps, suggested: false, repsSuggested: true };
+    }
+    out[exIdx] = slice;
+  });
+  return out;
+}
+
+/**
  * Whether a recalibrate (re-entry deload) flag is set for this meso/week.
  * Set by resumption.applyResumptionChoice('recalibrate', ...). Cleared
  * when the lifter completes the flagged week (handled in useMesoState).
@@ -631,7 +683,8 @@ export function loadDayWeekWithCarryover(
   const hasData = Object.values(current).some((exData) =>
     Object.values(exData).some((s) => s && (s.weight || s.reps))
   );
-  if (hasData || weekIdx === 0) return current;
+  if (hasData) return current;
+  if (weekIdx === 0) return seedWeekOneFromArchive(day);
 
   const recalibrateActive = isRecalibrateActive(weekIdx);
   // Last week of the meso is the deload. Omitting `meso` opts out entirely,
