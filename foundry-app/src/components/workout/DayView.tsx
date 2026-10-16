@@ -275,7 +275,6 @@ function DayView({
       ex.id,
       week,
       (w) => getWeekSets(Number(ex.sets ?? 0), w, getMeso().totalWeeks),
-      getMeso().totalWeeks,
     );
   };
 
@@ -325,7 +324,7 @@ function DayView({
     const programSets = programSetsById.get(exId);
     if (programSets == null) return undefined;
     const totalWeeks = getMeso().totalWeeks;
-    return { baseFor: (w: number) => getWeekSets(programSets, w, totalWeeks), totalWeeks };
+    return { baseFor: (w: number) => getWeekSets(programSets, w, totalWeeks) };
   };
 
   // Compute active week from completedDays (first week not fully done)
@@ -647,7 +646,6 @@ function DayView({
           ex.id,
           weekIdx,
           (w) => getWeekSets(programSets, w, totalWeeks),
-          totalWeeks,
         );
         return c !== Number(ex.sets) ? ({ ...ex, sets: c } as Exercise) : ex;
       }
@@ -673,7 +671,6 @@ function DayView({
           resolved.id,
           weekIdx,
           (w) => getWeekSets(Number(resolved.sets ?? day.exercises[i]?.sets ?? 0), w, totalWeeks),
-          totalWeeks,
         ),
         // The goal's range for THIS lift's pattern — never the library's bare
         // number, and not the outgoing lift's range either (a compound

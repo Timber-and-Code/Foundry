@@ -242,8 +242,8 @@ function computeCarryoverForOneExercise(
   // How many working sets the lifter was actually asked for LAST week.
   //
   // `sets` is THIS week's count, already week-adjusted by getWeekSets — and
-  // the two differ constantly: MEV→MAV adds a set, MAV→MRV adds another,
-  // and an add/remove-set override rides on top of both. Gating last week's
+  // the two differ constantly: the phase steps add a set and take it off
+  // again, and an add/remove-set choice rides on top. Gating last week's
   // evidence against this week's target meant a lifter who trimmed an
   // exercise from 4 sets to 3 could never satisfy the gate again (they will
   // never log 4 again), so that lift was locked out of progression for the
@@ -886,87 +886,46 @@ export function loadSetCountWeeks(dayIdx: number, weekIdx: number): Record<strin
 /**
  * Effective set count for one exercise in one week.
  *
- * The program stays in charge of volume: `getWeekSets` walks MEV→MAV→MRV
- * and drops to a deload, and that progression is what moves week to week.
- * A lifter's add/remove rides on top of it as a DELTA, not as a frozen
- * absolute — so "I want one more set than prescribed" keeps meaning that
- * after the program itself adds a set, and the lifter stays free to adjust
- * again in either direction whenever they like.
+ * The program owns volume: `getWeekSets` prescribes every week from the
+ * phase table. A lifter's add or remove is a statement about THAT week — a
+ * short day, a good day — not an edit to the program, so it lasts the week
+ * it was made and the next week opens on the program's count again.
  *
- * Previously the override was keyed per week and nothing carried, so an
- * added third set silently reverted to the prescribed two the next week.
+ * Resolution: this week's explicit choice → the base. Nothing carries.
  *
- * Resolution order: this week's explicit choice → the most recent earlier
- * week's choice re-expressed as a delta over that week's base → the base.
+ * This replaces the delta carry (2af293f, narrowed in 7db9380), under which
+ * a set trimmed once in week 3 came off every later week until the lifter
+ * added it back by hand — which is exactly what prod showed (meso b9ba647d:
+ * bench and deadlift trimmed 2026-10-06/09, re-added 10-13/14). With no
+ * carry there is also no deload special case: an earlier week can never
+ * reach the deload, and a choice made IN the deload still wins.
  *
- * `baseFor` is injected rather than importing getWeekSets, which lives in
- * training.ts — and training.ts already imports this module, so pulling it
- * in the other direction would close an import cycle.
- *
- * DELOAD EXCEPTION. A delta is only meaningful against a base of comparable
- * size. A lifter who trims 4 sets to 3 in an MAV week has said "one less
- * than the working prescription" — carrying that −1 onto a deload week,
- * whose base is a flat 2, reads it as "one less than the deload" and lands
- * on a single set. That is not a deload, it is a dropped session, and the
- * `Math.max(1, …)` floor is what let it through. So a CARRIED NEGATIVE delta
- * does not apply to the deload week; it takes its programmed count.
- *
- * Deliberately narrow, to preserve the 2af293f product call in both other
- * directions: a carried POSITIVE delta still reaches the deload (the lifter
- * who wants an extra set keeps it, and removes it if they don't), and an
- * EXPLICIT choice made in the deload week itself still wins outright — that
- * is the lifter looking at the deload and deciding, not a stale inference
- * from four weeks ago.
- *
- * `totalWeeks` mirrors getWeekSets' own deload rule (`weekIdx >= length−1`)
- * rather than importing it, for the same import-cycle reason as `baseFor`.
- * `setCountCarry.test.ts` pins the two together. Omitted → no deload
- * special-casing, matching the previous behaviour.
+ * `weeks` stays indexed by week so a caller resolving an EARLIER week (the
+ * carryover gate needs last week's count) can pass one array. `baseFor` is
+ * injected rather than importing getWeekSets, which lives in training.ts —
+ * and training.ts already imports this module.
  */
 export function pickSetCount(
   weeks: Record<string, number>[],
   exId: string | number | null | undefined,
   weekIdx: number,
   baseFor: (week: number) => number,
-  totalWeeks?: number,
 ): number {
   const base = baseFor(weekIdx);
   const key = exId == null ? '' : String(exId);
   if (!key) return base;
   const own = weeks[weekIdx]?.[key];
-  if (own != null) return own;
-  const isDeload = totalWeeks != null && totalWeeks > 0 && weekIdx >= totalWeeks - 1;
-  for (let w = Math.min(weekIdx, weeks.length) - 1; w >= 0; w--) {
-    const chosen = weeks[w]?.[key];
-    if (chosen == null) continue;
-    const delta = chosen - baseFor(w);
-    if (isDeload && delta < 0) return base;
-    return Math.max(1, base + delta);
-  }
-  return base;
+  return own != null ? own : base;
 }
 
 /**
  * Record the lifter's chosen set count for one exercise in one week.
  *
- * A row is stored only when it actually CHANGES something. The test is not
- * "does this equal the week's base" but "does this equal what the lifter
- * would get anyway with no row here at all" — i.e. resolve the week with
- * this entry removed and compare. Anything else gets the two cases wrong in
- * opposite directions:
- *
- *  - Add a set and take it straight back off, in a week with no carried
- *    delta. Lands back on the base, changes nothing, and must NOT be
- *    stored. `pickSetCount` reads any stored row as an explicit choice, so
- *    a row left behind here shadows an earlier real delta and becomes a
- *    real delta itself the moment a swap moves the base under it. This is
- *    how a whole meso ended up carrying deltas nobody chose.
- *
- *  - Add a set back while a −1 IS being carried, landing exactly on the
- *    program's number. That looks identical to the case above if you only
- *    compare against the base — but it is the opposite: the lifter is
- *    overriding the carried delta to say "the full prescription, this
- *    week". Dropping it would silently reassert the delta and undo them.
+ * A row is stored only when it differs from the week's prescription. A
+ * count that lands back on the program clears the row — locally AND
+ * remotely, because `pullSetCountOverrides` merges remote over local and a
+ * local-only delete would come straight back on the next pull. Add a set
+ * and take it off again, and nothing is left behind.
  *
  * `opts` is optional; callers that can't cheaply resolve the week keep the
  * old store-whatever-you're-given behaviour.
@@ -976,31 +935,19 @@ export function saveSetCount(
   weekIdx: number,
   exId: string,
   count: number,
-  opts?: { baseFor: (week: number) => number; totalWeeks?: number },
+  opts?: { baseFor: (week: number) => number },
 ): void {
   if (!exId || !Number.isFinite(count) || count < 1) return;
   const current = loadSetCounts(dayIdx, weekIdx);
   const key = `foundry:setcount:d${dayIdx}:w${weekIdx}`;
 
-  if (opts?.baseFor) {
-    // Resolve this week as if no row existed for this exercise.
-    const weeks = loadSetCountWeeks(dayIdx, weekIdx);
-    if (weeks[weekIdx]) {
-      const withoutThis = { ...weeks[weekIdx] };
-      delete withoutThis[exId];
-      weeks[weekIdx] = withoutThis;
-    }
-    const wouldBe = pickSetCount(weeks, exId, weekIdx, opts.baseFor, opts.totalWeeks);
-    if (count === wouldBe) {
-      if (!(exId in current)) return; // already no-opinion; nothing to clear
-      delete current[exId];
-      if (Object.keys(current).length === 0) store.remove(key);
-      else store.set(key, JSON.stringify(current));
-      // Must also drop the remote row: pullSetCountOverrides merges remote
-      // over local, so a local-only delete comes straight back on next pull.
-      void deleteSetCountRemote(dayIdx, weekIdx, exId);
-      return;
-    }
+  if (opts?.baseFor && count === opts.baseFor(weekIdx)) {
+    if (!(exId in current)) return; // already no-opinion; nothing to clear
+    delete current[exId];
+    if (Object.keys(current).length === 0) store.remove(key);
+    else store.set(key, JSON.stringify(current));
+    void deleteSetCountRemote(dayIdx, weekIdx, exId);
+    return;
   }
 
   current[exId] = count;

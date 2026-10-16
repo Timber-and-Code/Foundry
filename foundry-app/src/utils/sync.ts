@@ -2855,9 +2855,9 @@ export async function deleteCardioPresetRemote(id: string): Promise<void> {
 // ─── SET-COUNT OVERRIDES (migration 009) ────────────────────────────────────
 // A lifter adding or removing a set was localStorage-only, so the choice died
 // with a reinstall or never reached a second device. Stored as the ABSOLUTE
-// count chosen for that (day, week); the delta against the week's prescribed
-// volume is derived on read by pickSetCount, which keeps periodization the
-// source of truth.
+// count chosen for that (day, week), and it applies to that week only —
+// pickSetCount falls back to the program for every week without a row, which
+// keeps periodization the source of truth.
 //
 // Per-user by design. On a shared mesocycle the training_day_exercises row
 // belongs to the owner, so recording the override there would rewrite a
@@ -2903,11 +2903,9 @@ export async function syncSetCountToSupabase(
  *
  * Called when the lifter's chosen count lands back ON the week's
  * prescription — that is "I have no opinion", not "I choose exactly what
- * the program already said". The distinction matters because
- * `pickSetCount` reads any stored row as an explicit choice and re-expresses
- * it as a delta for every LATER week: a row left behind at the base value
- * is inert only until a swap or program edit changes that base, at which
- * point it silently becomes a real delta.
+ * the program already said". A row left behind at the base value is inert
+ * only until a swap or program edit changes that base, at which point it
+ * silently becomes a real override.
  *
  * Remote delete is not optional. `pullSetCountOverrides` MERGES remote rows
  * over local ones, so clearing only the local map lets the next pull put the

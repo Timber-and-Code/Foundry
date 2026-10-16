@@ -143,6 +143,15 @@ describe('wipeMesoSessionData', () => {
       // Points at a day/week that stops existing once the meso is gone —
       // leaving it strands a session bar on Home for a dead session.
       'foundry:active_session',
+      // A set-count choice is per (day, week) of THIS meso. Left behind, the
+      // next meso read it as a choice for its own week of the same index.
+      'foundry:setcount:d0:w2',
+      'foundry:ts:foundry:setcount:d0:w2',
+      // 2.15.12's completion stamps. Left behind, the flush pushed the old
+      // meso's completion time onto the new meso's session of the same
+      // index, and a stale left-open stamp dated a new session months back.
+      'foundry:completedAt:d0:w2',
+      'foundry:leftOpenAt:d1:w0',
     ];
     doomed.forEach((k) => localStorage.setItem(k, 'x'));
     wipeMesoSessionData();
@@ -152,7 +161,6 @@ describe('wipeMesoSessionData', () => {
   it('preserves cross-meso data', () => {
     const kept = [
       'foundry:cardio:session:2026-07-30',
-      'foundry:setcount',
       'foundry:archive',
       'foundry:meso_transition',
       'foundry:resumption_archive:repeat:local:2',
