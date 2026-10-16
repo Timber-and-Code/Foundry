@@ -7,17 +7,19 @@
  *
  *   1. Trimming an exercise (4 sets → 3) locked it out for the rest of the
  *      meso — it would never log 4 again, so the gate could never pass.
- *   2. The MRV week (getWeekSets base → base+1) froze EVERY exercise at
- *      once, including ones the lifter had never touched.
+ *   2. The week the program steps the count up (getWeekSets base → base+1)
+ *      froze EVERY exercise at once, including ones the lifter had never
+ *      touched.
  *
- * Numbers below are the reporter's real day-0 meso: 6 weeks, db_ohp base 4
- * reps 8-10, cable_fly base 3 reps 12-15, with a week-2 override of 3 sets.
+ * Numbers below are the reporter's real day-0 lifts — db_ohp base 4 reps
+ * 8-10, cable_fly base 3 reps 12-15, with a week-2 override of 3 sets — on
+ * an 8-week meso (9 incl. deload), where the step up lands in week 3.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { loadDayWeekWithCarryover, pickSetCount, loadSetCountWeeks } from '../persistence';
 import { getWeekSets } from '../training';
 
-const MESO_WEEKS = 6;
+const MESO_WEEKS = 9;
 const setLSJson = (k: string, v: unknown) => localStorage.setItem(k, JSON.stringify(v));
 const profile = { experience: 'intermediate' } as never;
 
@@ -45,10 +47,11 @@ const resolverFor = (dayIdx: number, weekIdx: number, exercises: ReturnType<type
 describe('carryover honours the previous week\'s set count', () => {
   beforeEach(() => localStorage.clear());
 
-  it('getWeekSets ramps MAV -> MRV, which is what broke the gate', () => {
-    expect(getWeekSets(4, 3, MESO_WEEKS)).toBe(4); // week 3, MAV
-    expect(getWeekSets(4, 4, MESO_WEEKS)).toBe(5); // week 4, MRV
-    expect(getWeekSets(3, 0, MESO_WEEKS)).toBe(2); // week 0, MEV
+  it('getWeekSets steps up into the second accumulation week, which is what broke the gate', () => {
+    expect(getWeekSets(4, 1, MESO_WEEKS)).toBe(4); // week 2, accumulation
+    expect(getWeekSets(4, 2, MESO_WEEKS)).toBe(5); // week 3, accumulation +1
+    expect(getWeekSets(4, 3, MESO_WEEKS)).toBe(4); // week 4, intensification
+    expect(getWeekSets(3, 0, MESO_WEEKS)).toBe(2); // week 1, establish
   });
 
   it('a trimmed exercise still progresses (db_ohp 4 -> 3 sets)', () => {
@@ -84,18 +87,17 @@ describe('carryover honours the previous week\'s set count', () => {
     expect(r[0][0].suggested).toBe(false);
   });
 
-  it('the MRV week does not freeze an untouched exercise', () => {
-    // cable_fly: base 3, delta 0, three perfect sets in week 3. Week 4
-    // prescribes 4 — that must not invalidate week 3's evidence.
+  it('the week the program adds a set does not freeze an untouched exercise', () => {
+    // cable_fly: base 3, never adjusted, three perfect sets in week 2.
+    // Week 3 prescribes 4 — that must not invalidate week 2's evidence.
     const list = [ex('cable_fly_low_high', 3, '12-15', 'cable')];
-    setLSJson('foundry:setcount:d0:w2', { cable_fly_low_high: 3 });
-    setLSJson('foundry:day0:week3', { 0: {
+    setLSJson('foundry:day0:week1', { 0: {
       0: { weight: '35', reps: '15' },
       1: { weight: '35', reps: '15' },
       2: { weight: '35', reps: '15' },
     }});
     const r = loadDayWeekWithCarryover(
-      0, 4, weekDay(4, list), profile, resolverFor(0, 4, list),
+      0, 2, weekDay(2, list), profile, resolverFor(0, 2, list),
     );
     expect(r[0][0].weight).toBe('40'); // 35 + 5
     expect(r[0][0].suggested).toBe(true);

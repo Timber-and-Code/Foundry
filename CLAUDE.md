@@ -80,7 +80,7 @@ Defined in `App.tsx`:
 
 `generateProgram(profile, EXERCISE_DB)` in `src/utils/program.js` builds the mesocycle. **Always pass `EXERCISE_DB` as the second argument** — the default parameter is `[]`, which produces empty workouts.
 
-Week-level set progression (MEV→MAV→MRV) is applied in `DayView` via `getWeekSets(ex.sets, weekIdx, getMeso().weeks)` before rendering exercise cards.
+Week-level set progression follows the phase table (Establish base−1, Accumulation base then base+1 from its second week, Intensification/Peak base, Deload 2) and is applied in `DayView` via `getWeekSets(ex.sets, weekIdx, getMeso().totalWeeks)` before rendering exercise cards.
 
 ### Data Flow for a Workout Session
 

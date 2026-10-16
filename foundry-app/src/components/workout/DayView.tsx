@@ -251,7 +251,7 @@ function DayView({
 
   const isDone = completedDays.has(`${dayIdx}:${weekIdx}`);
 
-  // Week-adjusted day: injects MEV→MAV→MRV set progression into every exercise.
+  // Week-adjusted day: injects the phase-driven set schedule into every exercise.
   // Must be computed before useState initializers that consume ex.sets.
   const weekDay = {
     ...day,
@@ -265,7 +265,7 @@ function DayView({
   // with the lifter's add/remove-set delta applied. Carryover needs LAST
   // week's number to judge "did you complete the work", and `weekDay` above
   // only carries this week's — they diverge every time getWeekSets steps
-  // MEV→MAV→MRV, and again whenever the lifter trims or adds a set.
+  // between phases, and again whenever the lifter trims or adds a set.
   const setCountWeeks = loadSetCountWeeks(dayIdx, weekIdx);
   const prevSetsFor = (exIdx: number, week: number): number => {
     const ex = day.exercises[exIdx];
