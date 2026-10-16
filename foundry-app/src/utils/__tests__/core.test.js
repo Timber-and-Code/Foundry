@@ -259,8 +259,8 @@ function setLS(key, value) {
 }
 
 // A meso with one logged working set — empty ones are not archived.
-const WORK = [{ d: 0, w: 0, data: { 0: { 0: { weight: 100, reps: 5 } } } }];
-const logWork = () => setLSJson('foundry:day0:week0', { 0: { 0: { weight: 100, reps: 5 } } });
+const WORK = [{ d: 0, w: 0, data: { 0: { 0: { confirmed: true, weight: 100, reps: 5 } } } }];
+const logWork = () => setLSJson('foundry:day0:week0', { 0: { 0: { confirmed: true, weight: 100, reps: 5 } } });
 
 function setLSJson(key, obj) {
   localStorage.setItem(key, JSON.stringify(obj));
@@ -412,8 +412,8 @@ describe('detectStallingLifts', () => {
       setLS(`foundry:done:d0:w${w}`, '1');
       setLSJson(`foundry:day0:week${w}`, {
         0: {
-          0: { weight: '100', reps: '8' },
-          1: { weight: '100', reps: '8' },
+          0: { confirmed: true, weight: '100', reps: '8' },
+          1: { confirmed: true, weight: '100', reps: '8' },
         },
       });
     }
@@ -425,9 +425,9 @@ describe('detectStallingLifts', () => {
 
   it('detects a regression (weight dropped week over week)', () => {
     setLS('foundry:done:d0:w0', '1');
-    setLSJson('foundry:day0:week0', { 0: { 0: { weight: '110', reps: '8' } } });
+    setLSJson('foundry:day0:week0', { 0: { 0: { confirmed: true, weight: '110', reps: '8' } } });
     setLS('foundry:done:d0:w1', '1');
-    setLSJson('foundry:day0:week1', { 0: { 0: { weight: '100', reps: '8' } } });
+    setLSJson('foundry:day0:week1', { 0: { 0: { confirmed: true, weight: '100', reps: '8' } } });
 
     const result = detectStallingLifts(0, day, resolvedEx, 2, profile, deps);
     expect(result.regressions).toHaveLength(1);
@@ -440,7 +440,7 @@ describe('detectStallingLifts', () => {
     for (let w = 0; w < 2; w++) {
       setLS(`foundry:done:d0:w${w}`, '1');
       setLSJson(`foundry:day0:week${w}`, {
-        0: { 0: { weight: '100', reps: '8' } },
+        0: { 0: { confirmed: true, weight: '100', reps: '8' } },
       });
     }
     const result = detectStallingLifts(0, day, resolvedEx, 2, profile, deps);
@@ -451,7 +451,7 @@ describe('detectStallingLifts', () => {
     for (let w = 0; w < 3; w++) {
       setLS(`foundry:done:d0:w${w}`, '1');
       setLSJson(`foundry:day0:week${w}`, {
-        0: { 0: { weight: '60', reps: '5', warmup: true } },
+        0: { 0: { confirmed: true, weight: '60', reps: '5', warmup: true } },
       });
     }
     const result = detectStallingLifts(0, day, resolvedEx, 3, profile, deps);
@@ -462,11 +462,11 @@ describe('detectStallingLifts', () => {
     for (let w = 0; w < 3; w++) {
       setLS(`foundry:done:d0:w${w}`, '1');
       setLSJson(`foundry:day0:week${w}`, {
-        0: { 0: { weight: '100', reps: '8' } },
+        0: { 0: { confirmed: true, weight: '100', reps: '8' } },
       });
     }
     // Current week (w=3) has higher weight
-    setLSJson('foundry:day0:week3', { 0: { 0: { weight: '105', reps: '8' } } });
+    setLSJson('foundry:day0:week3', { 0: { 0: { confirmed: true, weight: '105', reps: '8' } } });
     const result = detectStallingLifts(0, day, resolvedEx, 3, profile, deps);
     expect(result.stalls).toHaveLength(0);
   });
@@ -485,13 +485,13 @@ describe('detectSessionPRs', () => {
     it('returns PR when current best beats prior weeks', () => {
       // Prior week data
       setLSJson('foundry:day0:week0', {
-        0: { 0: { weight: '100', reps: '8' } },
+        0: { 0: { confirmed: true, weight: '100', reps: '8' } },
       });
       setLSJson('foundry:day0:week1', {
-        0: { 0: { weight: '105', reps: '8' } },
+        0: { 0: { confirmed: true, weight: '105', reps: '8' } },
       });
 
-      const weekData = { 0: { 0: { weight: '110', reps: '8' } } };
+      const weekData = { 0: { 0: { confirmed: true, weight: '110', reps: '8' } } };
       const prs = detectSessionPRs(exercises, weekData, 'meso', {
         dayIdx: 0,
         weekIdx: 2,
@@ -504,10 +504,10 @@ describe('detectSessionPRs', () => {
 
     it('returns empty array when no improvement over prior weeks', () => {
       setLSJson('foundry:day0:week0', {
-        0: { 0: { weight: '110', reps: '8' } },
+        0: { 0: { confirmed: true, weight: '110', reps: '8' } },
       });
 
-      const weekData = { 0: { 0: { weight: '105', reps: '8' } } };
+      const weekData = { 0: { 0: { confirmed: true, weight: '105', reps: '8' } } };
       const prs = detectSessionPRs(exercises, weekData, 'meso', {
         dayIdx: 0,
         weekIdx: 1,
@@ -516,7 +516,7 @@ describe('detectSessionPRs', () => {
     });
 
     it('returns empty array when no prior week data exists', () => {
-      const weekData = { 0: { 0: { weight: '100', reps: '8' } } };
+      const weekData = { 0: { 0: { confirmed: true, weight: '100', reps: '8' } } };
       const prs = detectSessionPRs(exercises, weekData, 'meso', {
         dayIdx: 0,
         weekIdx: 0,
@@ -526,9 +526,9 @@ describe('detectSessionPRs', () => {
 
     it('returns empty array when current weight is 0', () => {
       setLSJson('foundry:day0:week0', {
-        0: { 0: { weight: '100', reps: '8' } },
+        0: { 0: { confirmed: true, weight: '100', reps: '8' } },
       });
-      const weekData = { 0: { 0: { weight: '0', reps: '8' } } };
+      const weekData = { 0: { 0: { confirmed: true, weight: '0', reps: '8' } } };
       const prs = detectSessionPRs(exercises, weekData, 'meso', {
         dayIdx: 0,
         weekIdx: 1,
@@ -540,7 +540,7 @@ describe('detectSessionPRs', () => {
   describe('mode: extra', () => {
     it('returns empty array when no prior data and exercise has no id', () => {
       const exNoId = [{ name: 'Unknown' }];
-      const weekData = { 0: { 0: { weight: '100', reps: '8' } } };
+      const weekData = { 0: { 0: { confirmed: true, weight: '100', reps: '8' } } };
       const prs = detectSessionPRs(exNoId, weekData, 'extra', {
         activeDays: [],
         currentDateStr: '2024-01-15',
@@ -558,7 +558,7 @@ describe('detectSessionPRs', () => {
     });
 
     it('returns empty when no prior history exists anywhere', () => {
-      const weekData = { 0: { 0: { weight: '100', reps: '8' } } };
+      const weekData = { 0: { 0: { confirmed: true, weight: '100', reps: '8' } } };
       const prs = detectSessionPRs(exercises, weekData, 'extra', {
         activeDays: [],
         currentDateStr: '2024-01-15',
@@ -592,7 +592,7 @@ describe('loadDayWeekWithCarryover', () => {
   const profile = { experience: 'intermediate' };
 
   it('returns stored data when current week already has data', () => {
-    const stored = { 0: { 0: { weight: '100', reps: '8' } } };
+    const stored = { 0: { 0: { confirmed: true, weight: '100', reps: '8' } } };
     setLSJson('foundry:day0:week1', stored);
     const result = loadDayWeekWithCarryover(0, 1, makeDay(), profile);
     expect(result[0][0].weight).toBe('100');
@@ -608,9 +608,9 @@ describe('loadDayWeekWithCarryover', () => {
     // Week 0 data: all reps hit the max of range (10)
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '100', reps: '10' },
-        1: { weight: '100', reps: '10' },
-        2: { weight: '100', reps: '10' },
+        0: { confirmed: true, weight: '100', reps: '10' },
+        1: { confirmed: true, weight: '100', reps: '10' },
+        2: { confirmed: true, weight: '100', reps: '10' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
@@ -622,9 +622,9 @@ describe('loadDayWeekWithCarryover', () => {
   it('carries over dumbbell weight with +2.5 lb nudge for light weights', () => {
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '20', reps: '10' },
-        1: { weight: '20', reps: '10' },
-        2: { weight: '20', reps: '10' },
+        0: { confirmed: true, weight: '20', reps: '10' },
+        1: { confirmed: true, weight: '20', reps: '10' },
+        2: { confirmed: true, weight: '20', reps: '10' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('dumbbell', '6-10'), profile);
@@ -636,9 +636,9 @@ describe('loadDayWeekWithCarryover', () => {
   it('carries over dumbbell weight with +5 lb nudge for heavier weights', () => {
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '30', reps: '10' },
-        1: { weight: '30', reps: '10' },
-        2: { weight: '30', reps: '10' },
+        0: { confirmed: true, weight: '30', reps: '10' },
+        1: { confirmed: true, weight: '30', reps: '10' },
+        2: { confirmed: true, weight: '30', reps: '10' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('dumbbell', '6-10'), profile);
@@ -651,9 +651,9 @@ describe('loadDayWeekWithCarryover', () => {
     // Only hit 8 reps when max is 10
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '100', reps: '8' },
-        1: { weight: '100', reps: '8' },
-        2: { weight: '100', reps: '8' },
+        0: { confirmed: true, weight: '100', reps: '8' },
+        1: { confirmed: true, weight: '100', reps: '8' },
+        2: { confirmed: true, weight: '100', reps: '8' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
@@ -666,7 +666,7 @@ describe('loadDayWeekWithCarryover', () => {
 
   it('returns empty object when no prior weeks have weight data', () => {
     // Week 0 exists but has no weight logged
-    setLSJson('foundry:day0:week0', { 0: { 0: { weight: '', reps: '8' } } });
+    setLSJson('foundry:day0:week0', { 0: { 0: { confirmed: true, weight: '', reps: '8' } } });
     const result = loadDayWeekWithCarryover(0, 1, makeDay(), profile);
     expect(result).toEqual({});
   });
@@ -692,9 +692,9 @@ describe('loadDayWeekWithCarryover', () => {
     // Three sets of 8 with no weight — the real shape of a logged BW set.
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '', reps: '8' },
-        1: { weight: '', reps: '8' },
-        2: { weight: '', reps: '8' },
+        0: { confirmed: true, weight: '', reps: '8' },
+        1: { confirmed: true, weight: '', reps: '8' },
+        2: { confirmed: true, weight: '', reps: '8' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeBwDay('6-10'), profile);
@@ -708,9 +708,9 @@ describe('loadDayWeekWithCarryover', () => {
     // No load to add, so the rep target has to keep climbing.
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '', reps: '10' },
-        1: { weight: '', reps: '10' },
-        2: { weight: '', reps: '10' },
+        0: { confirmed: true, weight: '', reps: '10' },
+        1: { confirmed: true, weight: '', reps: '10' },
+        2: { confirmed: true, weight: '', reps: '10' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeBwDay('6-10'), profile);
@@ -722,9 +722,9 @@ describe('loadDayWeekWithCarryover', () => {
     // Rows land as '', null, or '0' depending on how they were written.
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '0', reps: '8' },
-        1: { weight: '0', reps: '8' },
-        2: { weight: '', reps: '8' },
+        0: { confirmed: true, weight: '0', reps: '8' },
+        1: { confirmed: true, weight: '0', reps: '8' },
+        2: { confirmed: true, weight: '', reps: '8' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeBwDay('6-10'), profile);
@@ -748,9 +748,9 @@ describe('loadDayWeekWithCarryover', () => {
     };
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '15', reps: '4' },
-        1: { weight: '15', reps: '4' },
-        2: { weight: '15', reps: '4' },
+        0: { confirmed: true, weight: '15', reps: '4' },
+        1: { confirmed: true, weight: '15', reps: '4' },
+        2: { confirmed: true, weight: '15', reps: '4' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, weightedPullups, profile);
@@ -763,9 +763,9 @@ describe('loadDayWeekWithCarryover', () => {
     // to count reps or the whole week is skipped and nothing carries.
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '', reps: '7' },
-        1: { weight: '', reps: '7' },
-        2: { weight: '', reps: '7' },
+        0: { confirmed: true, weight: '', reps: '7' },
+        1: { confirmed: true, weight: '', reps: '7' },
+        2: { confirmed: true, weight: '', reps: '7' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 2, makeBwDay('6-10'), profile);
@@ -843,9 +843,9 @@ describe('loadDayWeekWithCarryover', () => {
     // No _exId tags (data written before Med shipped).
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '100', reps: '10' },
-        1: { weight: '100', reps: '10' },
-        2: { weight: '100', reps: '10' },
+        0: { confirmed: true, weight: '100', reps: '10' },
+        1: { confirmed: true, weight: '100', reps: '10' },
+        2: { confirmed: true, weight: '100', reps: '10' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
@@ -859,9 +859,9 @@ describe('loadDayWeekWithCarryover', () => {
     // Top reps at the heaviest weight is 8 (< rangeMax of 10) so no nudge.
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '100', reps: '8' },
-        1: { weight: '100', reps: '8' },
-        2: { weight: '95', reps: '7' },
+        0: { confirmed: true, weight: '100', reps: '8' },
+        1: { confirmed: true, weight: '100', reps: '8' },
+        2: { confirmed: true, weight: '95', reps: '7' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
@@ -881,9 +881,9 @@ describe('loadDayWeekWithCarryover', () => {
     // across all sets, with reps reset to rangeMin.
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '100', reps: '10' },
-        1: { weight: '100', reps: '10' },
-        2: { weight: '95', reps: '8' },
+        0: { confirmed: true, weight: '100', reps: '10' },
+        1: { confirmed: true, weight: '100', reps: '10' },
+        2: { confirmed: true, weight: '95', reps: '8' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
@@ -907,7 +907,7 @@ describe('loadDayWeekWithCarryover', () => {
     // behavior: holds at 100 with rep suggestion since not all sets logged.
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '100', reps: '10' },
+        0: { confirmed: true, weight: '100', reps: '10' },
         // sets 1 + 2 never logged
       },
     });
@@ -925,9 +925,9 @@ describe('loadDayWeekWithCarryover', () => {
     // week — they get a +1 rep suggestion to grind toward the top.
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '100', reps: '10' },
-        1: { weight: '100', reps: '10' },
-        2: { weight: '100', reps: '8' },
+        0: { confirmed: true, weight: '100', reps: '10' },
+        1: { confirmed: true, weight: '100', reps: '10' },
+        2: { confirmed: true, weight: '100', reps: '8' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
@@ -942,9 +942,9 @@ describe('loadDayWeekWithCarryover', () => {
     // 3-set prescription with 1 warmup + 2 working sets at top still bumps.
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '60', reps: '6', warmup: true },
-        1: { weight: '100', reps: '10' },
-        2: { weight: '100', reps: '10' },
+        0: { confirmed: true, weight: '60', reps: '6', warmup: true },
+        1: { confirmed: true, weight: '100', reps: '10' },
+        2: { confirmed: true, weight: '100', reps: '10' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
@@ -966,9 +966,9 @@ describe('loadDayWeekWithCarryover', () => {
     setLS('foundry:reentry_deload:meso-recal-1:1', '1');
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '100', reps: '10' },
-        1: { weight: '100', reps: '10' },
-        2: { weight: '100', reps: '10' },
+        0: { confirmed: true, weight: '100', reps: '10' },
+        1: { confirmed: true, weight: '100', reps: '10' },
+        2: { confirmed: true, weight: '100', reps: '10' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
@@ -983,9 +983,9 @@ describe('loadDayWeekWithCarryover', () => {
     setLS('foundry:reentry_deload:meso-recal-2:1', '1');
     setLSJson('foundry:day0:week0', {
       0: {
-        0: { weight: '126.5', reps: '10' },
-        1: { weight: '126.5', reps: '10' },
-        2: { weight: '126.5', reps: '10' },
+        0: { confirmed: true, weight: '126.5', reps: '10' },
+        1: { confirmed: true, weight: '126.5', reps: '10' },
+        2: { confirmed: true, weight: '126.5', reps: '10' },
       },
     });
     const result = loadDayWeekWithCarryover(0, 1, makeDay('barbell', '6-10'), profile);
@@ -1029,7 +1029,7 @@ describe('archiveCurrentMeso', () => {
 
   it('archives meso data to foundry:archive', () => {
     // Seed some session data
-    setLSJson('foundry:day0:week0', { 0: { 0: { weight: '100', reps: '8' } } });
+    setLSJson('foundry:day0:week0', { 0: { 0: { confirmed: true, weight: '100', reps: '8' } } });
     setLS('foundry:done:d0:w0', '1');
 
     archiveCurrentMeso(profile, {});
@@ -1080,8 +1080,8 @@ describe('archiveCurrentMeso', () => {
 
   it('saves anchor peak weights when generateProgram is provided', () => {
     // Seed weight data for day 0 (the anchor exercise slot)
-    setLSJson('foundry:day0:week0', { 0: { 0: { weight: '150', reps: '5' } } });
-    setLSJson('foundry:day0:week1', { 0: { 0: { weight: '155', reps: '5' } } });
+    setLSJson('foundry:day0:week0', { 0: { 0: { confirmed: true, weight: '150', reps: '5' } } });
+    setLSJson('foundry:day0:week1', { 0: { 0: { confirmed: true, weight: '155', reps: '5' } } });
 
     const mockGenerateProgram = () => [
       {

@@ -43,6 +43,7 @@ export {
 } from './training';
 
 export * from './persistence';
+export { isLoggedSet } from './loggedSet';
 export * from './analytics';
 export * from './archive';
 export { pullFromSupabase, pushToSupabase } from './sync';

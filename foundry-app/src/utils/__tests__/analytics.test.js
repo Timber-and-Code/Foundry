@@ -136,13 +136,13 @@ describe('detectSessionPRs — additional coverage', () => {
     localStorage.setItem(
       'foundry:day0:week0',
       JSON.stringify({
-        0: { 0: { weight: '200', reps: '5' } },
-        1: { 0: { weight: '100', reps: '8' } },
+        0: { 0: { confirmed: true, weight: '200', reps: '5' } },
+        1: { 0: { confirmed: true, weight: '100', reps: '8' } },
       })
     );
     const weekData = {
-      0: { 0: { weight: '205', reps: '5' } },
-      1: { 0: { weight: '105', reps: '8' } },
+      0: { 0: { confirmed: true, weight: '205', reps: '5' } },
+      1: { 0: { confirmed: true, weight: '105', reps: '8' } },
     };
     const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx: 0, weekIdx: 1 });
     expect(prs).toHaveLength(2);
@@ -153,9 +153,9 @@ describe('detectSessionPRs — additional coverage', () => {
   it('does not return PR when weight exactly ties prior best (must strictly improve)', () => {
     localStorage.setItem(
       'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: '100', reps: '8' } } })
+      JSON.stringify({ 0: { 0: { confirmed: true, weight: '100', reps: '8' } } })
     );
-    const weekData = { 0: { 0: { weight: '100', reps: '8' } } };
+    const weekData = { 0: { 0: { confirmed: true, weight: '100', reps: '8' } } };
     const prs = detectSessionPRs(
       [{ id: 'bench', name: 'Bench Press' }],
       weekData,
@@ -168,9 +168,9 @@ describe('detectSessionPRs — additional coverage', () => {
   it('handles exercises with reps but no weight (no PR)', () => {
     localStorage.setItem(
       'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: '', reps: '10' } } })
+      JSON.stringify({ 0: { 0: { confirmed: true, weight: '', reps: '10' } } })
     );
-    const weekData = { 0: { 0: { weight: '', reps: '12' } } };
+    const weekData = { 0: { 0: { confirmed: true, weight: '', reps: '12' } } };
     const prs = detectSessionPRs(
       [{ id: 'pullup', name: 'Pull-up' }],
       weekData,
@@ -184,14 +184,14 @@ describe('detectSessionPRs — additional coverage', () => {
     localStorage.setItem(
       'foundry:day0:week0',
       JSON.stringify({
-        0: { 0: { weight: '200', reps: '5' } },
-        1: { 0: { weight: '150', reps: '8' } },
+        0: { 0: { confirmed: true, weight: '200', reps: '5' } },
+        1: { 0: { confirmed: true, weight: '150', reps: '8' } },
       })
     );
     // squat improved, bench did not
     const weekData = {
-      0: { 0: { weight: '210', reps: '5' } },
-      1: { 0: { weight: '145', reps: '8' } },
+      0: { 0: { confirmed: true, weight: '210', reps: '5' } },
+      1: { 0: { confirmed: true, weight: '145', reps: '8' } },
     };
     const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx: 0, weekIdx: 1 });
     expect(prs).toHaveLength(1);
@@ -199,7 +199,7 @@ describe('detectSessionPRs — additional coverage', () => {
   });
 
   it('mode extra — returns empty when exercise has no id', () => {
-    const weekData = { 0: { 0: { weight: '100', reps: '8' } } };
+    const weekData = { 0: { 0: { confirmed: true, weight: '100', reps: '8' } } };
     const prs = detectSessionPRs(
       [{ name: 'No ID Exercise' }],
       weekData,

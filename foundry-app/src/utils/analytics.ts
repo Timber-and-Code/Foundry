@@ -1,6 +1,7 @@
 import { store } from './storage';
 import { validateDayData } from './validate';
 import { findPrevSlotForExercise } from './persistence';
+import { isLoggedSet } from './loggedSet';
 import type {
   ReadinessEntry,
   Exercise,
@@ -77,9 +78,16 @@ export function detectSessionPRs(
   mode: 'meso' | 'extra',
   opts: MesoPROpts | ExtraPROpts,
 ): PREntry[] {
-  const getBestWeight = (data: Record<string, WorkoutSet> | undefined): number => {
+  // `loggedOnly` for prior weeks: their blobs also hold the suggestions the
+  // lifter never ticked. Today's blob is read as-is because the set that
+  // just triggered this check may not carry its `confirmed` flag yet.
+  const getBestWeight = (
+    data: Record<string, WorkoutSet> | undefined,
+    loggedOnly = false,
+  ): number => {
     let best = 0;
     Object.values(data || {}).forEach((s) => {
+      if (loggedOnly && !isLoggedSet(s)) return;
       const w = parseFloat(String(s?.weight));
       if (!isNaN(w) && w > best && (s?.reps || s?.reps === 0)) best = w;
     });
@@ -103,7 +111,7 @@ export function detectSessionPRs(
           // whatever occupied the slot in past weeks (pre-reorder/swap),
           // yielding phantom PRs against another lift's weights.
           const slice = findPrevSlotForExercise(dd, ex.id, exIdx);
-          const b = getBestWeight(slice as unknown as Record<string, WorkoutSet>);
+          const b = getBestWeight(slice as unknown as Record<string, WorkoutSet>, true);
           if (b > priorBest) priorBest = b;
         } catch (e) {
           console.warn('[Foundry]', 'Failed to read prior week data for PR detection', e);
@@ -226,7 +234,7 @@ export function detectStallingLifts(
         );
         let heaviest = 0;
         Object.values(exData).forEach((s) => {
-          if (!s || s.warmup || s.repsSuggested) return;
+          if (!isLoggedSet(s) || s.warmup) return;
           const wt = parseFloat(String(s.weight));
           if (!isNaN(wt) && wt > 0 && s.reps && s.reps !== '') {
             if (wt > heaviest) heaviest = wt;
@@ -267,7 +275,7 @@ export function detectStallingLifts(
             );
             let curHeaviest = 0;
             Object.values(curExData).forEach((s) => {
-              if (!s || s.warmup) return;
+              if (!isLoggedSet(s) || s.warmup) return;
               const wt = parseFloat(String(s.weight));
               if (!isNaN(wt) && wt > curHeaviest) curHeaviest = wt;
             });

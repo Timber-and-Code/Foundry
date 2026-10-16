@@ -149,14 +149,14 @@ describe('collectTrainedExerciseIds', () => {
 
   it('collects ids from confirmed working sets', () => {
     const ids = collectTrainedExerciseIds(
-      archiveWith([{ _exId: 'bb_squat', weight: 225, reps: 5 }]),
+      archiveWith([{ _exId: 'bb_squat', confirmed: true, weight: 225, reps: 5 }]),
     );
     expect(ids.has('bb_squat')).toBe(true);
   });
 
   it('counts bodyweight work that logs reps but no weight', () => {
     // pullups_bw and friends would otherwise never register as trained.
-    const ids = collectTrainedExerciseIds(archiveWith([{ _exId: 'pullups_bw', reps: 8 }]));
+    const ids = collectTrainedExerciseIds(archiveWith([{ _exId: 'pullups_bw', confirmed: true, reps: 8 }]));
     expect(ids.has('pullups_bw')).toBe(true);
   });
 
@@ -164,15 +164,15 @@ describe('collectTrainedExerciseIds', () => {
     // A slot you opened and abandoned is not history. Treating it as such
     // would pin the next meso to a lift never actually performed.
     const ids = collectTrainedExerciseIds(archiveWith([
-      { _exId: 'bb_bench', weight: 45, reps: 10, warmup: true },
-      { _exId: 'db_fly', weight: 0, reps: 0 },
+      { _exId: 'bb_bench', confirmed: true, weight: 45, reps: 10, warmup: true },
+      { _exId: 'db_fly', confirmed: true, weight: 0, reps: 0 },
       { _exId: 'ghost_lift' },
     ]));
     expect(ids.size).toBe(0);
   });
 
   it('ignores unstamped sets rather than guessing by slot position', () => {
-    const ids = collectTrainedExerciseIds(archiveWith([{ weight: 100, reps: 5 }]));
+    const ids = collectTrainedExerciseIds(archiveWith([{ confirmed: true, weight: 100, reps: 5 }]));
     expect(ids.size).toBe(0);
   });
 
@@ -184,8 +184,8 @@ describe('collectTrainedExerciseIds', () => {
 
   it('unions ids across multiple archived mesos', () => {
     const archive = [
-      { id: 'm2', sessions: [{ d: 0, w: 0, data: { 0: { 1: { _exId: 'db_ohp', weight: 60, reps: 8 } } } }] },
-      { id: 'm1', sessions: [{ d: 0, w: 0, data: { 0: { 1: { _exId: 'bb_squat', weight: 225, reps: 5 } } } }] },
+      { id: 'm2', sessions: [{ d: 0, w: 0, data: { 0: { 1: { _exId: 'db_ohp', confirmed: true, weight: 60, reps: 8 } } } }] },
+      { id: 'm1', sessions: [{ d: 0, w: 0, data: { 0: { 1: { _exId: 'bb_squat', confirmed: true, weight: 225, reps: 5 } } } }] },
     ] as unknown as ArchiveEntry[];
     expect(collectTrainedExerciseIds(archive)).toEqual(new Set(['db_ohp', 'bb_squat']));
   });

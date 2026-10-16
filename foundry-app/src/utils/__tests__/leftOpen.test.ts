@@ -145,8 +145,8 @@ describe('findLeftOpenSessions', () => {
       setsDone: 4,
       label: 'Full Body C',
     });
-    // Week index 1 of an 8-week meso is MEV phase: 3→2 and 2→2 sets.
-    expect(found[0].totalSets).toBe(4);
+    // Week index 1 is an Accumulation week: the program's 3 + 2 sets.
+    expect(found[0].totalSets).toBe(5);
   });
 
   it('drops an accidental start that logged nothing — nothing happened', () => {
@@ -228,15 +228,22 @@ describe('completeLeftOpenSession', () => {
 });
 
 describe('the skip rule', () => {
-  it('sessionHasLoggedWork sees confirmed sets and weight+reps, not warmups or blanks', () => {
+  it('sessionHasLoggedWork sees confirmed sets only — not warmups, blanks, or unticked rows', () => {
     localStorage.setItem(
       'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: 135, reps: 5, warmup: true }, 1: { weight: '', reps: '' } } }),
+      JSON.stringify({ 0: { 0: { weight: 135, reps: 5, warmup: true, confirmed: true }, 1: { weight: '', reps: '' } } }),
+    );
+    expect(sessionHasLoggedWork(0, 0)).toBe(false);
+    // A carry-over suggestion or a typed-but-unticked row has numbers but
+    // is not work (see utils/loggedSet).
+    localStorage.setItem(
+      'foundry:day0:week0',
+      JSON.stringify({ 0: { 0: { weight: 135, reps: 5, repsSuggested: true }, 1: { weight: 140, reps: 6 } } }),
     );
     expect(sessionHasLoggedWork(0, 0)).toBe(false);
     localStorage.setItem(
       'foundry:day0:week0',
-      JSON.stringify({ 0: { 0: { weight: 135, reps: 5 } } }),
+      JSON.stringify({ 0: { 0: { weight: 135, reps: 5, confirmed: true } } }),
     );
     expect(sessionHasLoggedWork(0, 0)).toBe(true);
     localStorage.setItem(

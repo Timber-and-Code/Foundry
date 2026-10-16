@@ -4,6 +4,7 @@ import { resolveExerciseSlice } from './exerciseSlice';
 import { loadMobilitySession } from './persistence';
 import { syncProfileToSupabase, syncBodyWeightToSupabase, syncMesocycleToSupabase, ensureTrainingStructureRemote } from './sync';
 import { buildMesoConfig } from '../data/constants';
+import { isLoggedSet } from './loggedSet';
 import type {
   Profile,
   Exercise,
@@ -431,7 +432,7 @@ export function loadSparklineData(
       let bestWeight = 0,
         bestReps = 0;
       Object.values(exData).forEach((s) => {
-        if (!s || s.warmup) return;
+        if (!isLoggedSet(s) || s.warmup) return;
         const wt = parseFloat(String(s.weight ?? '0')) || 0;
         const rp = parseInt(String(s.reps ?? '0')) || 0;
         if (wt > bestWeight) {
@@ -548,9 +549,8 @@ export function sessionHasLoggedWork(dayIdx: number, weekIdx: number): boolean {
     const data = JSON.parse(raw) as Record<string, Record<string, WorkoutSet>>;
     for (const slice of Object.values(data || {})) {
       for (const set of Object.values(slice || {})) {
-        if (!set || set.warmup) continue;
-        if (set.confirmed) return true;
-        if (Number(set.reps) > 0 && Number(set.weight) > 0) return true;
+        if (!isLoggedSet(set) || set.warmup) continue;
+        return true;
       }
     }
   } catch {

@@ -17,6 +17,7 @@ import MesoHistoryView from './MesoHistoryView';
 import SetRow from './SetRow';
 import { haptic } from '../../utils/helpers';
 import { findLastMesoWeight } from '../../utils/progressAggregation';
+import { isLoggedSet } from '../../utils/loggedSet';
 import { getMeso } from '../../data/constants';
 import { useExerciseProgression } from '../../hooks/useExerciseProgression';
 import { isCustomId } from '../../utils/customExercises';
@@ -250,7 +251,9 @@ function ExerciseCard({
       bestR = 0,
       setsCount = 0;
     Object.values(prev as Record<string, SetData>).forEach((sd) => {
-      if (!sd || sd.warmup) return;
+      // Confirmed sets only: last week's blob also holds the suggestions
+      // the lifter never ticked (see utils/loggedSet).
+      if (!isLoggedSet(sd) || sd.warmup) return;
       const w = parseFloat(String(sd.weight ?? 0)) || 0;
       const r = parseInt(String(sd.reps ?? 0), 10);
       if (!r || (!w && !isBw)) return;
@@ -289,7 +292,7 @@ function ExerciseCard({
     const isBw = !!exercise.bw;
     return Object.values(prev as Record<string, SetData>).some(
       (sd) =>
-        sd &&
+        isLoggedSet(sd) &&
         !sd.warmup &&
         (parseFloat(String(sd.weight ?? 0)) > 0 ||
           // Bodyweight work IS same-meso history; without this the card fell

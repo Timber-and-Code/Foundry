@@ -37,6 +37,7 @@ import {
 } from './sync';
 import { logWorkoutToHealth } from './health/logWorkoutToHealth';
 import { emit } from './events';
+import { isLoggedSet } from './loggedSet';
 import type { TrainingDay, WorkoutSet } from '../types';
 
 export const leftOpenKey = (dayIdx: number, weekIdx: number): string =>
@@ -110,7 +111,7 @@ export interface LeftOpenSession {
   startedAt: number;
   /** ISO — when the training happened. Completion is dated here. */
   trainedAt: string;
-  /** Working sets logged (confirmed, or weight + reps entered). */
+  /** Working sets logged (confirmed — see utils/loggedSet). */
   setsDone: number;
   /** Working sets prescribed for that week. */
   totalSets: number;
@@ -125,8 +126,8 @@ function countLoggedSets(dayIdx: number, weekIdx: number): number {
     const data = JSON.parse(raw) as Record<string, Record<string, WorkoutSet>>;
     for (const slice of Object.values(data || {})) {
       for (const set of Object.values(slice || {})) {
-        if (!set || set.warmup) continue;
-        if (set.confirmed || (Number(set.reps) > 0 && Number(set.weight) > 0)) n++;
+        if (!isLoggedSet(set) || set.warmup) continue;
+        n++;
       }
     }
   } catch {
@@ -196,10 +197,9 @@ function sessionTotals(dayIdx: number, weekIdx: number): { sets: number; volume:
     const data = JSON.parse(raw) as Record<string, Record<string, WorkoutSet>>;
     for (const slice of Object.values(data || {})) {
       for (const set of Object.values(slice || {})) {
-        if (!set || set.warmup) continue;
+        if (!isLoggedSet(set) || set.warmup) continue;
         const r = parseInt(String(set.reps || 0), 10);
         const wt = parseFloat(String(set.weight || 0));
-        if (!(set.confirmed || (r > 0 && wt > 0))) continue;
         sets++;
         if (Number.isFinite(r) && Number.isFinite(wt)) volume += r * wt;
       }

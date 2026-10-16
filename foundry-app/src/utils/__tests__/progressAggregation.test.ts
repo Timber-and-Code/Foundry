@@ -96,14 +96,14 @@ describe('aggregateLiftsByMuscle', () => {
     // Bench Press: w0 top 200, w1 top 210, w2 top 215 (and 215×6 = e1RM ~258)
     const weekData: Record<string, DayData> = {
       '0:0': {
-        0: { 0: { weight: '135', reps: '5', warmup: true }, 1: { weight: '200', reps: '6' }, 2: { weight: '200', reps: '5' } },
-        1: { 0: { weight: '95', reps: '8' } },
+        0: { 0: { confirmed: true, weight: '135', reps: '5', warmup: true }, 1: { confirmed: true, weight: '200', reps: '6' }, 2: { confirmed: true, weight: '200', reps: '5' } },
+        1: { 0: { confirmed: true, weight: '95', reps: '8' } },
       },
       '0:1': {
-        0: { 0: { weight: '210', reps: '6' }, 1: { weight: '205', reps: '6' } },
+        0: { 0: { confirmed: true, weight: '210', reps: '6' }, 1: { confirmed: true, weight: '205', reps: '6' } },
       },
       '0:2': {
-        0: { 0: { weight: '215', reps: '6' } },
+        0: { 0: { confirmed: true, weight: '215', reps: '6' } },
       },
     };
     const out = aggregateLiftsByMuscle(days, 3, (d, w) => weekData[`${d}:${w}`] || {});
@@ -134,8 +134,8 @@ describe('aggregateLiftsByMuscle', () => {
     // Warmup at 300 (very heavy) — should be ignored. Real top is 100.
     const weekData: DayData = {
       0: {
-        0: { weight: '300', reps: '5', warmup: true },
-        1: { weight: '100', reps: '6' },
+        0: { confirmed: true, weight: '300', reps: '5', warmup: true },
+        1: { confirmed: true, weight: '100', reps: '6' },
       },
     };
     const out = aggregateLiftsByMuscle(days, 1, () => weekData);
@@ -152,7 +152,7 @@ describe('aggregateLiftsByMuscle', () => {
     ];
     const weekData: DayData = {
       0: {
-        0: { weight: '225', reps: '6' }, 1: { weight: '245', reps: '6' }, 2: { weight: '225', reps: '5' },
+        0: { confirmed: true, weight: '225', reps: '6' }, 1: { confirmed: true, weight: '245', reps: '6' }, 2: { confirmed: true, weight: '225', reps: '5' },
       },
     };
     const out = aggregateLiftsByMuscle(days, 1, () => weekData);
@@ -162,8 +162,8 @@ describe('aggregateLiftsByMuscle', () => {
   it('rolls Biceps + Triceps into a single Arms group', () => {
     const days = makeDays();
     const weekData: Record<string, DayData> = {
-      '0:0': { 2: { 0: { weight: '75', reps: '10' } } }, // EZ Curl (Biceps)
-      '1:0': { 1: { 0: { weight: '50', reps: '12' } } }, // Tricep Rope
+      '0:0': { 2: { 0: { confirmed: true, weight: '75', reps: '10' } } }, // EZ Curl (Biceps)
+      '1:0': { 1: { 0: { confirmed: true, weight: '50', reps: '12' } } }, // Tricep Rope
     };
     const out = aggregateLiftsByMuscle(days, 1, (d, w) => weekData[`${d}:${w}`] || {});
     const arms = out.find((m) => m.muscle === 'Arms');
@@ -187,12 +187,12 @@ describe('aggregateLiftsByMuscle', () => {
     ];
     const weekData: Record<string, DayData> = {
       '0:0': {
-        0: { 0: { weight: '200', reps: '6', _exId: 'bench_bb' } as never },
+        0: { 0: { confirmed: true, weight: '200', reps: '6', _exId: 'bench_bb' } as never },
       },
       '0:1': {
         // Slot 0 is now some other exercise; bench moved to slot 1.
-        0: { 0: { weight: '50', reps: '15', _exId: 'something_else' } as never },
-        1: { 0: { weight: '215', reps: '6', _exId: 'bench_bb' } as never },
+        0: { 0: { confirmed: true, weight: '50', reps: '15', _exId: 'something_else' } as never },
+        1: { 0: { confirmed: true, weight: '215', reps: '6', _exId: 'bench_bb' } as never },
       },
     };
     const out = aggregateLiftsByMuscle(days, 2, (d, w) => weekData[`${d}:${w}`] || {});
@@ -212,8 +212,8 @@ describe('aggregateLiftsByMuscle', () => {
       },
     ];
     const weekData: DayData = {
-      0: { 0: { weight: '0', reps: '0' } },
-      1: { 0: { weight: '200', reps: '6' } },
+      0: { 0: { confirmed: true, weight: '0', reps: '0' } },
+      1: { 0: { confirmed: true, weight: '200', reps: '6' } },
     };
     const out = aggregateLiftsByMuscle(days, 1, () => weekData);
     expect(out.find((m) => m.muscle === 'Cardio')).toBeUndefined();
@@ -262,11 +262,11 @@ describe('aggregatePreviousMesos', () => {
         completedSessions: 3,
         sessions: [
           // d=0, w=0 — bench at 200×6
-          { d: 0, w: 0, data: { 0: { 0: { weight: '200', reps: '6', _exId: 'bench_bb' } } }, done: true },
+          { d: 0, w: 0, data: { 0: { 0: { confirmed: true, weight: '200', reps: '6', _exId: 'bench_bb' } } }, done: true },
           // d=0, w=1 — bench at 210×6
-          { d: 0, w: 1, data: { 0: { 0: { weight: '210', reps: '6', _exId: 'bench_bb' } } }, done: true },
+          { d: 0, w: 1, data: { 0: { 0: { confirmed: true, weight: '210', reps: '6', _exId: 'bench_bb' } } }, done: true },
           // d=0, w=2 — bench at 220×6 (final week → "end")
-          { d: 0, w: 2, data: { 0: { 0: { weight: '220', reps: '6', _exId: 'bench_bb' } } }, done: true },
+          { d: 0, w: 2, data: { 0: { 0: { confirmed: true, weight: '220', reps: '6', _exId: 'bench_bb' } } }, done: true },
         ],
       },
     ] as unknown as ArchiveEntry[];
@@ -291,7 +291,7 @@ describe('aggregatePreviousMesos', () => {
         totalSessions: 1,
         completedSessions: 1,
         sessions: [
-          { d: 0, w: 0, data: { 0: { 0: { weight: '75', reps: '10', _exId: 'ez_curl' } } } },
+          { d: 0, w: 0, data: { 0: { 0: { confirmed: true, weight: '75', reps: '10', _exId: 'ez_curl' } } } },
         ],
       },
     ] as unknown as ArchiveEntry[];
@@ -312,7 +312,7 @@ describe('aggregatePreviousMesos', () => {
         totalSessions: 1,
         completedSessions: 1,
         sessions: [
-          { d: 0, w: 0, data: { 0: { 0: { weight: '200', reps: '6' } } } },
+          { d: 0, w: 0, data: { 0: { 0: { confirmed: true, weight: '200', reps: '6' } } } },
         ],
       },
     ] as unknown as ArchiveEntry[];
@@ -332,8 +332,8 @@ describe('aggregatePreviousMesos', () => {
         totalSessions: 24,
         completedSessions: 22,
         sessions: [
-          { d: 0, w: 0, data: { 0: { 0: { weight: '300', reps: '5', _exId: 'bench_bb' } } } },
-          { d: 0, w: 5, data: { 0: { 0: { weight: '320', reps: '3', _exId: 'bench_bb' } } } },
+          { d: 0, w: 0, data: { 0: { 0: { confirmed: true, weight: '300', reps: '5', _exId: 'bench_bb' } } } },
+          { d: 0, w: 5, data: { 0: { 0: { confirmed: true, weight: '320', reps: '3', _exId: 'bench_bb' } } } },
         ],
       },
       {
@@ -344,8 +344,8 @@ describe('aggregatePreviousMesos', () => {
         totalSessions: 28,
         completedSessions: 26,
         sessions: [
-          { d: 0, w: 0, data: { 0: { 0: { weight: '180', reps: '8', _exId: 'row_bb' } } } },
-          { d: 0, w: 6, data: { 0: { 0: { weight: '200', reps: '8', _exId: 'row_bb' } } } },
+          { d: 0, w: 0, data: { 0: { 0: { confirmed: true, weight: '180', reps: '8', _exId: 'row_bb' } } } },
+          { d: 0, w: 6, data: { 0: { 0: { confirmed: true, weight: '200', reps: '8', _exId: 'row_bb' } } } },
         ],
       },
       {
@@ -386,9 +386,9 @@ describe('findLastMesoWeight', () => {
   it('returns the top working set from the LATEST week with data', () => {
     const archive = [
       mkMeso(1, [
-        { d: 0, w: 0, data: { 0: { 0: { weight: '200', reps: '8', _exId: 'bench_bb' } } } },
-        { d: 0, w: 3, data: { 0: { 0: { weight: '215', reps: '6', _exId: 'bench_bb' }, 1: { weight: '215', reps: '8', _exId: 'bench_bb' } } } },
-        { d: 0, w: 1, data: { 0: { 0: { weight: '205', reps: '7', _exId: 'bench_bb' } } } },
+        { d: 0, w: 0, data: { 0: { 0: { confirmed: true, weight: '200', reps: '8', _exId: 'bench_bb' } } } },
+        { d: 0, w: 3, data: { 0: { 0: { confirmed: true, weight: '215', reps: '6', _exId: 'bench_bb' }, 1: { confirmed: true, weight: '215', reps: '8', _exId: 'bench_bb' } } } },
+        { d: 0, w: 1, data: { 0: { 0: { confirmed: true, weight: '205', reps: '7', _exId: 'bench_bb' } } } },
       ], '2026-06-01T00:00:00.000Z'),
     ];
     const hit = findLastMesoWeight(archive, 'bench_bb')!;
@@ -402,7 +402,7 @@ describe('findLastMesoWeight', () => {
   it('answers from an UNFINISHED meso (only week 1 logged)', () => {
     const archive = [
       mkMeso(1, [
-        { d: 0, w: 0, data: { 0: { 0: { weight: '100', reps: '10', _exId: 'ez_curl' } } } },
+        { d: 0, w: 0, data: { 0: { 0: { confirmed: true, weight: '100', reps: '10', _exId: 'ez_curl' } } } },
         // weeks 1..5 exist as sessions but were never logged
         { d: 0, w: 1, data: {} },
         { d: 0, w: 2, data: {} },
@@ -417,11 +417,11 @@ describe('findLastMesoWeight', () => {
     const archive = [
       // Newest meso has no curls
       mkMeso(2, [
-        { d: 0, w: 0, data: { 0: { 0: { weight: '225', reps: '5', _exId: 'bench_bb' } } } },
+        { d: 0, w: 0, data: { 0: { 0: { confirmed: true, weight: '225', reps: '5', _exId: 'bench_bb' } } } },
       ]),
       // Older meso has them
       mkMeso(1, [
-        { d: 1, w: 4, data: { 2: { 0: { weight: '95', reps: '12', _exId: 'ez_curl' } } } },
+        { d: 1, w: 4, data: { 2: { 0: { confirmed: true, weight: '95', reps: '12', _exId: 'ez_curl' } } } },
       ]),
     ];
     const hit = findLastMesoWeight(archive, 'ez_curl')!;
@@ -434,8 +434,8 @@ describe('findLastMesoWeight', () => {
       mkMeso(1, [
         // ez_curl sits in slot 3 here; slot 0 is a heavier exercise
         { d: 0, w: 2, data: {
-          0: { 0: { weight: '315', reps: '5', _exId: 'deadlift_bb' } },
-          3: { 0: { weight: '90', reps: '10', _exId: 'ez_curl' } },
+          0: { 0: { confirmed: true, weight: '315', reps: '5', _exId: 'deadlift_bb' } },
+          3: { 0: { confirmed: true, weight: '90', reps: '10', _exId: 'ez_curl' } },
         } },
       ]),
     ];
@@ -447,9 +447,9 @@ describe('findLastMesoWeight', () => {
     const archive = [
       mkMeso(1, [
         { d: 0, w: 1, data: { 0: {
-          0: { weight: '135', reps: '10', warmup: true, _exId: 'bench_bb' },
-          1: { weight: '', reps: '', _exId: 'bench_bb' },
-          2: { weight: '185', reps: '9', _exId: 'bench_bb' },
+          0: { confirmed: true, weight: '135', reps: '10', warmup: true, _exId: 'bench_bb' },
+          1: { confirmed: true, weight: '', reps: '', _exId: 'bench_bb' },
+          2: { confirmed: true, weight: '185', reps: '9', _exId: 'bench_bb' },
         } } },
       ]),
     ];
@@ -461,7 +461,7 @@ describe('findLastMesoWeight', () => {
   it('returns null for legacy archives without _exId stamps', () => {
     const archive = [
       mkMeso(1, [
-        { d: 0, w: 5, data: { 0: { 0: { weight: '200', reps: '8' } } } },
+        { d: 0, w: 5, data: { 0: { 0: { confirmed: true, weight: '200', reps: '8' } } } },
       ]),
     ];
     expect(findLastMesoWeight(archive, 'bench_bb')).toBeNull();
@@ -472,7 +472,7 @@ describe('findLastMesoWeight', () => {
   // labelled "1 set". The reference is the last HARD week, with its real
   // set count.
   const sets = (w: number, reps: number[], exId = 'db_flat_bench') =>
-    Object.fromEntries(reps.map((r, i) => [i, { weight: String(w), reps: String(r), _exId: exId }]));
+    Object.fromEntries(reps.map((r, i) => [i, { confirmed: true, weight: String(w), reps: String(r), _exId: exId }]));
   // Local archive shape: profile.mesoLength = 6 working weeks, deload = week idx 6.
   const mkLocal = (sessions: unknown[]) =>
     ({ id: 'aug', profile: { mesoLength: 6 }, mesoWeeks: 7, mesoDays: 4, sessions }) as unknown as ArchiveEntry;
@@ -512,7 +512,7 @@ describe('findLastMesoWeight', () => {
     const archive = [
       mkRemote([
         { d: 2, w: 6, data: { 1: sets(70, [4, 4]) } },
-        { d: 2, w: 0, data: { 1: { ...sets(70, [6, 6, 6]), 3: { weight: '45', reps: '8', warmup: true, _exId: 'db_flat_bench' } } } },
+        { d: 2, w: 0, data: { 1: { ...sets(70, [6, 6, 6]), 3: { confirmed: true, weight: '45', reps: '8', warmup: true, _exId: 'db_flat_bench' } } } },
         { d: 2, w: 5, data: { 1: sets(80, [6, 6, 4, 5]) } },
         { d: 0, w: 5, data: { 0: sets(200, [5, 5], 'bb_back_squat') } },
       ]),
@@ -533,7 +533,7 @@ describe('findLastMesoWeight', () => {
   it('a slice with only warmups is not history', () => {
     const archive = [
       mkLocal([
-        { d: 0, w: 3, data: { 0: { 0: { weight: '95', reps: '10', warmup: true, _exId: 'bench_bb' } } } },
+        { d: 0, w: 3, data: { 0: { 0: { confirmed: true, weight: '95', reps: '10', warmup: true, _exId: 'bench_bb' } } } },
       ]),
     ];
     expect(findPrevMesoHistory(archive, 'bench_bb')).toBeNull();
