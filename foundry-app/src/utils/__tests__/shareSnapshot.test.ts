@@ -134,7 +134,7 @@ describe('shareSnapshot', () => {
     expect(rebuilt!.stats.sets).toBe(3);
     expect(rebuilt!.stats.volume).toBe(185 * 12 + 120 * 12);
     expect(rebuilt!.stats.duration).toBe(48 * 60);
-    expect(rebuilt!.stats.breakdown.map((b) => b.name)).toEqual(['Barbell Bench', 'Cable Row']);
+    expect(rebuilt!.stats.breakdown!.map((b) => b.name)).toEqual(['Barbell Bench', 'Cable Row']);
     expect(rebuilt!.quote).toEqual({ text: 'Forge on.', author: 'Coach' });
     expect(rebuilt!.dateStr).toBe('2026-10-20');
   });

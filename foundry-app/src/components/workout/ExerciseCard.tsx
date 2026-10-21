@@ -392,7 +392,10 @@ function ExerciseCard({
     onUpdateSet(exIdx, s, 'confirmed', true);
     setDoneSets((prev) => new Set([...prev, s]));
     onLastSetFilled(exIdx, s);
-    onSetLogged(exercise.rest || '0', exercise.name, s, true);
+    // "0 sec" — startRestTimer treats a zero rest as "no timer". The old
+    // `exercise.rest || '0'` started the exercise's normal rest (or a 90 s
+    // default when it had none), so a skip still dinged a while later.
+    onSetLogged('0 sec', exercise.name, s, true);
     // Tactile ack for the skip — rest timer's own haptic won't fire here
     // because we deliberately bypass it.
     try { haptic('tap'); } catch { /* haptic unavailable on this platform */ }

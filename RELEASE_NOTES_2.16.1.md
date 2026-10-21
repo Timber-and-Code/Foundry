@@ -29,13 +29,39 @@ saw when you finished can be shared again from Home or the Schedule.
   rebuilt from the logged sets: totals, set-by-set breakdown, PRs and the
   week-over-week anchor comparison, with a fresh quote.
 
+## The rest-timer ding fires every time
+One chime and one buzz at zero, every set, phone in hand or in a pocket.
+Five separate things made it miss.
+- **The chime file was never in the iOS app.** Every rest that ended with
+  the phone locked or another app in front played a notification with a
+  missing sound. The file is in the bundle now. PLEASE TEST: lock the
+  phone with a minute left, you should hear the two-note chime at zero.
+- **Locking the phone just before zero killed the cue entirely.** The
+  countdown kept running for a few seconds after the app went to the
+  background, fired into a muted speaker, and then cancelled the very
+  notification it had just scheduled. The countdown now hands off to the
+  OS the moment the app hides. PLEASE TEST: lock the phone with 5 to 10
+  seconds left.
+- **A first "Don't Allow" was remembered forever.** Turning notifications
+  on later in iOS Settings had no effect. The OS is asked again now.
+- **No double ding.** When the notification rang on the lock screen,
+  unlocking the phone used to ring again. It doesn't.
+- **A rest started as the previous one hit zero could freeze silent.**
+  Fixed at the source.
+- **A zero-rep skip no longer starts a rest timer** (it used to run the
+  exercise's rest, or 90 seconds).
+
 ## Under the hood
 - The finish screen saves a snapshot of the card per session
   (`foundry:share:d{day}:w{week}`), wiped with the meso's other session
   data. One stats rule now serves both the live finish and the rebuild.
 - Toasts can carry an inline action button.
+- `rest-complete.wav` is a member of the App target in `project.pbxproj`.
+  Verify every archive: `ls App.app/rest-complete.wav`.
+- RestTimerContext now has its own tests (hidden before zero, return
+  after the OS rang, return before zero, start-at-zero, zero-rep skip).
 
 ---
 
-1361 tests passing, typecheck clean. No native changes beyond the web
-bundle. Not yet verified on device.
+1375 tests passing, typecheck clean. Native change: the chime WAV joins
+the bundle. Not yet verified on device.

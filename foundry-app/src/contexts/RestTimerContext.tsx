@@ -14,6 +14,7 @@ import {
   ensureNotificationPermission,
   scheduleRestComplete,
   cancelRestComplete,
+  clearDeliveredRestComplete,
 } from '../utils/restNotification';
 import { store } from '../utils/store';
 
@@ -46,6 +47,26 @@ interface WakeLockSentinelLike {
   release: () => Promise<void>;
 }
 
+const isHidden = () =>
+  typeof document !== 'undefined' && document.visibilityState === 'hidden';
+
+/**
+ * The rest timer. Rule: ONE chime + haptic at zero, every set, whether the
+ * app is in front or not.
+ *
+ *   start ──tick──▶ zero ──▶ fired ──▶ cleared (dismiss / next start)
+ *                 │
+ *                 └─ hidden: ticking STOPS, the OS notification owns zero.
+ *                    visible before zero: cancel it, resume ticking.
+ *                    visible after zero: mark fired, no replay (it rang).
+ *
+ * Why ticking stops on hide: WKWebView keeps running JS for a few seconds
+ * after the app backgrounds. If zero landed in that window the old code
+ * "fired" into a suspended AudioContext (silent), the haptic was ignored,
+ * and it then CANCELLED the OS notification it had just scheduled — no
+ * cue at all. Locking the phone with ≲30 s left is the most common way to
+ * end a rest, which is why the ding "only fired sometimes".
+ */
 export function RestTimerProvider({ children }: { children: ReactNode }) {
   const [restTimer, setRestTimer] = useState<RestTimerState | null>(null);
   const [restTimerMinimized, setRestTimerMinimized] = useState(false);
@@ -53,6 +74,9 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   // One-shot guard: the at-zero cue fires exactly once per rest period.
   const firedRef = useRef(false);
   const restEndTimeRef = useRef<number | null>(null);
+  // The OS accepted a notification for the current period while hidden.
+  // On return after zero, this is what tells us the cue already rang.
+  const notifScheduledRef = useRef(false);
   const timerDayRef = useRef<TimerDayRef | null>(null);
   const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
   // Mirror the current exercise name so the visibilitychange handler can
@@ -87,14 +111,25 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const stopTicking = useCallback(() => {
+    if (restIntervalRef.current) {
+      clearInterval(restIntervalRef.current);
+      restIntervalRef.current = null;
+    }
+  }, []);
+
   /**
    * Fire the at-zero cue exactly once per rest period. The `firedRef` guard
    * makes this idempotent — the countdown tick and the visibilitychange
    * handler can both reach zero, but the lifter only ever hears one chime.
    * `firedRef` is re-armed by startRestTimer / dismissRestTimer.
+   *
+   * Never fires while hidden: a chime into a suspended AudioContext is
+   * silent and would also consume the one-shot. The OS notification owns
+   * zero in the background; the visible handler reconciles on return.
    */
   const fireTimerComplete = useCallback(() => {
-    if (firedRef.current) return;
+    if (firedRef.current || isHidden()) return;
     firedRef.current = true;
     playTimerCompleteChime();
     // At zero, always surface the full alarm — never leave the timer hidden
@@ -106,11 +141,37 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     setRestTimerMinimized(false);
     // Foreground fired the chime — drop any pending OS notification so the
     // lifter doesn't get a duplicate ring a beat later. No-op on web.
+    notifScheduledRef.current = false;
     void cancelRestComplete();
   }, []);
 
+  /**
+   * Drive the countdown from the wall-clock deadline. Side effects (stop,
+   * chime) run in the tick itself, never inside the state updater — an
+   * updater can be replayed by React after a later startRestTimer has
+   * already re-armed the refs, and the old code then cleared the NEW
+   * interval and marked the NEW period fired: a frozen, silent rest.
+   */
+  const startTicking = useCallback(() => {
+    stopTicking();
+    restIntervalRef.current = setInterval(() => {
+      const end = restEndTimeRef.current;
+      if (end == null) { stopTicking(); return; }
+      const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      if (remaining <= 0) {
+        stopTicking();
+        fireTimerComplete();
+      }
+      setRestTimer((prev) => (prev ? { ...prev, remaining } : null));
+    }, 500);
+  }, [stopTicking, fireTimerComplete]);
+
   const startRestTimer = useCallback(
     (restStr: string, exName: string, dayIdx?: number, weekIdx?: number) => {
+      const secs = parseRestSeconds(restStr);
+      // "0 sec" is the zero-rep skip — the lifter bailed on the exercise,
+      // there is no rest to time and nothing to ding about.
+      if (secs <= 0) return;
       // Onboarding v2: fire the first-rest-timer event once per user so the
       // CoachMarkOrchestrator can explain what the rest timer does.
       if (!store.get('foundry:first_rest_timer_emitted')) {
@@ -123,13 +184,15 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       unlockAudio();
       // Fire-and-forget the OS notification permission ask on the first rest
       // timer post-install. iOS only surfaces the system sheet once; after
-      // that this resolves from the cached outcome with no UI. The result
-      // doesn't gate the timer itself — foreground chime works either way.
+      // that this resolves without UI. The result doesn't gate the timer
+      // itself — foreground chime works either way.
       void ensureNotificationPermission();
-      const secs = parseRestSeconds(restStr);
-      if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+      stopTicking();
       // Re-arm the one-shot cue for this new rest period.
       firedRef.current = false;
+      notifScheduledRef.current = false;
+      // A previous period's notification must not ring over this one.
+      void cancelRestComplete();
       const endTime = Date.now() + secs * 1000;
       restEndTimeRef.current = endTime;
       if (dayIdx !== undefined) timerDayRef.current = { dayIdx, weekIdx };
@@ -142,71 +205,86 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       // Keep the screen awake while resting — released on dismiss /
       // visibilitychange handles re-acquire after backgrounding.
       void acquireWakeLock();
-      restIntervalRef.current = setInterval(() => {
-        const remaining = Math.max(0, Math.ceil((restEndTimeRef.current! - Date.now()) / 1000));
-        setRestTimer((prev) => {
-          if (!prev) { clearInterval(restIntervalRef.current!); return null; }
-          if (remaining <= 0) { clearInterval(restIntervalRef.current!); fireTimerComplete(); return { ...prev, remaining: 0 }; }
-          return { ...prev, remaining };
+      if (isHidden()) {
+        // Started while already hidden (a background flush, a test): hand
+        // straight to the OS — there is no foreground tick to run.
+        void scheduleRestComplete(endTime, exName).then((ok) => {
+          notifScheduledRef.current = ok;
         });
-      }, 500);
+      } else {
+        startTicking();
+      }
     },
-    [fireTimerComplete, acquireWakeLock]
+    [stopTicking, startTicking, acquireWakeLock]
   );
 
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && restEndTimeRef.current) {
-        // Coming back to the foreground — cancel any OS notification we
-        // queued on hide. If the timer already expired we fire the chime
-        // inline (firedRef makes it a no-op if it already fired via the
-        // interval before backgrounding).
+      const end = restEndTimeRef.current;
+      if (!end) return;
+      if (document.visibilityState === 'visible') {
         // Re-arm audio first: backgrounding/screen-lock leaves the
         // AudioContext 'interrupted' on iOS, which made the at-zero chime
         // a silent no-op until the next user gesture.
         unlockAudio();
+        const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+        if (remaining <= 0) {
+          stopTicking();
+          if (notifScheduledRef.current && !firedRef.current) {
+            // Zero passed while hidden and the OS rang for it. One cue
+            // per period — mark fired, surface the alarm, no replay.
+            firedRef.current = true;
+            notifScheduledRef.current = false;
+            setRestTimerMinimized(false);
+            void clearDeliveredRestComplete();
+          } else {
+            // No OS cue was possible (web, permission off, scheduled too
+            // late): the chime is late but it is still the one cue.
+            fireTimerComplete();
+          }
+          setRestTimer((prev) => (prev ? { ...prev, remaining: 0 } : null));
+          return;
+        }
+        // Back before zero — the foreground chime owns the cue again.
+        notifScheduledRef.current = false;
         void cancelRestComplete();
-        const remaining = Math.max(0, Math.ceil((restEndTimeRef.current - Date.now()) / 1000));
-        setRestTimer((prev) => {
-          if (!prev) return null;
-          if (remaining <= 0) { if (restIntervalRef.current) clearInterval(restIntervalRef.current); fireTimerComplete(); return { ...prev, remaining: 0 }; }
-          return { ...prev, remaining };
-        });
+        setRestTimer((prev) => (prev ? { ...prev, remaining } : null));
+        if (!firedRef.current) startTicking();
         // iOS releases the wake lock the moment the page hides. Re-acquire
         // when the lifter returns so the screen stays awake again.
-        if (restEndTimeRef.current && Date.now() < restEndTimeRef.current) {
-          void acquireWakeLock();
-        }
-      } else if (
-        document.visibilityState === 'hidden' &&
-        restEndTimeRef.current &&
-        !firedRef.current
-      ) {
-        // Backgrounding with an active timer — hand off the at-zero alert
-        // to the OS so the lifter still hears it with the phone locked.
-        // Cancelled on return (above) so foreground chime owns the cue if
-        // they come back before zero. No-op on web.
-        void scheduleRestComplete(restEndTimeRef.current, lastExNameRef.current);
+        void acquireWakeLock();
+      } else if (document.visibilityState === 'hidden' && !firedRef.current) {
+        // Backgrounding with a live timer — the OS owns zero from here.
+        // Stop ticking so a zero inside WKWebView's few-second grace
+        // window can't consume the cue (silent chime + cancelled
+        // notification = nothing). Re-scheduled on every hide; cancelled
+        // on return before zero (above). No-op on web.
+        stopTicking();
+        void scheduleRestComplete(end, lastExNameRef.current).then((ok) => {
+          notifScheduledRef.current = ok;
+        });
       }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-  }, [fireTimerComplete, acquireWakeLock]);
+  }, [fireTimerComplete, acquireWakeLock, stopTicking, startTicking]);
 
   const dismissRestTimer = useCallback(() => {
-    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    stopTicking();
     firedRef.current = false;
+    notifScheduledRef.current = false;
     restEndTimeRef.current = null;
     timerDayRef.current = null;
     lastExNameRef.current = '';
     // Drop any OS notification that's still scheduled — happens when the
     // lifter taps "I'm Ready" before the timer ran out and never
-    // backgrounded the app. No-op on web.
+    // backgrounded the app — and any banner that already rang. No-op on web.
     void cancelRestComplete();
+    void clearDeliveredRestComplete();
     releaseWakeLock();
     setRestTimer(null);
     setRestTimerMinimized(false);
-  }, [releaseWakeLock]);
+  }, [stopTicking, releaseWakeLock]);
 
   return (
     <RestTimerContext.Provider

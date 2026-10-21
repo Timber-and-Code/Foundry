@@ -12,6 +12,8 @@ const mockCheckPermissions = vi.fn();
 const mockRequestPermissions = vi.fn();
 const mockSchedule = vi.fn();
 const mockCancel = vi.fn();
+const mockGetDelivered = vi.fn();
+const mockRemoveDelivered = vi.fn();
 
 vi.mock('@capacitor/core', () => ({
   Capacitor: {
@@ -30,6 +32,8 @@ vi.mock('@capacitor/local-notifications', () => ({
     requestPermissions: (...args: unknown[]) => mockRequestPermissions(...args),
     schedule: (...args: unknown[]) => mockSchedule(...args),
     cancel: (...args: unknown[]) => mockCancel(...args),
+    getDeliveredNotifications: (...args: unknown[]) => mockGetDelivered(...args),
+    removeDeliveredNotifications: (...args: unknown[]) => mockRemoveDelivered(...args),
   },
 }));
 
@@ -38,6 +42,7 @@ import {
   ensureNotificationPermission,
   scheduleRestComplete,
   cancelRestComplete,
+  clearDeliveredRestComplete,
 } from '../restNotification';
 
 const PERM_CACHE_KEY = 'foundry:rest_notif_permission';
@@ -50,6 +55,9 @@ beforeEach(() => {
   mockRequestPermissions.mockReset();
   mockSchedule.mockReset();
   mockCancel.mockReset();
+  mockGetDelivered.mockReset();
+  mockGetDelivered.mockResolvedValue({ notifications: [] });
+  mockRemoveDelivered.mockReset();
   localStorage.clear();
 });
 
@@ -69,12 +77,23 @@ describe('ensureNotificationPermission', () => {
     expect(mockCheckPermissions).not.toHaveBeenCalled();
   });
 
-  it('short-circuits to false when cached denied', async () => {
+  it('a cached denied is never trusted — the OS is asked again and a later grant wins', async () => {
     mockIsNativePlatform.mockReturnValue(true);
     localStorage.setItem(PERM_CACHE_KEY, 'denied');
+    mockCheckPermissions.mockResolvedValue({ display: 'granted' });
+    const ok = await ensureNotificationPermission();
+    expect(ok).toBe(true);
+    expect(mockCheckPermissions).toHaveBeenCalledOnce();
+    expect(mockRequestPermissions).not.toHaveBeenCalled();
+    expect(localStorage.getItem(PERM_CACHE_KEY)).toBe('granted');
+  });
+
+  it('a live denied answers false without re-prompting', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    mockCheckPermissions.mockResolvedValue({ display: 'denied' });
     const ok = await ensureNotificationPermission();
     expect(ok).toBe(false);
-    expect(mockCheckPermissions).not.toHaveBeenCalled();
+    expect(mockRequestPermissions).not.toHaveBeenCalled();
   });
 
   it('requests permission when status is prompt; caches the outcome', async () => {
@@ -87,13 +106,13 @@ describe('ensureNotificationPermission', () => {
     expect(localStorage.getItem(PERM_CACHE_KEY)).toBe('granted');
   });
 
-  it('caches denied when user declines the system prompt', async () => {
+  it('a declined (or dismissed) system prompt is not cached as granted', async () => {
     mockIsNativePlatform.mockReturnValue(true);
     mockCheckPermissions.mockResolvedValue({ display: 'prompt' });
     mockRequestPermissions.mockResolvedValue({ display: 'denied' });
     const ok = await ensureNotificationPermission();
     expect(ok).toBe(false);
-    expect(localStorage.getItem(PERM_CACHE_KEY)).toBe('denied');
+    expect(localStorage.getItem(PERM_CACHE_KEY)).not.toBe('granted');
   });
 
   it('treats plugin errors as denied (does not throw)', async () => {
@@ -111,19 +130,32 @@ describe('scheduleRestComplete', () => {
     expect(mockSchedule).not.toHaveBeenCalled();
   });
 
-  it('no-ops without granted permission', async () => {
+  it('no-ops (false) when the OS says permission is not granted', async () => {
     mockIsNativePlatform.mockReturnValue(true);
-    // No cache entry → treated as unknown → skip without firing.
-    await scheduleRestComplete(Date.now() + 60_000, 'Bench Press');
+    mockCheckPermissions.mockResolvedValue({ display: 'denied' });
+    const ok = await scheduleRestComplete(Date.now() + 60_000, 'Bench Press');
+    expect(ok).toBe(false);
     expect(mockSchedule).not.toHaveBeenCalled();
+  });
+
+  it('a stale cached denied does not block scheduling once the OS grants', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    localStorage.setItem(PERM_CACHE_KEY, 'denied');
+    mockCheckPermissions.mockResolvedValue({ display: 'granted' });
+    const ok = await scheduleRestComplete(Date.now() + 60_000, 'Bench Press');
+    expect(ok).toBe(true);
+    expect(mockSchedule).toHaveBeenCalledOnce();
+    expect(localStorage.getItem(PERM_CACHE_KEY)).toBe('granted');
   });
 
   it('schedules at the absolute end time when granted', async () => {
     mockIsNativePlatform.mockReturnValue(true);
     localStorage.setItem(PERM_CACHE_KEY, 'granted');
     const endTime = Date.now() + 90_000;
-    await scheduleRestComplete(endTime, 'Incline DB Press');
+    const ok = await scheduleRestComplete(endTime, 'Incline DB Press');
+    expect(ok).toBe(true);
     expect(mockSchedule).toHaveBeenCalledOnce();
+    expect(mockCheckPermissions).not.toHaveBeenCalled();
     const arg = mockSchedule.mock.calls[0][0];
     const n = arg.notifications[0];
     expect(n.id).toBe(1001);
@@ -135,7 +167,8 @@ describe('scheduleRestComplete', () => {
   it('skips when end time is already in the past', async () => {
     mockIsNativePlatform.mockReturnValue(true);
     localStorage.setItem(PERM_CACHE_KEY, 'granted');
-    await scheduleRestComplete(Date.now() - 5_000, 'Squat');
+    const ok = await scheduleRestComplete(Date.now() - 5_000, 'Squat');
+    expect(ok).toBe(false);
     expect(mockSchedule).not.toHaveBeenCalled();
   });
 
@@ -170,14 +203,22 @@ describe('scheduleRestComplete', () => {
     expect(mockSchedule.mock.calls[0][0].notifications[0].sound).toBe('rest_complete');
   });
 
-  it('falls back to undefined sound when getPlatform throws', async () => {
+  it('never sends an undefined sound (that is a silent notification) when getPlatform throws', async () => {
     mockIsNativePlatform.mockReturnValue(true);
     mockGetPlatform.mockImplementation(() => {
       throw new Error('platform unavailable');
     });
     localStorage.setItem(PERM_CACHE_KEY, 'granted');
     await scheduleRestComplete(Date.now() + 60_000, 'Bench');
-    expect(mockSchedule.mock.calls[0][0].notifications[0].sound).toBeUndefined();
+    expect(mockSchedule.mock.calls[0][0].notifications[0].sound).toBe('rest-complete.wav');
+  });
+
+  it('reports false when the plugin rejects the schedule', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    localStorage.setItem(PERM_CACHE_KEY, 'granted');
+    mockSchedule.mockRejectedValue(new Error('at is in the past'));
+    const ok = await scheduleRestComplete(Date.now() + 60_000, 'Bench');
+    expect(ok).toBe(false);
   });
 });
 
@@ -201,5 +242,31 @@ describe('cancelRestComplete', () => {
     mockIsNativePlatform.mockReturnValue(true);
     mockCancel.mockRejectedValue(new Error('no such notification'));
     await expect(cancelRestComplete()).resolves.toBeUndefined();
+  });
+});
+
+describe('clearDeliveredRestComplete', () => {
+  it('no-ops on web', async () => {
+    mockIsNativePlatform.mockReturnValue(false);
+    await clearDeliveredRestComplete();
+    expect(mockGetDelivered).not.toHaveBeenCalled();
+  });
+
+  it('removes only the rest-complete banner from the notification centre', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    mockGetDelivered.mockResolvedValue({
+      notifications: [{ id: 1001, title: 'Rest Complete' }, { id: 7, title: 'Other' }],
+    });
+    await clearDeliveredRestComplete();
+    expect(mockRemoveDelivered).toHaveBeenCalledOnce();
+    expect(mockRemoveDelivered.mock.calls[0][0]).toEqual({
+      notifications: [{ id: 1001, title: 'Rest Complete' }],
+    });
+  });
+
+  it('skips the remove call when nothing of ours was delivered', async () => {
+    mockIsNativePlatform.mockReturnValue(true);
+    await clearDeliveredRestComplete();
+    expect(mockRemoveDelivered).not.toHaveBeenCalled();
   });
 });
