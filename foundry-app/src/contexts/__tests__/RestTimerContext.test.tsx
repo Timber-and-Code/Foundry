@@ -26,6 +26,7 @@ vi.mock('../../utils/restNotification', () => ({
 }));
 
 import { RestTimerProvider, useRestTimer } from '../RestTimerContext';
+import { on } from '../../utils/events';
 
 let captured: ReturnType<typeof useRestTimer> | null = null;
 function Capture() {
@@ -198,5 +199,64 @@ describe('RestTimerContext', () => {
     await tick(100_000);
     expect(chime).not.toHaveBeenCalled();
     expect(schedule).not.toHaveBeenCalled();
+  });
+});
+
+describe('RestTimerContext — learned rest length', () => {
+  let cleanup: (() => Promise<void>) | null = null;
+  const row = { id: 'cable_row', name: 'Cable Row', rest: '2 min', anchor: false } as never;
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    localStorage.clear();
+    chime.mockClear();
+    visibility = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
+    captured = null;
+    cleanup = await mount();
+  });
+
+  afterEach(async () => {
+    await cleanup?.();
+    vi.useRealTimers();
+  });
+
+  it('two matching early ends by the lifter set the rest and offer UNDO in a toast', async () => {
+    const toasts: Array<{ message: string; action?: { label: string; onClick: () => void } }> = [];
+    const off = on('foundry:toast', (d) => toasts.push(d));
+
+    act(() => captured!.startRestTimer('2 min', 'Cable Row', 0, 0, row));
+    await tick(70_000);
+    act(() => captured!.dismissRestTimer({ user: true }));
+    expect(toasts).toHaveLength(0);
+
+    act(() => captured!.startRestTimer('2 min', 'Cable Row', 0, 0, row));
+    await tick(80_000);
+    act(() => captured!.dismissRestTimer({ user: true }));
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toBe('Cable Row rest set to 1:15.');
+    expect(toasts[0].action?.label).toBe('Undo');
+    expect(localStorage.getItem('foundry:restov:cable_row')).toBe('75');
+
+    toasts[0].action?.onClick();
+    expect(localStorage.getItem('foundry:restov:cable_row')).toBeNull();
+    off();
+  });
+
+  it('system ends (stop workout, auto-finish) and ends at zero teach nothing', async () => {
+    act(() => captured!.startRestTimer('2 min', 'Cable Row', 0, 0, row));
+    await tick(70_000);
+    act(() => captured!.dismissRestTimer());
+    act(() => captured!.startRestTimer('2 min', 'Cable Row', 0, 0, row));
+    await tick(70_000);
+    act(() => captured!.dismissRestTimer());
+    expect(localStorage.getItem('foundry:restov:cable_row')).toBeNull();
+    expect(localStorage.getItem('foundry:restobs:cable_row')).toBeNull();
+
+    // Ran to zero, then "I'm Ready": not early.
+    act(() => captured!.startRestTimer('1 sec', 'Cable Row', 0, 0, row));
+    await tick(1500);
+    act(() => captured!.dismissRestTimer({ user: true }));
+    expect(localStorage.getItem('foundry:restobs:cable_row')).toBeNull();
   });
 });

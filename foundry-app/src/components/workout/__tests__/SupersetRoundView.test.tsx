@@ -32,7 +32,8 @@ vi.mock('../../../utils/store', async () => ({
   ).findPrevSlotForExercise,
 }));
 
-vi.mock('../../../utils/helpers', () => ({
+vi.mock('../../../utils/helpers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../utils/helpers')>()),
   haptic: mocks.haptic,
 }));
 

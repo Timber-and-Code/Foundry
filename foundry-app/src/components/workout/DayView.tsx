@@ -1014,7 +1014,7 @@ function DayView({
           return memberData?.confirmed === true;
         });
         if (allRoundDone) {
-          startRestTimer(restStr, exName, dayIdx, weekIdx);
+          startRestTimer(restStr, exName, dayIdx, weekIdx, ex);
         }
         if (pendingRest) setPendingRest(null);
         return;
@@ -1026,7 +1026,7 @@ function DayView({
         // earns a rest before the next exercise. The NextUpCard transition
         // (expand + scroll to the next card) runs alongside the timer.
         if (exIdx !== -1 && exIdx + 1 < exercises.length) {
-          startRestTimer(restStr, exName, dayIdx, weekIdx);
+          startRestTimer(restStr, exName, dayIdx, weekIdx, ex);
           const nextIdx = exIdx + 1;
           setExpandedIdx(nextIdx);
           setTimeout(() => {
@@ -1040,7 +1040,7 @@ function DayView({
 
       // ── MID-EXERCISE SET (not last set of the exercise) ──────────────
       if (exIdx === -1) {
-        startRestTimer(restStr, exName, dayIdx, weekIdx);
+        startRestTimer(restStr, exName, dayIdx, weekIdx, ex);
         return;
       }
 
@@ -1050,14 +1050,14 @@ function DayView({
       const isPrimary = ex!.supersetWith != null;
       const isSecondary = !isPrimary && exercises.some((e) => e.supersetWith === exIdx);
       if (!isPrimary && !isSecondary) {
-        startRestTimer(restStr, exName, dayIdx, weekIdx);
+        startRestTimer(restStr, exName, dayIdx, weekIdx, ex);
         return;
       }
       const partnerIdx = isPrimary
         ? (ex!.supersetWith ?? -1)
         : exercises.findIndex((e) => e.supersetWith === exIdx);
       if (pendingRest && pendingRest.partnerIdx === exIdx && pendingRest.setIdx === setIdx) {
-        startRestTimer(pendingRest.restStr || restStr, exName, dayIdx, weekIdx);
+        startRestTimer(pendingRest.restStr || restStr, exName, dayIdx, weekIdx, ex);
         setPendingRest(null);
       } else {
         setPendingRest({
@@ -2486,7 +2486,7 @@ function DayView({
               {rt.exName}
             </div>
             <button
-              onClick={dismissRestTimer}
+              onClick={() => dismissRestTimer({ user: true })}
               style={{
                 width: '100%',
                 maxWidth: 320,

@@ -51,6 +51,19 @@ Five separate things made it miss.
 - **A zero-rep skip no longer starts a rest timer** (it used to run the
   exercise's rest, or 90 seconds).
 
+## The rest timer learns how long you actually rest
+- End a rest early twice in a row on the same lift, within about 15
+  seconds of each other, and that lift's rest becomes the time you
+  actually took, rounded to 5 seconds. The card reads "1:15 learned" and
+  a toast says so with an UNDO. No question asked, nothing to set up.
+- Floors: anchor lifts never learn below 1:30, everything else never
+  below 0:45. Letting the timer run out changes nothing, so a rest is
+  never made longer for you.
+- Only your own early ends count (I'm Ready, Skip). Stopping the workout
+  or finishing the last set teaches nothing.
+- Learned rests follow the exercise, not the slot, and carry into the
+  next meso like your weights do.
+
 ## Under the hood
 - The finish screen saves a snapshot of the card per session
   (`foundry:share:d{day}:w{week}`), wiped with the meso's other session
@@ -63,5 +76,5 @@ Five separate things made it miss.
 
 ---
 
-1375 tests passing, typecheck clean. Native change: the chime WAV joins
+1389 tests passing, typecheck clean. Native change: the chime WAV joins
 the bundle. Not yet verified on device.

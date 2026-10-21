@@ -17,6 +17,9 @@ import {
   clearDeliveredRestComplete,
 } from '../utils/restNotification';
 import { store } from '../utils/store';
+import { emit } from '../utils/events';
+import { recordRestEnd, undoRestLearn, formatRest } from '../utils/restOverride';
+import type { Exercise } from '../types';
 
 interface RestTimerState {
   remaining: number;
@@ -33,8 +36,18 @@ interface RestTimerContextValue {
   restTimer: RestTimerState | null;
   restTimerMinimized: boolean;
   setRestTimerMinimized: React.Dispatch<React.SetStateAction<boolean>>;
-  startRestTimer: (restStr: string, exName: string, dayIdx?: number, weekIdx?: number) => void;
-  dismissRestTimer: () => void;
+  /** `exercise` lets the timer learn from an early end (utils/restOverride). */
+  startRestTimer: (
+    restStr: string,
+    exName: string,
+    dayIdx?: number,
+    weekIdx?: number,
+    exercise?: Exercise,
+  ) => void;
+  /** `user: true` when the lifter ended it (I'm Ready / Skip) — the only
+   *  ends that teach a rest length. System ends (stop workout, auto-finish)
+   *  pass nothing. */
+  dismissRestTimer: (opts?: { user?: boolean }) => void;
   timerDayRef: MutableRefObject<TimerDayRef | null>;
 }
 
@@ -83,6 +96,9 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   // populate the OS notification body without re-subscribing on every state
   // change. Updated alongside setRestTimer in startRestTimer.
   const lastExNameRef = useRef<string>('');
+  // The lift this rest belongs to and when it started — an early end by
+  // the lifter is measured against these to learn the rest length.
+  const restMetaRef = useRef<{ exercise: Exercise; startedAt: number } | null>(null);
 
   // Acquire a screen wake lock so the iPhone (or Android) doesn't dim /
   // sleep while the lifter is between sets. iOS releases the lock when
@@ -167,7 +183,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   }, [stopTicking, fireTimerComplete]);
 
   const startRestTimer = useCallback(
-    (restStr: string, exName: string, dayIdx?: number, weekIdx?: number) => {
+    (restStr: string, exName: string, dayIdx?: number, weekIdx?: number, exercise?: Exercise) => {
       const secs = parseRestSeconds(restStr);
       // "0 sec" is the zero-rep skip — the lifter bailed on the exercise,
       // there is no rest to time and nothing to ding about.
@@ -195,6 +211,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       void cancelRestComplete();
       const endTime = Date.now() + secs * 1000;
       restEndTimeRef.current = endTime;
+      restMetaRef.current = exercise ? { exercise, startedAt: Date.now() } : null;
       if (dayIdx !== undefined) timerDayRef.current = { dayIdx, weekIdx };
       // Default new rests to NOT minimized — DayView's full overlay
       // handles the in-workout UX. App-level toast renders only when the
@@ -269,7 +286,24 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, [fireTimerComplete, acquireWakeLock, stopTicking, startTicking]);
 
-  const dismissRestTimer = useCallback(() => {
+  const dismissRestTimer = useCallback((opts?: { user?: boolean }) => {
+    // The lifter ended the rest before zero: that teaches the rest length.
+    // Two matching early ends in a row set the lift's rest; the toast's
+    // UNDO puts it back. No question asked (utils/restOverride).
+    const meta = restMetaRef.current;
+    if (opts?.user && meta && restEndTimeRef.current && !firedRef.current) {
+      const actualSecs = Math.round((Date.now() - meta.startedAt) / 1000);
+      const learned = recordRestEnd(meta.exercise, actualSecs);
+      if (learned) {
+        emit('foundry:toast', {
+          message: `${learned.exName} rest set to ${formatRest(learned.secs)}.`,
+          type: 'info',
+          durationMs: 8000,
+          action: { label: 'Undo', onClick: () => undoRestLearn(learned) },
+        });
+      }
+    }
+    restMetaRef.current = null;
     stopTicking();
     firedRef.current = false;
     notifScheduledRef.current = false;

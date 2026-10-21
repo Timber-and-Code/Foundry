@@ -5,6 +5,7 @@ import MesoHistoryView from './MesoHistoryView';
 import { store, loadArchive } from '../../utils/store';
 import { findLastMesoWeight } from '../../utils/progressAggregation';
 import { haptic } from '../../utils/helpers';
+import { effectiveRest } from '../../utils/restOverride';
 import { getMeso } from '../../data/constants';
 import { useExerciseProgression } from '../../hooks/useExerciseProgression';
 import type { Exercise, DayData } from '../../types';
@@ -269,7 +270,7 @@ export default function SupersetRoundView({
       return next;
     });
     onLastSetFilled(exIdx, setIdx);
-    onSetLogged(ex.rest || '2 min', ex.name, setIdx, isLastSet);
+    onSetLogged(effectiveRest(ex).restStr, ex.name, setIdx, isLastSet);
   };
 
   const handleConfirmZeroReps = () => {
@@ -289,7 +290,7 @@ export default function SupersetRoundView({
       return next;
     });
     onLastSetFilled(exIdx, setIdx);
-    onSetLogged(ex.rest || '0', ex.name, setIdx, true);
+    onSetLogged('0 sec', ex.name, setIdx, true);
     try {
       haptic('tap');
     } catch {

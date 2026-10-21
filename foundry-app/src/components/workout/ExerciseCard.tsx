@@ -16,6 +16,7 @@ import HammerIcon from '../shared/HammerIcon';
 import MesoHistoryView from './MesoHistoryView';
 import SetRow from './SetRow';
 import { haptic } from '../../utils/helpers';
+import { effectiveRest, formatRest } from '../../utils/restOverride';
 import { findLastMesoWeight } from '../../utils/progressAggregation';
 import { isLoggedSet } from '../../utils/loggedSet';
 import { getMeso } from '../../data/constants';
@@ -373,7 +374,8 @@ function ExerciseCard({
     // Pass isLastSet=true on the final set so DayView's handleSetLogged
     // suppresses the rest timer (between-exercise transition is the
     // NextUpCard, not a rest beep).
-    onSetLogged(exercise.rest || '2 min', exercise.name, s, isLastSet);
+    // The learned rest when the lifter has taught one, the program's otherwise.
+    onSetLogged(effectiveRest(exercise).restStr, exercise.name, s, isLastSet);
     // Anchor coach tip — fires only on a non-final set confirm so the
     // hammer icon is visible during rest between sets.
     if (!isLastSet && exercise.anchor && !store.get('foundry:first_anchor_emitted')) {
@@ -381,6 +383,15 @@ function ExerciseCard({
       window.dispatchEvent(new Event('foundry:first-anchor-visible'));
     }
   };
+
+  // Rest label: the learned length when the lifter has taught one, the
+  // program's string otherwise (utils/restOverride).
+  const restInfo = effectiveRest(exercise);
+  const restLabel = restInfo.learned
+    ? ` · ${formatRest(restInfo.secs)} learned`
+    : exercise.rest
+      ? ` · ${exercise.rest}`
+      : '';
 
   const handleConfirmZeroReps = (s: number) => {
     setPendingZeroSet(null);
@@ -667,7 +678,7 @@ function ExerciseCard({
           >
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1, minWidth: 0 }}>
               {exercise.sets ?? '?'} sets · {exercise.reps ?? '?'} reps
-              {exercise.rest ? ` · ${exercise.rest}` : ''}
+              {restLabel}
             </div>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
               <button
@@ -842,7 +853,7 @@ function ExerciseCard({
               )}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              {exercise.reps} reps{exercise.rest ? ` · ${exercise.rest}` : ''}
+              {exercise.reps} reps{restLabel}
             </div>
             {supersetPartnerName && (
               <div

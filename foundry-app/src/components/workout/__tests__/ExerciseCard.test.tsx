@@ -278,6 +278,25 @@ describe('ExerciseCard', () => {
     expect(screen.getByText(/2-3 min/)).toBeInTheDocument();
   });
 
+  // 11b. A learned rest replaces the program's in the subtitle and in the
+  //      rest handed to the timer.
+  it('shows the learned rest and starts the timer with it', () => {
+    localStorage.setItem('foundry:restov:bench', '75');
+    const onSetLogged = vi.fn();
+    const props = defaultProps({
+      exercise: makeExercise({ id: 'bench', reps: '8-12', rest: '2-3 min' }),
+      weekData: { 0: { 0: { weight: '135', reps: '8' } } },
+      onSetLogged,
+    });
+    render(<ExerciseCard {...props} />);
+    expect(screen.getByText(/1:15 learned/)).toBeInTheDocument();
+    expect(screen.queryByText(/2-3 min/)).not.toBeInTheDocument();
+    mocks.store.get.mockImplementation(() => null);
+    fireEvent.click(screen.getByLabelText('Mark set 1 complete'));
+    expect(onSetLogged).toHaveBeenCalledWith('75 sec', 'Bench Press', 0, false);
+    localStorage.removeItem('foundry:restov:bench');
+  });
+
   // 12. Weight auto-fill calls onWeightAutoFill on set 0 blur
   it('calls onWeightAutoFill when set 0 weight blurs with a value', () => {
     const onWeightAutoFill = vi.fn();

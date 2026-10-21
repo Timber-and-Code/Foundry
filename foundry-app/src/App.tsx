@@ -974,7 +974,9 @@ function App() {
             restTimer={restTimer}
             onTap={(done) => {
               if (done) {
-                dismissRestTimer();
+                // The alarm's "I'm Ready" (at zero) or the bar's Skip
+                // (before zero) — both the lifter's own call.
+                dismissRestTimer({ user: true });
                 return;
               }
               const ref = timerDayRef.current;

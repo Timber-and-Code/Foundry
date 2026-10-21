@@ -504,7 +504,7 @@ describe('DayView', () => {
     });
 
     expect(startRestTimer).toHaveBeenCalledTimes(1);
-    expect(startRestTimer).toHaveBeenCalledWith('90', 'Bench Press', 0, 0);
+    expect(startRestTimer).toHaveBeenCalledWith('90', 'Bench Press', 0, 0, expect.objectContaining({ name: 'Bench Press' }));
   });
 
   // Last set of a non-superset exercise still starts a rest timer — the
@@ -534,6 +534,6 @@ describe('DayView', () => {
     });
 
     expect(startRestTimer).toHaveBeenCalledTimes(1);
-    expect(startRestTimer).toHaveBeenCalledWith('90', 'Bench Press', 0, 0);
+    expect(startRestTimer).toHaveBeenCalledWith('90', 'Bench Press', 0, 0, expect.objectContaining({ name: 'Bench Press' }));
   });
 });
