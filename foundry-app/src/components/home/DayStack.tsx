@@ -3,6 +3,8 @@ import { tokens } from '../../styles/tokens';
 import { store, loadCardioSession, isSkipped, setSkipped } from '../../utils/store';
 import { syncSkippedToSupabase } from '../../utils/sync';
 import { sessionHasLoggedWork, completeLeftOpenSession } from '../../utils/leftOpen';
+import { canShareSession } from '../../utils/shareSnapshot';
+import { emit } from '../../utils/events';
 import { CARDIO_WORKOUTS } from '../../data/constants';
 import type { Profile, TrainingDay, Exercise } from '../../types';
 
@@ -181,7 +183,19 @@ function DayStack({
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {done ? (
-                <ActionChip label="RECAP" onClick={() => onViewNotes({ type: 'meso', dayIdx: dIdx, weekIdx: wIdx })} />
+                <>
+                  <ActionChip label="RECAP" onClick={() => onViewNotes({ type: 'meso', dayIdx: dIdx, weekIdx: wIdx })} />
+                  {/* The share card is an asset of the finished session, not
+                      a step in the completion wizard — any done session can
+                      be shared from here. */}
+                  {canShareSession(dIdx, wIdx) && (
+                    <ActionChip
+                      label="SHARE"
+                      accent
+                      onClick={() => emit('foundry:openShare', { dayIdx: dIdx, weekIdx: wIdx })}
+                    />
+                  )}
+                </>
               ) : (
                 <>
                   <ActionChip label="VIEW" onClick={() => onPreviewSession(dIdx, wIdx)} />

@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { on } from '../../../utils/events';
 
 const { mockStoreGet, mockLoadCardioSession, mockIsSkipped, mockSetSkipped, mockSyncSkipped } = vi.hoisted(() => ({
   mockStoreGet: vi.fn((_key: string): string | null => null),
@@ -165,6 +166,24 @@ describe('DayActionSheet', () => {
     expect(screen.getByText(/View Push Day — Week 1/)).toBeDefined();
     expect(screen.queryByText('Move this workout')).toBeNull();
     expect(screen.getByText('View session recap')).toBeDefined();
+  });
+
+  it('completed session with logged work offers Share, which opens the share host', () => {
+    mockHasWork.mockReturnValue(true);
+    const openShare = vi.fn();
+    const off = on('foundry:openShare', openShare);
+    const props = makeProps({ sessionEntry: '0:0', completedDays: new Set(['0:0']) });
+    render(<DayActionSheet {...props} />);
+    fireEvent.click(screen.getByText('Share this workout'));
+    expect(openShare).toHaveBeenCalledWith({ dayIdx: 0, weekIdx: 0 });
+    expect(props.onClose).toHaveBeenCalled();
+    off();
+  });
+
+  it('completed session with nothing logged and no snapshot has no Share row', () => {
+    const props = makeProps({ sessionEntry: '0:0', completedDays: new Set(['0:0']) });
+    render(<DayActionSheet {...props} />);
+    expect(screen.queryByText('Share this workout')).toBeNull();
   });
 
   it('expanding cardio picker shows CARDIO_WORKOUTS options', () => {

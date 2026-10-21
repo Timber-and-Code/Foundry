@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { tokens } from '../../styles/tokens';
+import { emit } from '../../utils/events';
+import { saveShareSnapshot, buildShareCaption } from '../../utils/shareSnapshot';
 import {
   randomCongrats,
   randomQuote,
@@ -69,6 +71,10 @@ export interface WorkoutCompleteStats {
 interface WorkoutCompleteModalProps {
   dayLabel: string;
   dayTag?: string;
+  /** Meso day index. When given, the share card is snapshotted for this
+   *  session so it can be shared again later (Home, Schedule, toast). Extra
+   *  sessions pass nothing. */
+  dayIdx?: number;
   gender?: string;
   stats: WorkoutCompleteStats;
   weekIdx: number;
@@ -87,6 +93,7 @@ interface WorkoutCompleteModalProps {
 function WorkoutCompleteModal({
   dayLabel,
   dayTag: _dayTag,
+  dayIdx,
   gender,
   stats,
   weekIdx,
@@ -117,17 +124,51 @@ function WorkoutCompleteModal({
   const [congrats] = useState(() => randomCongrats());
   const [quote] = useState(() => randomQuote(gender));
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  // The image left the app at least once from this screen. Flips the SHARE
+  // button to a done state and silences the "logged · Share" toast.
+  const [shared, setShared] = useState(false);
   // Workout-summary list (per-exercise set-by-set breakdown) is collapsed
   // by default — beta testers wanted the emotional payoff (quote, totals)
   // forward and the detail behind a tap.
   const [summaryOpen, setSummaryOpen] = useState(false);
   // Caption for "Copy caption" — the image itself carries the workout.
-  const shareCaption =
-    (stats.prs.length > 0 ? `New PR: ${stats.prs[0].name} ${stats.prs[0].newBest} lb. ` : '') +
-    `${dayLabel}, week ${weekIdx + 1} · ${phase}. ` +
-    `${stats.sets} sets, ${Math.round(stats.volume).toLocaleString()} lb moved.\n\nthefoundry.coach`;
+  const shareCaption = buildShareCaption(dayLabel, weekIdx, phase, stats);
+
+  // Sharing is never a one-shot: save exactly what this screen rendered
+  // (stats + the quote the lifter read) so the same card opens again from
+  // Home, the Schedule tab, or the toast after NEXT SESSION.
+  useEffect(() => {
+    if (dayIdx == null) return;
+    saveShareSnapshot({
+      v: 1,
+      dayIdx,
+      weekIdx,
+      dayLabel,
+      phase,
+      stats,
+      quote,
+      dateStr: todayStr,
+    });
+    // Snapshot once per mount — the props don't change while this is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayIdx, weekIdx]);
 
   const handleShare = () => setShareSheetOpen(true);
+
+  // NEXT SESSION without having shared: leave the door open for a few
+  // seconds right where the mis-tap happens (the undo pattern). Never a
+  // confirm dialog — that taxes the majority who never share.
+  const handleNext = () => {
+    if (!shared && dayIdx != null) {
+      emit('foundry:toast', {
+        message: `${dayLabel} logged.`,
+        type: 'success',
+        durationMs: 8000,
+        action: { label: 'Share', onClick: () => emit('foundry:openShare', { dayIdx, weekIdx }) },
+      });
+    }
+    onOk();
+  };
 
   // Format duration
   const formatDuration = (secs: number) => {
@@ -718,15 +759,16 @@ function WorkoutCompleteModal({
           <button
             type="button"
             onClick={handleShare}
-            aria-label="Share this workout"
+            aria-label={shared ? 'Share this workout again' : 'Share this workout'}
             data-testid="share-workout-button"
+            data-shared={shared ? '1' : undefined}
             style={{
               flex: '0 0 auto',
               padding: '18px 20px',
               borderRadius: tokens.radius.lg,
-              background: 'transparent',
-              border: `1.5px solid ${tokens.colors.accent}`,
-              color: tokens.colors.accent,
+              background: shared ? 'rgba(76, 175, 80, 0.10)' : 'transparent',
+              border: `1.5px solid ${shared ? tokens.colors.success : tokens.colors.accent}`,
+              color: shared ? tokens.colors.success : tokens.colors.accent,
               fontSize: 13,
               fontWeight: 800,
               cursor: 'pointer',
@@ -736,19 +778,31 @@ function WorkoutCompleteModal({
               gap: 8,
             }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M12 3v12m0-12l-4 4m4-4l4 4M5 21h14"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            SHARE
+            {shared ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <polyline
+                  points="20 6 9 17 4 12"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 3v12m0-12l-4 4m4-4l4 4M5 21h14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+            {shared ? 'SHARED' : 'SHARE'}
           </button>
           <button
-            onClick={onOk}
+            onClick={handleNext}
             style={{
               flex: 1,
               padding: '18px',
@@ -770,6 +824,7 @@ function WorkoutCompleteModal({
       <ShareStudio
         open={shareSheetOpen}
         onClose={() => setShareSheetOpen(false)}
+        onShared={() => setShared(true)}
         data={{ dayLabel, weekIdx, phase, stats, quote }}
         caption={shareCaption}
       />

@@ -71,6 +71,7 @@ import ActiveSessionBar from './components/shared/ActiveSessionBar';
 import { useSyncState } from './hooks/useSyncState';
 import ErrorBoundary from './components/ErrorBoundary';
 import MinimizedTimerBar from './components/MinimizedTimerBar';
+import ShareHost from './components/workout/share/ShareHost';
 import WeekCompleteModal from './components/WeekCompleteModal';
 import type { WeekCompleteModalData } from './components/WeekCompleteModal';
 import type { Profile, TrainingDay } from './types';
@@ -957,6 +958,10 @@ function App() {
             <CoachMarkOrchestrator />
           </React.Suspense>
         )}
+
+        {/* Share a finished session from anywhere — Home chip, Schedule
+            card, or the "logged · Share" toast (foundry:openShare). */}
+        <ShareHost activeDays={activeDays} gender={profile?.gender} />
 
         {/* Global minimized timer toast — renders ONLY when the lifter
             navigates AWAY from /day/* (auto-minimize). While on /day/*,

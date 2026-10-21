@@ -1,22 +1,17 @@
 import { useState, useRef } from 'react';
 import {
   store,
-  detectSessionPRs,
-  findPrevSlotForExercise,
   markComplete,
   localDateStr,
 } from '../utils/store';
 import { leftOpenKey } from '../utils/leftOpen';
-import { getMeso } from '../data/constants';
+import { buildShareStats } from '../utils/shareSnapshot';
 import {
   upsertWorkoutSessionRemote,
   getOrCreateWorkoutSessionId,
 } from '../utils/sync';
 import { logWorkoutToHealth } from '../utils/health/logWorkoutToHealth';
-import type {
-  WorkoutCompleteStats,
-  WorkoutCompleteExerciseBreakdown,
-} from '../components/workout/WorkoutCompleteModal';
+import type { WorkoutCompleteStats } from '../components/workout/WorkoutCompleteModal';
 import type { Exercise, WorkoutSet } from '../types';
 
 interface UseCompletionFlowArgs {
@@ -67,85 +62,6 @@ export function useCompletionFlow({
   const pendingCompletionRef = useRef<Record<string, unknown> | null>(null);
 
   const doCompleteWithStats = () => {
-    let totalSets = 0;
-    let totalReps = 0;
-    let totalVolume = 0;
-    const breakdown: WorkoutCompleteExerciseBreakdown[] = [];
-    exercises.forEach((ex: Exercise, i: number) => {
-      const exData = (weekData[i] || {}) as Record<string, WorkoutSet>;
-      const exSets: { reps: number; weight: number; warmup?: boolean }[] = [];
-      Object.values(exData).forEach((s: WorkoutSet) => {
-        if (s.confirmed || (s.reps && String(s.reps).trim() !== '')) {
-          const r = parseInt(String(s.reps || 0), 10);
-          const w = parseFloat(String(s.weight || 0));
-          if (!s.warmup) {
-            totalSets++;
-            if (!isNaN(r)) totalReps += r;
-            if (!isNaN(w) && !isNaN(r)) totalVolume += w * r;
-          }
-          exSets.push({
-            reps: isNaN(r) ? 0 : r,
-            weight: isNaN(w) ? 0 : w,
-            warmup: !!s.warmup,
-          });
-        }
-      });
-      if (exSets.length > 0) {
-        breakdown.push({
-          name: ex.name,
-          anchor: !!ex.anchor,
-          sets: exSets,
-        });
-      }
-    });
-
-    const prs = detectSessionPRs(exercises, weekData, 'meso', { dayIdx, weekIdx });
-
-    const anchorComparison: { name: string; today: number; prev: number; delta: number }[] = [];
-    if (weekIdx > 0) {
-      exercises.forEach((ex: Exercise, i: number) => {
-        if (!ex.anchor) return;
-        const exData = (weekData[i] || {}) as Record<string, WorkoutSet>;
-        let todayBest = 0;
-        Object.values(exData).forEach((s: WorkoutSet) => {
-          const w = parseFloat(String(s.weight || 0));
-          if (!isNaN(w) && w > todayBest && s.reps) todayBest = w;
-        });
-        if (todayBest <= 0) return;
-        try {
-          const rawPrev = store.get(`foundry:day${dayIdx}:week${weekIdx - 1}`);
-          if (rawPrev) {
-            const prevData = JSON.parse(rawPrev);
-            // Match last week's slice by exercise IDENTITY, not slot index.
-            // A reorder, superset pairing, or swap shifts an exercise's
-            // position between weeks, and `prevData[i]` then compared
-            // today's bench against last week's squat. Same helper the
-            // carryover and the per-exercise "last week" reads already use.
-            const prevExData = findPrevSlotForExercise(
-              prevData,
-              ex.id,
-              i,
-            ) as unknown as Record<string, WorkoutSet>;
-            let prevBest = 0;
-            Object.values(prevExData).forEach((s: WorkoutSet) => {
-              const w = parseFloat(String(s.weight || 0));
-              if (!isNaN(w) && w > prevBest && s.reps) prevBest = w;
-            });
-            if (prevBest > 0) {
-              anchorComparison.push({
-                name: ex.name,
-                today: todayBest,
-                prev: prevBest,
-                delta: Math.round(todayBest - prevBest),
-              });
-            }
-          }
-        } catch (_e) {
-          // ignore parse errors
-        }
-      });
-    }
-
     // A session left open on an earlier day (utils/leftOpen) is closed out
     // as THAT day's work: dated when the lifter trained, timed from the
     // stored start to the last logged write, posted to Health the same way.
@@ -177,20 +93,14 @@ export function useCompletionFlow({
     const durationSecs =
       rawDurationSecs !== null && rawDurationSecs > 24 * 3600 ? null : rawDurationSecs;
 
+    // Totals, breakdown, PRs and the anchor comparison — one rule shared
+    // with the share-from-history rebuild (utils/shareSnapshot).
+    const stats = buildShareStats(exercises, weekData, dayIdx, weekIdx, durationSecs);
+    const totalSets = stats.sets;
+    const totalVolume = stats.volume;
+
     setCompletionWeekIdx(weekIdx);
-    setWorkoutStats({
-      // Last week of the meso. A lighter bar is prescribed there, so the
-      // comparison must not paint it as lost ground.
-      isDeload: weekIdx >= getMeso().totalWeeks - 1,
-      sets: totalSets,
-      reps: totalReps,
-      volume: totalVolume,
-      exercises: exercises.length,
-      duration: durationSecs,
-      prs,
-      anchorComparison,
-      breakdown,
-    });
+    setWorkoutStats(stats);
 
     const dateStr = localDateStr(completedAt);
     const completionData = {

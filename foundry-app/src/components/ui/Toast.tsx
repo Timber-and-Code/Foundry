@@ -36,48 +36,89 @@ interface ToastItemProps {
 function ToastItem({ toast, onDismiss }: ToastItemProps) {
   const s = TYPE_STYLES[toast.type];
   return (
-    <button
-      onClick={() => onDismiss(toast.id)}
-      aria-label={`Dismiss: ${toast.message}`}
+    <div
       style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: tokens.spacing.sm,
+        alignItems: 'stretch',
         width: '100%',
-        padding: `${tokens.spacing.sm + 2}px ${tokens.spacing.md}px`,
         background: s.bg,
         border: `1px solid ${s.border}`,
         borderRadius: tokens.radius.lg,
         boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-        cursor: 'pointer',
-        textAlign: 'left',
+        overflow: 'hidden',
         animation: 'foundry-toast-in 0.25s ease-out',
       }}
     >
-      <span
-        aria-hidden="true"
+      <button
+        type="button"
+        onClick={() => onDismiss(toast.id)}
+        aria-label={`Dismiss: ${toast.message}`}
         style={{
-          fontSize: 14,
-          color: s.iconColor,
-          flexShrink: 0,
-          fontWeight: tokens.fontWeight.bold,
-          lineHeight: 1,
-        }}
-      >
-        {s.icon}
-      </span>
-      <span
-        style={{
-          fontSize: tokens.fontSize.md,
-          color: tokens.colors.textPrimary,
-          fontWeight: tokens.fontWeight.medium,
-          lineHeight: 1.3,
+          display: 'flex',
+          alignItems: 'center',
+          gap: tokens.spacing.sm,
           flex: 1,
+          minWidth: 0,
+          padding: `${tokens.spacing.sm + 2}px ${tokens.spacing.md}px`,
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left',
+          fontFamily: 'inherit',
         }}
       >
-        {toast.message}
-      </span>
-    </button>
+        <span
+          aria-hidden="true"
+          style={{
+            fontSize: 14,
+            color: s.iconColor,
+            flexShrink: 0,
+            fontWeight: tokens.fontWeight.bold,
+            lineHeight: 1,
+          }}
+        >
+          {s.icon}
+        </span>
+        <span
+          style={{
+            fontSize: tokens.fontSize.md,
+            color: tokens.colors.textPrimary,
+            fontWeight: tokens.fontWeight.medium,
+            lineHeight: 1.3,
+            flex: 1,
+          }}
+        >
+          {toast.message}
+        </span>
+      </button>
+      {/* Inline action ("Share", "Undo") — the undo pattern: the fix for a
+          mis-tap lives where the mis-tap happened. Tapping it also dismisses. */}
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            onDismiss(toast.id);
+            toast.action?.onClick();
+          }}
+          style={{
+            flexShrink: 0,
+            padding: `0 ${tokens.spacing.md}px`,
+            background: 'transparent',
+            border: 'none',
+            borderLeft: `1px solid ${s.border}`,
+            color: tokens.colors.accent,
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          {toast.action.label}
+        </button>
+      )}
+    </div>
   );
 }
 

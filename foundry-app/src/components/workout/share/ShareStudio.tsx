@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { tokens } from '../../../styles/tokens';
 import { emit } from '../../../utils/events';
+import { haptic } from '../../../utils/helpers';
 import { captureNodeToPng } from '../../../utils/shareWorkout';
 import { shareImage, downloadImage } from '../../../utils/shareImage';
 import {
@@ -20,6 +21,10 @@ interface ShareStudioProps {
   data: ShareCardData;
   /** Caption for "Copy caption" — the image is the message, text is optional. */
   caption: string;
+  /** The image left the app (system sheet completed, or saved on web). The
+   *  studio closes itself on this; a cancelled sheet keeps it open so the
+   *  lifter can pick another card. */
+  onShared?: (outcome: 'shared' | 'saved') => void;
 }
 
 /**
@@ -28,7 +33,7 @@ interface ShareStudioProps {
  * utils/shareImage) — which already lists every app the lifter has, so this
  * screen doesn't duplicate it with brand tiles.
  */
-export default function ShareStudio({ open, onClose, data, caption }: ShareStudioProps) {
+export default function ShareStudio({ open, onClose, data, caption, onShared }: ShareStudioProps) {
   const templates = availableTemplates(data.stats, data.quote);
   const [template, setTemplate] = useState<ShareTemplate>(templates[0]);
   const [busy, setBusy] = useState(false);
@@ -80,7 +85,14 @@ export default function ShareStudio({ open, onClose, data, caption }: ShareStudi
     try {
       const dataUrl = await render();
       const outcome = await shareImage({ dataUrl, fileName, title: `${data.dayLabel} — The Foundry` });
+      // Cancelled sheet: stay put, the lifter may want a different card.
+      if (outcome === 'cancelled') return;
+      // Close the loop: one success haptic, then back to where they came
+      // from. Staying on the share screen after a share was a dead end.
+      haptic('complete');
       if (outcome === 'saved') emit('foundry:toast', { message: 'Image saved.', type: 'success' });
+      onShared?.(outcome);
+      onClose();
     } catch (e) {
       console.warn('[Foundry] share failed', e);
       emit('foundry:toast', { message: "Couldn't share the image. Try again.", type: 'error' });

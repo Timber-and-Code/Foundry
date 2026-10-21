@@ -30,6 +30,8 @@ import {
   completeLeftOpenSession,
   sessionHasLoggedWork,
 } from '../../utils/leftOpen';
+import { canShareSession } from '../../utils/shareSnapshot';
+import { emit } from '../../utils/events';
 import WelcomeRibbon from './WelcomeRibbon';
 import AnonLocalBanner from './AnonLocalBanner';
 import HomeCardioCard from './HomeCardioCard';
@@ -150,9 +152,14 @@ function RestStateCard({
   profile,
   setShowSkipConfirm,
   onRebuildDay,
+  shareSessionKey,
 }: {
   displayWeekAllDone: boolean;
   calendarSessionDone: boolean;
+  /** `d:w` of today's finished session when its card can be shared. The
+   *  SHARE chip rides on the done header and leaves with it — the next
+   *  session's day never carries a stale share prompt. */
+  shareSessionKey?: string | null;
   nextDay: TrainingDay | null;
   nextDayIdx: number;
   nextDayForCollapse: TrainingDay | null;
@@ -247,11 +254,40 @@ function RestStateCard({
               {headerLabel}
             </span>
           </div>
-          {doneLabel && calendarSessionDone && (
-            <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
-              {doneLabel}
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            {doneLabel && calendarSessionDone && (
+              <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                {doneLabel}
+              </span>
+            )}
+            {shareSessionKey && calendarSessionDone && (
+              <button
+                type="button"
+                aria-label={`Share ${doneLabel || 'this workout'}`}
+                data-testid="home-share-chip"
+                onClick={() => {
+                  const [d, w] = shareSessionKey.split(':');
+                  emit('foundry:openShare', { dayIdx: Number(d), weekIdx: Number(w) });
+                }}
+                style={{
+                  flexShrink: 0,
+                  padding: '6px 12px',
+                  borderRadius: 999,
+                  border: '1px solid var(--accent)66',
+                  background: 'var(--accent)14',
+                  color: 'var(--accent)',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  fontFamily: 'inherit',
+                  lineHeight: 1,
+                }}
+              >
+                SHARE
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Single collapsible recovery guide */}
@@ -742,6 +778,15 @@ function HomeTab({
   const doneLabel = calendarSessionDone
     ? activeDays[calDayIdx]?.label || ''
     : activeDays[activeDays.length - 1]?.label || '';
+  // Today's finished session (completed, not skipped) with something to put
+  // on a card → the done header gets a SHARE chip.
+  const shareSessionKey = (() => {
+    if (!calendarSessionDone) return null;
+    const key = todayKeys.find((k) => completedDays.has(k)) ?? null;
+    if (!key) return null;
+    const [d, w] = key.split(':');
+    return canShareSession(Number(d), Number(w)) ? key : null;
+  })();
 
   // Onboarding v2: signal that Home mounted so the CoachMarkOrchestrator
   // can arm the 2s dwell timer for the phase-bar mark. The `establish`
@@ -1258,6 +1303,7 @@ function HomeTab({
           profile={profile}
           setShowSkipConfirm={setShowSkipConfirm}
           onRebuildDay={onRebuildDay}
+          shareSessionKey={shareSessionKey}
         />
       ) : (
         <>

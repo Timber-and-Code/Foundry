@@ -49,6 +49,7 @@ vi.mock('../../../utils/shareImage', () => ({ shareImage: shareSpy, downloadImag
 
 import WorkoutCompleteModal from '../WorkoutCompleteModal';
 import type { WorkoutCompleteStats } from '../WorkoutCompleteModal';
+import { on } from '../../../utils/events';
 
 const baseStats: WorkoutCompleteStats = {
   sets: 18,
@@ -122,6 +123,78 @@ describe('WorkoutCompleteModal — share', () => {
       fileName: 'foundry-push-a-w2-session.png',
       title: 'Push A — The Foundry',
     });
+  });
+
+  it('a completed share closes the studio and flips the button to SHARED', async () => {
+    renderModal();
+    openStudio();
+    fireEvent.click(screen.getByRole('button', { name: /^share$/i }));
+    await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /share workout/i })).not.toBeInTheDocument());
+    const btn = screen.getByTestId('share-workout-button');
+    expect(btn).toHaveTextContent('SHARED');
+    expect(btn).toHaveAttribute('data-shared', '1');
+    // The screen is still here — NEXT SESSION is the obvious next step.
+    expect(screen.getByRole('button', { name: /next session/i })).toBeInTheDocument();
+  });
+
+  it('a cancelled share sheet keeps the studio open', async () => {
+    shareSpy.mockResolvedValueOnce('cancelled' as never);
+    renderModal();
+    openStudio();
+    fireEvent.click(screen.getByRole('button', { name: /^share$/i }));
+    await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^share$/i })).not.toBeDisabled());
+    expect(screen.getByRole('dialog', { name: /share workout/i })).toBeInTheDocument();
+    expect(screen.getByTestId('share-workout-button')).not.toHaveAttribute('data-shared');
+  });
+
+  it('snapshots the card for the session so it can be shared later', () => {
+    renderModal({ dayIdx: 2 });
+    const raw = localStorage.getItem('foundry:share:d2:w1');
+    expect(raw).toBeTruthy();
+    const snap = JSON.parse(raw as string);
+    expect(snap.dayLabel).toBe('Push A');
+    expect(snap.phase).toBe('Accumulation');
+    expect(snap.stats.sets).toBe(18);
+    // The quote the lifter read on this screen is the one that gets saved.
+    expect(typeof snap.quote.text).toBe('string');
+    expect(screen.getByText(snap.quote.text, { exact: false })).toBeInTheDocument();
+  });
+
+  it('does not snapshot without a meso day index (extra sessions)', () => {
+    renderModal();
+    expect(localStorage.getItem('foundry:share:d2:w1')).toBeNull();
+    expect(Object.keys(localStorage).filter((k) => k.startsWith('foundry:share:'))).toEqual([]);
+  });
+
+  it('NEXT SESSION without sharing leaves a "logged · Share" toast that opens the share host', () => {
+    const toasts: Array<{ message: string; action?: { label: string; onClick: () => void } }> = [];
+    const offToast = on('foundry:toast', (d) => toasts.push(d));
+    const openShare = vi.fn();
+    const offOpen = on('foundry:openShare', openShare);
+    const { props } = renderModal({ dayIdx: 2 });
+    fireEvent.click(screen.getByRole('button', { name: /next session/i }));
+    expect(props.onOk).toHaveBeenCalledTimes(1);
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toBe('Push A logged.');
+    expect(toasts[0].action?.label).toBe('Share');
+    toasts[0].action?.onClick();
+    expect(openShare).toHaveBeenCalledWith({ dayIdx: 2, weekIdx: 1 });
+    offToast();
+    offOpen();
+  });
+
+  it('NEXT SESSION after a share leaves no toast', async () => {
+    const toasts: unknown[] = [];
+    const offToast = on('foundry:toast', (d) => toasts.push(d));
+    renderModal({ dayIdx: 2 });
+    openStudio();
+    fireEvent.click(screen.getByRole('button', { name: /^share$/i }));
+    await waitFor(() => expect(screen.getByTestId('share-workout-button')).toHaveAttribute('data-shared', '1'));
+    fireEvent.click(screen.getByRole('button', { name: /next session/i }));
+    expect(toasts).toHaveLength(0);
+    offToast();
   });
 
   it('Copy caption copies a readable caption', async () => {

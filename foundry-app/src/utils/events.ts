@@ -8,7 +8,18 @@ import type { ToastType } from '../contexts/ToastContext';
 // Event name → detail payload (void = no detail)
 interface FoundryEventMap {
   'foundry:sync': { inflight: number };
-  'foundry:toast': { message: string; type: ToastType };
+  'foundry:toast': {
+    message: string;
+    type: ToastType;
+    /** Optional inline action ("Share", "Undo"). Tapping it dismisses the toast. */
+    action?: { label: string; onClick: () => void };
+    /** Auto-dismiss delay; default 4 s. A toast with an action wants longer. */
+    durationMs?: number;
+  };
+  // Open the share studio for a finished meso session from anywhere (Home
+  // chip, Schedule card, the "logged · Share" toast). ShareHost in App
+  // resolves the saved snapshot or rebuilds it from the logged sets.
+  'foundry:openShare': { dayIdx: number; weekIdx: number };
   'foundry:pull-complete': void;
   'foundry:openCardio': { dateStr: string; protocolId?: string };
   'foundry:openMobility': { dateStr: string; protocolId?: string };

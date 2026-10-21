@@ -2623,6 +2623,7 @@ function DayView({
         <WorkoutCompleteModal
           dayLabel={dayDisplayName(day, dayIdx)}
           dayTag={day.tag}
+          dayIdx={dayIdx}
           gender={profile?.gender}
           profile={profile}
           stats={workoutStats}

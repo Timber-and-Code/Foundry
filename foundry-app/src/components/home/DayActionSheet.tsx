@@ -5,6 +5,8 @@ import { CARDIO_WORKOUTS, MOBILITY_PROTOCOLS, TAG_ACCENT } from '../../data/cons
 import { store, loadCardioSession, isSkipped, setSkipped } from '../../utils/store';
 import { syncSkippedToSupabase } from '../../utils/sync';
 import { sessionHasLoggedWork, completeLeftOpenSession } from '../../utils/leftOpen';
+import { canShareSession } from '../../utils/shareSnapshot';
+import { emit } from '../../utils/events';
 import type { Profile, TrainingDay } from '../../types';
 
 export interface DayActionSheetProps {
@@ -277,6 +279,30 @@ function DayActionSheet(props: DayActionSheetProps) {
                   } else {
                     onPreviewSession(dIdx, wIdx);
                   }
+                }}
+              />
+            );
+          })}
+
+          {/* Share — one row per completed session with logged work. Same
+              card the lifter saw at completion (snapshot), rebuilt from the
+              logged sets for sessions finished before snapshots existed. */}
+          {completedKeys.map((sk) => {
+            const [dStr, wStr] = sk.split(':');
+            const dIdx = Number(dStr);
+            const wIdx = Number(wStr);
+            if (!canShareSession(dIdx, wIdx)) return null;
+            const day = activeDays[dIdx];
+            const shareLabel = `${day?.label || `Day ${dIdx + 1}`} — Week ${wIdx + 1}`;
+            return (
+              <ActionButton
+                key={`share-${sk}`}
+                label={completedKeys.length > 1 ? `Share ${shareLabel}` : 'Share this workout'}
+                description="Post the session card to Instagram, Messages, or anywhere else."
+                tone="accent"
+                onClick={() => {
+                  onClose();
+                  emit('foundry:openShare', { dayIdx: dIdx, weekIdx: wIdx });
                 }}
               />
             );
